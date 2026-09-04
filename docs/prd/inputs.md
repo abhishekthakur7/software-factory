@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | v0.7 |
+| Status | v0.8 |
 | Date | 2026-09-04 |
 | Purpose | Rough requirements and tooling candidates that the charter deliberately excludes (tool selection, architecture). The PRD reads this file; the charter does not. |
 | Cites | `docs/charter.md` v0.9 |
@@ -92,12 +92,13 @@ Rows 4, 7, 9, 10, 11, and 14 were not research questions and are unchanged.
 | 11 Factory as code | A git repository under `factory/`, a manifest, pull requests, the adoption gate as a GitHub Actions check | Recommended | |
 | 12 Evals and benchmarks | Inspect, for now | User | promptfoo, DeepEval, and MLflow not used. The "insufficient information" grade is authored into each grader. The fixture is the R-T-4 export directory through Inspect's sample files field. Revisit if the user base concern returns. |
 | 13 Actions tracking | Later. GitHub MCP server, read-only mode, `actions` and `pull_requests` toolsets, PAT or OAuth | Recommended | S7 is outside the initial version; the pull request is opened by the `pr_open` script on S6 approval. |
-| 14 Deterministic checks | Factory scripts plus the project's linters | Recommended | |
+| 14 Deterministic checks | Factory scripts plus the project's linters. Contract diff: source-level extraction of public declarations with tree-sitter at base and head, generic across languages, no build needed; japicmp or Revapi are a Later Java-only upgrade. Dependency diff: the build tool's resolved dependency list at base and head, not a lockfile | User (contract diff, 2026-09-04); recommended (dependency diff) | Tree-sitter is a library inside a factory script, not a tool or an MCP server, so the enterprise rules are untouched. |
 
 Agent runtime for the initial version, decided by the user on 2026-09-04: the Cursor SDK as primary and Claude Code (CLI and Agent SDK) as secondary, with one custom agent definition per stage, each naming its model in the manifest (D31). Recorded on every run; the first benchmark per stage decides D5 for that stage (PRD section 11, item 19). R10b verified the Cursor SDK's telemetry surface and R10c its terms; see section 5. Before the first run: Privacy Mode enforced on the Cursor team account, a team spend limit set, and both recorded in `config/`.
 
 ## Revision history
 
+- **v0.8, 2026-09-04.** Contract diff selected by the user after the PRD v0.5 review: generic source-level extraction with tree-sitter, japicmp Later. Dependency diff switched from a lockfile to the build tool's resolved list. Row 14 of section 6 updated. Cites charter v0.9; read by PRD v0.6.
 - **v0.7, 2026-09-04.** R10c absorbed: Cursor terms carry no restriction on unattended SDK use; Privacy Mode enforcement and a spend limit become setup steps. Section 5 gained the R10c row; section 6 runtime note amended. Consistency fixes from the PRD review: row 3 MVP wording names codegraph, row 4 runs on the branch diff and does not tag, row 6 no longer names one runtime, codegraph re-index runs before S1. Cites charter v0.9.
 - **v0.6, 2026-09-04.** MVP definition follows the amended D20: S4 automated, row 13 Later. Codegraph attachment decided: MCP server, one tool, by exception. Cites charter v0.8.
 - **v0.5, 2026-09-04.** R10b selection check absorbed: the Cursor SDK verified and made the primary runtime by the user, Claude Code secondary; codegraph refresh and attachment notes sharpened; section 5 gained the R10b rows. Cites charter v0.7.

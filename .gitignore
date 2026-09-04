@@ -4,3 +4,4 @@ runs/
 *.sqlite-wal
 *.sqlite-shm
 .claude/settings.local.json
+.serena/
