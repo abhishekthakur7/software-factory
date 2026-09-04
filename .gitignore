@@ -1,0 +1,6 @@
+.DS_Store
+runs/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.claude/settings.local.json
