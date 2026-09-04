@@ -3,10 +3,12 @@
 
 Usage: python3 tools/render_doc.py docs/charter.md out.html [--standfirst "..."]
 
-Stdlib only. Handles the markdown subset the documents use: one H1, a meta
-table under it, numbered H2 sections, H3 subsections, paragraphs, bullet and
-numbered lists, pipe tables, fenced code, bold, inline code. Charter and PRD
-identifiers (P1, FM-01, C3, D20, Q10, QP-5, R-S3-4, S0) are rendered as chips.
+Stdlib only. Handles the markdown subset the documents use: one H1, an optional
+meta table under it, numbered H2 sections, H3 subsections, paragraphs, bullet
+and numbered lists, pipe tables, fenced code, bold, inline code, and links.
+Content before the first H2 (the PRD part files have no H2) is rendered in
+place. Charter and PRD identifiers (P1, FM-01, C3, D20, Q10, QP-5, R-S3-4, S0)
+are rendered as chips.
 The page is written for the Artifact tool: no doctype, html, head, or body tags.
 """
 import html
@@ -14,8 +16,9 @@ import re
 import sys
 from pathlib import Path
 
-ID_RE = re.compile(r"(?<![\w-])(P\d{1,2}|FM-\d{2}|C\d|D\d{1,2}|QP-\d+|Q\d{1,2}|R-(?:T|I|H|O|F|S\d)-\d+|S\d)(?![\w-])")
+ID_RE = re.compile(r"(?<![\w-])(P\d{1,2}|FM-\d{2}|C\d{1,2}|D\d{1,2}|QP-\d+|Q\d{1,2}|R-(?:T|I|H|O|F|S\d)-\d+|S\d)(?![\w-])")
 BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 
 DEFAULT_STANDFIRST = {
     "charter.md": "The citation root for agent-assisted change to high-stakes, brownfield services. Everything built after this document has to point back to it.",
@@ -154,6 +157,7 @@ def inline(text):
         if i % 2 == 1:
             out.append(f"<code>{esc}</code>")
             continue
+        esc = LINK_RE.sub(r'<a href="\2">\1</a>', esc)
         esc = BOLD_RE.sub(r"<strong>\1</strong>", esc)
         esc = ID_RE.sub(r'<span class="id">\1</span>', esc)
         out.append(esc)
@@ -298,6 +302,21 @@ def parse_blocks(lines):
         i = j
 
 
+def block_html(kind, payload):
+    """Render one non-table block: h3, paragraph, fenced code, or list."""
+    if kind == "h3":
+        return f'<h3 id="{slug(payload)}">{inline(payload)}</h3>'
+    if kind == "p":
+        return f"<p>{inline(payload)}</p>"
+    if kind == "code":
+        return f"<pre><code>{html.escape(payload, quote=False)}</code></pre>"
+    if kind == "list":
+        items, ordered = payload
+        lead = (not ordered) and all(i.startswith("**") for i in items)
+        return render_list(items, ordered, lead)
+    return ""
+
+
 def render(md_text, rel_path, standfirst):
     lines = md_text.splitlines()
     blocks = list(parse_blocks(lines))
@@ -329,35 +348,27 @@ def render(md_text, rel_path, standfirst):
             sections.append(cur)
             continue
         if cur is None:
-            # content before the first h2: the meta table
+            # content before the first h2: the meta table, then anything else in place
             if kind == "table":
                 h, was_meta = render_table(payload, first_table)
                 first_table = False
                 if was_meta:
                     meta_html = h
-                else:
-                    sections.append({"id": "front", "num": "", "title": "", "body": [h], "aside": False})
-            elif kind == "p":
-                sections.append({"id": "front", "num": "", "title": "", "body": [f"<p>{inline(payload)}</p>"], "aside": False})
+                    continue
+            else:
+                h = block_html(kind, payload)
+            sections.append({"id": "front", "num": "", "title": "", "body": [h], "aside": False})
             continue
         if kind == "p" and "principles" in cur["title"].lower() and LEAD_ID_TITLE.match(payload):
             principles_buf.append(payload)
             continue
         flush_principles()
-        if kind == "h3":
-            cur["body"].append(f'<h3 id="{slug(payload)}">{inline(payload)}</h3>')
-        elif kind == "p":
-            cur["body"].append(f"<p>{inline(payload)}</p>")
-        elif kind == "code":
-            cur["body"].append(f"<pre><code>{html.escape(payload, quote=False)}</code></pre>")
-        elif kind == "table":
+        if kind == "table":
             h, was_meta = render_table(payload, first_table)
             first_table = False
             cur["body"].append(h)
-        elif kind == "list":
-            items, ordered = payload
-            lead = (not ordered) and all(i.startswith("**") for i in items)
-            cur["body"].append(render_list(items, ordered, lead))
+        else:
+            cur["body"].append(block_html(kind, payload))
     flush_principles()
 
     toc = []

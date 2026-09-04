@@ -1,6 +1,6 @@
 ---
 name: prd-reviewer
-description: Reviews one assigned slice of the soft-factory PRD (docs/prd/prd.md) against the charter (docs/charter.md) for the initial version scoped in D20. Reads the docs, writes one report file to the path given, returns a short summary. Does not edit repo files.
+description: Reviews one assigned slice of the soft-factory PRD (docs/prd/prd.md and the part files it lists) against the charter (docs/charter.md) for the initial version scoped in D20. Reads the docs, writes one report file to the path given, returns a short summary. Does not edit repo files.
 model: opus
 effort: medium
 tools: Read, Grep, Glob, Write, Bash
@@ -15,7 +15,7 @@ For the initial version (charter D20; PRD section "The initial version"; every r
 ## Before writing
 
 1. Read `docs/charter.md` in full.
-2. Read `docs/prd/prd.md` in full. It is about 700 lines; read all of it once, then re-read the parts of your slice.
+2. Read `docs/prd/prd.md` in full. It is the index: read every part file it lists (`docs/prd/NN-*.md`) in the order listed. Together they are about 800 lines; read all of them once, then re-read the files of your slice. Section numbers in the text map to files through the parts table in the index.
 3. Read `docs/prd/inputs.md` sections 1, 3, and 6.
 4. Do not browse the web. Do not run scripts except `python3 tools/prd_check.py` at most once if you need the citation check.
 
