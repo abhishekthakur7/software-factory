@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Draft v0.11 |
+| Status | Draft v0.12 |
 | Date | 2026-09-04 |
 | Owner | Abhishek Thakur |
 | Cites | `docs/charter.md` v0.11; `docs/prd/inputs.md` v0.8; `docs/research/synthesis.md` v0.1; `docs/research/synthesis-factories.md` v0.1; `docs/research/inbox/warp-article-self-improving-factories.md` |
@@ -79,6 +79,7 @@ Initial is accepted in two steps. **Milestone A, walking skeleton**, runs the co
 
 ## Revision history
 
+- **v0.12, 2026-09-04.** Applied the adapter and sandbox spikes and the owner's local-runtime decision (call 48): R-I-13 names the Cursor SDK local runtime; R-I-4 forbids runtime fallback models and checks the resolved model; R-I-14 replaces overlay wording with copy-on-write copies, moves the egress allowlist to a loopback proxy hashed into the sandbox digest, and makes the launcher own the environment allowlist; `stage_run` gains `cost_settled_at` and R-T-3 permits that one-time write; section 8 and R-F-14 wording follows. 124 rows, 103 Initial, 34 retired ids unchanged. Cites charter v0.11 and inputs v0.8.
 - **v0.11, 2026-09-04.** Closed the final binding ambiguities after the section split: plan subjects now include question-resolution and current-assumption hashes; check results, guard decisions and waivers have canonical content hashes; review approval binds ordered check-result hashes; quorum counts distinct actors over one non-forked current record per slot; trust routes explicitly authorise sanitizer implementations and class downgrades; baseline rows and factory rows have separate lifecycle semantics. R-F-14 covers the resulting conformance cases. Requirement count and Initial/Later scope are unchanged: 124 rows, 103 Initial, 34 retired ids. Cites charter v0.11 and inputs v0.8.
 - **v0.10, 2026-09-04.** Split into one file per section under `docs/prd/`: section 2 at its subsections, section 4 one file per stage, and `prd.md` as the index holding the reading rules, the initial version page, the parts map, and this history. No requirement text changed: 124 rows, 103 Initial, 34 retired ids. `tools/prd_check.py` reads every part the index lists. Cites charter v0.11 and inputs v0.8.
 - **v0.9, 2026-09-04.** Final contract-consistency pass against charter v0.11. Added governance bootstrap and class-join semantics; canonical hashes for tuples, reviewer sets, approvals and approval sets; authority, expiry, waiver-policy and publication-target bindings; explicit outbox and S4/S6 failure routes; isolated base/head build views; safe remote-head import and merge-group handling; immutable external-check states; exposure-backed incident coverage; immutable default, generated-test, incident, control-defect and FM-10 resolution evidence; exact cost provenance; and a baseline cohort frozen before Milestone B. Stale decision narratives and stage summaries were aligned. Requirement count and Initial/Later scope are unchanged: 124 rows, 103 Initial.
