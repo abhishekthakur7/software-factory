@@ -9,7 +9,7 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | Field | Meaning |
 |---|---|
 | `id` | Factory identifier |
-| `source_kind`, `source_ref` | `jira` plus the issue key, or `confluence` plus the page id |
+| `source_kind`, `source_ref` | `jira` plus the issue key, `confluence` plus the page id, or Later `maintenance` plus the enrolment id (R-S0-9) |
 | `title` | From the source |
 | `data_class` | Owner-confirmed class from `trust-profile.yaml`; unknown is ineligible |
 | `trust_profile_hash`, `trust_approval_set_hash` | Exact current profile and satisfying governance approvals pinned at eligibility. Expiry blocks use until fresh quorum approves the same subject; a profile or authority-policy change creates a new subject and requires the corresponding reviewed configuration migration |
@@ -24,18 +24,19 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | `state` | See 2.3 |
 | `blocked_on` | Null, or the single `queue_item` id for the current blocking decision or question round; a question-round item references its versioned `question_set` so several blocking questions remain one resumable boundary |
 | `pause_requested`, `paused_at` | Human-requested stable-boundary pause; independent of the stage state (R-H-13) |
-| `base_sha`, `target_base_sha`, `branch`, `worktree_path`, `head_sha` | The commit from which the current ticket branch is based, the current fetched head of the configured target branch, the ticket branch, its worktree, and the branch head. A refresh creates a new tuple and invalidates downstream evidence (R-S5-12) |
+| `base_sha`, `target_base_sha`, `branch`, `worktree_path`, `head_sha` | The commit from which the current ticket branch is based, the current fetched head of the configured target branch, the ticket branch, its worktree, and the branch head. A human refresh creates a new tuple and invalidates downstream evidence (R-S5-12); a disjoint runner advance re-pins them and enters the review binding as evidence (R-S5-14) |
 | `pr_url`, `pr_identity`, `last_remote_head_sha`, `last_pr_body_hash` | Set from reconciled `pr_create`/`pr_update` receipts after S6 approval and retained across revision cycles |
 | `baseline` | True for the pre-factory tickets of R-O-6; never mixed with factory tickets |
 | `opened_at`, `factory_completed_at`, `closed_at`, `close_reason` | `factory_completed_at` is set at `pr_opened`; `closed_at` only when the human records `merged`, `abandoned`, or `rejected`, so factory cycle time and external outcome are not conflated |
 | `final_head_sha`, `final_target_base_sha`, `final_pr_body_hash`, `merge_sha`, `required_checks_disposition`, `approval_disposition`, `external_revision_count` | Initial manual outcome evidence from R-H-11. The body hash comes from a governed observed-body snapshot or immutable remote locator. `approval_disposition` is `matched`, `mismatched`, or `unknown`; S7 automates observation Later |
 | `close_survey` | Later: optional one-question answer at close (charter section 8, FM-09) |
 
-**`stage_run`**. One row per ticket-stage execution. This is the C5 ledger at execution grain. At S4 there is one row per plan-task execution; `attempt` counts every start and `verification_attempt` counts only executions that reach task validation. S5 has one run per complete check pass. S6 has one run per packet/PR-body assembly and local validation cycle; human approvals are separate records and outbox dispatch/reconciliation lives only on `external_write`, so delivery retries do not distort stage reliability.
+**`stage_run`**. One row per ticket-stage execution. This is the C5 ledger at execution grain. At S4 there is one row per plan-task execution; `attempt` counts every start and `verification_attempt` counts only executions that reach task validation. S4 also holds the runner-driven runs of R-S4-9 and R-S5-14, distinguished by `run_kind`. S5 has one run per complete check pass. S6 has one run per packet/PR-body assembly and local validation cycle; human approvals are separate records and outbox dispatch/reconciliation lives only on `external_write`, so delivery retries do not distort stage reliability.
 
 | Field | Meaning |
 |---|---|
 | `id`, `ticket_id`, `stage`, `plan_item`, `plan_tuple_id`, `attempt`, `verification_attempt` | `ticket_id` is non-null and `stage` is S0 to S7. `plan_item` and `verification_attempt` are null outside S4. `attempt` increments on every fresh execution of the same stage or S4 task; `verification_attempt` is 1 to 3 per approved plan-item version and is null when execution never reached validation |
+| `run_kind` | `task` everywhere except the S4 cases: `task` for a plan-task execution with an agent; `fix_round` for an R-S4-9 agent run against failing machine checks; `base_advance` for the runner's script-only rebase under R-S5-14; `validation_only` for the runner's script-only execution of every task's validation recipes after a fix round or base advance. Only `task` rows carry `plan_item` and `verification_attempt`; the other kinds are excluded from the first-attempt measure and reported separately |
 | `parent_run_id` | Null except for a sub-invocation a stage makes, such as an R-S2-3 restatement: a child row carries its own runtime, model, tokens, cost, and wall clock, counts against its parent's budget (R-I-6), and is excluded from the first-attempt measure |
 | `tier` | The tier in force when the run started |
 | `runtime`, `runtime_version`, `adapter_version`, `model_requested`, `model_resolved` | Exact package/build identities and requested and resolved hosted-model identifiers, recorded verbatim (C4, D5). Null for a script-only stage; resolution never silently selects another model |
@@ -57,6 +58,7 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | `tool`, `tool_version`, `args_digest`, `result_digest` | Exact tool identity and digests. Credentials are stripped before digesting |
 | `args_artefact`, `result_artefact` | Governed, redacted artefacts whenever arguments or results influence a later output; null only when the data is derivable from another registered input or declared unavailable |
 | `duration_ms`, `tokens` | Where the runtime exposes them; null otherwise, never estimated |
+| `result_bytes`, `inline` | Size of the governed result, and whether it was returned inline to the agent context or only as a `tool_result` artefact path with an excerpt (R-I-17) |
 
 **`artefact`**. One row per file an agent or script produces.
 
@@ -185,6 +187,15 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 |---|---|
 | `id`, `fixture_set`, `stage`, `manifest_hash` | The configuration under test, by its manifest hash |
 | `scores_ref`, `cost`, `currency`, `cost_basis`, `pricing_table_hash`, `at` | Scores are `score` rows with `context = benchmark`; cost fields use the same provenance contract as a stage run |
+
+**`fixture_candidate`**. One row per candidate eval fixture written from an outcome. Filled Later by R-F-15; a row never writes into `factory/`.
+
+| Field | Meaning |
+|---|---|
+| `id`, `ticket_id`, `stage_run_id`, `trigger` | The run it came from and the trigger: `send_back`, `revision_after_approval`, `abandoned`, or `fix_round` |
+| `skill_ref`, `rubric_ref` | The skill whose eval directory the candidate targets and the rubric in force, with hashes |
+| `note`, `artefact_ids` | The human note or failing recipe output, and the governed artefacts the candidate rests on |
+| `state` | `open`, `accepted` (exported by `fixture_from_export` under redaction review), or `dismissed` |
 
 **`baseline_measure`**. One row exists for every selected baseline ticket and requested measure, including unavailable values: `id`, `ticket_id`, `measure`, `measure_definition_hash`, `service`, `ticket_type`, derived tier under the pinned tier-rule hash, nullable `value`, `status` (`observed`, `approximate`, `unavailable`), `source_kind`, immutable `source_ref` and content hash, `source_observed_at`, `entered_by`, `entered_at`, and `unavailable_reason`. Only `observed` rows whose definition hash, service, type, and tier match the factory view are comparable. Approximate and unavailable rows remain visible but never enter a pass/fail comparison. Baseline views read only this table; all other views exclude baseline tickets (R-O-4).
 
