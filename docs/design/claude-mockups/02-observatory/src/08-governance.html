@@ -1,0 +1,178 @@
+<section class="screen" id="s-governance" data-title="Governance" hidden>
+  <div class="gv">
+
+    <div class="gv-tabs">
+      <button class="gv-tab on">Trust profile</button>
+      <button class="gv-tab">Owners</button>
+    </div>
+
+    <div class="gv-sh">
+      <div>
+        <h2>Trust profile</h2>
+        <p><span class="mono">4ab7d0…c19d</span> · approved 3 Sep 2026</p>
+      </div>
+      <a class="gv-flink" href="#governance">config/trust-profile.yaml<svg width="14" height="14"><use href="#i-arrowur"/></svg></a>
+    </div>
+
+    <div class="gv-row">
+      <div class="gv-l"><b>Admitted scope</b><span>Workspace and repos</span></div>
+      <div class="gv-c"><em class="gv-v">Northwind Payments</em><span class="pill">Fixture</span></div>
+    </div>
+
+    <div class="gv-row">
+      <div class="gv-l"><b>Data classes</b><span>Default deny</span></div>
+      <div class="gv-c"><span class="pill">Internal</span><span class="pill">Public</span></div>
+    </div>
+
+    <div class="gv-row">
+      <div class="gv-l"><b>Routes</b><span>Egress and display</span></div>
+      <div class="gv-c">
+        <div class="gv-rt">
+          <div class="gv-rth"><span>Route</span><span>Provider</span><span>Reader</span><span class="r">Retention</span></div>
+          <div class="gv-rtr"><span class="ell">Hosted model inference</span><span class="mut">Anthropic API</span><span class="mut">Agent</span><span class="r">0 d</span></div>
+          <div class="gv-rtr"><span class="ell">Export and display</span><span class="mut">Local</span><span class="mut">Owner</span><span class="r">90 d</span></div>
+          <div class="gv-rtr"><span class="ell">Digest</span><span class="mut">Slack, stub</span><span class="mut">Team</span><span class="r">30 d</span></div>
+          <div class="gv-rtr"><span class="ell">Pull request</span><span class="mut">GitHub, stub</span><span class="mut">Reviewer</span><span class="r">Repo</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gv-row">
+      <div class="gv-l"><b>Sanitisers</b><span>Applied on every route</span></div>
+      <div class="gv-c gv-stat"><b>3</b><span>identities</span></div>
+    </div>
+
+    <div class="gv-row">
+      <div class="gv-l"><b>Guard, 30 days</b><span>Boundary decisions</span></div>
+      <div class="gv-c gv-stat"><b>6,412</b><span>allow</span><i>·</i><b>88</b><span>redact</span><i>·</i><b>2</b><span>deny</span></div>
+    </div>
+
+    <div class="gv-row">
+      <div class="gv-l"><b>Approvals</b><span>Metadata only</span></div>
+      <div class="gv-c">
+        <div class="gv-apr">
+          <div class="gv-aprr"><span class="av">IC</span><span class="gv-pn">Ines Carvalho</span><span class="gv-role">Security</span>
+            <span class="gv-ok"><i class="dot"></i>Approved</span><span class="gv-exp">expires 30 Nov</span></div>
+          <div class="gv-aprr"><span class="av">ML</span><span class="gv-pn">Mei Lin</span><span class="gv-role">Legal</span>
+            <span class="gv-ok"><i class="dot"></i>Approved</span><span class="gv-exp">expires 30 Nov</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gv-sh gv-sh2">
+      <div>
+        <h2>Owners</h2>
+        <p>9 roles · changed by PR #4802</p>
+      </div>
+      <a class="gv-flink" href="#governance">config/owners.yaml<svg width="14" height="14"><use href="#i-arrowur"/></svg></a>
+    </div>
+
+    <div class="gv-row own">
+      <div class="gv-l"><b>Factory owner</b></div>
+      <div class="gv-c"><span class="av">PR</span><span class="gv-pn">Priya Raman</span><span class="gv-scope">All stages</span></div>
+    </div>
+    <div class="gv-row own">
+      <div class="gv-l"><b>Security approver</b></div>
+      <div class="gv-c"><span class="av">IC</span><span class="gv-pn">Ines Carvalho</span><span class="gv-scope">Trust profile</span></div>
+    </div>
+    <div class="gv-row own">
+      <div class="gv-l"><b>Legal approver</b></div>
+      <div class="gv-c"><span class="av">ML</span><span class="gv-pn">Mei Lin</span><span class="gv-scope">Trust profile</span></div>
+    </div>
+    <div class="gv-row own">
+      <div class="gv-l"><b>S3 reviewer</b></div>
+      <div class="gv-c"><span class="av">TW</span><span class="gv-pn">Tomasz Wierzbicki</span><span class="gv-scope">Spec and plan</span></div>
+    </div>
+    <div class="gv-row own">
+      <div class="gv-l"><b>S6 reviewer</b></div>
+      <div class="gv-c"><span class="av">TW</span><span class="gv-pn">Tomasz Wierzbicki</span><span class="gv-scope">Human review</span></div>
+    </div>
+    <div class="gv-row own">
+      <div class="gv-l"><b>Outcome recorder</b></div>
+      <div class="gv-c"><span class="av">PR</span><span class="gv-pn">Priya Raman</span><span class="gv-scope">Record</span></div>
+    </div>
+
+    <div class="gv-foot">
+      <button class="btn">Cancel</button>
+      <button class="btn pri">Approve profile</button>
+    </div>
+
+  </div>
+</section>
+
+<style data-screen="governance">
+/* divider token: R22 weight, ~10 levels off the card surface, not the card border token */
+#s-governance{max-width:1290px;--gv-div:rgba(255,255,255,.045)}
+[data-theme="light"] #s-governance{--gv-div:#F4F5F7}
+#s-governance .gv{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 26px 20px}
+[data-theme="light"] #s-governance .gv{box-shadow:0 1px 2px rgba(16,24,40,.04)}
+
+/* tab row (R22) */
+#s-governance .gv-tabs{display:flex;gap:6px;padding:2px 0 6px}
+#s-governance .gv-tab{height:36px;padding:0 15px;border-radius:9px;font-size:14.5px;font-weight:500;
+  color:var(--muted);letter-spacing:-.01em}
+#s-governance .gv-tab:hover{color:var(--text)}
+#s-governance .gv-tab.on{background:var(--card-3);color:var(--text)}
+
+/* section header (R22) */
+#s-governance .gv-sh{display:flex;align-items:flex-start;gap:24px;padding:30px 0 22px}
+#s-governance .gv-sh2{padding-top:32px;border-top:1px solid var(--gv-div)}
+#s-governance .gv-sh h2{font-size:17px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+#s-governance .gv-sh p{font-size:13.5px;color:var(--muted);margin-top:6px;letter-spacing:-.005em}
+#s-governance .gv-sh .mono{font-size:13px}
+#s-governance .gv-flink{margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;
+  font-size:13.5px;color:var(--muted);white-space:nowrap;padding-top:2px}
+#s-governance .gv-flink svg{flex:0 0 14px;color:var(--faint)}
+#s-governance .gv-flink:hover{color:var(--text)}
+
+/* settings row (R22): one pitch for both sections, 84px minimum */
+#s-governance .gv-row{display:grid;grid-template-columns:380px minmax(0,1fr);gap:32px;align-items:start;
+  padding:21px 0;min-height:84px;border-top:1px solid var(--gv-div)}
+#s-governance .gv-l b{display:block;font-size:15px;font-weight:600;letter-spacing:-.015em;line-height:1.3}
+#s-governance .gv-l span{display:block;font-size:13px;color:var(--muted);margin-top:4px;line-height:1.35}
+#s-governance .gv-c{display:flex;align-items:center;gap:10px;min-height:40px;font-size:14.5px}
+#s-governance .gv-v{font-style:normal;font-weight:500;letter-spacing:-.01em}
+#s-governance .gv-row.own .gv-c{gap:11px;width:640px;max-width:100%}
+#s-governance .gv-scope{margin-left:auto;font-size:13px;color:var(--muted);white-space:nowrap;
+  letter-spacing:-.005em}
+
+/* stat value line */
+#s-governance .gv-stat{gap:7px}
+#s-governance .gv-stat b{font-size:15px;font-weight:600;letter-spacing:-.01em}
+#s-governance .gv-stat span{font-size:13.5px;color:var(--muted)}
+#s-governance .gv-stat i{font-style:normal;color:var(--faint);margin:0 4px}
+
+/* routes mini table */
+#s-governance .gv-rt{display:block;width:640px;max-width:100%;background:var(--card-2);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden}
+#s-governance .gv-rth,#s-governance .gv-rtr{display:grid;grid-template-columns:minmax(0,1fr) 124px 92px 74px;
+  align-items:center;gap:16px;padding:0 15px}
+#s-governance .gv-rth{height:34px;font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--faint)}
+#s-governance .gv-rtr{height:38px;font-size:13.5px;border-top:1px solid var(--border)}
+#s-governance .gv-rtr .mut{font-size:13px}
+
+/* approval rows */
+#s-governance .gv-apr{width:640px;max-width:100%}
+#s-governance .gv-aprr{display:flex;align-items:center;gap:12px;height:44px}
+#s-governance .gv-aprr+.gv-aprr{border-top:1px solid var(--gv-div)}
+#s-governance .gv-pn{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
+#s-governance .gv-aprr .gv-pn{flex:0 0 158px}
+#s-governance .gv-role{font-size:13px;color:var(--muted)}
+#s-governance .gv-ok{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:13.5px;
+  font-weight:500;color:var(--pass)}
+#s-governance .gv-exp{flex:0 0 106px;text-align:right;font-size:13px;color:var(--muted)}
+
+/* footer pair (R22) */
+#s-governance .gv-foot{display:flex;justify-content:flex-end;gap:12px;padding:20px 0 0;
+  border-top:1px solid var(--gv-div);margin-top:8px}
+
+/* narrow widths: keep the Routes route column off the ellipsis (was breaking ~1330) */
+@media (max-width:1420px){
+  #s-governance .gv-row{grid-template-columns:300px minmax(0,1fr);gap:24px}
+  #s-governance .gv-rth,#s-governance .gv-rtr{grid-template-columns:minmax(0,1fr) 110px 84px 74px;
+    gap:12px;padding:0 13px}
+  #s-governance .gv-aprr .gv-pn{flex:0 0 140px}
+  #s-governance .gv-exp{flex:0 0 98px}
+}
+</style>

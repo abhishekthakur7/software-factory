@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Soft Factory — Workbench</title>
+<style>
+@font-face{font-family:"Jakarta";src:url("assets/PlusJakartaSans-Variable.ttf") format("truetype");font-weight:200 800;font-style:normal;font-display:block}
+@font-face{font-family:"GeistMono";src:url("assets/GeistMono-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:block}
+
+/* ============ tokens ============ */
+:root{
+  --f-ui:"Jakarta",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"GeistMono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --page:#EFEFEB; --bg:#FFFFFF; --rail:#FAFAF8;
+  --s1:#FFFFFF; --s2:#FAFAF7; --s3:#F3F3EF; --s4:#EBEBE6;
+  --bd:#E5E5DF; --hair:#F0F0EA; --ctl-bd:#DEDED7;
+  --tx:#141618; --mu:#6D7276; --fa:#9AA0A4;
+
+  --acc:#14684A; --acc-bg:#E6F1EB; --acc-fg:#FFFFFF; --acc-so:#8FC4AC;
+  --pass:#14764F; --pass-bg:#E4F2EA;
+  --fail:#C0392F; --fail-bg:#FBEAE8;
+  --warn:#9C6511; --warn-bg:#FBF3E4;
+  --neu-bg:#F0F0EB; --neu-tx:#61666A;
+
+  --nav:#101315; --nav-2:#1B1F22; --nav-3:#262B2E; --nav-bd:rgba(255,255,255,.09);
+  --nav-tx:#F2F3F1; --nav-mu:#9BA2A6; --nav-fa:#6E7579; --nav-edge:transparent;
+  --dark-surf:#111416; --dark-surf-2:#1B1F22; --dark-surf-bd:transparent;
+
+  --sh-card:0 1px 2px rgba(18,20,22,.05);
+  --sh-pop:0 1px 3px rgba(18,20,22,.10),0 24px 56px -14px rgba(18,20,22,.30);
+  --sh-app:0 1px 2px rgba(18,20,22,.06),0 30px 70px -24px rgba(18,20,22,.28);
+  --grid:#E9E9E3;
+}
+[data-theme="dark"]{
+  /* elevation by lighter surfaces: page < sidebar < content < rail < card < inner */
+  --page:#0E1113; --bg:#1C2023; --rail:#222629;
+  --s1:#262A2E; --s2:#2B3034; --s3:#353B3F; --s4:#42484C;
+  --bd:rgba(255,255,255,.11); --hair:rgba(255,255,255,.07); --ctl-bd:rgba(255,255,255,.16);
+  --tx:#EDEEEE; --mu:#A0A6AA; --fa:#868D92;
+
+  --acc:#54B08A; --acc-bg:rgba(84,176,138,.16); --acc-fg:#08130E; --acc-so:#2E6B51;
+  --pass:#5CBB8B; --pass-bg:rgba(92,187,139,.15);
+  --fail:#E4776C; --fail-bg:rgba(228,119,108,.15);
+  --warn:#DDA84E; --warn-bg:rgba(221,168,78,.15);
+  --neu-bg:rgba(255,255,255,.08); --neu-tx:#AEB4B8;
+
+  --nav:#07090A; --nav-2:#14171A; --nav-3:#262C2F; --nav-bd:rgba(255,255,255,.10);
+  --nav-tx:#EDEEEE; --nav-mu:#949B9F; --nav-fa:#6B7276; --nav-edge:rgba(255,255,255,.09);
+  --dark-surf:#31363A; --dark-surf-2:#31363A; --dark-surf-bd:rgba(255,255,255,.14);
+
+  --sh-card:0 1px 2px rgba(0,0,0,.45);
+  --sh-pop:0 1px 3px rgba(0,0,0,.55),0 26px 60px -14px rgba(0,0,0,.8);
+  --sh-app:0 0 0 1px rgba(255,255,255,.075),0 30px 70px -24px rgba(0,0,0,.9);
+  --grid:rgba(255,255,255,.06);
+}
+
+/* ============ base ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);color:var(--tx);font-family:var(--f-ui);font-size:14px;line-height:1.45;
+  padding:14px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit;text-decoration:none}
+svg{display:block;flex:none}
+.i{width:18px;height:18px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.i-16{width:16px;height:16px}
+.i-14{width:14px;height:14px;stroke-width:1.8}
+.i-20{width:20px;height:20px}
+.tn{font-variant-numeric:tabular-nums}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mu{color:var(--mu)} .fa{color:var(--fa)}
+
+/* ============ app frame (R04) ============ */
+.app{height:calc(100vh - 28px);display:grid;grid-template-columns:254px 1fr;
+  background:var(--bg);border-radius:18px;overflow:hidden;box-shadow:var(--sh-app)}
+
+/* ---- sidebar (R04 + R10) ---- */
+.side{background:var(--nav);color:var(--nav-tx);display:flex;flex-direction:column;padding:16px 13px 13px;
+  border-right:1px solid var(--nav-edge)}
+.brand{display:flex;align-items:center;gap:10px;height:34px;padding:0 7px;margin-bottom:14px}
+.brand .mk{width:22px;height:22px;color:var(--acc)}
+.brand b{font-size:15px;font-weight:600;letter-spacing:-.015em;flex:1}
+.tt{display:flex;background:var(--nav-2);border-radius:8px;padding:2px;gap:2px}
+.tt button{width:26px;height:22px;border-radius:6px;display:grid;place-items:center;color:var(--nav-fa)}
+.tt button.is-on{background:var(--nav-3);color:var(--nav-tx)}
+.tt .i{width:13px;height:13px}
+.ws{display:flex;align-items:center;gap:9px;height:46px;padding:0 12px;border-radius:11px;
+  background:var(--nav-2);border:1px solid var(--nav-bd);margin-bottom:9px}
+.ws .av{width:24px;height:24px;border-radius:7px;background:var(--acc);color:var(--acc-fg);
+  display:grid;place-items:center;font-size:11px;font-weight:600}
+.ws .t{flex:1;font-size:13.5px;font-weight:500;letter-spacing:-.01em}
+.ws .i{color:var(--nav-fa);width:15px;height:15px}
+.sbox{display:flex;align-items:center;gap:9px;height:38px;padding:0 12px;border-radius:10px;
+  background:var(--nav-2);color:var(--nav-fa);font-size:13.5px;margin-bottom:18px}
+.sbox kbd{margin-left:auto;font:500 11px/1 var(--f-ui);color:var(--nav-fa);letter-spacing:.04em}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:11px;height:44px;padding:0 12px;border-radius:11px;
+  color:var(--nav-mu);font-size:14px;font-weight:500;letter-spacing:-.005em}
+.nav a .i{width:18px;height:18px;opacity:.9}
+.nav a.is-active{background:var(--nav-3);color:#fff}
+.nav a .bdg{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--nav-fa);
+  background:var(--nav-3);border-radius:999px;padding:2px 7px;line-height:1.3}
+.nav a.is-active .bdg{background:var(--acc);color:var(--acc-fg)}
+.side .grow{flex:1}
+.runner{display:flex;align-items:center;gap:9px;height:38px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--nav-bd);color:var(--nav-mu);font-size:12.5px;font-weight:500;margin-bottom:10px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--acc);position:relative;flex:none}
+.pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--acc);opacity:.35}
+.me{display:flex;align-items:center;gap:10px;height:48px;padding:0 8px;border-top:1px solid var(--nav-bd);margin-top:2px}
+.me .av{width:28px;height:28px;border-radius:50%;background:#3A4E63;color:#fff;display:grid;place-items:center;
+  font-size:11px;font-weight:600;letter-spacing:.02em}
+.me .t{flex:1;font-size:13.5px;font-weight:500}
+.me .i{color:var(--nav-fa);width:16px;height:16px}
+
+/* ---- content ---- */
+.main{min-width:0;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.pad{padding:0 30px}
+.hd{display:flex;align-items:center;gap:14px;padding:24px 30px 18px}
+h1{font-size:32px;font-weight:600;letter-spacing:-.028em;line-height:1.1}
+.hd .sp{flex:1}
+.sub{font-size:13px;color:var(--mu);display:flex;align-items:center;gap:9px}
+
+/* ---- controls ---- */
+.btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:10px;
+  border:1px solid var(--ctl-bd);background:var(--s1);font-size:13.5px;font-weight:500;color:var(--tx);
+  letter-spacing:-.005em;white-space:nowrap}
+.btn.pri{background:var(--tx);border-color:var(--tx);color:var(--s1)}
+.btn.sm{height:32px;padding:0 12px;font-size:13px;border-radius:9px}
+.btn.dis{opacity:.42}
+.btn.acc{background:var(--acc);border-color:var(--acc);color:var(--acc-fg)}
+.ibtn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--mu);border:1px solid transparent}
+.ibtn:hover{background:var(--s3)}
+.chips{display:flex;gap:9px;padding:0 30px 16px;border-bottom:1px solid var(--bd)}
+.chip{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:999px;
+  border:1px dashed var(--ctl-bd);color:var(--mu);font-size:13.5px;font-weight:500}
+.chip .i{width:14px;height:14px;opacity:.65}
+.chip.is-on{background:var(--tx);border:1px solid var(--tx);color:var(--s1)}
+.chip.is-on .n{background:rgba(255,255,255,.22);border-radius:999px;padding:0 6px;font-size:11.5px;font-weight:600}
+.seg{display:inline-flex;background:var(--s3);border-radius:10px;padding:3px;gap:2px}
+.seg button{height:28px;padding:0 13px;border-radius:8px;font-size:13px;font-weight:500;color:var(--mu)}
+.seg button.is-on{background:var(--bg);color:var(--tx);box-shadow:var(--sh-card)}
+
+/* ---- pills ---- */
+.pill{display:inline-flex;align-items:center;gap:6px;height:23px;padding:0 9px;border-radius:999px;
+  font-size:12.5px;font-weight:500;background:var(--neu-bg);color:var(--neu-tx);white-space:nowrap;letter-spacing:-.005em}
+.pill.pass{background:var(--pass-bg);color:var(--pass)}
+.pill.fail{background:var(--fail-bg);color:var(--fail)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.acc{background:var(--acc-bg);color:var(--acc)}
+/* running is the accent as a ringed dot on a neutral pill, never the pass green */
+.pill.run{background:var(--neu-bg);color:var(--tx);padding-left:8px}
+.pill.run i{width:7px;height:7px;border-radius:50%;background:var(--acc);flex:none;position:relative;margin-right:3px}
+.pill.run i::after{content:"";position:absolute;inset:-3.5px;border-radius:50%;border:1.5px solid var(--acc);opacity:.4}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;display:block}
+.dot.b1{background:var(--fail)} .dot.b2{background:var(--warn)} .dot.b3{background:var(--fa)}
+
+/* ---- table (R04) ---- */
+.tw{flex:1;min-height:0;overflow:auto;padding:0 30px}
+tr.grp td{height:38px;background:var(--s2);border-bottom:1px solid var(--hair);border-top:1px solid var(--hair);
+  font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu)}
+tr.grp:first-child td{border-top:0}
+.tw table+*{display:none}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{text-align:left;font-size:12.5px;font-weight:500;color:var(--fa);height:40px;padding:0 12px;
+  border-bottom:1px solid var(--bd);letter-spacing:-.005em;position:sticky;top:0;background:var(--bg);z-index:2}
+td{height:64px;padding:0 12px;border-bottom:1px solid var(--hair);font-size:15px;letter-spacing:-.008em}
+th:first-child,td:first-child{padding-left:4px}
+th:last-child,td:last-child{padding-right:4px}
+.r-sel td{background:var(--s3)}
+/* minor: a neutral pill on the selected row is 1.02:1 against --s3, so give it a ring */
+.r-sel .pill:not(.pass):not(.fail):not(.warn):not(.acc):not(.run){box-shadow:inset 0 0 0 1px var(--ctl-bd)}
+.r-hov td{background:var(--s2)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.id{color:var(--mu);font-variant-numeric:tabular-nums;font-weight:500}
+.cell{display:flex;align-items:center;gap:10px;min-width:0}
+.kico{width:26px;height:26px;border-radius:8px;background:var(--s3);color:var(--mu);display:grid;place-items:center;flex:none}
+.r-sel .kico{background:var(--acc-bg);color:var(--acc)}
+.cbx{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--ctl-bd);display:grid;place-items:center;color:transparent}
+.cbx.on{background:var(--tx);border-color:var(--tx);color:var(--s1)}
+.dots7{display:flex;gap:4px;align-items:center}
+.dots7 i{width:7px;height:7px;border-radius:50%;background:var(--s4);display:block}
+.dots7 i.d{background:var(--tx);opacity:.72}
+.dots7 i.r{background:var(--acc);box-shadow:0 0 0 3px var(--acc-bg)}
+.dots7 i.f{background:var(--fail)}
+.dots7 i.w{background:var(--warn)}
+.dots7 i.x{background:var(--fa)}
+
+/* ---- cards ---- */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh-card)}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fa)}
+.ctitle{font-size:16.5px;font-weight:600;letter-spacing:-.018em}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:0 30px 18px}
+.kpi{padding:17px 20px 17px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh-card)}
+.kpi .ic{width:30px;height:30px;border-radius:50%;background:var(--s3);color:var(--tx);display:grid;place-items:center;margin-bottom:12px}
+.kpi .k{font-size:12.5px;color:var(--mu);font-weight:500;letter-spacing:-.005em}
+.kpi .v{font-size:27px;font-weight:600;letter-spacing:-.035em;line-height:34px;height:34px;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--mu);letter-spacing:-.01em;margin-left:6px}
+/* one hero card per KPI row: tinted, number above the page title */
+.kpi.hero{background:var(--acc-bg);border-color:transparent}
+.kpi.hero .ic{background:rgba(20,104,74,.13);color:var(--acc)}
+[data-theme="dark"] .kpi.hero .ic{background:rgba(84,176,138,.18);color:var(--acc)}
+.kpi.hero .v{font-size:36px;letter-spacing:-.038em;line-height:34px;height:34px;position:relative;top:-2px}
+</style>
+<style>
+/* ---- right rail (R04) ---- */
+/* A1/A2: the rail carries R04's four sections and takes the width the 5-column table cannot use,
+   so the table is content-wide and the rail runs to the frame edge. */
+.rail{width:414px;flex:none;border-left:1px solid var(--bd);background:var(--rail);display:flex;flex-direction:column;overflow:hidden}
+.rail .sec{padding:22px 26px;flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+.rail .sec+.sec{border-top:1px solid var(--bd)}
+.rail .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.gauge{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 0 0}
+.gauge .n{font-size:38px;font-weight:600;letter-spacing:-.035em;line-height:1;margin-top:-63px}
+.gauge .s{font-size:12.5px;color:var(--mu);margin-top:6px}
+.segbar{display:flex;gap:3px;height:9px;margin-bottom:16px}
+.segbar i{display:block;border-radius:3px}
+.lg{display:flex;flex-direction:column;gap:13px}
+.lg .row{display:flex;align-items:center;gap:9px;font-size:13.5px}
+.lg .row .t{flex:1;color:var(--tx)}
+.lg .row .v{color:var(--mu);font-variant-numeric:tabular-nums;font-weight:500}
+.g23{display:grid;grid-template-columns:1fr 1fr;gap:22px 16px}
+.g23 .c .k{font-size:12.5px;color:var(--mu)}
+.g23 .c .v{font-size:24px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:1px}
+.g23 .c.wide{grid-column:1/3}
+/* A2: fourth rail section, R04's "Top sellers" slot */
+.rec .row{display:flex;align-items:center;gap:11px;height:44px;font-size:13.5px;border-bottom:1px solid var(--hair)}
+.rec .row:last-child{border-bottom:0}
+.rec .row .t{flex:1;color:var(--tx)}
+.rec .row .v{color:var(--fa);font-variant-numeric:tabular-nums}
+
+/* ---- floating detail card (R04) ---- */
+.stage{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.fcard{position:absolute;right:30px;top:150px;width:404px;border-radius:14px;background:var(--s1);
+  border:1px solid var(--bd);box-shadow:var(--sh-pop);overflow:hidden;z-index:5}
+.fch{display:flex;align-items:center;gap:10px;height:46px;padding:0 12px 0 12px;background:var(--dark-surf);color:#fff;
+  border-bottom:1px solid var(--dark-surf-bd)}
+.fch .gr{color:rgba(255,255,255,.4)}
+.fch .t{flex:1;font-size:14px;font-weight:600;letter-spacing:-.01em}
+.fch button{color:rgba(255,255,255,.65);width:26px;height:26px;display:grid;place-items:center;border-radius:7px}
+.fcb{padding:16px 18px 0}
+.tabs{display:flex;gap:20px;border-bottom:1px solid var(--bd);margin:14px 0 0}
+.tabs button{height:36px;font-size:13.5px;font-weight:500;color:var(--fa);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.is-on{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
+.slot{display:flex;align-items:center;gap:11px;height:50px;border-bottom:1px solid var(--hair)}
+.slot:last-of-type{border-bottom:0}
+.av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:10.5px;font-weight:600;
+  letter-spacing:.02em;color:#fff;flex:none;padding:0}
+.av-tw{background:#4B6B8A} .av-pr{background:#3A4E63} .av-ic{background:#7A5B78}
+.slot .t{flex:1;min-width:0}
+.slot .t b{display:block;font-size:13.5px;font-weight:500;letter-spacing:-.01em}
+.slot .t s{display:block;font-size:12px;color:var(--fa);text-decoration:none}
+.ev{display:flex;align-items:center;gap:10px;height:44px;margin:0 -18px;padding:0 18px;background:var(--s2);
+  border-top:1px solid var(--hair);font-size:13px;color:var(--mu)}
+.ev a{margin-left:auto;color:var(--tx);font-weight:500;display:flex;align-items:center;gap:5px}
+.fcf{display:flex;border-top:1px solid var(--bd)}
+.fcf button{flex:1;height:46px;display:flex;align-items:center;justify-content:center;gap:6px;
+  font-size:12.5px;font-weight:500;color:var(--tx);white-space:nowrap;padding:0 4px;letter-spacing:-.01em}
+.fcf button+button{border-left:1px solid var(--hair)}
+.fcf button.dis{color:var(--fa)}
+.fcf button.pri{background:var(--s3);color:var(--fa)}
+
+/* ---- bulk bar (R04) ---- */
+.bulk{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;z-index:6}
+.bulk .x{width:46px;height:46px;border-radius:12px;background:var(--dark-surf);color:#fff;display:grid;place-items:center;
+  border:1px solid var(--dark-surf-bd);box-shadow:var(--sh-pop)}
+.bulk .bar{display:flex;align-items:center;gap:4px;height:46px;padding:0 8px 0 18px;border-radius:12px;
+  background:var(--dark-surf-2);color:#fff;box-shadow:var(--sh-pop);border:1px solid var(--dark-surf-bd)}
+.bulk .bar .c{font-size:13.5px;color:rgba(255,255,255,.62);margin-right:12px;white-space:nowrap}
+.bulk .bar button{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:8px;
+  font-size:13.5px;font-weight:500;color:#fff}
+.bulk .bar button:hover{background:rgba(255,255,255,.09)}
+
+/* ---- panels / lists ---- */
+.grid2{display:grid;gap:20px;padding:0 30px 24px}
+.pnl{background:var(--s1);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh-card);overflow:hidden;display:flex;flex-direction:column}
+.pnl>header{display:flex;align-items:center;gap:10px;height:50px;padding:0 18px;border-bottom:1px solid var(--bd)}
+.pnl>header .ctitle{flex:1}
+.pnl .body{padding:6px 18px 10px}
+.lrow{display:flex;align-items:center;gap:12px;height:40px;border-bottom:1px solid var(--hair);font-size:13.5px}
+.lrow:last-child{border-bottom:0}
+.lrow .t{flex:1;min-width:0}
+.hash{font-family:var(--f-mono);font-size:12px;color:var(--fa);letter-spacing:-.02em}
+.gh{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fa);
+  height:30px;display:flex;align-items:center;border-bottom:1px solid var(--hair)}
+
+/* ---- ticket stage cards (R12 laid in a row) ---- */
+.flow{padding:0 30px 22px;display:flex;flex-direction:column;gap:0}
+.stages{display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
+.stg{border:1px solid var(--bd);border-radius:13px;background:var(--s1);box-shadow:var(--sh-card);overflow:hidden;display:flex;flex-direction:column}
+.stg .h{padding:13px 13px 12px;display:flex;flex-direction:column;align-items:stretch;flex:1}
+.stg .h .r1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.stg .h .n{min-width:0}
+.stg .h b{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.018em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stg .h s{display:block;font-size:11.5px;color:var(--fa);text-decoration:none;font-variant-numeric:tabular-nums;margin-top:2px}
+.stg .m{background:var(--s2);border-top:1px solid var(--hair);padding:9px 13px;display:flex;justify-content:space-between;
+  font-size:12.5px;font-variant-numeric:tabular-nums}
+.stg .m .a{color:var(--mu)} .stg .m .b{font-weight:600;letter-spacing:-.01em}
+.tick{width:18px;height:18px;border-radius:50%;background:var(--pass-bg);color:var(--pass);display:grid;place-items:center;flex:none}
+.sbadge{width:26px;height:26px;border-radius:50%;background:var(--acc-bg);color:var(--acc);display:grid;place-items:center;flex:none;font-size:11.5px;font-weight:600;letter-spacing:.01em}
+.stg .ck{color:var(--pass);flex:none}
+.underline{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-top:10px}
+.node{border:1px dashed var(--ctl-bd);border-radius:11px;background:var(--s2);padding:9px 12px;
+  display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mu)}
+.node b{font-weight:500;color:var(--tx)}
+.gate{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--bd);background:var(--s1);box-shadow:var(--sh-card);
+  border-radius:11px;padding:11px 14px;font-size:13px;color:var(--tx);font-weight:500;height:100%}
+.gate svg{color:var(--acc)}
+.gate .n2{color:var(--mu);font-weight:400;font-variant-numeric:tabular-nums}
+.gate .gl{display:flex;align-items:center;gap:9px}
+
+/* ---- run detail ---- */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:0 30px 22px;border:1px solid var(--bd);
+  border-radius:14px;background:var(--s1);box-shadow:var(--sh-card);overflow:hidden}
+.strip .c{padding:16px 20px 18px}
+.strip .c+.c{border-left:1px solid var(--hair)}
+.strip .k{font-size:12.5px;color:var(--mu);font-weight:500}
+.strip .v{font-size:26px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:3px}
+.strip .v small{font-size:13px;font-weight:500;color:var(--fa);margin-left:5px;letter-spacing:-.01em}
+.bar{height:5px;border-radius:3px;background:var(--s4);overflow:hidden;margin-top:11px}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--acc)}
+.step{display:flex;align-items:center;gap:12px;height:56px;border-bottom:1px solid var(--hair);font-size:13.5px}
+.step .n{width:22px;height:22px;border-radius:7px;background:var(--s3);color:var(--mu);display:grid;place-items:center;
+  font-size:11.5px;font-weight:600;flex:none}
+.step .t{flex:1;min-width:0;font-weight:500;letter-spacing:-.01em}
+.step.is-open{background:var(--s2)}
+.step.is-open .n{background:var(--acc);color:var(--acc-fg)}
+.expand{background:var(--s2);border-bottom:1px solid var(--hair);padding:2px 18px 14px 52px}
+.eline{display:flex;gap:12px;align-items:baseline;font-size:12.5px;padding:5px 0;color:var(--mu)}
+.eline .tm{font-family:var(--f-mono);font-size:11.5px;color:var(--fa);width:62px;flex:none}
+.log{font-family:var(--f-mono);font-size:11.5px;line-height:2;color:var(--mu);padding:10px 18px 14px;
+  background:var(--s2);white-space:pre;overflow:hidden}
+.log b{color:var(--fa);font-weight:400}
+
+/* ---- switch rows (R09) ---- */
+.sw{display:flex;align-items:center;gap:13px;height:62px;border-bottom:1px solid var(--hair);font-size:14px}
+.sw:last-child{border-bottom:0}
+.sw .ic{width:30px;height:30px;border-radius:9px;background:var(--s3);color:var(--mu);display:grid;place-items:center;flex:none}
+.sw .t{flex:1;font-weight:500;letter-spacing:-.01em}
+.tog{width:40px;height:23px;border-radius:999px;background:var(--s4);position:relative;flex:none}
+.tog i{position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;border-radius:50%;background:var(--s1);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:none}
+.tog.on{background:var(--acc)} .tog.on i{left:19.5px}
+kbd.cap{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:7px;
+  background:var(--s2);border:1px solid var(--ctl-bd);box-shadow:0 1px 0 var(--ctl-bd);font:500 11.5px/1 var(--f-ui);color:var(--mu)}
+
+/* ---- charts ---- */
+.chart{padding:4px 18px 14px}
+.cdot{width:9px;height:9px;border-radius:50%;flex:none}
+.tint-a{background:var(--acc-bg);border-color:transparent}
+.tint-p{background:var(--pass-bg);border-color:transparent}
+.tint-w{background:var(--warn-bg);border-color:transparent}
+[data-theme="dark"] .tint-w{background:rgba(221,168,78,.09)}
+[data-theme="dark"] .tint-p{background:rgba(92,187,139,.09)}
+[data-theme="dark"] .tint-a{background:rgba(84,176,138,.09)}
+.tint-n{background:var(--s3);border-color:transparent}
+.base{display:flex;align-items:center;gap:8px;padding:0 30px 20px;margin-top:-6px;font-size:12.5px;color:var(--fa)}
+.base b{font-weight:500;color:var(--mu)}
+.base i{width:3px;height:3px;border-radius:50%;background:var(--fa);display:block;font-style:normal}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-queue" viewBox="0 0 24 24"><path d="M3 13h4l2 3h6l2-3h4"/><path d="M5 5h14l2 8v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5z"/></symbol>
+<symbol id="i-tickets" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V5a2 2 0 0 1 2-2h7a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6z"/><circle cx="7.5" cy="7.5" r="1.2"/></symbol>
+<symbol id="i-runs" viewBox="0 0 24 24"><path d="M3 12h4l3 7 4-14 3 7h4"/></symbol>
+<symbol id="i-report" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+<symbol id="i-factory" viewBox="0 0 24 24"><path d="M4 21V9l6 4V9l6 4V5l4 2v14z"/><path d="M2 21h20"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+<symbol id="i-updown" viewBox="0 0 24 24"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+<symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.4l3.4 2"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h13M12 6l6 6-6 6"/></symbol>
+<symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1.8 1.8 0 0 1-1.8 1.8H5A1.8 1.8 0 0 1 3.2 19V7.8A1.8 1.8 0 0 1 5 6h5"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></g></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.6 21.4 20H2.6z"/><path d="M12 9.5v4.2M12 17h.01"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.3 3 7.7 7 9.5 4-1.8 7-5.2 7-9.5V6z"/></symbol>
+<symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.2A2.7 2.7 0 0 1 14.7 10c0 1.8-2.7 2.7-2.7 2.7M12 17h.01"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+<symbol id="i-branch" viewBox="0 0 24 24"><circle cx="7" cy="5.5" r="2.3"/><circle cx="7" cy="18.5" r="2.3"/><circle cx="17" cy="9" r="2.3"/><path d="M7 7.8v8.4M17 11.3c0 3-2.4 4-5 4.6"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M9.5 5v14M14.5 5v14"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.7 19 12 7 19.3z"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M20.5 7.5 12 3 3.5 7.5v9L12 21l8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><path d="M9 4h6v3H9z"/><path d="M15 5.5h2A1.5 1.5 0 0 1 18.5 7v12A1.5 1.5 0 0 1 17 20.5H7A1.5 1.5 0 0 1 5.5 19V7A1.5 1.5 0 0 1 7 5.5h2"/><path d="m9 13 2 2 4-4"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M10 2v3M14 2v3M10 19v3M14 19v3M2 10h3M2 14h3M19 10h3M19 14h3"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.6 3.6 5.6 3.6 9S14.4 18.4 12 21c-2.4-2.6-3.6-5.6-3.6-9S9.6 5.6 12 3z"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+<symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v4M20 12v3"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 12h6M9 16h4"/></symbol>
+</defs></svg>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg class="mk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 2.6 21 7.5v9L12 21.4 3 16.5v-9z"/><path d="M12 12 21 7.5M12 12v9.4M12 12 3 7.5"/></svg>
+      <b>Soft Factory</b>
+      <div class="tt">
+        <button data-theme-btn="light" class="is-on" title="Light"><svg class="i"><use href="#i-sun"/></svg></button>
+        <button data-theme-btn="dark" title="Dark"><svg class="i"><use href="#i-moon"/></svg></button>
+      </div>
+    </div>
+    <div class="ws"><span class="av">NP</span><span class="t">Northwind Payments</span><svg class="i"><use href="#i-updown"/></svg></div>
+    <div class="sbox"><svg class="i i-16"><use href="#i-search"/></svg><span>Search</span><kbd>&#8984;K</kbd></div>
+    <nav class="nav">
+      <a href="#queue" data-nav="queue"><svg class="i"><use href="#i-queue"/></svg>Queue<span class="bdg">10</span></a>
+      <a href="#tickets" data-nav="tickets"><svg class="i"><use href="#i-tickets"/></svg>Tickets</a>
+      <a href="#runs" data-nav="runs"><svg class="i"><use href="#i-runs"/></svg>Runs</a>
+      <a href="#report" data-nav="report"><svg class="i"><use href="#i-report"/></svg>Report</a>
+      <a href="#factory" data-nav="factory"><svg class="i"><use href="#i-factory"/></svg>Factory</a>
+    </nav>
+    <div class="grow"></div>
+    <div class="runner"><span class="pulse"></span>runner-01 &middot; running</div>
+    <div class="me"><span class="av">PR</span><span class="t">Priya Raman</span><svg class="i i-16"><use href="#i-dots"/></svg></div>
+  </aside>
+
+  <main class="main">
+<style>
+.screen.split{flex-direction:row}
+.dot.b1{background:var(--acc)} .dot.b2{background:var(--acc-so)} .dot.b3{background:var(--s4);box-shadow:inset 0 0 0 1px var(--ctl-bd)}
+[data-theme="dark"] .dot.b3{background:rgba(255,255,255,.16);box-shadow:none}
+/* A1: columns sized to their longest value; Age left-aligned so a right-aligned number
+   after a text column does not stack two gutters at that junction. */
+.qk{width:196px} .qt{width:104px} .qa{width:108px;text-align:left} .qb{width:80px}
+.tk{width:150px} .trp{width:168px} .tti{width:74px} .tst{width:158px} .tsg{width:132px} .tco{width:110px} .tag{width:118px}
+/* A3: uniform gutters; the outcome pill is a fixed 88px slot so the gap before the trailing
+   dots is constant instead of swinging 45px with the pill's word length. */
+.rn{width:183px} .rt{width:156px} .rs{width:256px} .rst{width:143px} .rd{width:147px} .rc{width:144px} .ro{width:189px} .rx{width:40px}
+#s-runs .ro .pill{min-width:88px;justify-content:center}
+#s-runs .rd.d1{padding-left:calc(12px + 1ch)}
+/* the queue table is the one table with an auto column, so narrow viewports need the rail
+   and the fixed columns to give way rather than the Needs column collapsing */
+@media (max-width:1500px){.rail{width:352px}.qk{width:176px}.qt{width:96px}.qa{width:100px}.qb{width:56px}}
+@media (max-width:1340px){.rail{width:312px}.qk{width:168px}.qt{width:88px}.qa{width:92px}.qb{width:44px}}
+</style>
+<section class="screen split" id="s-queue">
+  <div class="col">
+    <div class="hd">
+      <h1>Queue</h1><div class="sp"></div>
+      <button class="btn"><svg class="i i-16"><use href="#i-up"/></svg>Export</button>
+      <button class="btn"><svg class="i i-16"><use href="#i-clock"/></svg>History</button>
+    </div>
+    <div class="chips">
+      <button class="chip is-on">Bucket<span class="n">3</span><svg class="i"><use href="#i-chev"/></svg></button>
+      <button class="chip">Kind<svg class="i"><use href="#i-chev"/></svg></button>
+      <button class="chip">Ticket<svg class="i"><use href="#i-chev"/></svg></button>
+      <button class="chip">All filters<svg class="i"><use href="#i-chev"/></svg></button>
+    </div>
+    <div class="stage">
+      <div class="tw">
+        <table>
+          <thead><tr><th class="qk">Kind</th><th class="qt">Ticket</th><th>Needs</th><th class="qa">Age</th><th class="qb"></th></tr></thead>
+          <tbody>
+<tr class="grp"><td colspan="5"><div class="cell"><span class="dot b1"></span>Act today</div></td></tr>
+          <tr class="r-sel"><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-box"/></svg></span><span class="trunc">Packet approval</span></div></td><td class="qt id">T-0412</td><td><div class="trunc">Final review packet v1</div></td><td class="qa id">58m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-clip"/></svg></span><span class="trunc">Plan approval</span></div></td><td class="qt id">T-0415</td><td><div class="trunc">Plan v2, 6 tasks</div></td><td class="qa id">2h 54m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-alert"/></svg></span><span class="trunc">Red check</span></div></td><td class="qt id">T-0417</td><td><div class="trunc">Integration recipe red at head</div></td><td class="qa id">1h 51m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-flag"/></svg></span><span class="trunc">Escalation</span></div></td><td class="qt id">T-0403</td><td><div class="trunc">Third failure on task 4</div></td><td class="qa id">2h 18m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-shield"/></svg></span><span class="trunc">Control event</span></div></td><td class="qt id">&mdash;</td><td><div class="trunc">Egress denied by guard</div></td><td class="qa id">6h</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+<tr class="grp"><td colspan="5"><div class="cell"><span class="dot b2"></span>This week</div></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-help"/></svg></span><span class="trunc">Questions</span></div></td><td class="qt id">T-0418</td><td><div class="trunc">Round 1, 3 questions</div></td><td class="qa id">1h 46m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-check"/></svg></span><span class="trunc">Eligibility</span></div></td><td class="qt id">T-0420</td><td><div class="trunc">Provisional tier 2, internal</div></td><td class="qa id">30m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-eye"/></svg></span><span class="trunc">Rubric inspection</span></div></td><td class="qt id">T-0409</td><td><div class="trunc">Grader line S3-L4</div></td><td class="qa id">3h 08m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+<tr class="grp"><td colspan="5"><div class="cell"><span class="dot b3"></span>When convenient</div></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-branch"/></svg></span><span class="trunc">PR outcome</span></div></td><td class="qt id">T-0398</td><td><div class="trunc">PR #4821 open</div></td><td class="qa id">2d</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          <tr><td class="qk"><div class="cell"><span class="kico"><svg class="i i-14"><use href="#i-pause"/></svg></span><span class="trunc">Manual pause</span></div></td><td class="qt id">T-0411</td><td><div class="trunc">Paused at S1 boundary</div></td><td class="qa id">26m</td><td class="qb"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <aside class="fcard">
+        <div class="fch">
+          <svg class="i i-16 gr"><use href="#i-grip"/></svg>
+          <span class="t">Packet approval</span>
+          <button><svg class="i i-16"><use href="#i-ext"/></svg></button>
+          <button><svg class="i i-16"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="fcb">
+          <div class="sub"><span class="id">T-0412</span><span class="dot b3" style="width:3px;height:3px"></span><span>LED-2291</span><span class="dot b3" style="width:3px;height:3px"></span><span>58m</span></div>
+          <div class="tabs"><button class="is-on">Packet</button><button>Evidence</button><button>Slots</button></div>
+          <div class="slot"><span class="av av-tw">TW</span><span class="t"><b>Tomasz Wierzbicki</b><s>Reviewer</s></span><span class="pill pass"><svg class="i i-14"><use href="#i-check"/></svg>14:12</span></div>
+          <div class="slot"><span class="av av-pr">PR</span><span class="t"><b>Priya Raman</b><s>Owner</s></span><span class="pill pass"><svg class="i i-14"><use href="#i-check"/></svg>14:19</span></div>
+          <div class="slot"><span class="av av-ic">IC</span><span class="t"><b>Ines Carvalho</b><s>Security</s></span><span class="pill">Open</span></div>
+          <div class="ev"><svg class="i i-16"><use href="#i-clip"/></svg><span>9 checks &middot; 8 pass &middot; 1 waived</span><a href="#queue">Evidence<svg class="i i-14"><use href="#i-right"/></svg></a></div>
+        </div>
+        <div class="fcf">
+          <button class="pri"><svg class="i i-14"><use href="#i-check"/></svg>Approve</button>
+          <button>Request changes</button>
+          <button>Send back</button>
+          <button>Abandon</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <aside class="rail">
+    <div class="sec">
+      <div class="rh"><span class="lbl">Median latency</span></div>
+      <div class="gauge">
+        <svg viewBox="0 0 200 112" width="100%" height="150" fill="none">
+          <path d="M14 100A86 86 0 0 1 186 100" stroke="var(--s4)" stroke-width="13" stroke-linecap="round"/>
+          <path d="M14 100A86 86 0 0 1 186 100" stroke="var(--acc)" stroke-width="13" stroke-linecap="round" stroke-dasharray="164 280"/>
+        </svg>
+        <div class="n tn">38m</div><div class="s">50 decisions today</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="rh"><span class="lbl">By bucket</span><span class="fa" style="font-size:12.5px">10</span></div>
+      <div class="segbar"><i style="flex:5;background:var(--acc)"></i><i style="flex:3;background:var(--acc-so)"></i><i style="flex:2;background:var(--s4)"></i></div>
+      <div class="lg">
+        <div class="row"><span class="dot b1"></span><span class="t">Act today</span><span class="v">5</span></div>
+        <div class="row"><span class="dot b2"></span><span class="t">This week</span><span class="v">3</span></div>
+        <div class="row"><span class="dot b3"></span><span class="t">When convenient</span><span class="v">2</span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="rh"><span class="lbl">By kind</span></div>
+      <div class="g23">
+        <div class="c"><div class="v tn">2</div><div class="k">Approvals</div></div>
+        <div class="c"><div class="v tn">1</div><div class="k">Checks</div></div>
+        <div class="c"><div class="v tn">1</div><div class="k">Escalations</div></div>
+        <div class="c"><div class="v tn">1</div><div class="k">Questions</div></div>
+        <div class="c wide"><div class="v tn">5</div><div class="k">Other</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="rh"><span class="lbl">Recent decisions</span></div>
+      <div class="rec">
+        <div class="row"><span class="dot b1"></span><span class="t">Packet approved</span><span class="v">14:19</span></div>
+        <div class="row"><span class="dot b2"></span><span class="t">Check waived</span><span class="v">14:03</span></div>
+        <div class="row"><span class="dot b1"></span><span class="t">Plan approved</span><span class="v">12:51</span></div>
+      </div>
+    </div>
+  </aside>
+</section>
+<section class="screen" id="s-tickets">
+  <div class="hd"><h1>Tickets</h1><div class="sp"></div>
+    <button class="btn pri"><svg class="i i-16"><use href="#i-plus"/></svg>New ticket</button></div>
+  <div class="kpis">
+    <div class="kpi hero"><span class="ic"><svg class="i i-16"><use href="#i-tickets"/></svg></span><div class="k">Open</div><div class="v">12</div></div>
+    <div class="kpi"><span class="ic"><svg class="i i-16"><use href="#i-queue"/></svg></span><div class="k">In queue</div><div class="v">10</div></div>
+    <div class="kpi"><span class="ic"><svg class="i i-16"><use href="#i-branch"/></svg></span><div class="k">Merged 30d</div><div class="v">31</div></div>
+    <div class="kpi"><span class="ic"><svg class="i i-16"><use href="#i-report"/></svg></span><div class="k">Cost 30d</div><div class="v">$430.40</div></div>
+  </div>
+  <div class="chips">
+    <button class="chip is-on">State<span class="n">2</span><svg class="i"><use href="#i-chev"/></svg></button>
+    <button class="chip">Tier<svg class="i"><use href="#i-chev"/></svg></button>
+    <button class="chip">Class<svg class="i"><use href="#i-chev"/></svg></button>
+    <button class="chip">Repo<svg class="i"><use href="#i-chev"/></svg></button>
+  </div>
+  <div class="stage">
+    <div class="tw">
+      <table>
+        <thead><tr><th class="tk"><div class="cell"><span class="cbx on"><svg class="i i-14" viewBox="0 0 24 24"><path d="M6 12h12"/></svg></span>Ticket</div></th><th>Title</th><th class="trp">Repo</th><th class="tti">Tier</th><th class="tst">State</th><th class="tsg">Stages</th><th class="tco num">Cost</th><th class="tag num">Age</th></tr></thead>
+        <tbody>
+        <tr class="r-sel"><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0412</span></div></td><td><div class="trunc">Reject settlement batches whose&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">2</td><td class="tst"><span class="pill">Review</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span></td><td class="tco num tn">$18.40</td><td class="tag num id">3h 40m</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0409</span></div></td><td><div class="trunc">Add idempotency key to&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">1</td><td class="tst"><span class="pill">Implementing</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="r"></i><i></i><i></i></span></td><td class="tco num tn">$9.12</td><td class="tag num id">3h 59m</td></tr>
+        <tr class="r-hov"><td class="tk"><div class="cell"><span class="cbx on"><svg class="i i-14"><use href="#i-check"/></svg></span><span class="id">T-0415</span></div></td><td><div class="trunc">Backfill merchant timezone on&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">2</td><td class="tst"><span class="pill">Plan review</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i></i><i></i><i></i></span></td><td class="tco num tn">$6.75</td><td class="tag num id">4h 14m</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx on"><svg class="i i-14"><use href="#i-check"/></svg></span><span class="id">T-0417</span></div></td><td><div class="trunc">Retry settlement webhook with&hellip;</div></td><td class="trp mu"><div class="trunc">settlement-api</div></td><td class="tti tn">1</td><td class="tst"><span class="pill fail">Checks</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="f"></i><i></i></span></td><td class="tco num tn">$11.30</td><td class="tag num id">5h 34m</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx on"><svg class="i i-14"><use href="#i-check"/></svg></span><span class="id">T-0403</span></div></td><td><div class="trunc">Rename ledger_entry.amount_cents to&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">3</td><td class="tst"><span class="pill warn">Escalated</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i></i></span></td><td class="tco num tn">$27.60</td><td class="tag num id">6h 15m</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0418</span></div></td><td><div class="trunc">Show settlement ETA on&hellip;</div></td><td class="trp mu"><div class="trunc">merchant-portal</div></td><td class="tti tn">1</td><td class="tst"><span class="pill">Clarifying</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i></i><i></i><i></i></span></td><td class="tco num tn">$2.10</td><td class="tag num id">4h 40m</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0420</span></div></td><td><div class="trunc">Remove deprecated v1 export&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">2</td><td class="tst"><span class="pill">Intake</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="tco num tn">$0.30</td><td class="tag num id">30m</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0398</span></div></td><td><div class="trunc">Fix rounding drift in FX&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">2</td><td class="tst"><span class="pill">PR opened</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span></td><td class="tco num tn">$14.90</td><td class="tag num id">2d</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0391</span></div></td><td><div class="trunc">Add merchant_id to settlement&hellip;</div></td><td class="trp mu"><div class="trunc">settlement-api</div></td><td class="tti tn">1</td><td class="tst"><span class="pill pass">Merged</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span></td><td class="tco num tn">$7.40</td><td class="tag num id">4d</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0387</span></div></td><td><div class="trunc">Migrate batch runner to&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">3</td><td class="tst"><span class="pill fail">Rejected</span></td><td class="tsg"><span class="dots7"><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="tco num tn">$1.05</td><td class="tag num id">5d</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0395</span></div></td><td><div class="trunc">Export statements as CSV</div></td><td class="trp mu"><div class="trunc">merchant-portal</div></td><td class="tti tn">1</td><td class="tst"><span class="pill">Abandoned</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="d"></i><i class="d"></i><i class="x"></i><i></i><i></i><i></i></span></td><td class="tco num tn">$5.20</td><td class="tag num id">6d</td></tr>
+        <tr><td class="tk"><div class="cell"><span class="cbx"></span><span class="id">T-0411</span></div></td><td><div class="trunc">Validate IBAN checksum at&hellip;</div></td><td class="trp mu"><div class="trunc">ledger-core</div></td><td class="tti tn">1</td><td class="tst"><span class="pill warn">Context</span></td><td class="tsg"><span class="dots7"><i class="d"></i><i class="w"></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="tco num tn">$0.85</td><td class="tag num id">29m</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="bulk">
+      <button class="x"><svg class="i i-16"><use href="#i-x"/></svg></button>
+      <div class="bar"><span class="c">Selected: 3</span>
+        <button><svg class="i i-16"><use href="#i-up"/></svg>Export</button>
+        <button><svg class="i i-16"><use href="#i-right"/></svg>Send back</button>
+        <button><svg class="i i-16"><use href="#i-x"/></svg>Abandon</button>
+      </div>
+    </div>
+  </div>
+</section>
+<style>
+.tdh{align-items:flex-start;padding-bottom:22px}
+.tdh .eb{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.tdh h1{font-size:28px;max-width:640px}
+.hstat{padding-right:30px}
+.hstat .k{font-size:12px;color:var(--fa)}
+.hstat .v{font-size:21px;font-weight:600;letter-spacing:-.025em;font-variant-numeric:tabular-nums;margin-top:1px}
+/* A1: the Artefacts card is sized to name + version + hash instead of spreading three short
+   columns over 650px; the Approvals card beside it splits into its two groups so its rows
+   stay tight at the wider measure. */
+.tri{grid-template-columns:356px 1fr;align-items:start}
+#s-ticket .art .t{flex:1;min-width:0}
+#s-ticket .art .vr{width:60px;flex:none}
+#s-ticket .art .hs{width:60px;flex:none;text-align:right}
+#s-ticket .apr{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:6px 0 10px}
+#s-ticket .apr>div{padding:0 18px}
+#s-ticket .apr>div+div{border-left:1px solid var(--hair);padding-left:52px}
+#s-ticket .apr>div:first-child{padding-right:52px}
+#s-ticket .apr .lrow{height:58px}
+#s-ticket .apr .lrow.sgh{height:36px!important}
+#s-ticket .asm .lrow{height:62px}
+#s-ticket .lrow{height:44px}
+.tri .stack{display:flex;flex-direction:column;gap:20px}
+.conn{height:12px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
+.conn i{display:block;width:1px;margin:0 auto;height:100%;background:var(--ctl-bd)}
+/* K1: one full-width bar under the strip instead of a 710px hole */
+.gbar{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--bd);background:var(--s1);box-shadow:var(--sh-card);border-radius:12px;overflow:hidden}
+.gseg{grid-column:1/6;display:flex;align-items:center;justify-content:space-between;gap:12px;height:52px;padding:0 18px;font-size:13.5px}
+.gseg+.gseg{grid-column:6/8;border-left:1px solid var(--bd)}
+.gseg .gl{display:flex;align-items:center;gap:9px;font-weight:500}
+.gseg .n2{color:var(--mu);font-variant-numeric:tabular-nums}
+.gseg.cur{background:var(--acc-bg)}
+.gseg.cur .gl{color:var(--acc)}
+.gseg.cur .n2{color:var(--acc);font-weight:500}
+/* K2: S6 is the current stage */
+.stg.is-cur{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.stg.is-cur .sbadge{background:var(--acc);color:var(--acc-fg)}
+.stg.is-cur .m{background:var(--acc-bg);border-top-color:transparent}
+.cur-dot{width:8px;height:8px;border-radius:50%;background:var(--acc);flex:none;position:relative;margin-right:3px}
+.cur-dot::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--acc);opacity:.4}
+/* K4: group rows in sentence case, one uppercase label per card */
+.sgh{font-size:12.5px;color:var(--mu);height:32px!important;border-bottom:1px solid var(--hair)}
+</style>
+<section class="screen" id="s-ticket">
+  <div class="hd tdh">
+    <div>
+      <div class="eb"><span class="id" style="font-size:13px">LED-2291</span><span class="pill">Review</span><span class="pill">Tier 2</span><span class="pill">internal</span></div>
+      <h1 class="trunc">Reject settlement batches whose currency&hellip;</h1>
+    </div>
+    <div class="sp"></div>
+    <div class="hstat"><div class="k">Cost</div><div class="v">$18.40</div></div>
+    <div class="hstat"><div class="k">Elapsed</div><div class="v">3h 40m</div></div>
+    <button class="btn pri"><svg class="i i-16"><use href="#i-queue"/></svg>Open queue item</button>
+  </div>
+  <div class="flow">
+    <div class="stages">
+      <div class="stg"><div class="h"><div class="r1"><span class="sbadge">S0</span><svg class="i i-14 ck"><use href="#i-check"/></svg></div><b>Intake</b><s>run_2b1c</s></div><div class="m"><span class="a">0:41</span><span class="b">$0.02</span></div></div>
+      <div class="stg"><div class="h"><div class="r1"><span class="sbadge">S1</span><svg class="i i-14 ck"><use href="#i-check"/></svg></div><b>Context</b><s>run_5e77</s></div><div class="m"><span class="a">6:12</span><span class="b">$1.14</span></div></div>
+      <div class="stg"><div class="h"><div class="r1"><span class="sbadge">S2</span><svg class="i i-14 ck"><use href="#i-check"/></svg></div><b>Clarify</b><s>run_9a03</s></div><div class="m"><span class="a">4:58</span><span class="b">$0.92</span></div></div>
+      <div class="stg"><div class="h"><div class="r1"><span class="sbadge">S3</span><svg class="i i-14 ck"><use href="#i-check"/></svg></div><b>Spec and plan</b><s>run_c4d8</s></div><div class="m"><span class="a">14:37</span><span class="b">$4.60</span></div></div>
+      <div class="stg"><div class="h"><div class="r1"><span class="sbadge">S4</span><svg class="i i-14 ck"><use href="#i-check"/></svg></div><b>Implementation</b><s>run_7f3a</s></div><div class="m"><span class="a">31:05</span><span class="b">$9.85</span></div></div>
+      <div class="stg"><div class="h"><div class="r1"><span class="sbadge">S5</span><svg class="i i-14 ck"><use href="#i-check"/></svg></div><b>Checks</b><s>run_e1a2</s></div><div class="m"><span class="a">7:44</span><span class="b">$0.41</span></div></div>
+      <div class="stg is-cur"><div class="h"><div class="r1"><span class="sbadge">S6</span><span class="cur-dot"></span></div><b>Packet</b><s>run_f0c9</s></div><div class="m"><span class="a">1:20</span><span class="b">$1.46</span></div></div>
+    </div>
+    <div class="conn"><i style="grid-column:5"></i><i style="grid-column:7"></i></div>
+    <div class="gbar">
+      <div class="gseg"><span class="gl"><svg class="i i-16 fa"><use href="#i-branch"/></svg>Base advance</span><span class="n2">run_7f3b &middot; 0:09</span></div>
+      <div class="gseg cur"><span class="gl"><svg class="i i-16"><use href="#i-shield"/></svg>Review gate</span><span class="n2">2 of 3 slots</span></div>
+    </div>
+  </div>
+  <div class="grid2 tri">
+    <div class="pnl art">
+      <header><span class="ctitle">Artefacts</span><span class="pill">11</span></header>
+      <div class="body">
+        <div class="lrow gh"><span class="t">Artefact</span><span class="vr">Version</span><span class="hs">Hash</span></div>
+        <div class="lrow"><span class="t">Brief</span><span class="vr mu">v1</span><span class="hash hs">a3e1&hellip;07</span></div>
+        <div class="lrow"><span class="t">Criteria</span><span class="vr mu">v1</span><span class="hash hs">5c9d&hellip;b2</span></div>
+        <div class="lrow"><span class="t">Question set</span><span class="vr mu">v1</span><span class="hash hs">8d10&hellip;4e</span></div>
+        <div class="lrow"><span class="t">Risk map</span><span class="vr mu">v1</span><span class="hash hs">f27a&hellip;91</span></div>
+        <div class="lrow fa"><span class="t">Plan <span class="pill" style="margin-left:6px">superseded</span></span><span class="vr mu">v1</span><span class="hash hs">41b0&hellip;c3</span></div>
+        <div class="lrow"><span class="t">Plan</span><span class="vr mu">v2</span><span class="hash hs">0b3d&hellip;f9</span></div>
+        <div class="lrow"><span class="t">Handoff</span><span class="vr mu">v1</span><span class="hash hs">6e8c&hellip;2a</span></div>
+        <div class="lrow"><span class="t">Deviation list</span><span class="vr mu">v1</span><span class="hash hs">9f44&hellip;d8</span></div>
+        <div class="lrow"><span class="t">Readiness table</span><span class="vr mu">v1</span><span class="hash hs">b7c2&hellip;15</span></div>
+        <div class="lrow"><span class="t">Packet</span><span class="vr mu">v1</span><span class="hash hs">1d9f&hellip;e4</span></div>
+        <div class="lrow"><span class="t">PR body <span class="pill" style="margin-left:6px">public</span></span><span class="vr mu">v1</span><span class="hash hs">e02b&hellip;6c</span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="pnl">
+        <header><span class="ctitle">Approvals</span></header>
+        <div class="body apr">
+          <div>
+          <div class="lrow sgh"><span class="t">Plan v2</span></div>
+          <div class="lrow"><span class="av av-tw" style="width:24px;height:24px;font-size:9.5px">TW</span><span class="t trunc">Tomasz Wierzbicki</span><span class="mu">Reviewer</span><span class="pill pass tn">12:48</span></div>
+          <div class="lrow"><span class="av av-pr" style="width:24px;height:24px;font-size:9.5px">PR</span><span class="t trunc">Priya Raman</span><span class="mu">Owner</span><span class="pill pass tn">12:51</span></div>
+          </div>
+          <div>
+          <div class="lrow sgh"><span class="t">Packet v1</span></div>
+          <div class="lrow"><span class="av av-tw" style="width:24px;height:24px;font-size:9.5px">TW</span><span class="t trunc">Tomasz Wierzbicki</span><span class="mu">Reviewer</span><span class="pill pass tn">14:12</span></div>
+          <div class="lrow"><span class="av av-pr" style="width:24px;height:24px;font-size:9.5px">PR</span><span class="t trunc">Priya Raman</span><span class="mu">Owner</span><span class="pill pass tn">14:19</span></div>
+          <div class="lrow"><span class="av av-ic" style="width:24px;height:24px;font-size:9.5px">IC</span><span class="t trunc">Ines Carvalho</span><span class="mu">Security</span><span class="pill warn">Pending</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="pnl asm">
+        <header><span class="ctitle">Assumptions</span></header>
+        <div class="body">
+          <div class="lrow"><span class="t trunc">Reject at intake, not at settlement</span><span class="fa" style="font-size:12px">S2 &middot; default</span></div>
+          <div class="lrow"><span class="t trunc">Error code CURRENCY_MISMATCH</span><span class="fa" style="font-size:12px">S2 &middot; default</span></div>
+          <div class="lrow"><span class="t trunc">Merchant currency immutable after onboarding</span><span class="fa" style="font-size:12px">S3 &middot; unverified</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<style>
+/* R04 row pitch: ~61px at our scale. Columns are evenly slacked so no gutter exceeds ~100px (R1, R2) */
+#s-runs td{height:58px}
+#s-tickets td{height:58px}
+#s-tickets th{height:40px}
+#s-runs .lnum,#s-runs th.lnum{text-align:left;font-variant-numeric:tabular-nums}
+.schip{width:28px;height:28px;border-radius:9px;background:var(--s3);color:var(--mu);display:grid;place-items:center;
+  flex:none;font-size:11.5px;font-weight:600;letter-spacing:.01em}
+.r-sel .schip{background:var(--acc-bg);color:var(--acc)}
+.kid{padding-left:30px;position:relative}
+.kid::before{content:"";position:absolute;left:12px;top:-18px;width:10px;height:28px;border-left:1px solid var(--ctl-bd);border-bottom:1px solid var(--ctl-bd);border-bottom-left-radius:5px}
+</style>
+<section class="screen" id="s-runs">
+  <div class="hd"><h1>Runs</h1><div class="sp"></div></div>
+  <div class="kpis">
+    <div class="kpi hero"><span class="ic"><svg class="i i-16"><use href="#i-runs"/></svg></span><div class="k">Runs today</div><div class="v">43</div></div>
+    <div class="kpi"><span class="ic"><svg class="i i-16"><use href="#i-check"/></svg></span><div class="k">Pass</div><div class="v">35</div></div>
+    <div class="kpi"><span class="ic"><svg class="i i-16"><use href="#i-alert"/></svg></span><div class="k">Fail</div><div class="v">5</div></div>
+    <div class="kpi"><span class="ic"><svg class="i i-16"><use href="#i-report"/></svg></span><div class="k">Settled</div><div class="v">$72.90</div></div>
+  </div>
+  <div class="chips">
+    <button class="chip is-on">Outcome<span class="n">1</span><svg class="i"><use href="#i-chev"/></svg></button>
+    <button class="chip">Stage<svg class="i"><use href="#i-chev"/></svg></button>
+    <button class="chip">Ticket<svg class="i"><use href="#i-chev"/></svg></button>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th class="rn">Run</th><th class="rt">Ticket</th><th class="rs">Stage</th><th class="rst lnum">Started</th><th class="rd lnum">Duration</th><th class="rc lnum">Cost</th><th class="ro">Outcome</th><th class="rx"></th></tr></thead>
+      <tbody>
+      <tr><td class="rn"><div class="cell"><span class="pulse"></span><span class="id" style="color:var(--tx)">run_d204</span></div></td><td class="rt id">T-0409</td><td class="rs"><div class="cell"><span class="schip">S4</span><span class="trunc">Implementation</span></div></td><td class="rst lnum id">14:42</td><td class="rd lnum id">22:10</td><td class="rc lnum tn">$3.52</td><td class="ro"><span class="pill run"><i></i>Running</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_u020</span></td><td class="rt id">&mdash;</td><td class="rs"><div class="cell"><span class="schip">&middot;</span><span class="trunc">Index rebuild</span></div></td><td class="rst lnum id">14:38</td><td class="rd lnum id d1">3:44</td><td class="rc lnum tn">$0.00</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_77d2</span></td><td class="rt id">T-0411</td><td class="rs"><div class="cell"><span class="schip">S1</span><span class="trunc">Context</span></div></td><td class="rst lnum id">14:36</td><td class="rd lnum id d1">2:10</td><td class="rc lnum tn">$0.31</td><td class="ro"><span class="pill">Aborted</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_1e05</span></td><td class="rt id">T-0411</td><td class="rs"><div class="cell"><span class="schip">S0</span><span class="trunc">Intake</span></div></td><td class="rst lnum id">14:35</td><td class="rd lnum id d1">0:24</td><td class="rc lnum tn">$0.02</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_0c3e</span></td><td class="rt id">T-0420</td><td class="rs"><div class="cell"><span class="schip">S0</span><span class="trunc">Intake</span></div></td><td class="rst lnum id">14:34</td><td class="rd lnum id d1">0:36</td><td class="rc lnum tn">$0.02</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_f0c9</span></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S6</span><span class="trunc">Packet</span></div></td><td class="rst lnum id">14:05</td><td class="rd lnum id d1">1:20</td><td class="rc lnum tn">$1.46</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_e1a2</span></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S5</span><span class="trunc">Checks</span></div></td><td class="rst lnum id">13:53</td><td class="rd lnum id d1">7:44</td><td class="rc lnum tn">$0.41</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr class="r-sel"><td class="rn"><span class="id" style="color:var(--tx);font-weight:600">run_7f3a</span></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S4</span><span class="trunc">Implementation</span></div></td><td class="rst lnum id">13:21</td><td class="rd lnum id">31:05</td><td class="rc lnum tn">$9.85</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><div class="kid id">run_7f3b</div></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S4</span><span class="trunc">Base advance</span></div></td><td class="rst lnum id">13:52</td><td class="rd lnum id d1">0:09</td><td class="rc lnum tn">$0.00</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_51a7</span></td><td class="rt id">T-0418</td><td class="rs"><div class="cell"><span class="schip">S2</span><span class="trunc">Clarify</span></div></td><td class="rst lnum id">13:14</td><td class="rd lnum id d1">4:15</td><td class="rc lnum tn">$0.80</td><td class="ro"><span class="pill warn">Blocked</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_44e8</span></td><td class="rt id">T-0417</td><td class="rs"><div class="cell"><span class="schip">S5</span><span class="trunc">Checks</span></div></td><td class="rst lnum id">13:06</td><td class="rd lnum id d1">6:51</td><td class="rc lnum tn">$0.38</td><td class="ro"><span class="pill fail">Fail</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_c7a1</span></td><td class="rt id">T-0417</td><td class="rs"><div class="cell"><span class="schip">S4</span><span class="trunc">Fix round</span></div></td><td class="rst lnum id">12:56</td><td class="rd lnum id d1">9:02</td><td class="rc lnum tn">$2.31</td><td class="ro"><span class="pill fail">Fail</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_c7a0</span></td><td class="rt id">T-0417</td><td class="rs"><div class="cell"><span class="schip">S4</span><span class="trunc">Fix round</span></div></td><td class="rst lnum id">12:47</td><td class="rd lnum id d1">8:14</td><td class="rc lnum tn">$2.05</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_9d11</span></td><td class="rt id">T-0403</td><td class="rs"><div class="cell"><span class="schip">S4</span><span class="trunc">Task 4</span></div></td><td class="rst lnum id">12:28</td><td class="rd lnum id">18:20</td><td class="rc lnum tn">$6.12</td><td class="ro"><span class="pill fail">Fail</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_c4d8</span></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S3</span><span class="trunc">Spec and plan</span></div></td><td class="rst lnum id">12:12</td><td class="rd lnum id">14:37</td><td class="rc lnum tn">$4.60</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_e83f</span></td><td class="rt id">T-0415</td><td class="rs"><div class="cell"><span class="schip">S3</span><span class="trunc">Spec and plan</span></div></td><td class="rst lnum id">11:57</td><td class="rd lnum id">13:02</td><td class="rc lnum tn">$4.21</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_bb72</span></td><td class="rt id">T-0409</td><td class="rs"><div class="cell"><span class="schip">S3</span><span class="trunc">Spec and plan</span></div></td><td class="rst lnum id">11:44</td><td class="rd lnum id">11:58</td><td class="rc lnum tn">$3.90</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_9a03</span></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S2</span><span class="trunc">Clarify</span></div></td><td class="rst lnum id">11:38</td><td class="rd lnum id d1">4:58</td><td class="rc lnum tn">$0.92</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_5e77</span></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S1</span><span class="trunc">Context</span></div></td><td class="rst lnum id">11:31</td><td class="rd lnum id d1">6:12</td><td class="rc lnum tn">$1.14</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      <tr><td class="rn"><span class="id">run_2b1c</span></td><td class="rt id">T-0412</td><td class="rs"><div class="cell"><span class="schip">S0</span><span class="trunc">Intake</span></div></td><td class="rst lnum id">11:24</td><td class="rd lnum id d1">0:41</td><td class="rc lnum tn">$0.02</td><td class="ro"><span class="pill pass">Pass</span></td><td class="rx"><svg class="i i-16 fa" style="margin:0 auto"><use href="#i-dots"/></svg></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+<style>
+#s-run h1{font-size:28px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+/* N2 + A1: three columns, so the Inputs card is sized to label + value + hash instead of
+   parking the hash 400px from its value. All three columns stretch to the same height. */
+.rgrid{display:grid;grid-template-columns:452px 336px 1fr;gap:20px;padding:0 30px 24px;align-items:stretch}
+.rgrid .stack{display:flex;flex-direction:column;gap:20px}
+.rgrid .stack .pnl:last-child{flex:1}
+.rgrid .stack .pnl:last-child .g3{flex:1;align-content:center}
+.rgrid>.grow{display:flex;flex-direction:column}
+.rgrid>.grow .log{flex:1;line-height:2.35}
+#s-run .inp .lb{width:74px;flex:none}
+#s-run .inp .hs{flex:none;text-align:right}
+#s-run .lrow{height:52px}
+#s-run .step{height:64px}
+#s-run .eline{padding:7px 0}
+#s-run .strip .c:last-child .v{font-size:34px;letter-spacing:-.035em}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);padding:6px 18px 18px}
+.g3 .c .v{font-size:22px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.g3 .c .k{font-size:12.5px;color:var(--mu)}
+</style>
+<section class="screen" id="s-run">
+  <div class="hd tdh">
+    <div>
+      <div class="eb"><span class="id" style="font-size:13px">T-0412</span><span class="fa">&middot;</span><span class="mu" style="font-size:13px">S4 Implementation</span></div>
+      <h1>run_7f3a</h1>
+    </div>
+    <div class="sp"></div>
+    <span class="pill pass" style="height:26px"><svg class="i i-14"><use href="#i-check"/></svg>Pass</span>
+    <span class="pill" style="height:26px"><svg class="i i-14"><use href="#i-cpu"/></svg>claude-opus-5</span>
+    <span class="pill" style="height:26px"><svg class="i i-14"><use href="#i-box"/></svg>Cursor SDK</span>
+  </div>
+  <div class="strip">
+    <div class="c"><div class="k">Tasks</div><div class="v">6</div></div>
+    <div class="c"><div class="k">Fix rounds</div><div class="v">1</div></div>
+    <div class="c"><div class="k">Duration</div><div class="v">31:05</div></div>
+    <div class="c"><div class="k">Cost</div><div class="v">$9.85<small>of $12.00</small></div><div class="bar"><i style="width:82%"></i></div></div>
+  </div>
+  <div class="rgrid">
+    <div class="pnl">
+      <header><span class="ctitle">Tasks</span><span class="pill pass">6 of 6</span></header>
+      <div class="body" style="padding-bottom:2px">
+        <div class="step"><span class="n">1</span><span class="t trunc">Add CurrencyValidator</span><span class="id">4:12</span><span class="tick"><svg class="i i-14"><use href="#i-check"/></svg></span></div>
+        <div class="step"><span class="n">2</span><span class="t trunc">Wire into BatchIntake</span><span class="id">6:40</span><span class="tick"><svg class="i i-14"><use href="#i-check"/></svg></span></div>
+        <div class="step is-open"><span class="n">3</span><span class="t trunc">Unit tests</span><span class="pill warn">1 fix round</span><span class="id">9:05</span><span class="tick"><svg class="i i-14"><use href="#i-check"/></svg></span></div>
+        <div class="expand">
+          <div class="eline"><span class="tm">13:39:04</span><span style="color:var(--fail)">unit recipe fail, 2 tests red</span></div>
+          <div class="eline"><span class="tm">13:39:20</span><span>fix round 1 started</span></div>
+          <div class="eline"><span class="tm">13:41:37</span><span>rounding guard added</span></div>
+          <div class="eline"><span class="tm">13:41:52</span><span style="color:var(--pass)">task 3 validated</span></div>
+        </div>
+        <div class="step"><span class="n">4</span><span class="t trunc">Integration test</span><span class="id">5:31</span><span class="tick"><svg class="i i-14"><use href="#i-check"/></svg></span></div>
+        <div class="step"><span class="n">5</span><span class="t trunc">Error message copy</span><span class="id">1:48</span><span class="tick"><svg class="i i-14"><use href="#i-check"/></svg></span></div>
+        <div class="step"><span class="n">6</span><span class="t trunc">Changelog</span><span class="id">0:52</span><span class="tick"><svg class="i i-14"><use href="#i-check"/></svg></span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="pnl inp">
+        <header><span class="ctitle">Inputs</span><span class="pill">5</span></header>
+        <div class="body">
+          <div class="lrow"><span class="mu lb">Agent</span><span class="t">s4-implementer</span><span class="hash hs">a11f&hellip;3c</span></div>
+          <div class="lrow"><span class="mu lb">Skill</span><span class="t">s4-implement.md</span><span class="hash hs">77c0&hellip;b8</span></div>
+          <div class="lrow"><span class="mu lb">Rubric</span><span class="t">rubric-s4</span><span class="hash hs">e9b1&hellip;77</span></div>
+          <div class="lrow"><span class="mu lb">Plan</span><span class="t">v2</span><span class="hash hs">0b3d&hellip;f9</span></div>
+          <div class="lrow"><span class="mu lb">Manifest</span><span class="t">v14</span><span class="hash hs">9c1e&hellip;f2</span></div>
+        </div>
+      </div>
+      <div class="pnl">
+        <header><span class="ctitle">Guard decisions</span></header>
+        <div class="g3">
+          <div class="c"><div class="v">214</div><div class="k">allow</div></div>
+          <div class="c"><div class="v">3</div><div class="k">redact</div></div>
+          <div class="c"><div class="v">0</div><div class="k">deny</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="pnl grow">
+        <header><span class="ctitle">Event log</span></header>
+        <div class="log"><b>13:21:08</b>  run started, lease acquired
+<b>13:21:11</b>  inputs verified, 9 hashes
+<b>13:21:40</b>  task 1 started
+<b>13:32:32</b>  task 2 validated
+<b>13:39:04</b>  unit recipe fail, 2 red
+<b>13:39:20</b>  fix round 1 started
+<b>13:47:08</b>  task 4 validated
+<b>13:50:30</b>  handoff v1 written
+<b>13:52:13</b>  run ended pass
+<b>13:52:40</b>  cost settled $9.85</div>
+    </div>
+  </div>
+</section>
+<style>
+:root{--r1:#14684A;--r2:#4A9273;--r3:#8CBFA8;--r4:#CFE3D9}
+[data-theme="dark"]{--r1:#6BC79E;--r2:#4C9B78;--r3:#377C5C;--r4:#2A6047}
+.rk .kpi .k{font-size:13px;font-weight:500;color:var(--tx);opacity:.72}
+.rk .kpi .v{margin-top:10px}
+.rk .kpi .s{font-size:12.5px;color:var(--mu);margin-top:3px}
+.rk .kpi{padding:20px 22px 22px}
+.hero .chart{padding:8px 16px 12px}
+.ax{font:400 11px var(--f-ui);fill:var(--fa)}
+.bp{fill:var(--acc)} .bf{fill:var(--fail)} .bo{fill:url(#hx)}
+.rowA{display:grid;grid-template-columns:1.9fr 1fr;gap:20px;padding:0 30px 20px;align-items:stretch}
+.rowB{display:grid;grid-template-columns:1fr 1.18fr;gap:20px;padding:0 30px 24px;align-items:stretch}
+.don{display:flex;flex-direction:column;align-items:center;padding:10px 20px 4px}
+.donlg{width:100%;padding:2px 22px 20px}
+.donlg .row{display:flex;align-items:center;gap:10px;height:38px;font-size:14px;border-bottom:1px solid var(--hair)}
+.donlg .row:last-child{border-bottom:0}
+.donlg .row .t{flex:1}
+.donlg .row .v{font-variant-numeric:tabular-nums;font-weight:500;color:var(--mu)}
+.mini{height:5px;border-radius:3px;background:var(--s3);overflow:hidden;width:84px;flex:none}
+.mini i{display:block;height:100%;border-radius:3px;background:var(--acc)}
+.mdash{width:22px;height:1px;border-top:1.4px dashed var(--mu);opacity:.75;display:block}
+.twin>header{display:grid;grid-template-columns:1fr 1fr;height:50px;padding:0;border-bottom:1px solid var(--bd)}
+.twin>header>span{display:flex;align-items:center;padding:0 18px}
+.twin>header>span+span{border-left:1px solid var(--bd)}
+.twinb{display:grid;grid-template-columns:1fr 1fr;flex:1}
+.twinb>div{padding:6px 18px 10px;display:flex;flex-direction:column}
+.twinb>div+div{border-left:1px solid var(--bd)}  /* A5: was justify-content:center */
+.twinb .lrow{height:48px}
+</style>
+<section class="screen" id="s-report">
+  <div class="hd"><h1>Report</h1><div class="sp"></div>
+    <div class="seg"><button>7d</button><button class="is-on">30d</button><button>90d</button></div></div>
+  <div class="kpis rk">
+    <div class="kpi hero"><div class="k">Cost per merged PR</div><div class="v">$13.70</div><div class="s">median</div></div>
+    <div class="kpi"><div class="k">Merged</div><div class="v">31</div><div class="s">of 38 closed</div></div>
+    <div class="kpi"><div class="k">First-pass check rate</div><div class="v">71%</div><div class="s">send-backs 6</div></div>
+    <div class="kpi"><div class="k">Median queue latency</div><div class="v">38m</div><div class="s">p90 3h 10m</div></div>
+  </div>
+  <div class="base"><b>context measure, not comparable</b><i></i><span>pre-factory cycle 3.2d</span><i></i><span>human review 41 min</span><i></i><span>defect escape rate not yet measurable</span></div>
+  <div class="rowA">
+    <div class="pnl hero">
+      <header><span class="ctitle">Cost per merged PR</span><div style="flex:1"></div>
+        <span class="fa" style="font-size:12.5px;display:flex;align-items:center;gap:7px"><i class="mdash"></i>median $13.70</span>
+        <span class="fa" style="font-size:12.5px;margin-left:18px">7 Aug &ndash; 6 Sep</span></header>
+      <div class="chart">
+        <svg viewBox="0 0 780 340" style="width:100%;height:auto" fill="none">
+          <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--acc)" stop-opacity=".17"/><stop offset="1" stop-color="var(--acc)" stop-opacity="0"/></linearGradient></defs>
+          <g stroke="var(--hair)" stroke-width="1"><path d="M46 300h716M46 208h716M46 116h716M46 24h716"/></g>
+          <text class="ax" x="38" y="304" text-anchor="end">$0</text><text class="ax" x="38" y="212" text-anchor="end">$10</text>
+          <text class="ax" x="38" y="120" text-anchor="end">$20</text><text class="ax" x="38" y="28" text-anchor="end">$30</text>
+          <text class="ax" x="46" y="322">7 Aug</text><text class="ax" x="189" y="322" text-anchor="middle">13 Aug</text>
+          <text class="ax" x="332" y="322" text-anchor="middle">19 Aug</text><text class="ax" x="476" y="322" text-anchor="middle">25 Aug</text>
+          <text class="ax" x="619" y="322" text-anchor="middle">31 Aug</text><text class="ax" x="762" y="322" text-anchor="end">6 Sep</text>
+          <path d="M46.0,169.4C48.0,174.0 65.9,219.5 69.9,225.5C73.8,231.5 89.8,244.8 93.7,241.1C97.7,237.4 113.6,188.4 117.6,181.3C121.6,174.3 137.5,160.6 141.5,156.5C145.4,152.3 161.4,129.7 165.3,131.6C169.3,133.6 185.2,178.3 189.2,179.5C193.2,180.6 209.1,140.9 213.1,145.4C217.0,150.0 233.0,225.5 236.9,233.8C240.9,242.0 256.8,248.0 260.8,244.8C264.8,241.6 280.7,201.8 284.7,195.1C288.6,188.5 304.6,172.8 308.5,164.8C312.5,156.7 328.4,100.4 332.4,98.5C336.4,96.6 352.3,134.6 356.3,141.8C360.2,148.9 376.2,177.6 380.1,184.1C384.1,190.5 400.0,214.7 404.0,219.0C408.0,223.4 423.9,240.1 427.9,236.5C431.8,232.9 447.8,185.4 451.7,175.8C455.7,166.2 471.6,133.2 475.6,121.5C479.6,109.9 495.5,33.4 499.5,36.0C503.4,38.5 519.4,140.6 523.3,151.9C527.3,163.2 543.2,164.6 547.2,171.2C551.2,177.8 567.1,225.1 571.1,231.0C575.0,236.9 591.0,245.6 594.9,242.0C598.9,238.4 614.8,195.1 618.8,187.8C622.8,180.4 638.7,154.9 642.7,153.7C646.6,152.5 662.6,178.0 666.5,173.0C670.5,168.1 686.4,94.5 690.4,93.9C694.4,93.3 710.3,157.5 714.3,165.7C718.2,173.9 734.2,191.7 738.1,192.4C742.1,193.1 760.0,175.5 762.0,174.0L762.0,300.0L46.0,300.0Z" fill="url(#ag)"/>
+          <path d="M46.0,169.4C48.0,174.0 65.9,219.5 69.9,225.5C73.8,231.5 89.8,244.8 93.7,241.1C97.7,237.4 113.6,188.4 117.6,181.3C121.6,174.3 137.5,160.6 141.5,156.5C145.4,152.3 161.4,129.7 165.3,131.6C169.3,133.6 185.2,178.3 189.2,179.5C193.2,180.6 209.1,140.9 213.1,145.4C217.0,150.0 233.0,225.5 236.9,233.8C240.9,242.0 256.8,248.0 260.8,244.8C264.8,241.6 280.7,201.8 284.7,195.1C288.6,188.5 304.6,172.8 308.5,164.8C312.5,156.7 328.4,100.4 332.4,98.5C336.4,96.6 352.3,134.6 356.3,141.8C360.2,148.9 376.2,177.6 380.1,184.1C384.1,190.5 400.0,214.7 404.0,219.0C408.0,223.4 423.9,240.1 427.9,236.5C431.8,232.9 447.8,185.4 451.7,175.8C455.7,166.2 471.6,133.2 475.6,121.5C479.6,109.9 495.5,33.4 499.5,36.0C503.4,38.5 519.4,140.6 523.3,151.9C527.3,163.2 543.2,164.6 547.2,171.2C551.2,177.8 567.1,225.1 571.1,231.0C575.0,236.9 591.0,245.6 594.9,242.0C598.9,238.4 614.8,195.1 618.8,187.8C622.8,180.4 638.7,154.9 642.7,153.7C646.6,152.5 662.6,178.0 666.5,173.0C670.5,168.1 686.4,94.5 690.4,93.9C694.4,93.3 710.3,157.5 714.3,165.7C718.2,173.9 734.2,191.7 738.1,192.4C742.1,193.1 760.0,175.5 762.0,174.0" stroke="var(--acc)" stroke-width="2"/>
+          <path d="M46 174h716" stroke="var(--mu)" stroke-width="1.3" stroke-dasharray="5 5" opacity=".55"/>
+          <g><rect x="306" y="14" width="172" height="44" rx="9" fill="var(--s1)" stroke="var(--bd)"/>
+          <text x="320" y="33" style="font:600 12.5px var(--f-ui);fill:var(--tx)">26 Aug &middot; $28.70</text>
+          <text x="320" y="49" style="font:400 11.5px var(--f-ui);fill:var(--mu)">T-0403 escalation, 3 attempts</text>
+          <path d="M478 36h16" stroke="var(--acc)" stroke-width="1.2"/>
+          <circle cx="499.5" cy="36" r="5" fill="var(--s1)" stroke="var(--acc)" stroke-width="2.5"/></g>
+        </svg>
+      </div>
+    </div>
+    <div class="pnl">
+      <header><span class="ctitle">Stage cost share</span></header>
+      <div class="don">
+        <svg viewBox="0 0 224 132" style="width:100%;max-width:340px;height:auto" fill="none" stroke-width="19">
+          <path d="M26.0,112.0A86,86 0 0 1 132.2,28.4" stroke="var(--r1)"/>
+          <path d="M134.5,29.0A86,86 0 0 1 179.2,58.3" stroke="var(--r2)"/>
+          <path d="M180.7,60.2A86,86 0 0 1 191.5,79.2" stroke="var(--r3)"/>
+          <path d="M192.4,81.5A86,86 0 0 1 198.0,112.0" stroke="var(--r4)"/>
+          <text x="112" y="102" text-anchor="middle" style="font:600 18px var(--f-ui);fill:var(--tx);stroke:none;letter-spacing:-.03em">$430.40</text>
+          <text x="112" y="124" text-anchor="middle" style="font:400 8.5px var(--f-ui);fill:var(--mu);stroke:none">30 days</text>
+        </svg>
+      </div>
+      <div class="donlg">
+        <div class="row"><i class="cdot" style="background:var(--r1)"></i><span class="t">S4</span><span class="v">58%</span></div>
+        <div class="row"><i class="cdot" style="background:var(--r2)"></i><span class="t">S3</span><span class="v">21%</span></div>
+        <div class="row"><i class="cdot" style="background:var(--r3)"></i><span class="t">S1</span><span class="v">9%</span></div>
+        <div class="row"><i class="cdot" style="background:var(--r4)"></i><span class="t">Other</span><span class="v">12%</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="rowB">
+    <div class="pnl">
+      <header><span class="ctitle">Runs by outcome</span><div style="flex:1"></div>
+        <div class="lg" style="flex-direction:row;gap:14px">
+          <span class="row" style="gap:6px"><i class="cdot" style="background:var(--acc)"></i><span class="v">212</span><span class="fa">Pass</span></span>
+          <span class="row" style="gap:6px"><i class="cdot" style="background:var(--fail)"></i><span class="v">23</span><span class="fa">Fail</span></span>
+          <span class="row" style="gap:6px"><i class="cdot" style="background:var(--s4)"></i><span class="v">18</span><span class="fa">Other</span></span>
+        </div></header>
+      <div class="chart">
+        <svg viewBox="0 0 556 180" style="width:100%;height:auto">
+          <defs><pattern id="hx" width="5" height="5" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <rect width="5" height="5" fill="var(--s3)"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--fa)" stroke-width="1.6" opacity=".55"/></pattern></defs>
+          <g stroke="var(--hair)" stroke-width="1"><path d="M34 22.6h518M34 86.3h518"/></g>
+          <text class="ax" x="26" y="26" text-anchor="end">12</text><text class="ax" x="26" y="90" text-anchor="end">6</text>
+          <text class="ax" x="26" y="154" text-anchor="end">0</text>
+          <g transform="translate(24,0)"><rect class="bp" x="13.7" y="128.8" width="9.4" height="21.2" rx="2"/><rect class="bp" x="30.5" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bo" x="47.3" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="47.3" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="47.3" y="22.6" width="9.4" height="106.2" rx="2"/><rect class="bo" x="64.1" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="64.1" y="12.0" width="9.4" height="127.4" rx="2"/><rect class="bf" x="80.9" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="80.9" y="33.2" width="9.4" height="106.2" rx="2"/><rect class="bo" x="97.7" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="97.7" y="22.6" width="9.4" height="116.8" rx="2"/><rect class="bf" x="114.5" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="114.5" y="12.0" width="9.4" height="127.4" rx="2"/><rect class="bp" x="131.3" y="118.2" width="9.4" height="31.8" rx="2"/><rect class="bp" x="148.1" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bo" x="164.9" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="164.9" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="164.9" y="43.8" width="9.4" height="84.9" rx="2"/><rect class="bo" x="181.7" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="181.7" y="12.0" width="9.4" height="127.4" rx="2"/><rect class="bf" x="198.5" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="198.5" y="22.6" width="9.4" height="116.8" rx="2"/><rect class="bo" x="215.3" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="215.3" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="215.3" y="33.2" width="9.4" height="95.5" rx="2"/><rect class="bo" x="232.1" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="232.1" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="232.1" y="12.0" width="9.4" height="116.8" rx="2"/><rect class="bp" x="248.9" y="128.8" width="9.4" height="21.2" rx="2"/><rect class="bp" x="265.7" y="128.8" width="9.4" height="21.2" rx="2"/><rect class="bo" x="282.5" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="282.5" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="282.5" y="22.6" width="9.4" height="106.2" rx="2"/><rect class="bo" x="299.3" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="299.3" y="12.0" width="9.4" height="127.4" rx="2"/><rect class="bo" x="316.1" y="128.8" width="9.4" height="21.2" rx="2"/><rect class="bf" x="316.1" y="86.3" width="9.4" height="42.5" rx="2"/><rect class="bp" x="316.1" y="33.2" width="9.4" height="53.1" rx="2"/><rect class="bo" x="332.9" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="332.9" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="332.9" y="22.6" width="9.4" height="106.2" rx="2"/><rect class="bo" x="349.7" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="349.7" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="349.7" y="12.0" width="9.4" height="116.8" rx="2"/><rect class="bp" x="366.5" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bp" x="383.3" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bo" x="400.1" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="400.1" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="400.1" y="33.2" width="9.4" height="95.5" rx="2"/><rect class="bo" x="416.9" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="416.9" y="128.8" width="9.4" height="10.6" rx="2"/><rect class="bp" x="416.9" y="22.6" width="9.4" height="106.2" rx="2"/><rect class="bf" x="433.7" y="128.8" width="9.4" height="21.2" rx="2"/><rect class="bp" x="433.7" y="43.8" width="9.4" height="84.9" rx="2"/><rect class="bo" x="450.5" y="139.4" width="9.4" height="10.6" rx="2"/><rect class="bf" x="450.5" y="118.2" width="9.4" height="21.2" rx="2"/><rect class="bp" x="450.5" y="33.2" width="9.4" height="84.9" rx="2"/><rect class="bo" x="467.3" y="128.8" width="9.4" height="21.2" rx="2"/><rect class="bf" x="467.3" y="96.9" width="9.4" height="31.8" rx="2"/><rect class="bp" x="467.3" y="22.6" width="9.4" height="74.3" rx="2"/><rect class="bp" x="484.1" y="128.8" width="9.4" height="21.2" rx="2"/><rect class="bp" x="500.9" y="139.4" width="9.4" height="10.6" rx="2"/></g>
+          <path d="M34 150h518" stroke="var(--bd)" stroke-width="1"/>
+          <text class="ax" x="34" y="172">8 Aug</text><text class="ax" x="293" y="172" text-anchor="middle">22 Aug</text><text class="ax" x="552" y="172" text-anchor="end">6 Sep</text>
+        </svg>
+      </div>
+    </div>
+    <div class="pnl twin">
+      <header><span class="ctitle">Tag leaderboard</span><span class="ctitle">Model spend</span></header>
+      <div class="twinb">
+        <div>
+          <div class="lrow"><span class="id" style="width:56px">FM-4</span><span class="t">stale context</span><span class="mini"><i style="width:100%"></i></span><span class="tn" style="width:26px;text-align:right;font-weight:500">5</span></div>
+          <div class="lrow"><span class="id" style="width:56px">FM-7</span><span class="t">scope creep</span><span class="mini"><i style="width:80%"></i></span><span class="tn" style="width:26px;text-align:right;font-weight:500">4</span></div>
+          <div class="lrow"><span class="id" style="width:56px">FM-10</span><span class="t">packet defect</span><span class="mini"><i style="width:40%"></i></span><span class="tn" style="width:26px;text-align:right;font-weight:500">2</span></div>
+          <div class="lrow"><span class="id" style="width:56px">FM-12</span><span class="t">flaky check</span><span class="mini"><i style="width:40%"></i></span><span class="tn" style="width:26px;text-align:right;font-weight:500">2</span></div>
+          <div class="lrow"><span class="id" style="width:56px">FM-1</span><span class="t">wrong scope</span><span class="mini"><i style="width:20%"></i></span><span class="tn" style="width:26px;text-align:right;font-weight:500">1</span></div>
+        </div>
+        <div>
+          <div class="lrow"><span class="t">claude-opus-5</span><span class="tn" style="width:72px;text-align:right;font-weight:600">$318.40</span><span class="mu tn" style="width:42px;text-align:right">74%</span></div>
+          <div class="lrow"><span class="t">claude-sonnet-5</span><span class="tn" style="width:72px;text-align:right;font-weight:600">$88.10</span><span class="mu tn" style="width:42px;text-align:right">20%</span></div>
+          <div class="lrow"><span class="t">claude-sonnet-5 grader</span><span class="tn" style="width:72px;text-align:right;font-weight:600">$19.70</span><span class="mu tn" style="width:42px;text-align:right">5%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<style>
+.fgrid{display:grid;grid-template-columns:560px 1fr;gap:20px;padding:0 30px 20px;align-items:stretch}
+.fgrid>.rcol{display:flex;flex-direction:column;gap:20px}
+.fgrid>.rcol>.pnl:last-child{flex:1}
+.mtbl th{position:static;height:40px;padding:0 14px}
+.mtbl td{height:62px;padding:0 14px;font-size:14px}
+.mtbl td.bd,.mtbl th.mbu{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.mtbl th.mbu{font-weight:500}
+.mtbl th:first-child,.mtbl td:first-child{padding-left:18px}
+.mtbl th:last-child,.mtbl td:last-child{padding-right:18px}
+.mtbl .sn{font-weight:500}
+.mst{width:198px} .mti{width:86px} .mmo{width:184px} .mbu{width:90px}
+/* F4: one hero number, above the 32px page title */
+.fgate{display:flex;align-items:center;gap:18px;padding:22px 22px 24px}
+.fgate .rg{width:52px;height:52px;border-radius:50%;background:var(--pass-bg);color:var(--pass);display:grid;place-items:center;flex:none}
+.fgate .v{font-size:36px;font-weight:600;letter-spacing:-.038em;line-height:1.05;font-variant-numeric:tabular-nums}
+.fgate .v2{font-size:24px;font-weight:600;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums;color:var(--mu)}
+.fgate .k{font-size:13px;color:var(--mu);margin-top:2px}
+.fgate .fsep{width:1px;align-self:stretch;background:var(--bd);margin:0 8px}
+#s-factory .sw{height:76px}
+.swval{display:flex;align-items:center;gap:7px;height:32px;padding:0 11px;border-radius:9px;border:1px solid var(--ctl-bd);
+  background:var(--s2);font-size:13px;font-weight:500;color:var(--mu)}
+.acards{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;padding:0 30px 24px}
+.acard{border:1px solid var(--bd);border-radius:14px;background:var(--s1);box-shadow:var(--sh-card);overflow:hidden}
+.acard .top{display:flex;align-items:center;gap:10px;padding:16px 15px 15px}
+.acard .ic{width:34px;height:34px;border-radius:50%;background:var(--s3);color:var(--tx);display:grid;place-items:center;
+  font-size:11.5px;font-weight:600;flex:none;letter-spacing:.01em}
+.acard .n{flex:1;min-width:0}
+.acard .n b{display:block;font-size:14px;font-weight:600;letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acard .n s{display:block;font-size:11.5px;color:var(--fa);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acard .kv{background:var(--s2);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:12px 15px}
+.acard .kv div{display:flex;align-items:center;justify-content:space-between;height:32px;font-size:13px}
+.acard .kv div span{color:var(--mu)}
+.acard .kv div b{font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.acard .acts{display:flex;gap:8px;padding:14px 15px}
+.acard .acts .btn{flex:1;justify-content:center;height:31px;padding:0;font-size:12.5px}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--fa);flex:none}
+</style>
+<section class="screen" id="s-factory">
+  <div class="hd">
+    <h1>Factory</h1>
+    <div class="sp"></div>
+    <button class="btn pri"><svg class="i i-16"><use href="#i-branch"/></svg>Open PR</button>
+  </div>
+  <div class="fgrid">
+    <div class="pnl">
+      <header><span class="ctitle">Stage manifest</span></header>
+      <table class="mtbl">
+        <thead><tr><th class="mst">Stage</th><th class="mti">Tier</th><th class="mmo">Model</th><th class="mbu">Budget</th></tr></thead>
+        <tbody>
+        <tr><td class="sn">S0 Intake</td><td class="mu tn">all</td><td class="mu">claude-haiku-4-5</td><td class="bd tn">$0.10</td></tr>
+        <tr><td class="sn">S1 Context</td><td class="mu tn">1&ndash;3</td><td class="mu">claude-sonnet-5</td><td class="bd tn">$2.00</td></tr>
+        <tr><td class="sn">S2 Clarify</td><td class="mu tn">1&ndash;3</td><td class="mu">claude-sonnet-5</td><td class="bd tn">$1.50</td></tr>
+        <tr><td class="sn">S3 Spec and plan</td><td class="mu tn">1&ndash;3</td><td class="mu">claude-opus-5</td><td class="bd tn">$6.00</td></tr>
+        <tr><td class="sn">S4 Implementation</td><td class="mu tn">1&ndash;3</td><td class="mu">claude-opus-5</td><td class="bd tn">$12.00</td></tr>
+        <tr><td class="sn">S5 Checks</td><td class="mu tn">all</td><td class="mu">scripts</td><td class="bd tn">$1.00</td></tr>
+        <tr><td class="sn">S6 Packet</td><td class="mu tn">all</td><td class="mu">scripts</td><td class="bd tn">$2.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rcol">
+      <div class="pnl">
+        <div class="fgate">
+          <span class="rg"><svg class="i i-20"><use href="#i-check"/></svg></span>
+          <div><div class="v tn">41</div><div class="k">fixtures pass</div></div>
+          <div class="fsep"></div>
+          <div><div class="v2 tn">v14</div><div class="k">manifest <span class="hash">9c1e&hellip;f2</span></div></div>
+        </div>
+      </div>
+      <div class="pnl">
+        <header><span class="ctitle">Sandbox policy</span><div style="flex:1"></div><span class="hash">c8a0&hellip;42</span></header>
+        <div class="body" style="padding-top:0;padding-bottom:4px">
+          <div class="sw"><span class="ic"><svg class="i i-16"><use href="#i-layers"/></svg></span><span class="t">Copy-on-write worktree</span><span class="tog on"><i></i></span></div>
+          <div class="sw"><span class="ic"><svg class="i i-16"><use href="#i-key"/></svg></span><span class="t">Allowlisted environment</span><span class="tog on"><i></i></span></div>
+          <div class="sw"><span class="ic"><svg class="i i-16"><use href="#i-lock"/></svg></span><span class="t">No push URL</span><span class="tog on"><i></i></span></div>
+          <div class="sw"><span class="ic"><svg class="i i-16"><use href="#i-globe"/></svg></span><span class="t">Loopback proxy allowlist</span><span class="swval">per stage<svg class="i i-14"><use href="#i-chev"/></svg></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="acards">
+    <div class="acard">
+      <div class="top"><span class="ic">S0</span><div class="n"><b>s0-intake</b><s>claude-haiku-4-5</s></div><span class="sdot"></span></div>
+      <div class="kv"><div><span>Runs 30d</span><b>61</b></div><div><span>Pass rate</span><b>97%</b></div><div><span>Last run</span><b>run_1e05</b></div></div>
+      <div class="acts"><button class="btn sm">Open</button><button class="btn sm">Fixtures</button></div>
+    </div>
+    <div class="acard">
+      <div class="top"><span class="ic">S1</span><div class="n"><b>s1-context</b><s>claude-sonnet-5</s></div><span class="sdot"></span></div>
+      <div class="kv"><div><span>Runs 30d</span><b>58</b></div><div><span>Pass rate</span><b>93%</b></div><div><span>Last run</span><b>run_77d2</b></div></div>
+      <div class="acts"><button class="btn sm">Open</button><button class="btn sm">Fixtures</button></div>
+    </div>
+    <div class="acard">
+      <div class="top"><span class="ic">S2</span><div class="n"><b>s2-clarify</b><s>claude-sonnet-5</s></div><span class="sdot"></span></div>
+      <div class="kv"><div><span>Runs 30d</span><b>54</b></div><div><span>Pass rate</span><b>91%</b></div><div><span>Last run</span><b>run_51a7</b></div></div>
+      <div class="acts"><button class="btn sm">Open</button><button class="btn sm">Fixtures</button></div>
+    </div>
+    <div class="acard">
+      <div class="top"><span class="ic">S3</span><div class="n"><b>s3-planner</b><s>claude-opus-5</s></div><span class="sdot"></span></div>
+      <div class="kv"><div><span>Runs 30d</span><b>52</b></div><div><span>Pass rate</span><b>88%</b></div><div><span>Last run</span><b>run_c4d8</b></div></div>
+      <div class="acts"><button class="btn sm">Open</button><button class="btn sm">Fixtures</button></div>
+    </div>
+    <div class="acard">
+      <div class="top"><span class="ic">S4</span><div class="n"><b>s4-implementer</b><s>claude-opus-5</s></div><span class="pulse"></span></div>
+      <div class="kv"><div><span>Runs 30d</span><b>49</b></div><div><span>Pass rate</span><b>79%</b></div><div><span>Last run</span><b>run_d204</b></div></div>
+      <div class="acts"><button class="btn sm">Open</button><button class="btn sm">Fixtures</button></div>
+    </div>
+  </div>
+</section>
+  </main>
+</div>
+<script>
+(function(){
+  var IDS=['queue','tickets','ticket','runs','run','report','factory'];
+  var NAV={queue:'queue',tickets:'tickets',ticket:'tickets',runs:'runs',run:'runs',report:'report',factory:'factory'};
+  var root=document.documentElement;
+  function setTheme(t){
+    root.setAttribute('data-theme',t==='dark'?'dark':'light');
+    var b=document.querySelectorAll('[data-theme-btn]');
+    for(var i=0;i<b.length;i++) b[i].classList.toggle('is-on',b[i].getAttribute('data-theme-btn')===root.getAttribute('data-theme'));
+  }
+  function show(id){
+    if(IDS.indexOf(id)<0) id='queue';
+    for(var i=0;i<IDS.length;i++){var el=document.getElementById('s-'+IDS[i]); if(el) el.hidden=(IDS[i]!==id);}
+    var n=document.querySelectorAll('[data-nav]');
+    for(var j=0;j<n.length;j++) n[j].classList.toggle('is-active',n[j].getAttribute('data-nav')===NAV[id]);
+    window.scrollTo(0,0);
+  }
+  var q=new URLSearchParams(window.location.search);
+  setTheme(q.get('theme')==='dark'?'dark':'light');
+  show((window.location.hash||'#queue').slice(1));
+  window.addEventListener('hashchange',function(){show(window.location.hash.slice(1));});
+  document.addEventListener('click',function(e){
+    var t=e.target.closest?e.target.closest('[data-theme-btn]'):null;
+    if(t) setTheme(t.getAttribute('data-theme-btn'));
+  });
+})();
+</script>
+</body>
+</html>

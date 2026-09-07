@@ -1,0 +1,1289 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Soft Factory — Canvas</title>
+<style>
+@font-face{font-family:'Outfit';src:url('assets/Outfit-Variable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:block}
+@font-face{font-family:'JetBrains Mono';src:url('assets/JetBrainsMono-Variable.woff2') format('woff2');font-weight:100 800;font-style:normal;font-display:block}
+
+/* ============ tokens ============ */
+:root{
+  --ui:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --page:#E9ECEF;
+  --app:#FFFFFF;
+  --canvas:#EFF1F5;
+  --dot:rgba(20,26,40,.11);
+  --surface:#FFFFFF;
+  --surface-2:#F4F6F8;
+  --frost:rgba(255,255,255,.84);
+  --frost-brd:rgba(20,26,40,.08);
+  --line:#E7E9ED;
+  --line-2:#D9DDE3;
+  --ink:#111419;
+  --ink-2:#3C434E;
+  --muted:#79818E;
+  --faint:#868E9C;
+  --lime:#B8D832;
+  --lime-2:#A8C824;
+  --lime-ink:#26320A;
+  --lime-soft:rgba(184,216,50,.20);
+  --acc-bg:rgba(184,216,50,.22); --acc-ink:#586F12; --acc-brd:rgba(148,178,30,.34);
+  --port:#FFFFFF;
+  --ok:#1B8F5E; --ok-bg:#EAF7F0; --ok-brd:#CDE9DA;
+  --bad:#C9403C; --bad-bg:#FCEDEC; --bad-brd:#F2D5D3;
+  --warn:#A0700F; --warn-bg:#FBF3E2; --warn-brd:#EEDFBB;
+  --neu-bg:#F1F3F6; --neu-brd:#E2E6EB;
+  --hov-bg:rgba(20,26,40,.135); --chk-bg:rgba(184,216,50,.14); --sel-bg:rgba(184,216,50,.28);
+  --bulk:#1B1F26; --bulk-brd:rgba(255,255,255,.10); --bulk-btn:rgba(255,255,255,.10);
+  --edge:#8AA32B;
+  --sh-1:0 1px 2px rgba(16,24,40,.05);
+  --sh-2:0 1px 2px rgba(16,24,40,.05),0 10px 24px -18px rgba(16,24,40,.45);
+  --sh-3:0 2px 4px rgba(16,24,40,.05),0 28px 60px -34px rgba(16,24,40,.5);
+  --t0:#7B8FAF; --t1:#5E93A1; --t2:#5D9782; --t3:#7E9B5C; --t4:#B09A4F; --t5:#B5836A; --t6:#9179A6;
+}
+[data-theme="dark"]{
+  --page:#08090B;
+  --app:#121418;
+  --canvas:#0B0D10;
+  --dot:rgba(255,255,255,.075);
+  --surface:#181B20;
+  --surface-2:#1E2128;
+  --frost:rgba(26,29,35,.80);
+  --frost-brd:rgba(255,255,255,.11);
+  --line:rgba(255,255,255,.09);
+  --line-2:rgba(255,255,255,.15);
+  --ink:#F1F3F6;
+  --ink-2:#C4CAD3;
+  --muted:#8A929F;
+  --faint:#6B7481;
+  --lime:#B6D64C; --lime-2:#C7E464; --lime-ink:#161D04; --lime-soft:rgba(182,214,76,.16);
+  --acc-bg:rgba(182,214,76,.16); --acc-ink:#C7E464; --acc-brd:rgba(182,214,76,.32);
+  --port:#20242B;
+  --ok:#54BE8B; --ok-bg:rgba(84,190,139,.14); --ok-brd:rgba(84,190,139,.26);
+  --bad:#E97B77; --bad-bg:rgba(233,123,119,.14); --bad-brd:rgba(233,123,119,.26);
+  --warn:#D9A94A; --warn-bg:rgba(217,169,74,.14); --warn-brd:rgba(217,169,74,.26);
+  --neu-bg:rgba(255,255,255,.05); --neu-brd:rgba(255,255,255,.10);
+  --hov-bg:rgba(255,255,255,.10); --chk-bg:rgba(182,214,76,.14); --sel-bg:rgba(182,214,76,.26);
+  --bulk:#616978; --bulk-brd:rgba(255,255,255,.10); --bulk-btn:rgba(255,255,255,.14);
+  --edge:#9FBB46;
+  --sh-1:0 1px 2px rgba(0,0,0,.4);
+  --sh-2:0 1px 2px rgba(0,0,0,.4),0 12px 26px -18px rgba(0,0,0,.9);
+  --sh-3:0 2px 6px rgba(0,0,0,.45),0 30px 60px -34px rgba(0,0,0,1);
+  --t0:#8296B4; --t1:#699DAA; --t2:#68A08C; --t3:#8AA668; --t4:#B8A25B; --t5:#BD8D74; --t6:#9C85AF;
+}
+
+/* ============ base ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--page);font-family:var(--ui);color:var(--ink);
+  -webkit-font-smoothing:antialiased;font-size:14px;line-height:1.45;
+  font-variant-numeric:tabular-nums;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+.ic{width:18px;height:18px;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;fill:none;flex:none}
+.ic.s{width:15px;height:15px}
+.ic.l{width:20px;height:20px}
+.defs{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ============ app frame ============ */
+.app{position:absolute;inset:14px;background:var(--app);border:1px solid var(--line);
+  border-radius:20px;box-shadow:var(--sh-3);display:flex;overflow:hidden}
+
+.rail{width:60px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;
+  align-items:center;padding:14px 0 14px;gap:8px;background:var(--app)}
+.rl{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--muted);position:relative}
+.rl:hover{background:var(--surface-2);color:var(--ink-2)}
+.rl.on{background:var(--lime);color:var(--lime-ink);box-shadow:0 4px 12px -6px rgba(120,150,20,.8)}
+.rl .bdg{position:absolute;top:-5px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:var(--ink);
+  color:var(--app);font-size:11px;font-weight:600;display:grid;place-items:center;padding:0 5px;border:2px solid var(--app)}
+.rail .sp{flex:1}
+.rail .av{width:32px;height:32px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--ink-2);font-size:12px;font-weight:600;display:grid;place-items:center;letter-spacing:.02em}
+
+.body{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{height:56px;flex:none;border-bottom:1px solid var(--line);display:flex;align-items:center;
+  gap:10px;padding:0 16px;position:relative}
+.brand{display:flex;align-items:center;gap:9px}
+.brand .mk{width:26px;height:26px;border-radius:9px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center}
+.brand b{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.vr{width:1px;height:20px;background:var(--line-2)}
+.ws{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border-radius:10px;color:var(--ink-2)}
+.ws:hover{background:var(--surface-2)}
+.ws .sq{width:22px;height:22px;border-radius:7px;background:var(--surface-2);border:1px solid var(--line);
+  display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--ink-2)}
+.ws span{font-size:13.5px;font-weight:500}
+.ws .ic{color:var(--faint)}
+.tabc{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px}
+.tab{display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:10px;
+  border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh-1);font-size:13.5px;font-weight:500}
+.tab .dm{width:8px;height:8px;border:1.5px solid var(--lime-2);transform:rotate(45deg);border-radius:2px}
+.icbtn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent}
+.icbtn:hover{background:var(--surface-2);color:var(--ink-2)}
+.icbtn.bd{border-color:var(--line);background:var(--surface)}
+.tbright{margin-left:auto;display:flex;align-items:center;gap:8px}
+.search{display:flex;align-items:center;gap:8px;height:34px;width:180px;padding:0 11px;border-radius:10px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--faint)}
+.search span{font-size:13px}
+.runner{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-2);font-weight:500}
+.dotpulse{width:7px;height:7px;border-radius:50%;background:var(--lime-2);box-shadow:0 0 0 0 var(--lime-soft);
+  animation:pl 2s infinite}
+@keyframes pl{0%{box-shadow:0 0 0 0 var(--lime-soft)}70%{box-shadow:0 0 0 7px rgba(0,0,0,0)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+
+.main{flex:1;min-height:0;position:relative;display:flex;background:var(--canvas)}
+.main::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:radial-gradient(var(--dot) 1.15px,transparent 1.15px);background-size:22px 22px}
+.screen{display:none;flex:1;min-width:0;position:relative;z-index:1}
+.screen.on{display:flex}
+
+/* ============ left panel (frosted card on the canvas ground, R17) ============ */
+.panel{width:280px;flex:none;margin:20px 0 20px 20px;align-self:stretch;
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--frost);border:1px solid var(--frost-brd);border-radius:16px;
+  backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);box-shadow:var(--sh-3)}
+.phd{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line)}
+.phd b{font-size:15px;font-weight:600}
+.phd .cnt{margin-left:auto;font-size:12px;color:var(--muted);background:var(--surface-2);
+  border-radius:7px;padding:2px 8px;font-weight:500}
+.pbody{flex:1;min-height:0;overflow:auto;padding:10px 8px 14px;display:flex;flex-direction:column}
+.pbody>*{flex:none}
+.psec{display:flex;align-items:center;gap:8px;padding:18px 8px 8px;font-size:11px;font-weight:500;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.psec:first-child{padding-top:6px}
+.psec em{font-style:normal;margin-left:auto;letter-spacing:0;text-transform:none}
+.pfoot{margin-top:auto;border-top:1px solid var(--line);padding-top:4px}
+
+.qrow{display:flex;align-items:center;gap:9px;width:100%;height:52px;padding:0 9px;border-radius:11px;
+  text-align:left;position:relative}
+.qrow:hover{background:var(--surface-2)}
+.qrow.on{background:var(--lime-soft)}
+.qrow.on::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--lime-2)}
+.qi{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:var(--neu-bg);color:var(--muted);border:1px solid var(--neu-brd)}
+.qi.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-brd)}
+.qi.bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-brd)}
+.qi.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-brd)}
+.qk{font-size:13.5px;font-weight:500;color:var(--ink);white-space:nowrap;flex:none}
+.qs{font-size:12px;color:var(--faint);white-space:nowrap;flex:none;margin-left:-2px}
+.qa{font-size:12px;color:var(--faint);flex:none;margin-left:auto;padding-left:8px}
+
+.kstack{padding:4px 16px 0}
+.kb{padding:20px 0 22px;border-bottom:1px solid var(--line)}
+.kb:last-child{border-bottom:0}
+.kb .lb{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.kb .nm{font-size:34px;font-weight:600;letter-spacing:-.025em;line-height:1.15;margin-top:5px}
+.kb .sub{font-size:12.5px;color:var(--muted);margin-top:-1px}
+
+.lrow{display:flex;align-items:center;gap:10px;height:48px;padding:0 10px;border-radius:10px}
+.lrow.on{background:var(--lime-soft)}
+.lrow .ic{color:var(--faint);flex:none}
+.lrow .n{width:16px;flex:none;font-size:12px;color:var(--faint)}
+.lrow i.sd{width:7px;height:7px;border-radius:50%;flex:none;background:var(--ok)}
+.lrow i.sd.w{background:var(--warn)}
+.tight .lrow{height:40px}
+.tight .swrow{height:46px}
+.lrow:hover{background:var(--surface-2)}
+.lrow .nm{font-size:13.5px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .vl{font-size:12.5px;color:var(--muted)}
+.lrow .h{font-family:var(--mono);font-size:12px;color:var(--faint)}
+.avi{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;font-size:11px;font-weight:600;
+  flex:none;background:var(--neu-bg);border:1px solid var(--neu-brd);color:var(--ink-2)}
+
+.swrow{display:flex;align-items:center;gap:12px;height:52px;padding:0 10px}
+.swrow .nm{flex:1;font-size:13.5px;font-weight:500}
+.sw{width:38px;height:22px;border-radius:11px;background:var(--line-2);position:relative;flex:none;transition:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:var(--sh-1)}
+.sw.on{background:var(--lime)}
+.sw.on::after{left:19px}
+
+/* node library tile grid (R17) */
+.ngrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:6px 8px 2px}
+.ntile{position:relative;height:100px;border-radius:12px;border:1px solid var(--line);background:var(--surface);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;box-shadow:var(--sh-1)}
+.ntile::after{content:"";position:absolute;top:9px;right:9px;width:7px;height:11px;opacity:.6;
+  background-image:radial-gradient(currentColor 1px,transparent 1px);background-size:4px 4px;color:var(--faint)}
+.ntile .tl{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:var(--tc,#888);
+  background:color-mix(in srgb,var(--tc) 15%,transparent);border:1px solid color-mix(in srgb,var(--tc) 26%,transparent)}
+.ntile .lb2{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.ntile.gh{background:transparent;border-style:dashed;border-color:var(--line-2);box-shadow:none}
+.ntile.gh::after{display:none}
+.ntile.gh .lb2{color:var(--faint)}
+.ntile.gh .tl{background:transparent;border-color:var(--line-2);color:var(--faint)}
+
+/* ============ work area ============ */
+.work{flex:1;min-width:0;display:flex;flex-direction:column;overflow:auto;padding:0 20px}
+.titlebar{flex:none;display:flex;align-items:center;gap:14px;padding:18px 4px 14px}
+h1{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+.eyebrow{font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tmeta{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.tmeta b{font-weight:600;color:var(--ink-2)}
+.acts{margin-left:auto;display:flex;align-items:center;gap:8px}
+.btn{display:flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;
+  border:1px solid var(--line);background:var(--surface);font-size:13.5px;font-weight:500;color:var(--ink-2);box-shadow:var(--sh-1)}
+.btn:hover{border-color:var(--line-2)}
+.btn.pri{background:var(--lime);border-color:var(--lime-2);color:var(--lime-ink);font-weight:600;
+  box-shadow:0 6px 16px -10px rgba(120,150,20,.9)}
+.btn.dis{background:var(--surface-2);border-color:var(--line);color:var(--faint);box-shadow:none;
+  cursor:not-allowed;font-weight:500}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.chips{display:flex;align-items:center;gap:7px}
+.chip{display:flex;align-items:center;gap:6px;height:32px;padding:0 11px;border-radius:9px;
+  border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-2);font-weight:500}
+.chip .ic{color:var(--faint)}
+.chip.on{background:var(--lime-soft);border-color:var(--lime-2);color:var(--ink)}
+.seg{display:flex;padding:3px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
+.seg button{height:28px;padding:0 12px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--sh-1)}
+
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;
+  font-size:12px;font-weight:500;background:var(--neu-bg);color:var(--muted);border:1px solid var(--neu-brd)}
+.pill.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-brd)}
+.pill.bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad-brd)}
+.pill.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-brd)}
+.pill.acc{background:var(--acc-bg);color:var(--acc-ink);border-color:var(--acc-brd)}
+.pill i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+
+/* ============ canvas ============ */
+.canvas{flex:1;min-height:0;position:relative}
+.cvrow{position:absolute;inset:0;display:flex;gap:20px;padding:4px 0 16px}
+.cvwrap{position:relative;flex:none}
+.cvwrap svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:0}
+.cvwrap svg.ports{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:3}
+.ed{fill:none;stroke:var(--edge);stroke-width:2.5;stroke-linecap:round}
+.ed.warn{stroke:var(--warn)}
+.ed.bad{stroke:var(--bad)}
+.ed.dash{stroke-dasharray:5 6}
+.pt{fill:var(--port);stroke:var(--edge);stroke-width:2}
+.pt.warn{stroke:var(--warn)}.pt.bad{stroke:var(--bad)}
+.elabels{position:absolute;inset:0;pointer-events:none;z-index:4}
+.el{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-size:12px;font-weight:500;
+  padding:4px 11px;border-radius:999px;background:var(--surface);border:1px solid var(--acc-brd);
+  color:var(--acc-ink);box-shadow:var(--sh-1)}
+.el.ok{border-color:var(--ok-brd);color:var(--ok)}
+.el.bad{border-color:var(--bad-brd);color:var(--bad)}
+.el.warn{border-color:var(--warn-brd);color:var(--warn)}
+
+.node{position:absolute;z-index:2;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--sh-2);display:flex;align-items:center;gap:11px;padding:12px 14px}
+.node .tile{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+  background:var(--neu-bg);border:1px solid var(--neu-brd);color:var(--muted)}
+.node .tx{min-width:0;display:flex;flex-direction:column;gap:1px}
+.node .t{font-size:14.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .m{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node.sel{border-color:var(--lime-2);box-shadow:0 0 0 3px var(--lime-soft),var(--sh-2)}
+.node.mini{padding:10px 12px;border-radius:12px;gap:9px}
+.node.mini .t{font-size:13px}
+.node.mini .m{font-size:12px}
+.node.hero{padding:16px 18px;border-radius:16px;gap:14px}
+.node.hero .t{font-size:18px}
+.node.hero .m{font-size:14px;color:var(--ink-2)}
+.node.hero .tile{width:42px;height:42px;border-radius:12px}
+.node[data-dot]{gap:7px}
+.node[data-dot]::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok);flex:none}
+.node[data-dot="sel"]::before{background:var(--lime-2);box-shadow:0 0 0 3px var(--lime-soft)}
+.node.ghost{background:transparent;border-style:dashed;border-color:var(--line-2);box-shadow:none;color:var(--muted)}
+.node.ghost .t{font-weight:500;color:var(--muted)}
+
+.ntab{position:absolute;left:0;top:-26px;height:27px;padding:0 11px;display:flex;align-items:center;gap:6px;
+  border-radius:9px 9px 0 0;font-size:12px;font-weight:600;color:#fff;letter-spacing:.01em;background:var(--tc,#888)}
+.ntab .ic{width:13px;height:13px;stroke-width:2}
+.ntab.nt{background:var(--surface-2);color:var(--muted);border:1px solid var(--line);border-bottom:0}
+.ntab.acc{background:var(--lime);color:var(--lime-ink)}
+.tabbed{border-top-left-radius:0}
+[data-theme="dark"] .ntab{background:color-mix(in srgb,var(--tc) 26%,transparent);color:var(--tc)}
+[data-theme="dark"] .ntab.nt{background:var(--surface-2);color:var(--muted)}
+[data-theme="dark"] .ntab.acc{background:var(--lime);color:var(--lime-ink)}
+
+/* stage step node (R13 header strip) */
+.snode{position:absolute;z-index:2;background:var(--surface);border:1px solid var(--line);border-radius:13px;
+  box-shadow:var(--sh-2);overflow:hidden}
+.snode .hd{height:28px;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:12px;font-weight:600;
+  letter-spacing:.02em;color:var(--tc,#888);background:color-mix(in srgb,var(--tc) 15%,transparent)}
+.snode .bd{padding:10px 12px 11px}
+.snode .t{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.snode .m{font-size:12px;color:var(--muted);margin-top:2px}
+.snode.exp .hd{height:32px;font-size:12.5px}
+.snode.exp .bd{padding:12px 14px 14px}
+.snode.exp .t{font-size:15px}
+.snode .lb{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.snode .ln{font-size:13px;color:var(--ink-2);margin-top:2px}
+.snode .ln b{font-weight:600}
+
+.zoom{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;
+  height:34px;padding:0 6px;border-radius:11px;background:var(--frost);border:1px solid var(--frost-brd);
+  backdrop-filter:blur(14px);box-shadow:var(--sh-2)}
+.zoom .zb{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.zoom .val{font-size:12.5px;font-weight:500;color:var(--ink-2);min-width:44px;text-align:center}
+.zoom .dv{width:1px;height:16px;background:var(--line-2);margin:0 4px}
+.zoom .rs{font-size:12.5px;font-weight:500;color:var(--muted);padding:0 8px}
+
+/* ============ cards ============ */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-2)}
+.frost{background:var(--frost);border:1px solid var(--frost-brd);border-radius:16px;
+  backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);box-shadow:var(--sh-3)}
+.chd{display:flex;align-items:center;gap:10px;padding:16px 18px 0}
+.chd h3{font-size:16px;font-weight:600;letter-spacing:-.015em}
+.chd .rt{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.ucase{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.ptitle{font-size:16px;font-weight:600;letter-spacing:-.015em;margin-bottom:2px}
+
+/* ============ tables ============ */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+  padding:0 14px;height:44px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:0 14px;height:56px;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--ink-2);white-space:nowrap}
+.compact td{height:50px}
+.compact th{height:42px}
+tr:last-child td{border-bottom:0}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.tk{color:var(--muted);font-size:13px;font-weight:500}
+.ttl{font-size:14px;font-weight:500;color:var(--ink);max-width:1px;overflow:hidden;text-overflow:ellipsis}
+tbody tr.hov{background:var(--hov-bg)}
+tbody tr.chk{background:var(--chk-bg)}
+tbody tr.sel{background:var(--sel-bg)}
+tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--lime-2)}
+.cb{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--line-2);display:inline-grid;place-items:center;
+  vertical-align:middle;color:transparent}
+.cb.on{background:var(--lime);border-color:var(--lime-2);color:var(--lime-ink)}
+.sq{display:inline-block;width:8px;height:8px;border-radius:3px;margin-right:9px;vertical-align:1px}
+.dts{display:inline-flex;gap:4px;align-items:center}
+.dts i{width:7px;height:7px;border-radius:50%;background:var(--line-2)}
+.dts i.d{background:var(--ok)}
+.dts i.f{background:var(--bad)}
+.dts i.w{background:var(--warn)}
+.dts i.r{background:var(--lime-2);box-shadow:0 0 0 3px var(--lime-soft)}
+.bulkbar{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;
+  height:48px;padding:0 10px 0 18px;border-radius:14px;background:var(--bulk);color:#EDEFF3;
+  border:1px solid var(--bulk-brd);
+  box-shadow:0 2px 6px rgba(0,0,0,.28),0 24px 44px -22px rgba(0,0,0,.85)}
+.bulkbar .lb{font-size:13px;font-weight:500;margin-right:6px}
+.bulkbar .lb b{font-weight:600}
+.bulkbar button{height:32px;padding:0 12px;border-radius:9px;font-size:13px;font-weight:500;
+  background:var(--bulk-btn);color:#EDEFF3}
+
+/* ============ console / debug (two separate cards, R01) ============ */
+.cons{flex:none;display:flex;gap:20px;padding-bottom:20px}
+.cpane{flex:1;min-width:0;padding:15px 18px 16px;background:var(--surface);
+  border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-2)}
+.cpane .hd{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.cpane .hd h3{font-size:16px;font-weight:600;letter-spacing:-.015em}
+.cpane .hd .rt{margin-left:auto;font-size:12px;color:var(--faint)}
+.cline{display:flex;align-items:center;gap:10px;height:26px;font-family:var(--mono);font-size:12px}
+.cline .tm{color:var(--faint);flex:none;width:46px}
+.cbg{flex:none;width:46px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  padding:2px 0;border-radius:5px;background:var(--neu-bg);color:var(--muted);font-family:var(--ui)}
+.cbg.ok{background:var(--ok-bg);color:var(--ok)}
+.cbg.bad{background:var(--bad-bg);color:var(--bad)}
+.cbg.warn{background:var(--warn-bg);color:var(--warn)}
+.cline .ms{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow{display:flex;align-items:center;gap:10px;height:26px;padding:0 10px;border-radius:8px;font-size:13px}
+.drow:nth-child(odd){background:var(--surface-2)}
+.drow .n{color:var(--faint);width:14px;flex:none;font-size:12px}
+.drow .nm{flex:1;color:var(--ink-2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .h{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+/* ============ misc blocks ============ */
+.gauge{position:relative;display:grid;place-items:center}
+.gauge .ctr{position:absolute;text-align:center}
+.gauge .big{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.gauge .sub{font-size:12px;color:var(--muted);margin-top:3px}
+.gtrack{fill:none;stroke:var(--line);stroke-width:11;stroke-linecap:round}
+.gval{fill:none;stroke:var(--lime);stroke-width:11;stroke-linecap:round}
+.gval.ok{stroke:var(--ok)}
+.segbar{display:flex;gap:3px;height:10px;margin:12px 0 12px}
+.segbar i{border-radius:3px}
+.lg{display:flex;align-items:center;gap:9px;height:28px;font-size:12.5px;color:var(--ink-2)}
+.lg i{width:8px;height:8px;border-radius:3px;flex:none}
+.lg .v{margin-left:auto;color:var(--muted);font-weight:500}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gcell{border:1px solid var(--line);border-radius:11px;padding:9px 11px;background:var(--surface)}
+.gcell .lb{font-size:12px;color:var(--muted)}
+.gcell .v{font-size:19px;font-weight:600;letter-spacing:-.02em;margin-top:1px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+.chart text,.gauge text{font-family:var(--ui);font-size:11px;fill:var(--faint);font-weight:500}
+.gl{stroke:var(--line);stroke-width:1}
+.gl.dash{stroke-dasharray:3 4}
+.hline{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.harea{fill:url(#gfill);stroke:none}
+.medl{stroke:var(--lime-2);stroke-width:1.25;stroke-dasharray:5 5;fill:none;opacity:.8}
+.bs.p{fill:var(--ok)}.bs.f{fill:var(--bad)}.bs.b{fill:var(--warn)}.bs.o{fill:var(--faint)}
+.dn{fill:none;stroke-width:20;transform-origin:center;transform:rotate(-90deg)}
+.dn.S4{stroke:var(--t4)}.dn.S3{stroke:var(--t3)}.dn.S1{stroke:var(--t1)}
+.dn.S6{stroke:var(--t6)}.dn.S2{stroke:var(--t2)}.dn.S5{stroke:var(--t5)}
+.co rect{fill:var(--surface);stroke:var(--line-2);stroke-width:1}
+.co .col{fill:none;stroke:var(--ink-2);stroke-width:1.4;stroke-dasharray:3 4}
+.co .cov{font-size:14px;font-weight:600;fill:var(--ink)}
+.co .cos{font-size:11.5px;font-weight:400;fill:var(--muted)}
+
+.kpirow{display:flex;gap:20px}
+.kcard{flex:1;position:relative;background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--sh-2);padding:16px 18px 18px;margin-top:26px}
+.kcard .nm{font-size:36px;font-weight:600;letter-spacing:-.035em;line-height:1.05}
+.kcard .sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+.baseline{display:flex;align-items:center;gap:16px;padding:12px 2px 0;font-size:12.5px;color:var(--muted)}
+.baseline .tg{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.baseline b{font-weight:500;color:var(--ink-2)}
+
+.agrid{display:flex;gap:16px;flex:none;width:998px}
+.acard{flex:1;position:relative;margin-top:26px;background:var(--frost);border:1px solid var(--frost-brd);border-radius:16px;box-shadow:var(--sh-3);
+  backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);padding:16px 16px 14px}
+.acard .top{display:flex;align-items:center;gap:8px}
+.acard .top>span{min-width:0}
+.acard .top .tile{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
+  background:var(--neu-bg);border:1px solid var(--neu-brd);color:var(--muted)}
+.acard .nm{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acard .md{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acard .kv{display:flex;align-items:center;height:30px;font-size:13px;color:var(--muted)}
+.acard .kv:first-of-type{margin-top:12px}
+.acard .kv b{margin-left:auto;font-weight:600;color:var(--ink-2)}
+.acard .btns{display:flex;gap:8px;margin-top:12px}
+.acard .btns button{flex:1;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+  font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.stdot{width:8px;height:8px;border-radius:50%;margin-left:auto;flex:none}
+.stdot.ok{background:var(--ok)}.stdot.run{background:var(--lime-2);box-shadow:0 0 0 3px var(--lime-soft)}
+
+.slot{display:flex;align-items:center;gap:11px;height:46px;border-top:1px solid var(--line)}
+.slot .nm{font-size:13.5px;font-weight:500}
+.slot .rl2{font-size:12.5px;color:var(--muted);margin-left:8px}
+.slot .st{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.slot .st.ok{color:var(--ok);font-weight:500}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true"><defs>
+<symbol id="ic-inbox" viewBox="0 0 24 24"><path d="M3 13h5l1.5 2.5h5L16 13h5"/><path d="M5.4 5h13.2l2.4 8v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4l2.4-8Z"/></symbol>
+<symbol id="ic-ticket" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5v1.7a2 2 0 0 0 0 3.6v1.7a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 15.5v-1.7a2 2 0 0 0 0-3.6Z"/><path d="M13.5 6v12" stroke-dasharray="2 3"/></symbol>
+<symbol id="ic-pulse" viewBox="0 0 24 24"><path d="M3 12h3.5l2-6 3.5 12 2.5-8 1.6 2H21"/></symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24"><path d="M5 20V12M12 20V5M19 20v-6"/><path d="M3 20h18"/></symbol>
+<symbol id="ic-factory" viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M4 20V11l5 3V11l5 3V8l6 3v9"/><path d="M4 11V6h3v5"/></symbol>
+<symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5Z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></symbol>
+<symbol id="ic-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.2 8.2 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></symbol>
+<symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></symbol>
+<symbol id="ic-chev" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+<symbol id="ic-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+<symbol id="ic-doc" viewBox="0 0 24 24"><path d="M6 3h7l5 5v13H6z"/><path d="M13 3v5h5"/></symbol>
+<symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 4 3 19h18L12 4Z"/><path d="M12 10v4M12 16.5v.5"/></symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z"/><path d="M12 9v4"/></symbol>
+<symbol id="ic-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.5a2.4 2.4 0 1 1 2.8 2.6v1.4M12.4 16.6v.4"/></symbol>
+<symbol id="ic-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z"/></symbol>
+<symbol id="ic-clip" viewBox="0 0 24 24"><path d="M9 4h6v3H9z"/><path d="M15 5.5h3v15H6v-15h3"/><path d="m9.5 13 2 2 3.5-4"/></symbol>
+<symbol id="ic-pr" viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.5"/><circle cx="7" cy="18" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M7 8.5v7M17 15.5V9l-3-3"/></symbol>
+<symbol id="ic-pause" viewBox="0 0 24 24"><path d="M9.5 5v14M14.5 5v14"/></symbol>
+<symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/><path d="M10 3v3M14 3v3M10 18v3M14 18v3M3 10h3M3 14h3M18 10h3M18 14h3"/></symbol>
+<symbol id="ic-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M19 12c0 1.7-3.1 3-7 3s-7-1.3-7-3"/></symbol>
+<symbol id="ic-code" viewBox="0 0 24 24"><path d="m9 8-4 4 4 4M15 8l4 4-4 4"/></symbol>
+<symbol id="ic-layer" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3.5 13 8.5 4.7 8.5-4.7"/></symbol>
+<symbol id="ic-arrow" viewBox="0 0 24 24"><path d="M5 12h13M13 7l5 5-5 5"/></symbol>
+<symbol id="ic-ext" viewBox="0 0 24 24"><path d="M14 5h5v5"/><path d="M19 5 11 13"/><path d="M18 14v5H5V6h5"/></symbol>
+<symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="ic-git" viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M12 8.5v3M12 11.5 6.5 15.5M12 11.5l5.5 4"/></symbol>
+<symbol id="ic-flask" viewBox="0 0 24 24"><path d="M10 3v6L4.5 18A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/><path d="M9 3h6M7.5 14h9"/></symbol>
+<symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
+<symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></symbol>
+</defs></svg>
+
+<div class="app">
+
+  <!-- icon rail -->
+  <nav class="rail">
+    <button class="rl on" data-go="queue" title="Queue"><svg class="ic l"><use href="#ic-inbox"/></svg><span class="bdg">10</span></button>
+    <button class="rl" data-go="tickets" title="Tickets"><svg class="ic l"><use href="#ic-ticket"/></svg></button>
+    <button class="rl" data-go="runs" title="Runs"><svg class="ic l"><use href="#ic-pulse"/></svg></button>
+    <button class="rl" data-go="report" title="Report"><svg class="ic l"><use href="#ic-chart"/></svg></button>
+    <button class="rl" data-go="factory" title="Factory"><svg class="ic l"><use href="#ic-factory"/></svg></button>
+    <div class="sp"></div>
+    <div class="av">PR</div>
+  </nav>
+
+  <div class="body">
+    <!-- top bar -->
+    <header class="topbar">
+      <div class="brand"><span class="mk"><svg class="ic s"><use href="#ic-bolt"/></svg></span><b>Soft Factory</b></div>
+      <span class="vr"></span>
+      <button class="ws"><span class="sq">N</span><span>Northwind Payments</span><svg class="ic s"><use href="#ic-chev"/></svg></button>
+      <div class="tabc">
+        <div class="tab"><span class="dm"></span><span id="tabtx">Queue</span></div>
+        <button class="icbtn"><svg class="ic s"><use href="#ic-plus"/></svg></button>
+      </div>
+      <div class="tbright">
+        <div class="search"><svg class="ic s"><use href="#ic-search"/></svg><span>Search</span></div>
+        <button class="icbtn bd" id="themeBtn"><svg class="ic" id="themeIcon"><use href="#ic-moon"/></svg></button>
+        <div class="runner"><span class="dotpulse"></span>runner-01 · running</div>
+      </div>
+    </header>
+
+    <div class="main">
+
+<!-- ==================== 1. QUEUE ==================== -->
+<section class="screen on" id="s-queue">
+  <aside class="panel">
+    <div class="phd"><b>Inbox</b><span class="cnt">10</span></div>
+    <div class="pbody">
+      <div class="psec">Act today<em>5</em></div>
+      <button class="qrow on"><span class="qi"><svg class="ic s"><use href="#ic-checkc"/></svg></span><span class="qk">Packet approval</span><span class="qs">T-0412</span><span class="qa">58m</span></button>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-doc"/></svg></span><span class="qk">Plan approval</span><span class="qs">T-0415</span><span class="qa">2h 54m</span></button>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-alert"/></svg></span><span class="qk">Red check</span><span class="qs">T-0417</span><span class="qa">1h 51m</span></button>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-shield"/></svg></span><span class="qk">Escalation</span><span class="qs">T-0403</span><span class="qa">2h 18m</span></button>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-lock"/></svg></span><span class="qk">Control event</span><span class="qs">Sandbox</span><span class="qa">6h</span></button>
+      <div class="psec">This week<em>3</em></div>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-help"/></svg></span><span class="qk">Questions</span><span class="qs">T-0418</span><span class="qa">1h 46m</span></button>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-filter"/></svg></span><span class="qk">Eligibility</span><span class="qs">T-0420</span><span class="qa">30m</span></button>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-clip"/></svg></span><span class="qk">Rubric inspection</span><span class="qs">T-0409</span><span class="qa">3h 08m</span></button>
+      <div class="psec">When convenient<em>2</em></div>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-pr"/></svg></span><span class="qk">PR outcome</span><span class="qs">T-0398</span><span class="qa">2d</span></button>
+      <button class="qrow"><span class="qi"><svg class="ic s"><use href="#ic-pause"/></svg></span><span class="qk">Manual pause</span><span class="qs">T-0411</span><span class="qa">26m</span></button>
+    </div>
+  </aside>
+
+  <div class="work">
+    <div class="titlebar">
+      <h1>Queue</h1>
+      <div class="chips">
+        <button class="chip on">Bucket<svg class="ic s"><use href="#ic-chev"/></svg></button>
+        <button class="chip">Kind<svg class="ic s"><use href="#ic-chev"/></svg></button>
+        <button class="chip">Ticket<svg class="ic s"><use href="#ic-chev"/></svg></button>
+        <button class="chip"><svg class="ic s"><use href="#ic-filter"/></svg>All filters</button>
+      </div>
+      <div class="acts">
+        <button class="btn"><svg class="ic s"><use href="#ic-clock"/></svg>History</button>
+        <button class="btn"><svg class="ic s"><use href="#ic-ext"/></svg>Export</button>
+      </div>
+    </div>
+
+    <div class="canvas">
+      <div class="cvrow" style="align-items:center">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center">
+          <div class="cvwrap" data-w="898" data-ports="0" style="width:898px;height:530px">
+            <svg class="edges"></svg>
+            <!-- the ticket's pipeline -->
+            <div class="node mini" data-n="p0" data-dot="ok" style="left:0;top:0;width:106px;height:46px" data-to="p1|r|l|||0,0"><span class="tx"><span class="t">Intake</span></span></div>
+            <div class="node mini" data-n="p1" data-dot="ok" style="left:132px;top:0;width:106px;height:46px" data-to="p2|r|l|||0,0"><span class="tx"><span class="t">Context</span></span></div>
+            <div class="node mini" data-n="p2" data-dot="ok" style="left:264px;top:0;width:106px;height:46px" data-to="p3|r|l|||0,0"><span class="tx"><span class="t">Clarify</span></span></div>
+            <div class="node mini" data-n="p3" data-dot="ok" style="left:396px;top:0;width:106px;height:46px" data-to="p4|r|l|||0,0"><span class="tx"><span class="t">Plan</span></span></div>
+            <div class="node mini" data-n="p4" data-dot="ok" style="left:528px;top:0;width:106px;height:46px" data-to="p5|r|l|||0,0"><span class="tx"><span class="t">Implement</span></span></div>
+            <div class="node mini" data-n="p5" data-dot="ok" style="left:660px;top:0;width:106px;height:46px" data-to="p6|r|l|||0,0"><span class="tx"><span class="t">Checks</span></span></div>
+            <div class="node mini sel" data-n="p6" data-dot="sel" style="left:792px;top:0;width:106px;height:46px" data-to="qcard|b|t|||0,0|w:84"><span class="tx"><span class="t">Packet</span></span></div>
+
+            <!-- detail card -->
+            <div class="node frost" data-n="qcard" style="left:0;top:124px;width:898px;display:block;padding:0;border-radius:16px">
+              <div style="display:flex;align-items:center;gap:8px;padding:16px 20px 0">
+                <button class="chip on">Packet</button><button class="chip">Evidence</button><button class="chip">Slots</button>
+                <span class="pill acc" style="margin-left:auto"><i></i>Act today</span>
+              </div>
+              <div style="padding:16px 20px 6px">
+                <div style="font-size:25px;font-weight:600;letter-spacing:-.025em">Final review packet v1</div>
+                <div style="font-size:13.5px;color:var(--muted);margin-top:4px">T-0412 · Packet approval · 58m</div>
+              </div>
+              <div style="padding:8px 20px 0">
+                <div class="slot"><span class="avi">TW</span><span class="nm">Tomasz Wierzbicki</span><span class="rl2">Reviewer</span><span class="st ok">14:12</span></div>
+                <div class="slot"><span class="avi">PR</span><span class="nm">Priya Raman</span><span class="rl2">Owner</span><span class="st ok">14:19</span></div>
+                <div class="slot"><span class="avi">IC</span><span class="nm">Ines Carvalho</span><span class="rl2">Security</span><span class="st">Open</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--line);margin-top:12px">
+                <svg class="ic s" style="color:var(--ok)"><use href="#ic-checkc"/></svg>
+                <span style="font-size:13.5px;color:var(--ink-2)">9 checks · 8 pass · 1 waived</span>
+                <button class="btn sm" style="margin-left:auto">Evidence<svg class="ic s"><use href="#ic-arrow"/></svg></button>
+              </div>
+              <div style="display:flex;gap:10px;padding:0 20px 20px">
+                <button class="btn dis" style="flex:1;justify-content:center">Approve</button>
+                <button class="btn" style="flex:1;justify-content:center">Request changes</button>
+                <button class="btn">Send back</button>
+                <button class="btn">Abandon</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- right rail -->
+        <div class="frost" style="width:240px;flex:none;padding:18px 16px 12px;align-self:center">
+          <div class="ptitle">Today</div>
+          <div class="gauge" style="margin:12px 0 4px">
+            <svg width="196" height="120" viewBox="0 0 196 120">
+              <path class="gtrack" d="M50.9 128.0 A66 66 0 1 1 145.1 128.0" transform="translate(0,-20)"/>
+              <path class="gval ok" d="M50.9 128.0 A66 66 0 0 1 72.1 20.4" transform="translate(0,-20)"/>
+              <text x="16" y="114">0</text><text x="180" y="114" text-anchor="end">4h</text>
+            </svg>
+            <div class="ctr" style="top:30px"><div class="big" style="font-size:28px">38m</div><div class="sub">Median latency</div></div>
+          </div>
+          <div style="border-top:1px solid var(--line);padding-top:14px;margin-top:10px">
+            <div class="ucase">By bucket</div>
+            <div class="segbar"><i style="flex:5;background:var(--lime)"></i><i style="flex:3;background:var(--muted)"></i><i style="flex:2;background:var(--line-2)"></i></div>
+            <div class="lg"><i style="background:var(--lime)"></i>Act today<span class="v">5</span></div>
+            <div class="lg"><i style="background:var(--muted)"></i>This week<span class="v">3</span></div>
+            <div class="lg"><i style="background:var(--line-2)"></i>When convenient<span class="v">2</span></div>
+          </div>
+          <div style="border-top:1px solid var(--line);padding:14px 0 16px;margin-top:12px">
+            <div class="grid2">
+              <div class="gcell"><div class="lb">Approvals</div><div class="v">2</div></div>
+              <div class="gcell"><div class="lb">Checks</div><div class="v">1</div></div>
+              <div class="gcell"><div class="lb">Escalations</div><div class="v">1</div></div>
+              <div class="gcell"><div class="lb">Questions</div><div class="v">1</div></div>
+              <div class="gcell"><div class="lb">Other</div><div class="v">5</div></div>
+              <div class="gcell"><div class="lb">Open</div><div class="v">10</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 2. TICKETS ==================== -->
+<section class="screen" id="s-tickets">
+  <aside class="panel">
+    <div class="phd"><b>Overview</b></div>
+    <div class="pbody" style="padding-top:0">
+      <div class="kstack">
+        <div class="kb"><div class="lb">Open</div><div class="nm">12</div></div>
+        <div class="kb"><div class="lb">In queue</div><div class="nm">10</div></div>
+        <div class="kb"><div class="lb">Merged 30d</div><div class="nm">31</div></div>
+        <div class="kb"><div class="lb">Cost 30d</div><div class="nm">$430.40</div></div>
+      </div>
+      <div class="pfoot">
+        <div class="psec"><svg class="ic s"><use href="#ic-filter"/></svg>Filters</div>
+        <div class="lrow on"><span class="nm">State</span><svg class="ic s"><use href="#ic-chev"/></svg></div>
+        <div class="lrow"><span class="nm">Tier</span><svg class="ic s"><use href="#ic-chev"/></svg></div>
+        <div class="lrow"><span class="nm">Class</span><svg class="ic s"><use href="#ic-chev"/></svg></div>
+        <div class="lrow"><span class="nm">Repo</span><svg class="ic s"><use href="#ic-chev"/></svg></div>
+      </div>
+    </div>
+  </aside>
+  <div class="work" style="position:relative">
+    <div class="titlebar">
+      <h1>Tickets</h1>
+      <div class="acts"><button class="btn pri"><svg class="ic s"><use href="#ic-plus"/></svg>New ticket</button></div>
+    </div>
+    <div class="canvas"><div class="cvrow" style="flex-direction:column;padding:6px 36px 24px;gap:18px">
+      <div class="cvwrap" data-w="1016" data-ports="0" style="width:1016px;height:46px;flex:none">
+        <svg class="edges"></svg>
+        <div class="node mini" data-n="kt" style="left:0;top:0;width:92px;height:46px;justify-content:center" data-to="k0|r|l|||0,0"><span class="tx"><span class="t">T-0412</span></span></div>
+        <div class="node mini" data-n="k0" data-dot="ok" style="left:118px;top:0;width:106px;height:46px" data-to="k1|r|l|||0,0"><span class="tx"><span class="t">Intake</span></span></div>
+        <div class="node mini" data-n="k1" data-dot="ok" style="left:250px;top:0;width:106px;height:46px" data-to="k2|r|l|||0,0"><span class="tx"><span class="t">Context</span></span></div>
+        <div class="node mini" data-n="k2" data-dot="ok" style="left:382px;top:0;width:106px;height:46px" data-to="k3|r|l|||0,0"><span class="tx"><span class="t">Clarify</span></span></div>
+        <div class="node mini" data-n="k3" data-dot="ok" style="left:514px;top:0;width:106px;height:46px" data-to="k4|r|l|||0,0"><span class="tx"><span class="t">Plan</span></span></div>
+        <div class="node mini" data-n="k4" data-dot="ok" style="left:646px;top:0;width:106px;height:46px" data-to="k5|r|l|||0,0"><span class="tx"><span class="t">Implement</span></span></div>
+        <div class="node mini" data-n="k5" data-dot="ok" style="left:778px;top:0;width:106px;height:46px" data-to="k6|r|l|||0,0"><span class="tx"><span class="t">Checks</span></span></div>
+        <div class="node mini sel" data-n="k6" data-dot="sel" style="left:910px;top:0;width:106px;height:46px"><span class="tx"><span class="t">Packet</span></span></div>
+      </div>
+      <div class="frost" style="flex:none;overflow:hidden">
+      <table>
+        <thead><tr>
+          <th style="width:44px"></th><th style="width:78px">Key</th><th>Ticket</th><th style="width:132px">Repo</th>
+          <th style="width:54px">Tier</th><th style="width:118px">State</th><th style="width:96px">Stages</th>
+          <th style="width:82px" class="num">Cost</th><th style="width:82px" class="num">Age</th>
+        </tr></thead>
+        <tbody>
+          <tr class="sel"><td><span class="cb on"><svg class="ic s" style="width:11px;height:11px"><use href="#ic-check"/></svg></span></td><td class="tk">T-0412</td><td class="ttl">Reject settlement batches whose currency…</td><td class="tk">ledger-core</td><td>2</td><td><span class="pill acc">Review</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span></td><td class="num">$18.40</td><td class="num tk">3h 40m</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0409</td><td class="ttl">Add idempotency key to refund POST</td><td class="tk">ledger-core</td><td>1</td><td><span class="pill">Implementing</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="r"></i><i></i><i></i></span></td><td class="num">$9.12</td><td class="num tk">3h 59m</td></tr>
+          <tr class="hov"><td><span class="cb"></span></td><td class="tk">T-0415</td><td class="ttl">Backfill merchant timezone on legacy accounts</td><td class="tk">ledger-core</td><td>2</td><td><span class="pill">Plan review</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i></i><i></i><i></i></span></td><td class="num">$6.75</td><td class="num tk">4h 14m</td></tr>
+          <tr class="chk"><td><span class="cb on"><svg class="ic s" style="width:11px;height:11px"><use href="#ic-check"/></svg></span></td><td class="tk">T-0417</td><td class="ttl">Retry settlement webhook with exponential backoff</td><td class="tk">settlement-api</td><td>1</td><td><span class="pill bad">Checks</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="f"></i><i></i></span></td><td class="num">$11.30</td><td class="num tk">5h 34m</td></tr>
+          <tr class="chk"><td><span class="cb on"><svg class="ic s" style="width:11px;height:11px"><use href="#ic-check"/></svg></span></td><td class="tk">T-0403</td><td class="ttl">Rename ledger_entry.amount_cents to minor_units</td><td class="tk">ledger-core</td><td>3</td><td><span class="pill bad">Escalated</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i></i></span></td><td class="num">$27.60</td><td class="num tk">6h 15m</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0418</td><td class="ttl">Show settlement ETA on merchant dashboard</td><td class="tk">merchant-portal</td><td>1</td><td><span class="pill">Clarifying</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i></i><i></i><i></i></span></td><td class="num">$2.10</td><td class="num tk">4h 40m</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0420</td><td class="ttl">Remove deprecated v1 export endpoint</td><td class="tk">ledger-core</td><td>2</td><td><span class="pill">Intake</span></td><td><span class="dts"><i class="d"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="num">$0.30</td><td class="num tk">30m</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0398</td><td class="ttl">Fix rounding drift in FX conversion</td><td class="tk">ledger-core</td><td>2</td><td><span class="pill ok">PR opened</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span></td><td class="num">$14.90</td><td class="num tk">2d</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0391</td><td class="ttl">Add merchant_id to settlement audit log</td><td class="tk">settlement-api</td><td>1</td><td><span class="pill ok">Merged</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span></td><td class="num">$7.40</td><td class="num tk">4d</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0387</td><td class="ttl">Migrate batch runner to virtual threads</td><td class="tk">ledger-core</td><td>3</td><td><span class="pill">Rejected</span></td><td><span class="dts"><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="num">$1.05</td><td class="num tk">5d</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0395</td><td class="ttl">Export statements as CSV</td><td class="tk">merchant-portal</td><td>1</td><td><span class="pill">Abandoned</span></td><td><span class="dts"><i class="d"></i><i class="d"></i><i class="d"></i><i class="f"></i><i></i><i></i><i></i></span></td><td class="num">$5.20</td><td class="num tk">6d</td></tr>
+          <tr><td><span class="cb"></span></td><td class="tk">T-0411</td><td class="ttl">Validate IBAN checksum at intake</td><td class="tk">ledger-core</td><td>1</td><td><span class="pill">Context</span></td><td><span class="dts"><i class="d"></i><i class="w"></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="num">$0.85</td><td class="num tk">29m</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="bulkbar" style="bottom:20px"><span class="lb">Selected <b>3</b></span><button>Export</button><button>Send back</button><button>Abandon</button></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ==================== 3. TICKET DETAIL ==================== -->
+<section class="screen" id="s-ticket">
+  <aside class="panel">
+    <div class="phd"><b>Approvals</b></div>
+    <div class="pbody">
+      <div class="psec">Plan v2</div>
+      <div class="lrow"><span class="avi">TW</span><span class="nm">Tomasz</span><span class="vl">12:48</span></div>
+      <div class="lrow"><span class="avi">PR</span><span class="nm">Priya</span><span class="vl">12:51</span></div>
+      <div class="psec">Packet v1</div>
+      <div class="lrow"><span class="avi">TW</span><span class="nm">Tomasz</span><span class="vl">14:12</span></div>
+      <div class="lrow"><span class="avi">PR</span><span class="nm">Priya</span><span class="vl">14:19</span></div>
+      <div class="lrow"><span class="avi">IC</span><span class="nm">Ines</span><span class="vl">Pending</span></div>
+      <div class="psec">Waiver</div>
+      <div class="lrow"><span class="avi">PR</span><span class="nm">Priya</span><span class="vl">14:03</span></div>
+      <div class="psec">Assumptions</div>
+      <div class="lrow"><span class="nm">Reject at intake</span><span class="vl">S2</span></div>
+      <div class="lrow"><span class="nm">Currency mismatch</span><span class="vl">S2</span></div>
+      <div class="lrow"><span class="nm" style="color:var(--warn)">Currency immutable</span><span class="vl">S3</span></div>
+    </div>
+  </aside>
+
+  <div class="work">
+    <div class="titlebar" style="flex-direction:column;align-items:stretch;gap:12px;padding-bottom:12px">
+      <div>
+        <div class="eyebrow">T-0412 · LED-2291</div>
+        <h1 style="margin-top:4px">Reject settlement batches whose currency differs from the merchant account</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="pill acc">Review</span>
+        <span class="tmeta"><span>Tier 2</span><span>·</span><span><b>$18.40</b></span><span>·</span><span>3h 40m</span></span>
+        <div class="acts"><button class="btn pri" data-go="queue">Open queue item<svg class="ic s"><use href="#ic-arrow"/></svg></button></div>
+      </div>
+    </div>
+
+    <div class="canvas" style="flex:none;height:496px">
+      <div class="cvrow" style="justify-content:center">
+        <div class="cvwrap" data-w="1120" style="width:1120px;height:448px;margin:22px 0 0">
+          <svg class="edges"></svg>
+          <div class="node tabbed" data-n="s0" style="--tc:var(--t0);left:0;top:0;width:180px" data-to="s1|r|l|pass|ok|0,0">
+            <span class="ntab"><svg class="ic"><use href="#ic-filter"/></svg>S0</span>
+            <span class="tx"><span class="t">Intake</span><span class="m">run_2b1c · 0:41 · $0.02</span></span></div>
+          <div class="node tabbed" data-n="s1" style="--tc:var(--t1);left:290px;top:0;width:180px" data-to="s2|r|l|pass|ok|0,0">
+            <span class="ntab"><svg class="ic"><use href="#ic-layer"/></svg>S1</span>
+            <span class="tx"><span class="t">Context</span><span class="m">run_5e77 · 6:12 · $1.14</span></span></div>
+          <div class="node tabbed" data-n="s2" style="--tc:var(--t2);left:580px;top:0;width:180px" data-to="s3|r|l|pass|ok|0,0">
+            <span class="ntab"><svg class="ic"><use href="#ic-help"/></svg>S2</span>
+            <span class="tx"><span class="t">Clarify</span><span class="m">run_9a03 · 4:58 · $0.92</span></span></div>
+          <div class="node tabbed" data-n="s3" style="--tc:var(--t3);left:870px;top:0;width:180px" data-to="s4|b|t|plan v2||0,0|w:150">
+            <span class="ntab"><svg class="ic"><use href="#ic-doc"/></svg>S3</span>
+            <span class="tx"><span class="t">Spec and plan</span><span class="m">run_c4d8 · 14:37 · $4.60</span></span></div>
+
+          <div class="node tabbed" data-n="s4" style="--tc:var(--t4);left:0;top:230px;width:180px" data-to="s5|r|l|pass|ok|0,0;adv|b|t|||0,0">
+            <span class="ntab"><svg class="ic"><use href="#ic-code"/></svg>S4</span>
+            <span class="tx"><span class="t">Implementation</span><span class="m">run_7f3a · 31:05 · $9.85</span></span></div>
+          <div class="node tabbed" data-n="s5" style="--tc:var(--t5);left:290px;top:230px;width:180px" data-to="s6|r|l|8 of 9|warn|0,0">
+            <span class="ntab"><svg class="ic"><use href="#ic-checkc"/></svg>S5</span>
+            <span class="tx"><span class="t">Checks</span><span class="m">run_e1a2 · 7:44 · $0.41</span></span></div>
+          <div class="node tabbed" data-n="s6" style="--tc:var(--t6);left:580px;top:230px;width:180px" data-to="gate|r|l|packet v1||0,0">
+            <span class="ntab"><svg class="ic"><use href="#ic-clip"/></svg>S6</span>
+            <span class="tx"><span class="t">Packet</span><span class="m">run_f0c9 · 1:20 · $1.46</span></span></div>
+
+          <div class="node hero sel" data-n="gate" style="left:868px;top:212px;width:252px;height:100px" data-to="pro|b|t|Approved|ok|-32,10;bck|b|t|Send back|bad|32,10">
+            <span class="tile" style="background:var(--lime-soft);border-color:var(--lime-2);color:var(--lime-ink)"><svg class="ic"><use href="#ic-user"/></svg></span>
+            <span class="tx"><span class="t">Review gate</span><span class="m">2 of 3 slots</span></span></div>
+
+          <div class="node mini" data-n="adv" style="left:8px;top:334px;width:170px">
+            <span class="tx"><span class="t">Base advance</span><span class="m">run_7f3b · 9e40b21</span></span></div>
+          <div class="node mini ghost" data-n="pro" style="left:856px;top:404px;width:118px;height:44px;justify-content:center"><span class="t">PR opened</span></div>
+          <div class="node mini ghost" data-n="bck" style="left:1002px;top:404px;width:118px;height:44px;justify-content:center"><span class="t">Planning</span></div>
+        </div>
+      </div>
+      <div class="zoom"><span class="zb"><svg class="ic s"><use href="#ic-minus"/></svg></span><span class="val">100%</span><span class="zb"><svg class="ic s"><use href="#ic-plus"/></svg></span><span class="dv"></span><span class="rs">Reset</span></div>
+    </div>
+
+    <div class="cons">
+      <div class="cpane">
+        <div class="hd"><h3>Console</h3><span class="rt">Sun 11:24 – 14:19</span></div>
+        <div class="cline"><span class="tm">11:24</span><span class="cbg ok">pass</span><span class="ms">S0 intake, eligibility granted</span></div>
+        <div class="cline"><span class="tm">12:51</span><span class="cbg ok">pass</span><span class="ms">Plan v2 approved, 2 slots</span></div>
+        <div class="cline"><span class="tm">13:52</span><span class="cbg ok">pass</span><span class="ms">S4 done, 6 tasks, 1 fix round</span></div>
+        <div class="cline"><span class="tm">13:52</span><span class="cbg">info</span><span class="ms">Base advance 7c2a19f &rarr; 9e40b21</span></div>
+        <div class="cline"><span class="tm">14:00</span><span class="cbg ok">pass</span><span class="ms">S5 checks 8 of 9</span></div>
+        <div class="cline"><span class="tm">14:03</span><span class="cbg warn">waive</span><span class="ms">blind_spot, expires 14 Sep</span></div>
+        <div class="cline"><span class="tm">14:06</span><span class="cbg">info</span><span class="ms">Packet v1 queued, 1d9f…e4</span></div>
+        <div class="cline"><span class="tm">14:19</span><span class="cbg ok">pass</span><span class="ms">Owner approved packet</span></div>
+      </div>
+      <div class="cpane">
+        <div class="hd"><h3>Artefacts</h3><span class="rt">8 of 11</span></div>
+        <div class="drow"><span class="n">1</span><span class="nm">Brief v1</span><span class="h">a3e1…07</span></div>
+        <div class="drow"><span class="n">2</span><span class="nm">Criteria v1</span><span class="h">5c9d…b2</span></div>
+        <div class="drow"><span class="n">3</span><span class="nm">Risk map v1</span><span class="h">f27a…91</span></div>
+        <div class="drow"><span class="n">4</span><span class="nm">Plan v2</span><span class="h">0b3d…f9</span></div>
+        <div class="drow"><span class="n">5</span><span class="nm">Handoff v1</span><span class="h">6e8c…2a</span></div>
+        <div class="drow"><span class="n">6</span><span class="nm">Deviations v1</span><span class="h">9f44…d8</span></div>
+        <div class="drow"><span class="n">7</span><span class="nm">Packet v1</span><span class="h">1d9f…e4</span></div>
+        <div class="drow"><span class="n">8</span><span class="nm">PR body v1</span><span class="h">e02b…6c</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 4. RUNS ==================== -->
+<section class="screen" id="s-runs">
+  <aside class="panel">
+    <div class="phd"><b>Today</b></div>
+    <div class="pbody" style="padding-top:0">
+      <div class="kstack">
+        <div class="kb"><div class="lb">Runs</div><div class="nm">43</div></div>
+        <div class="kb"><div class="lb">Pass</div><div class="nm">35</div></div>
+        <div class="kb"><div class="lb">Fail</div><div class="nm">5</div></div>
+        <div class="kb"><div class="lb">Settled</div><div class="nm">$72.90</div></div>
+      </div>
+      <div class="psec"><svg class="ic s"><use href="#ic-filter"/></svg>Filters</div>
+      <div class="lrow on"><span class="nm">Outcome</span><svg class="ic s"><use href="#ic-chev"/></svg></div>
+      <div class="lrow"><span class="nm">Stage</span><svg class="ic s"><use href="#ic-chev"/></svg></div>
+      <div class="lrow"><span class="nm">Ticket</span><svg class="ic s"><use href="#ic-chev"/></svg></div>
+      <div class="pfoot" style="padding:0 8px">
+        <div class="psec" style="padding-left:0">By outcome</div>
+        <div class="segbar" style="margin-top:2px"><i style="flex:35;background:var(--ok)"></i><i style="flex:5;background:var(--bad)"></i><i style="flex:1;background:var(--warn)"></i><i style="flex:1;background:var(--faint)"></i><i style="flex:1;background:var(--lime-2)"></i></div>
+        <div class="lrow" style="padding:0"><i class="sd"></i><span class="nm">Pass</span><span class="vl">35</span></div>
+        <div class="lrow" style="padding:0"><i class="sd" style="background:var(--bad)"></i><span class="nm">Fail</span><span class="vl">5</span></div>
+        <div class="lrow" style="padding:0"><i class="sd w"></i><span class="nm">Blocked</span><span class="vl">1</span></div>
+        <div class="lrow" style="padding:0"><i class="sd" style="background:var(--faint)"></i><span class="nm">Aborted</span><span class="vl">1</span></div>
+        <div class="lrow" style="padding:0"><i class="sd" style="background:var(--lime-2)"></i><span class="nm">Running</span><span class="vl">1</span></div>
+      </div>
+    </div>
+  </aside>
+  <div class="work">
+    <div class="titlebar">
+      <h1>Runs</h1>
+    </div>
+    <div class="canvas"><div class="cvrow" style="flex-direction:column;align-items:center;padding:6px 36px 24px;gap:18px">
+      <div class="cvwrap" data-w="530" style="width:530px;height:64px;flex:none">
+        <svg class="edges"></svg>
+        <div class="node sel" data-n="r0" style="left:0;top:0;width:210px;height:64px" data-to="r1|r|l|child|ok|0,0">
+          <span class="tx"><span class="t">run_7f3a</span><span class="m">S4 · 31:05 · $9.85</span></span></div>
+        <div class="node" data-n="r1" style="left:320px;top:0;width:210px;height:64px">
+          <span class="tx"><span class="t">run_7f3b</span><span class="m">Base advance · 0:09</span></span></div>
+      </div>
+      <div class="frost" style="flex:none;overflow:hidden;width:848px">
+      <table>
+        <thead><tr>
+          <th style="width:146px">Run</th><th style="width:136px">Ticket</th><th style="width:146px">Stage</th>
+          <th style="width:84px" class="num">Started</th><th style="width:88px" class="num">Duration</th>
+          <th style="width:96px" class="num">Cost</th><th style="width:152px">Outcome</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="tk">run_d204</td><td class="tk">T-0409</td><td><i class="sq" style="background:var(--t4)"></i>S4 Implement</td><td class="num">14:42</td><td class="num">22:10</td><td class="num">$3.52</td><td><span class="pill acc"><i></i>Running</span></td></tr>
+          <tr><td class="tk">run_u020</td><td class="tk">—</td><td><i class="sq" style="background:var(--line-2)"></i>Index rebuild</td><td class="num">14:38</td><td class="num">3:44</td><td class="num">$0.00</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_77d2</td><td class="tk">T-0411</td><td><i class="sq" style="background:var(--t1)"></i>S1 Context</td><td class="num">14:36</td><td class="num">2:10</td><td class="num">$0.31</td><td><span class="pill warn">Aborted</span></td></tr>
+          <tr><td class="tk">run_1e05</td><td class="tk">T-0411</td><td><i class="sq" style="background:var(--t0)"></i>S0 Intake</td><td class="num">14:35</td><td class="num">0:24</td><td class="num">$0.02</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_0c3e</td><td class="tk">T-0420</td><td><i class="sq" style="background:var(--t0)"></i>S0 Intake</td><td class="num">14:34</td><td class="num">0:36</td><td class="num">$0.02</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_f0c9</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t6)"></i>S6 Packet</td><td class="num">14:05</td><td class="num">1:20</td><td class="num">$1.46</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_e1a2</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t5)"></i>S5 Checks</td><td class="num">13:53</td><td class="num">7:44</td><td class="num">$0.41</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr class="sel"><td class="tk">run_7f3a</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t4)"></i>S4 Implement</td><td class="num">13:21</td><td class="num">31:05</td><td class="num">$9.85</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk" style="padding-left:38px">run_7f3b</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t4)"></i>Base advance</td><td class="num">13:52</td><td class="num">0:09</td><td class="num">$0.00</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr class="hov"><td class="tk">run_51a7</td><td class="tk">T-0418</td><td><i class="sq" style="background:var(--t2)"></i>S2 Clarify</td><td class="num">13:14</td><td class="num">4:15</td><td class="num">$0.80</td><td><span class="pill warn">Blocked</span></td></tr>
+          <tr><td class="tk">run_44e8</td><td class="tk">T-0417</td><td><i class="sq" style="background:var(--t5)"></i>S5 Checks</td><td class="num">13:06</td><td class="num">6:51</td><td class="num">$0.38</td><td><span class="pill bad">Fail</span></td></tr>
+          <tr><td class="tk" style="padding-left:38px">run_c7a1</td><td class="tk">T-0417</td><td><i class="sq" style="background:var(--t4)"></i>Fix round</td><td class="num">12:56</td><td class="num">9:02</td><td class="num">$2.31</td><td><span class="pill bad">Fail</span></td></tr>
+          <tr><td class="tk" style="padding-left:38px">run_c7a0</td><td class="tk">T-0417</td><td><i class="sq" style="background:var(--t4)"></i>Fix round</td><td class="num">12:47</td><td class="num">8:14</td><td class="num">$2.05</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk" style="padding-left:38px">run_9d11</td><td class="tk">T-0403</td><td><i class="sq" style="background:var(--t4)"></i>S4 task 4</td><td class="num">12:28</td><td class="num">18:20</td><td class="num">$6.12</td><td><span class="pill bad">Fail</span></td></tr>
+          <tr><td class="tk">run_c4d8</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t3)"></i>S3 Plan</td><td class="num">12:12</td><td class="num">14:37</td><td class="num">$4.60</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_e83f</td><td class="tk">T-0415</td><td><i class="sq" style="background:var(--t3)"></i>S3 Plan</td><td class="num">11:57</td><td class="num">13:02</td><td class="num">$4.21</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_bb72</td><td class="tk">T-0409</td><td><i class="sq" style="background:var(--t3)"></i>S3 Plan</td><td class="num">11:44</td><td class="num">11:58</td><td class="num">$3.90</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_9a03</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t2)"></i>S2 Clarify</td><td class="num">11:38</td><td class="num">4:58</td><td class="num">$0.92</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_5e77</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t1)"></i>S1 Context</td><td class="num">11:31</td><td class="num">6:12</td><td class="num">$1.14</td><td><span class="pill ok">Pass</span></td></tr>
+          <tr><td class="tk">run_2b1c</td><td class="tk">T-0412</td><td><i class="sq" style="background:var(--t0)"></i>S0 Intake</td><td class="num">11:24</td><td class="num">0:41</td><td class="num">$0.02</td><td><span class="pill ok">Pass</span></td></tr>
+        </tbody>
+      </table>
+    </div></div></div>
+  </div>
+</section>
+
+<!-- ==================== 5. RUN DETAIL ==================== -->
+<section class="screen" id="s-run">
+  <aside class="panel">
+    <div class="phd"><b>Inputs</b><span class="cnt">5 of 9</span></div>
+    <div class="pbody">
+      <div class="lrow"><span class="qi"><svg class="ic s"><use href="#ic-user"/></svg></span><span class="nm">s4-implementer</span><span class="h">a11f…3c</span></div>
+      <div class="lrow"><span class="qi"><svg class="ic s"><use href="#ic-doc"/></svg></span><span class="nm">s4-implement.md</span><span class="h">77c0…b8</span></div>
+      <div class="lrow"><span class="qi"><svg class="ic s"><use href="#ic-layer"/></svg></span><span class="nm">repo-conventions</span><span class="h">5d2e…01</span></div>
+      <div class="lrow"><span class="qi"><svg class="ic s"><use href="#ic-clip"/></svg></span><span class="nm">rubric-s4</span><span class="h">e9b1…77</span></div>
+      <div class="lrow"><span class="qi"><svg class="ic s"><use href="#ic-flask"/></svg></span><span class="nm">plan v2</span><span class="h">0b3d…f9</span></div>
+      <div class="psec">Tasks<em>6 of 6</em></div>
+      <div class="lrow"><span class="n">1</span><i class="sd"></i><span class="nm">Add CurrencyValidator</span><span class="vl">4:12</span></div>
+      <div class="lrow"><span class="n">2</span><i class="sd"></i><span class="nm">Wire into BatchIntake</span><span class="vl">6:40</span></div>
+      <div class="lrow"><span class="n">3</span><i class="sd w"></i><span class="nm">Unit tests</span><span class="vl">9:05</span></div>
+      <div class="lrow"><span class="n">4</span><i class="sd"></i><span class="nm">Integration test</span><span class="vl">5:31</span></div>
+      <div class="lrow"><span class="n">5</span><i class="sd"></i><span class="nm">Error message copy</span><span class="vl">1:48</span></div>
+      <div class="lrow"><span class="n">6</span><i class="sd"></i><span class="nm">Changelog</span><span class="vl">0:52</span></div>
+      <div class="psec">Guard decisions</div>
+      <div class="grid3" style="padding:0 8px">
+        <div class="gcell"><div class="lb">Allow</div><div class="v">214</div></div>
+        <div class="gcell"><div class="lb">Redact</div><div class="v">3</div></div>
+        <div class="gcell"><div class="lb">Deny</div><div class="v">0</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="work">
+    <div class="titlebar" style="flex-direction:column;align-items:stretch;gap:12px;padding-bottom:12px">
+      <div>
+        <div class="eyebrow">T-0412 · LED-2291</div>
+        <h1 style="margin-top:4px">run_7f3a</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="pill ok">Pass</span>
+        <span class="tmeta"><span>S4 Implementation</span><span>·</span><span>claude-opus-5</span><span>·</span><span>Cursor SDK</span></span>
+      </div>
+    </div>
+
+    <div class="canvas" style="flex:none;height:500px">
+      <div class="cvrow">
+        <div class="cvwrap" data-w="850" style="width:850px;height:416px;margin:6px 0 0">
+          <svg class="edges"></svg>
+          <div class="snode" data-n="t1" style="--tc:var(--ok);left:0;top:0;width:210px" data-to="t2|r|l|||0,0">
+            <div class="hd">Task 1</div><div class="bd"><div class="t">Add CurrencyValidator</div><div class="m">4:12</div></div></div>
+          <div class="snode" data-n="t2" style="--tc:var(--ok);left:320px;top:0;width:210px" data-to="t3|r|l|||0,0">
+            <div class="hd">Task 2</div><div class="bd"><div class="t">Wire into BatchIntake</div><div class="m">6:40</div></div></div>
+          <div class="snode" data-n="t3" style="--tc:var(--warn);left:640px;top:0;width:210px" data-to="fx|b|t|red|bad|0,0">
+            <div class="hd">Task 3</div><div class="bd"><div class="t">Unit tests</div><div class="m">9:05 · 1 fix round</div></div></div>
+
+          <div class="snode exp" data-n="fx" style="--tc:var(--bad);left:500px;top:160px;width:350px" data-to="t4|b|t|green|ok|0,0|w:318">
+            <div class="hd">Fix round 1</div>
+            <div class="bd">
+              <div class="lb">Failing check</div>
+              <div class="ln">unit recipe · <b>2 tests red</b> · 13:39</div>
+              <div class="lb" style="margin-top:9px">Fix</div>
+              <div class="ln">13:39 → 13:41 · task 3 validated</div>
+            </div></div>
+
+          <div class="snode" data-n="t4" style="--tc:var(--ok);left:0;top:340px;width:210px" data-to="t5|r|l|||0,0">
+            <div class="hd">Task 4</div><div class="bd"><div class="t">Integration test</div><div class="m">5:31</div></div></div>
+          <div class="snode" data-n="t5" style="--tc:var(--ok);left:320px;top:340px;width:210px" data-to="t6|r|l|||0,0">
+            <div class="hd">Task 5</div><div class="bd"><div class="t">Error message copy</div><div class="m">1:48</div></div></div>
+          <div class="snode" data-n="t6" style="--tc:var(--ok);left:640px;top:340px;width:210px">
+            <div class="hd">Task 6</div><div class="bd"><div class="t">Changelog</div><div class="m">0:52</div></div></div>
+        </div>
+
+        <!-- property panel -->
+        <div class="frost" style="width:296px;flex:none;margin-left:auto;padding:18px 18px 10px;align-self:flex-start">
+          <div class="ptitle">Budget</div>
+          <div class="gauge" style="margin:10px 0 2px">
+            <svg width="228" height="162" viewBox="0 0 228 162">
+              <path class="gtrack" d="M60.0 150.0 A76 76 0 1 1 168.0 150.0" transform="translate(0,-6)"/>
+              <path class="gval" d="M60.0 150.0 A76 76 0 1 1 189.3 92.5" transform="translate(0,-6)"/>
+              <text x="16" y="152">$0</text><text x="212" y="152" text-anchor="end">$12</text>
+            </svg>
+            <div class="ctr" style="top:44px"><div class="big" style="font-size:29px">$9.85</div><div class="sub">82% settled</div></div>
+          </div>
+          <div class="tight" style="border-top:1px solid var(--line);margin-top:10px">
+            <div class="lrow" style="padding:0"><span class="nm">Tasks</span><span class="vl">6 of 6</span></div>
+            <div class="lrow" style="padding:0"><span class="nm">Fix rounds</span><span class="vl">1</span></div>
+            <div class="lrow" style="padding:0"><span class="nm">Duration</span><span class="vl">31:05</span></div>
+          </div>
+          <div class="tight" style="border-top:1px solid var(--line);margin-top:6px;padding-bottom:6px">
+            <div class="swrow" style="padding:0"><span class="nm">Fallback models</span><span class="sw"></span></div>
+            <div class="swrow" style="padding:0"><span class="nm">Sandbox integrity</span><span class="sw on"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="zoom"><span class="zb"><svg class="ic s"><use href="#ic-minus"/></svg></span><span class="val">100%</span><span class="zb"><svg class="ic s"><use href="#ic-plus"/></svg></span><span class="dv"></span><span class="rs">Reset</span></div>
+    </div>
+
+    <div class="cons">
+      <div class="cpane">
+        <div class="hd"><h3>Console</h3><span class="rt">13:21:08 – 13:52:40</span></div>
+        <div class="cline"><span class="tm">13:21</span><span class="cbg">info</span><span class="ms">Run started, lease runner-01</span></div>
+        <div class="cline"><span class="tm">13:21</span><span class="cbg ok">pass</span><span class="ms">Inputs verified, 9 hashes</span></div>
+        <div class="cline"><span class="tm">13:25</span><span class="cbg ok">pass</span><span class="ms">Task 1 validated</span></div>
+        <div class="cline"><span class="tm">13:39</span><span class="cbg bad">fail</span><span class="ms">Task 3 unit recipe red</span></div>
+        <div class="cline"><span class="tm">13:39</span><span class="cbg warn">fix</span><span class="ms">Fix round 1 started</span></div>
+        <div class="cline"><span class="tm">13:41</span><span class="cbg ok">pass</span><span class="ms">Task 3 validated</span></div>
+        <div class="cline"><span class="tm">13:52</span><span class="cbg ok">pass</span><span class="ms">Run ended</span></div>
+        <div class="cline"><span class="tm">13:52</span><span class="cbg">info</span><span class="ms">Cost settled $9.85</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 6. REPORT ==================== -->
+<section class="screen" id="s-report">
+  <aside class="panel">
+    <div class="phd"><b>Measures</b><span class="cnt">30d</span></div>
+    <div class="pbody">
+      <div class="lrow"><span class="nm">Closed</span><span class="vl">38</span></div>
+      <div class="lrow"><span class="nm">Merged</span><span class="vl">31</span></div>
+      <div class="lrow"><span class="nm">Abandoned</span><span class="vl">4</span></div>
+      <div class="lrow"><span class="nm">Rejected</span><span class="vl">3</span></div>
+      <div class="lrow"><span class="nm">Cycle time</span><span class="vl">4h 12m</span></div>
+      <div class="lrow"><span class="nm">Human minutes</span><span class="vl">9.5</span></div>
+      <div class="psec">Tags</div>
+      <div class="lrow"><span class="nm">FM-4 stale context</span><span class="vl">5</span></div>
+      <div class="lrow"><span class="nm">FM-7 scope creep</span><span class="vl">4</span></div>
+      <div class="lrow"><span class="nm">FM-10 packet defect</span><span class="vl">2</span></div>
+      <div class="lrow"><span class="nm">FM-12 flaky check</span><span class="vl">2</span></div>
+      <div class="lrow"><span class="nm">FM-1 wrong scope</span><span class="vl">1</span></div>
+      <div class="psec">Model spend</div>
+      <div class="lrow"><span class="nm">claude-opus-5</span><span class="vl">$318.40</span></div>
+      <div class="lrow"><span class="nm">claude-sonnet-5</span><span class="vl">$88.10</span></div>
+      <div class="lrow"><span class="nm">claude-haiku-4-5</span><span class="vl">$4.20</span></div>
+    </div>
+  </aside>
+
+  <div class="work">
+    <div class="titlebar">
+      <h1>Report</h1>
+      <span class="tmeta">7 Aug – 6 Sep 2026</span>
+      <div class="acts"><div class="seg"><button>7d</button><button class="on">30d</button><button>90d</button></div></div>
+    </div>
+
+    <div style="flex:none">
+      <div class="kpirow">
+        <div class="kcard"><span class="ntab acc"><svg class="ic"><use href="#ic-chart"/></svg>Cost per PR</span>
+          <div class="nm">$13.70</div><div class="sub">median, merged</div></div>
+        <div class="kcard"><span class="ntab nt"><svg class="ic"><use href="#ic-git"/></svg>Merged</span>
+          <div class="nm">31</div><div class="sub">of 38 closed</div></div>
+        <div class="kcard"><span class="ntab nt"><svg class="ic"><use href="#ic-checkc"/></svg>First-pass checks</span>
+          <div class="nm">71%</div><div class="sub">6 send-backs</div></div>
+        <div class="kcard"><span class="ntab nt"><svg class="ic"><use href="#ic-clock"/></svg>Queue latency</span>
+          <div class="nm">38m</div><div class="sub">median, p90 3h 10m</div></div>
+      </div>
+      <div class="baseline">
+        <span class="tg">Context measure, not comparable</span>
+        <span>Pre-factory cycle <b>3.2d</b></span>
+        <span>Human review <b>41 min</b></span>
+        <span>Defect escape rate <b>not yet measurable</b></span>
+      </div>
+    </div>
+
+    <div class="canvas" style="margin-top:14px">
+      <div class="cvrow" style="flex-direction:column;padding:0 0 20px;gap:20px">
+        <div class="frost" style="padding:16px 18px 8px;position:relative;flex:none">
+          <div class="chd" style="padding:0"><h3>Cost per merged PR</h3><span class="lg" style="height:auto;margin-left:4px"><i style="background:var(--lime-2)"></i>Median<span class="v" style="margin-left:6px">$13.70</span></span><span class="rt">31 days · dollars</span></div>
+          <svg class="chart" width="1032" height="208" viewBox="0 0 1032 208" style="width:100%;height:auto;margin-top:4px">
+            <defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--ink)" stop-opacity=".14"/><stop offset="1" stop-color="var(--ink)" stop-opacity="0"/></linearGradient></defs>
+            <line class="gl" x1="46" y1="182" x2="1022" y2="182"/>
+            <line class="gl dash" x1="46" y1="126" x2="1022" y2="126"/>
+            <line class="gl dash" x1="46" y1="70" x2="1022" y2="70"/>
+            <text x="34" y="186" text-anchor="end">0</text><text x="34" y="130" text-anchor="end">10</text>
+            <text x="34" y="74" text-anchor="end">20</text><text x="34" y="18" text-anchor="end">30</text>
+            <path class="harea" d="M46.0 102.5 C51.1 107.8 68.4 129.8 78.5 136.6 C88.7 143.5 100.9 150.4 111.1 146.2 C121.2 142.0 133.4 117.8 143.6 109.8 C153.8 101.7 166.0 99.4 176.1 94.6 C186.3 89.9 198.5 77.3 208.7 79.5 C218.8 81.7 231.0 107.3 241.2 108.6 C251.4 110.0 263.6 82.8 273.7 87.9 C283.9 93.1 296.1 132.2 306.3 141.7 C316.4 151.1 328.6 152.1 338.8 148.4 C349.0 144.7 361.2 125.8 371.3 118.2 C381.5 110.5 393.7 108.9 403.9 99.7 C414.0 90.5 426.2 61.5 436.4 59.4 C446.6 57.2 458.8 77.5 468.9 85.7 C479.1 93.8 491.3 104.1 501.5 111.4 C511.6 118.8 523.8 127.7 534.0 132.7 C544.2 137.7 556.4 147.5 566.5 143.4 C576.7 139.2 588.9 117.3 599.1 106.4 C609.2 95.5 621.4 86.7 631.6 73.4 C641.8 60.1 654.0 18.4 664.1 21.3 C674.3 24.2 686.5 79.0 696.7 91.8 C706.8 104.7 719.0 96.1 729.2 103.6 C739.4 111.1 751.6 133.3 761.7 140.0 C771.9 146.7 784.1 150.8 794.3 146.7 C804.4 142.6 816.6 122.1 826.8 113.7 C837.0 105.3 849.2 94.4 859.3 93.0 C869.5 91.6 881.7 110.4 891.9 104.7 C902.0 99.0 914.2 57.3 924.4 56.6 C934.6 55.9 946.8 90.9 956.9 100.2 C967.1 109.6 979.3 115.7 989.5 116.5 C999.6 117.3 1016.9 107.0 1022.0 105.3 L1022.0 182.0 L46.0 182.0 Z"/>
+            <line class="medl" x1="46" y1="105.3" x2="1022" y2="105.3"/>
+            <path class="hline" d="M46.0 102.5 C51.1 107.8 68.4 129.8 78.5 136.6 C88.7 143.5 100.9 150.4 111.1 146.2 C121.2 142.0 133.4 117.8 143.6 109.8 C153.8 101.7 166.0 99.4 176.1 94.6 C186.3 89.9 198.5 77.3 208.7 79.5 C218.8 81.7 231.0 107.3 241.2 108.6 C251.4 110.0 263.6 82.8 273.7 87.9 C283.9 93.1 296.1 132.2 306.3 141.7 C316.4 151.1 328.6 152.1 338.8 148.4 C349.0 144.7 361.2 125.8 371.3 118.2 C381.5 110.5 393.7 108.9 403.9 99.7 C414.0 90.5 426.2 61.5 436.4 59.4 C446.6 57.2 458.8 77.5 468.9 85.7 C479.1 93.8 491.3 104.1 501.5 111.4 C511.6 118.8 523.8 127.7 534.0 132.7 C544.2 137.7 556.4 147.5 566.5 143.4 C576.7 139.2 588.9 117.3 599.1 106.4 C609.2 95.5 621.4 86.7 631.6 73.4 C641.8 60.1 654.0 18.4 664.1 21.3 C674.3 24.2 686.5 79.0 696.7 91.8 C706.8 104.7 719.0 96.1 729.2 103.6 C739.4 111.1 751.6 133.3 761.7 140.0 C771.9 146.7 784.1 150.8 794.3 146.7 C804.4 142.6 816.6 122.1 826.8 113.7 C837.0 105.3 849.2 94.4 859.3 93.0 C869.5 91.6 881.7 110.4 891.9 104.7 C902.0 99.0 914.2 57.3 924.4 56.6 C934.6 55.9 946.8 90.9 956.9 100.2 C967.1 109.6 979.3 115.7 989.5 116.5 C999.6 117.3 1016.9 107.0 1022.0 105.3"/>
+
+            <text x="46" y="200">7 Aug</text><text x="273" y="200">14 Aug</text><text x="501" y="200">21 Aug</text>
+            <text x="729" y="200">28 Aug</text><text x="1022" y="200" text-anchor="end">6 Sep</text>
+            <g class="co">
+              <path class="col" d="M669 24 L706 46"/>
+              <rect x="706" y="24" width="238" height="48" rx="10"/>
+              <text class="cov" x="719" y="45">$28.70 · 26 Aug</text>
+              <text class="cos" x="719" y="62">T-0403 escalation, 3 attempts</text>
+            </g>
+            <circle cx="664.1" cy="21.3" r="5" fill="var(--bad)" stroke="var(--surface)" stroke-width="2.5"/>
+            
+          </svg>
+        </div>
+
+        <div style="display:flex;gap:20px;flex:1;min-height:0">
+          <div class="frost" style="flex:1;padding:16px 18px 14px">
+            <div class="chd" style="padding:0"><h3>Runs by outcome</h3><span class="rt">253 runs · per day</span></div>
+            <svg class="chart" width="500" height="152" viewBox="-32 0 500 152" style="width:100%;height:auto;margin-top:8px">
+              <line class="gl dash" x1="0" y1="64.6" x2="468" y2="64.6"/>
+              <line class="gl dash" x1="0" y1="9.2" x2="468" y2="9.2"/>
+              <text x="-8" y="124" text-anchor="end">0</text>
+              <text x="-8" y="68" text-anchor="end">7</text>
+              <text x="-8" y="13" text-anchor="end">14</text>
+              <g><rect x="0.0" y="41.9" width="9.0" height="78.1" rx="2" class="bs p"/><rect x="0.0" y="34.0" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="0.0" y="26.1" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="15.3" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="30.6" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="30.6" y="97.3" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="45.9" y="57.7" width="9.0" height="62.3" rx="2" class="bs p"/><rect x="45.9" y="49.8" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="61.2" y="49.8" width="9.0" height="70.2" rx="2" class="bs p"/><rect x="61.2" y="41.9" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="61.2" y="34.0" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="76.5" y="34.0" width="9.0" height="86.0" rx="2" class="bs p"/><rect x="76.5" y="26.1" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="91.8" y="65.6" width="9.0" height="54.4" rx="2" class="bs p"/><rect x="91.8" y="57.7" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="91.8" y="49.8" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="107.1" y="49.8" width="9.0" height="70.2" rx="2" class="bs p"/><rect x="107.1" y="41.9" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="122.4" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="137.7" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="137.7" y="97.3" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="153.0" y="41.9" width="9.0" height="78.1" rx="2" class="bs p"/><rect x="153.0" y="34.0" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="168.3" y="57.7" width="9.0" height="62.3" rx="2" class="bs p"/><rect x="168.3" y="49.8" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="168.3" y="41.9" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="183.6" y="34.0" width="9.0" height="86.0" rx="2" class="bs p"/><rect x="183.6" y="26.1" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="198.9" y="49.8" width="9.0" height="70.2" rx="2" class="bs p"/><rect x="198.9" y="41.9" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="198.9" y="34.0" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="214.2" y="41.9" width="9.0" height="78.1" rx="2" class="bs p"/><rect x="214.2" y="34.0" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="214.2" y="26.1" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="229.5" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="229.5" y="97.3" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="244.8" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="260.1" y="57.7" width="9.0" height="62.3" rx="2" class="bs p"/><rect x="260.1" y="49.8" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="260.1" y="41.9" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="275.4" y="49.8" width="9.0" height="70.2" rx="2" class="bs p"/><rect x="275.4" y="41.9" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="275.4" y="34.0" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="290.7" y="65.6" width="9.0" height="54.4" rx="2" class="bs p"/><rect x="290.7" y="34.0" width="9.0" height="30.6" rx="2" class="bs f"/><rect x="306.0" y="41.9" width="9.0" height="78.1" rx="2" class="bs p"/><rect x="306.0" y="34.0" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="306.0" y="26.1" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="321.3" y="57.7" width="9.0" height="62.3" rx="2" class="bs p"/><rect x="321.3" y="49.8" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="336.6" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="336.6" y="97.3" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="351.9" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="367.2" y="49.8" width="9.0" height="70.2" rx="2" class="bs p"/><rect x="367.2" y="41.9" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="382.5" y="34.0" width="9.0" height="86.0" rx="2" class="bs p"/><rect x="382.5" y="26.1" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="382.5" y="18.1" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="397.8" y="57.7" width="9.0" height="62.3" rx="2" class="bs p"/><rect x="397.8" y="49.8" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="397.8" y="41.9" width="9.0" height="6.9" rx="2" class="bs o"/><rect x="413.1" y="41.9" width="9.0" height="78.1" rx="2" class="bs p"/><rect x="413.1" y="34.0" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="428.4" y="41.9" width="9.0" height="78.1" rx="2" class="bs p"/><rect x="428.4" y="34.0" width="9.0" height="6.9" rx="2" class="bs f"/><rect x="428.4" y="26.1" width="9.0" height="6.9" rx="2" class="bs b"/><rect x="443.7" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="459.0" y="105.2" width="9.0" height="14.8" rx="2" class="bs p"/><rect x="459.0" y="97.3" width="9.0" height="6.9" rx="2" class="bs o"/></g>
+              <line class="gl" x1="0" y1="120" x2="468" y2="120"/>
+              <text x="0" y="140">7 Aug</text><text x="230" y="140">21 Aug</text><text x="468" y="140" text-anchor="end">6 Sep</text>
+            </svg>
+            <div style="display:flex;gap:18px;margin-top:6px">
+              <span class="lg" style="height:22px"><i style="background:var(--ok)"></i>Pass<span class="v" style="margin-left:6px">212</span></span>
+              <span class="lg" style="height:22px"><i style="background:var(--bad)"></i>Fail<span class="v" style="margin-left:6px">23</span></span>
+              <span class="lg" style="height:22px"><i style="background:var(--warn)"></i>Blocked<span class="v" style="margin-left:6px">9</span></span>
+              <span class="lg" style="height:22px"><i style="background:var(--faint)"></i>Other<span class="v" style="margin-left:6px">9</span></span>
+            </div>
+          </div>
+
+          <div class="frost" style="width:380px;flex:none;padding:16px 18px 14px;display:flex;flex-direction:column">
+            <div class="chd" style="padding:0"><h3>Stage cost share</h3></div>
+            <div style="display:flex;align-items:center;gap:18px;margin-top:10px;flex:1">
+              <div class="gauge" style="flex:none">
+                <svg width="156" height="156" viewBox="0 0 156 156">
+                  <circle cx="78" cy="78" r="58" class="dn S4" stroke-dasharray="208.37 156.06" stroke-dashoffset="0"/>
+                  <circle cx="78" cy="78" r="58" class="dn S3" stroke-dasharray="73.53 290.90" stroke-dashoffset="-211.37"/>
+                  <circle cx="78" cy="78" r="58" class="dn S1" stroke-dasharray="29.80 334.63" stroke-dashoffset="-287.90"/>
+                  <circle cx="78" cy="78" r="58" class="dn S6" stroke-dasharray="18.87 345.56" stroke-dashoffset="-320.69"/>
+                  <circle cx="78" cy="78" r="58" class="dn S2" stroke-dasharray="11.58 352.85" stroke-dashoffset="-342.56"/>
+                  <circle cx="78" cy="78" r="58" class="dn S5" stroke-dasharray="4.29 360.14" stroke-dashoffset="-357.14"/>
+                </svg>
+                <div class="ctr"><div class="big" style="font-size:28px">$412</div><div class="sub">this week</div></div>
+              </div>
+              <div style="flex:1">
+                <div class="lg"><i style="background:var(--t4)"></i>S4<span class="v">58%</span></div>
+                <div class="lg"><i style="background:var(--t3)"></i>S3<span class="v">21%</span></div>
+                <div class="lg"><i style="background:var(--t1)"></i>S1<span class="v">9%</span></div>
+                <div class="lg"><i style="background:var(--t6)"></i>S6<span class="v">6%</span></div>
+                <div class="lg"><i style="background:var(--t2)"></i>S2<span class="v">4%</span></div>
+                <div class="lg"><i style="background:var(--t5)"></i>S5<span class="v">2%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 7. FACTORY ==================== -->
+<section class="screen" id="s-factory">
+  <aside class="panel">
+    <div class="phd"><b>Node library</b><span class="cnt">7</span></div>
+    <div class="pbody" style="padding-top:0">
+      <div class="ngrid">
+        <div class="ntile" style="--tc:var(--t0)"><span class="tl"><svg class="ic"><use href="#ic-filter"/></svg></span><span class="lb2">S0 Intake</span></div>
+        <div class="ntile" style="--tc:var(--t1)"><span class="tl"><svg class="ic"><use href="#ic-layer"/></svg></span><span class="lb2">S1 Context</span></div>
+        <div class="ntile" style="--tc:var(--t2)"><span class="tl"><svg class="ic"><use href="#ic-help"/></svg></span><span class="lb2">S2 Clarify</span></div>
+        <div class="ntile" style="--tc:var(--t3)"><span class="tl"><svg class="ic"><use href="#ic-doc"/></svg></span><span class="lb2">S3 Plan</span></div>
+        <div class="ntile" style="--tc:var(--t4)"><span class="tl"><svg class="ic"><use href="#ic-code"/></svg></span><span class="lb2">S4 Implement</span></div>
+        <div class="ntile" style="--tc:var(--t5)"><span class="tl"><svg class="ic"><use href="#ic-checkc"/></svg></span><span class="lb2">S5 Checks</span></div>
+        <div class="ntile" style="--tc:var(--t6)"><span class="tl"><svg class="ic"><use href="#ic-clip"/></svg></span><span class="lb2">S6 Packet</span></div>
+        <div class="ntile gh"><span class="tl"><svg class="ic"><use href="#ic-plus"/></svg></span><span class="lb2">Add stage</span></div>
+      </div>
+      <div class="pfoot">
+        <div class="psec"><svg class="ic s"><use href="#ic-lock"/></svg>Sandbox policy<em>c8a0…42</em></div>
+        <div class="swrow"><span class="nm">Copy-on-write worktree</span><span class="sw on"></span></div>
+        <div class="swrow"><span class="nm">Egress allowlist</span><span class="sw on"></span></div>
+        <div class="swrow"><span class="nm">Push URL</span><span class="sw"></span></div>
+        <div class="swrow"><span class="nm">Scoped runtime key</span><span class="sw on"></span></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="work">
+    <div class="titlebar">
+      <h1>Factory</h1>
+      <div class="tmeta"><b>Manifest v14</b><span>9c1e42…8af2</span><span class="pill ok"><i></i>Fixture gate</span></div>
+      <div class="acts"><button class="btn pri"><svg class="ic s"><use href="#ic-pr"/></svg>Open PR</button></div>
+    </div>
+
+    <div class="canvas"><div class="cvrow" style="flex-direction:column;justify-content:center;align-items:flex-start;padding:0 0 20px;gap:22px">
+      <div class="frost" style="overflow:hidden;flex:none;width:998px">
+      <table>
+        <thead><tr><th style="width:220px">Stage</th><th style="width:218px">Agent</th><th style="width:148px">Tiers</th><th style="width:176px">Model</th>
+          <th style="width:104px" class="num">Budget</th><th style="width:132px">Rubric (lines)</th></tr></thead>
+        <tbody>
+          <tr><td><i class="sq" style="background:var(--t0)"></i><b>S0 Intake</b></td><td class="tk">s0-intake</td><td class="tk">All</td><td>claude-haiku-4-5</td><td class="num">$0.10</td><td class="tk">7</td></tr>
+          <tr><td><i class="sq" style="background:var(--t1)"></i><b>S1 Context</b></td><td class="tk">s1-context</td><td class="tk">1–3</td><td>claude-sonnet-5</td><td class="num">$2.00</td><td class="tk">11</td></tr>
+          <tr><td><i class="sq" style="background:var(--t2)"></i><b>S2 Clarify</b></td><td class="tk">s2-clarify</td><td class="tk">1–3</td><td>claude-sonnet-5</td><td class="num">$1.50</td><td class="tk">—</td></tr>
+          <tr><td><i class="sq" style="background:var(--t3)"></i><b>S3 Plan</b></td><td class="tk">s3-planner</td><td class="tk">1–3</td><td>claude-opus-5</td><td class="num">$6.00</td><td class="tk">14</td></tr>
+          <tr><td><i class="sq" style="background:var(--t4)"></i><b>S4 Implement</b></td><td class="tk">s4-implementer</td><td class="tk">1–3</td><td>claude-opus-5</td><td class="num">$12.00</td><td class="tk">9</td></tr>
+          <tr><td><i class="sq" style="background:var(--t5)"></i><b>S5 Checks</b></td><td class="tk">scripts</td><td class="tk">All</td><td>—</td><td class="num">$1.00</td><td class="tk">12</td></tr>
+          <tr><td><i class="sq" style="background:var(--t6)"></i><b>S6 Packet</b></td><td class="tk">scripts</td><td class="tk">All</td><td>—</td><td class="num">$2.00</td><td class="tk">6</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+    <div class="agrid">
+      <div class="acard"><span class="ntab" style="--tc:var(--t0)"><svg class="ic"><use href="#ic-filter"/></svg>S0</span><div class="top"><span class="tile"><svg class="ic s"><use href="#ic-filter"/></svg></span>
+        <span><span class="nm">s0-intake</span><span class="md" style="display:block">claude-haiku-4-5</span></span><span class="stdot ok"></span></div>
+        <div class="kv">Fixtures<b>6</b></div><div class="kv">Runs<b>61</b></div><div class="kv">Pass<b>97%</b></div>
+        <div class="btns"><button>Open</button><button>Pause</button></div></div>
+      <div class="acard"><span class="ntab" style="--tc:var(--t1)"><svg class="ic"><use href="#ic-layer"/></svg>S1</span><div class="top"><span class="tile"><svg class="ic s"><use href="#ic-layer"/></svg></span>
+        <span><span class="nm">s1-context</span><span class="md" style="display:block">claude-sonnet-5</span></span><span class="stdot ok"></span></div>
+        <div class="kv">Fixtures<b>8</b></div><div class="kv">Runs<b>58</b></div><div class="kv">Pass<b>93%</b></div>
+        <div class="btns"><button>Open</button><button>Pause</button></div></div>
+      <div class="acard"><span class="ntab" style="--tc:var(--t2)"><svg class="ic"><use href="#ic-help"/></svg>S2</span><div class="top"><span class="tile"><svg class="ic s"><use href="#ic-help"/></svg></span>
+        <span><span class="nm">s2-clarify</span><span class="md" style="display:block">claude-sonnet-5</span></span><span class="stdot ok"></span></div>
+        <div class="kv">Fixtures<b>7</b></div><div class="kv">Runs<b>54</b></div><div class="kv">Pass<b>91%</b></div>
+        <div class="btns"><button>Open</button><button>Pause</button></div></div>
+      <div class="acard"><span class="ntab" style="--tc:var(--t3)"><svg class="ic"><use href="#ic-doc"/></svg>S3</span><div class="top"><span class="tile"><svg class="ic s"><use href="#ic-doc"/></svg></span>
+        <span><span class="nm">s3-planner</span><span class="md" style="display:block">claude-opus-5</span></span><span class="stdot ok"></span></div>
+        <div class="kv">Fixtures<b>9</b></div><div class="kv">Runs<b>52</b></div><div class="kv">Pass<b>88%</b></div>
+        <div class="btns"><button>Open</button><button>Pause</button></div></div>
+      <div class="acard"><span class="ntab" style="--tc:var(--t4)"><svg class="ic"><use href="#ic-code"/></svg>S4</span><div class="top"><span class="tile"><svg class="ic s"><use href="#ic-code"/></svg></span>
+        <span><span class="nm">s4-implementer</span><span class="md" style="display:block">claude-opus-5</span></span><span class="stdot run"></span></div>
+        <div class="kv">Fixtures<b>11</b></div><div class="kv">Runs<b>49</b></div><div class="kv">Pass<b>79%</b></div>
+        <div class="btns"><button>Open</button><button>Pause</button></div></div>
+    </div>
+    </div></div>
+  </div>
+</section>
+
+    </div><!-- /main -->
+  </div><!-- /body -->
+</div><!-- /app -->
+
+<script>
+(function(){
+  var root=document.documentElement, qs=new URLSearchParams(location.search);
+  var SCREENS=['queue','tickets','ticket','runs','run','report','factory'];
+  var TAB={queue:'Queue',tickets:'Tickets',ticket:'T-0412',runs:'Runs',run:'run_7f3a',report:'Report',factory:'Factory'};
+
+  function setTheme(t){root.setAttribute('data-theme',t);
+    document.querySelector('#themeIcon use').setAttribute('href',t==='dark'?'#ic-sun':'#ic-moon');}
+
+  function port(el,s){var x=el.offsetLeft,y=el.offsetTop,w=el.offsetWidth,h=el.offsetHeight;
+    return s==='r'?[x+w,y+h/2]:s==='l'?[x,y+h/2]:s==='t'?[x+w/2,y]:[x+w/2,y+h];}
+  function ctl(p,s,d){return s==='r'?[p[0]+d,p[1]]:s==='l'?[p[0]-d,p[1]]:s==='t'?[p[0],p[1]-d]:[p[0],p[1]+d];}
+
+  function fit(wrap){
+    var base=parseFloat(wrap.getAttribute('data-w')||0); if(!base) return;
+    var avail=wrap.parentNode.clientWidth, z=Math.min(1,avail/base);
+    wrap.style.transformOrigin='top left';
+    wrap.style.transform= z<0.999 ? 'scale('+z.toFixed(4)+')' : 'none';
+    var v=wrap.parentNode.querySelector('.zoom .val');
+    if(v) v.textContent=Math.round(z*100)+'%';
+  }
+
+  function draw(wrap){
+    var svg=wrap.querySelector('svg.edges'); if(!svg) return;
+    var pl=wrap.querySelector('svg.ports');
+    if(!pl){pl=document.createElementNS('http://www.w3.org/2000/svg','svg');pl.setAttribute('class','ports');wrap.appendChild(pl);}
+    var lay=wrap.querySelector('.elabels');
+    if(!lay){lay=document.createElement('div');lay.className='elabels';wrap.appendChild(lay);}
+    var W=wrap.offsetWidth, H=wrap.offsetHeight, d='', labs='', pmap={};
+    var ports=wrap.getAttribute('data-ports')!=='0';
+    svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.style.width=W+'px'; svg.style.height=H+'px';
+    pl.setAttribute('viewBox','0 0 '+W+' '+H); pl.style.width=W+'px'; pl.style.height=H+'px';
+    wrap.querySelectorAll('.node[data-to],.snode[data-to]').forEach(function(n){
+      n.getAttribute('data-to').split(';').forEach(function(spec){
+        var f=spec.split('|'); if(f.length<3) return;
+        var t=wrap.querySelector('[data-n="'+f[0].trim()+'"]'); if(!t) return;
+        var tone=(f[4]||'').trim();
+        var p0=port(n,f[1]), p3=port(t,f[2]);
+        var route=(f[6]||'').trim(), mx, my;
+        if(route.charAt(0)==='w'){
+          var gy=parseFloat(route.split(':')[1]), r=16;
+          var dir=p3[0]<p0[0]?-1:1;
+          d+='<path class="ed '+tone+'" d="M'+p0[0]+' '+p0[1]+' L'+p0[0]+' '+(gy-r)
+            +' Q'+p0[0]+' '+gy+' '+(p0[0]+dir*r)+' '+gy
+            +' L'+(p3[0]-dir*r)+' '+gy
+            +' Q'+p3[0]+' '+gy+' '+p3[0]+' '+(gy+r)
+            +' L'+p3[0]+' '+p3[1]+'"/>';
+          mx=(p0[0]+p3[0])/2; my=gy;
+        } else {
+          var dist=Math.max(34,Math.min(120,Math.hypot(p3[0]-p0[0],p3[1]-p0[1])*0.5));
+          var c1=ctl(p0,f[1],dist), c2=ctl(p3,f[2],dist);
+          d+='<path class="ed '+tone+'" d="M'+p0+' C'+c1+' '+c2+' '+p3+'"/>';
+          mx=(p0[0]+3*c1[0]+3*c2[0]+p3[0])/8; my=(p0[1]+3*c1[1]+3*c2[1]+p3[1])/8;
+        }
+        if(ports) [p0,p3].forEach(function(pp){
+          var k=Math.round(pp[0])+','+Math.round(pp[1]);
+          if(k in pmap){ if(pmap[k]!==tone) pmap[k]=''; } else pmap[k]=tone;
+        });
+        if(f[3]){
+          var off=(f[5]||'0,0').split(','), ox=parseFloat(off[0])||0, oy=parseFloat(off[1])||0;
+          labs+='<span class="el '+tone+'" style="left:'+(mx+ox).toFixed(1)+'px;top:'+(my+oy).toFixed(1)+'px">'+f[3]+'</span>';
+        }
+      });
+    });
+    var dots='';
+    Object.keys(pmap).forEach(function(k){var c=k.split(',');
+      dots+='<circle class="pt '+pmap[k]+'" cx="'+c[0]+'" cy="'+c[1]+'" r="7"/>';});
+    svg.innerHTML=d; pl.innerHTML=dots; lay.innerHTML=labs;
+  }
+
+  function show(id){
+    if(SCREENS.indexOf(id)<0) id='queue';
+    SCREENS.forEach(function(s){document.getElementById('s-'+s).classList.toggle('on',s===id);});
+    document.querySelectorAll('.rl[data-go]').forEach(function(b){
+      var g=b.getAttribute('data-go');
+      b.classList.toggle('on',g===id||(id==='ticket'&&g==='tickets')||(id==='run'&&g==='runs'));
+    });
+    document.getElementById('tabtx').textContent=TAB[id];
+    document.querySelectorAll('.cvwrap').forEach(function(w){fit(w);draw(w);});
+    history.replaceState(null,'','#'+id);
+  }
+
+  document.querySelectorAll('[data-go]').forEach(function(b){
+    b.addEventListener('click',function(){show(b.getAttribute('data-go'));});
+  });
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    setTheme(root.getAttribute('data-theme')==='dark'?'light':'dark');
+  });
+  setTheme(qs.get('theme')==='dark'?'dark':'light');
+  show((location.hash||'#queue').slice(1));
+  window.addEventListener('resize',function(){document.querySelectorAll('.cvwrap').forEach(function(w){fit(w);draw(w);});});
+})();
+</script>
+</body>
+</html>

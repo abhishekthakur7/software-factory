@@ -1,0 +1,95 @@
+<section class="screen" id="s-tickets" data-title="Tickets" hidden>
+<style data-screen="tickets">
+#s-tickets .tk-row{grid-template-columns:22px 84px minmax(0,1fr) 38px 118px 80px 74px 58px 30px;gap:14px}
+#s-tickets .ttitle{font-size:14.5px}
+#s-tickets .row.is-sel .ttitle{font-weight:500}
+#s-tickets .tk-tier{font-size:13.5px;color:var(--muted)}
+#s-tickets .tk-cost{font-size:14px}
+#s-tickets .tk-age{font-size:13px;color:var(--muted)}
+#s-tickets .tk-dw{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--muted);white-space:nowrap}
+#s-tickets .tk-dw i{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:var(--faint)}
+#s-tickets .tk-dw i.p{background:var(--pass)}
+#s-tickets .stages{gap:4.5px}
+/* R04 bulk bar: floating pill over the table, square X at the left, 1px rules between actions */
+#s-tickets .bulk{width:max-content;max-width:100%;margin:18px auto 0;height:52px;padding:0;gap:8px;
+  background:none;border:0;box-shadow:none;border-radius:0}
+#s-tickets .tk-x{flex:0 0 52px;height:52px;display:grid;place-items:center;border-radius:13px;
+  background:var(--card-3);border:1px solid var(--border-2);box-shadow:var(--shadow);color:var(--muted)}
+#s-tickets .tk-x:hover{color:var(--text)}
+#s-tickets .tk-bar{display:flex;align-items:center;height:52px;padding:0 6px 0 18px;border-radius:13px;
+  background:var(--card-3);border:1px solid var(--border-2);box-shadow:var(--shadow)}
+#s-tickets .tk-n{font-size:13.5px;color:var(--muted);margin-right:16px;white-space:nowrap}
+#s-tickets .tk-n b{font-weight:600;color:var(--text)}
+#s-tickets .tk-a{position:relative;display:inline-flex;align-items:center;gap:8px;height:52px;padding:0 15px;
+  font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap}
+#s-tickets .tk-a::before{content:"";position:absolute;left:0;top:15px;bottom:15px;width:1px;background:var(--border-2)}
+#s-tickets .tk-a svg{flex:0 0 15px;width:15px;height:15px;color:var(--faint)}
+/* R04 keeps the bulk bar dark on a light page */
+[data-theme="light"] #s-tickets .tk-x,[data-theme="light"] #s-tickets .tk-bar{background:#14171A;border-color:#14171A;
+  color:#FFFFFF;box-shadow:0 2px 4px rgba(16,20,26,.10),0 16px 34px -12px rgba(16,20,26,.30)}
+[data-theme="light"] #s-tickets .tk-n{color:rgba(255,255,255,.62)}
+[data-theme="light"] #s-tickets .tk-n b,[data-theme="light"] #s-tickets .tk-a{color:#FFFFFF}
+[data-theme="light"] #s-tickets .tk-a::before{background:rgba(255,255,255,.18)}
+[data-theme="light"] #s-tickets .tk-a svg{color:rgba(255,255,255,.55)}
+</style>
+
+  <div class="kpis">
+    <div class="kpi" style="--tint:var(--accent)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-ticket"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 33.2 L 5.5 29.4 L 11 37 L 16.5 25.7 L 22 21.9 L 27.5 29.4 L 33 18.1 L 38.5 25.7 L 44 14.3 L 49.5 21.9 L 55 10.6 L 60.5 18.1 L 66 6.8 L 71.5 14.3 L 77 10.6 L 82.5 18.1 L 88 6.8 L 93.5 10.6 L 99 3 L 104.5 10.6 L 110 6.8 L 115.5 14.3 L 121 10.6 L 126.5 6.8 L 132 10.6 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 33.2 L 5.5 29.4 L 11 37 L 16.5 25.7 L 22 21.9 L 27.5 29.4 L 33 18.1 L 38.5 25.7 L 44 14.3 L 49.5 21.9 L 55 10.6 L 60.5 18.1 L 66 6.8 L 71.5 14.3 L 77 10.6 L 82.5 18.1 L 88 6.8 L 93.5 10.6 L 99 3 L 104.5 10.6 L 110 6.8 L 115.5 14.3 L 121 10.6 L 126.5 6.8 L 132 10.6" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="10.6" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">Open</span>
+      <span class="kpi-v"><span class="kpi-n">12</span><span class="kpi-d">8 active</span></span>
+    </div>
+    <div class="kpi" style="--tint:var(--accent)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-queue"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 37 L 5.5 28.5 L 11 32.8 L 16.5 24.2 L 22 28.5 L 27.5 20 L 33 24.2 L 38.5 15.8 L 44 20 L 49.5 24.2 L 55 15.8 L 60.5 11.5 L 66 20 L 71.5 7.2 L 77 15.8 L 82.5 11.5 L 88 3 L 93.5 11.5 L 99 7.2 L 104.5 15.8 L 110 11.5 L 115.5 7.2 L 121 15.8 L 126.5 11.5 L 132 11.5 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 37 L 5.5 28.5 L 11 32.8 L 16.5 24.2 L 22 28.5 L 27.5 20 L 33 24.2 L 38.5 15.8 L 44 20 L 49.5 24.2 L 55 15.8 L 60.5 11.5 L 66 20 L 71.5 7.2 L 77 15.8 L 82.5 11.5 L 88 3 L 93.5 11.5 L 99 7.2 L 104.5 15.8 L 110 11.5 L 115.5 7.2 L 121 15.8 L 126.5 11.5 L 132 11.5" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="11.5" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">In queue</span>
+      <span class="kpi-v"><span class="kpi-n">10</span><span class="kpi-d">5 act today</span></span>
+    </div>
+    <div class="kpi" style="--tint:var(--pass)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-branch"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 37 L 5.5 35.9 L 11 34.8 L 16.5 34.8 L 22 33.7 L 27.5 32.6 L 33 31.5 L 38.5 30.4 L 44 29.3 L 49.5 28.2 L 55 27.1 L 60.5 24.9 L 66 23.8 L 71.5 22.7 L 77 20.5 L 82.5 19.5 L 88 17.3 L 93.5 15.1 L 99 14 L 104.5 11.8 L 110 10.7 L 115.5 8.5 L 121 7.4 L 126.5 5.2 L 132 3 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 37 L 5.5 35.9 L 11 34.8 L 16.5 34.8 L 22 33.7 L 27.5 32.6 L 33 31.5 L 38.5 30.4 L 44 29.3 L 49.5 28.2 L 55 27.1 L 60.5 24.9 L 66 23.8 L 71.5 22.7 L 77 20.5 L 82.5 19.5 L 88 17.3 L 93.5 15.1 L 99 14 L 104.5 11.8 L 110 10.7 L 115.5 8.5 L 121 7.4 L 126.5 5.2 L 132 3" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="3" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">Merged 30d</span>
+      <span class="kpi-v"><span class="kpi-n">31</span><span class="kpi-d">of 38 closed</span></span>
+    </div>
+    <div class="kpi dim" style="--tint:var(--accent)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-dollar"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 37 L 5.5 33.2 L 11 35.1 L 16.5 30.7 L 22 32.6 L 27.5 28.2 L 33 29.4 L 38.5 25 L 44 26.9 L 49.5 22.5 L 55 23.8 L 60.5 19.4 L 66 20.6 L 71.5 16.2 L 77 18.1 L 82.5 13.7 L 88 15 L 93.5 10.6 L 99 11.8 L 104.5 8 L 110 9.3 L 115.5 6.1 L 121 7.4 L 126.5 4.9 L 132 3 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 37 L 5.5 33.2 L 11 35.1 L 16.5 30.7 L 22 32.6 L 27.5 28.2 L 33 29.4 L 38.5 25 L 44 26.9 L 49.5 22.5 L 55 23.8 L 60.5 19.4 L 66 20.6 L 71.5 16.2 L 77 18.1 L 82.5 13.7 L 88 15 L 93.5 10.6 L 99 11.8 L 104.5 8 L 110 9.3 L 115.5 6.1 L 121 7.4 L 126.5 4.9 L 132 3" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="3" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">Cost 30d</span>
+      <span class="kpi-v"><span class="kpi-n">$430.40</span><span class="kpi-d">$412 this week</span></span>
+    </div>
+  </div>
+
+  <div class="card tbl">
+    <div class="tbl-h">
+      <div class="tbl-t"><h2>Tickets</h2><span>12 results</span></div>
+      <div class="tbl-x">
+        <span class="tsearch"><svg width="16" height="16"><use href="#i-search"/></svg><span>Search by key or title..</span></span>
+        <span class="fpill">All states <svg width="14" height="14"><use href="#i-chevd"/></svg></span>
+        <span class="fpill">Tier <svg width="14" height="14"><use href="#i-chevd"/></svg></span>
+        <span class="fpill">Class <svg width="14" height="14"><use href="#i-chevd"/></svg></span>
+      </div>
+    </div>
+    <ul class="rows">
+      <li class="rowhead tk-row"><span></span><span>Ticket</span><span>Title</span><span>Tier</span><span>State</span><span>Stages</span><span class="r">Cost</span><span class="r">Age</span><span></span></li>
+      <li class="row tk-row is-sel"><span class="tcheck on"><svg><use href="#i-check"/></svg></span><a class="tkey" href="#ticket">LED-2291</a><a class="ttitle ell" href="#ticket">Reject settlement batches whose currency differs from the merchant account</a><span class="tk-tier">2</span><span><span class="pill warn">Review</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span><span class="r tk-cost">$18.40</span><span class="r tk-age">3h 40m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck on"><svg><use href="#i-check"/></svg></span><a class="tkey" href="#ticket">LED-2287</a><a class="ttitle ell" href="#ticket">Add idempotency key to refund POST</a><span class="tk-tier">1</span><span><span class="pill acc">Implementing</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="g"></i><i></i><i></i></span><span class="r tk-cost">$9.12</span><span class="r tk-age">3h 59m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row is-hov"><span class="tcheck on"><svg><use href="#i-check"/></svg></span><a class="tkey" href="#ticket">LED-2302</a><a class="ttitle ell" href="#ticket">Backfill merchant timezone on legacy accounts</a><span class="tk-tier">2</span><span><span class="pill warn">Plan review</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i></i><i></i><i></i></span><span class="r tk-cost">$6.75</span><span class="r tk-age">4h 14m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">SET-118</a><a class="ttitle ell" href="#ticket">Retry settlement webhook with exponential backoff</a><span class="tk-tier">1</span><span><span class="pill warn">Checks</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="r"></i><i></i></span><span class="r tk-cost">$11.30</span><span class="r tk-age">5h 34m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">LED-2270</a><a class="ttitle ell" href="#ticket">Rename ledger_entry.amount_cents to minor_units</a><span class="tk-tier">3</span><span><span class="pill fail">Escalated</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i></i></span><span class="r tk-cost">$27.60</span><span class="r tk-age">6h 15m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">MP-77</a><a class="ttitle ell" href="#ticket">Show settlement ETA on merchant dashboard</a><span class="tk-tier">1</span><span><span class="pill warn">Clarifying</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i></i><i></i><i></i></span><span class="r tk-cost">$2.10</span><span class="r tk-age">4h 40m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">LED-2310</a><a class="ttitle ell" href="#ticket">Remove deprecated v1 export endpoint</a><span class="tk-tier">2</span><span><span class="tk-dw"><i></i>Intake</span></span><span class="stages"><i class="d"></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="r tk-cost">$0.30</span><span class="r tk-age">30m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">LED-2261</a><a class="ttitle ell" href="#ticket">Fix rounding drift in FX conversion</a><span class="tk-tier">2</span><span><span class="tk-dw"><i class="p"></i>PR opened</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span><span class="r tk-cost">$14.90</span><span class="r tk-age">2d</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">SET-104</a><a class="ttitle ell" href="#ticket">Add merchant_id to settlement audit log</a><span class="tk-tier">1</span><span><span class="tk-dw"><i class="p"></i>Merged</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i></span><span class="r tk-cost">$7.40</span><span class="r tk-age">4d</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">LED-2244</a><a class="ttitle ell" href="#ticket">Migrate batch runner to virtual threads</a><span class="tk-tier">3</span><span><span class="pill fail">Rejected</span></span><span class="stages"><i class="r"></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="r tk-cost">$1.05</span><span class="r tk-age">5d</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">MP-62</a><a class="ttitle ell" href="#ticket">Export statements as CSV</a><span class="tk-tier">1</span><span><span class="pill">Abandoned</span></span><span class="stages"><i class="d"></i><i class="d"></i><i class="d"></i><i></i><i></i><i></i><i></i></span><span class="r tk-cost">$5.20</span><span class="r tk-age">6d</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+      <li class="row tk-row"><span class="tcheck"></span><a class="tkey" href="#ticket">LED-2289</a><a class="ttitle ell" href="#ticket">Validate IBAN checksum at intake</a><span class="tk-tier">1</span><span><span class="tk-dw"><i></i>Context</span></span><span class="stages"><i class="d"></i><i class="w"></i><i></i><i></i><i></i><i></i><i></i></span><span class="r tk-cost">$0.85</span><span class="r tk-age">29m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+    </ul>
+  </div>
+
+  <div class="bulk">
+    <button class="tk-x"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    <div class="tk-bar">
+      <span class="tk-n">Selected <b>3</b></span>
+      <button class="tk-a"><svg><use href="#i-download"/></svg>Export</button>
+      <button class="tk-a"><svg><use href="#i-back"/></svg>Send back</button>
+      <button class="tk-a">Abandon</button>
+    </div>
+  </div>
+</section>

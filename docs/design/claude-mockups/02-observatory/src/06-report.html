@@ -1,0 +1,162 @@
+<section class="screen" id="s-report" data-title="Report" hidden>
+<style data-screen="report">
+/* Report (BRIEF-v3 §4.6): panel headers take the R18 table-shell form; §3 padding,
+   radius and legend pills. Content of every chart, the donut, the heatmap, the tag
+   leaderboard and the model rows is unchanged. */
+#s-report .card{border-radius:16px}
+#s-report .tbl-h{gap:10px;padding:0 22px}
+#s-report .tbl-x{gap:7px}
+#s-report .tbl-x .pill{height:24px;padding:0 9px;font-size:12.5px;font-weight:500;gap:5px}
+#s-report .chart{padding:2px 22px 20px}
+#s-report .donut{padding:0 22px 22px;gap:20px}
+#s-report .heat{padding:0 22px 20px}
+#s-report .tools{padding:0 22px 20px}
+#s-report .mlist{padding:0 12px 12px}
+#s-report .base{margin:-4px 0 20px;padding:0 4px}
+/* §3: a tinted delta pill, or a muted phrase where §2 gives no delta. These are
+   phrases, so they stop wearing the pill and the number keeps the row. */
+#s-report .kpi-v{align-items:baseline;gap:9px}
+#s-report .kpi-d{height:auto;padding:0;border-radius:0;background:none;font-weight:400;
+  font-size:13px;color:var(--muted)}
+/* Donut: three arcs the ring can actually separate; the four small stages keep
+   their numbers on one muted line under the legend. */
+#s-report .dleg{gap:2px}
+#s-report .d-c{opacity:.66}
+#s-report .d-f{opacity:.4}
+#s-report .rp-leg{display:flex;align-items:flex-start;gap:11px;padding:8px 0}
+#s-report .rp-leg>i{width:9px;height:9px;border-radius:3px;background:var(--accent);flex:0 0 9px;margin-top:4px}
+#s-report .rp-leg>div{flex:1 1 auto;min-width:0}
+#s-report .rp-legn{display:flex;align-items:baseline;font-size:14px}
+#s-report .rp-legn b{margin-left:auto;font-weight:500;font-size:13.5px}
+#s-report .rp-leg em{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+#s-report .rp-sub{font-size:12.5px;color:var(--faint);margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+/* Tag leaderboard on the R18 row rhythm: the bar becomes a compact secondary
+   mark beside the count instead of a full-width restatement of it. */
+#s-report .tools{padding:0 20px 14px}
+#s-report .tool{display:grid;grid-template-columns:54px minmax(0,1fr) 96px 26px;gap:14px;
+  align-items:center;height:60px;padding:0 2px}
+#s-report .rp-tk{font-size:14px;font-weight:500}
+#s-report .tool .dbar i{background:var(--accent);opacity:.8}
+#s-report .rp-tp{font-size:13.5px;color:var(--muted)}
+#s-report .tool b{font-size:14.5px;font-weight:600;text-align:right}
+/* Model rows: R15/R18 trend lines, no area fill; the load-time helper smooths them. */
+#s-report .msp .sp-a{display:none}
+#s-report .msp .sp-l{opacity:1}
+</style>
+  <div class="kpis">
+    <div class="kpi" style="--tint:var(--accent)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-dollar"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 24.7 L 4.4 33.9 L 8.8 36.4 L 13.2 26.7 L 17.6 22.6 L 22 18.6 L 26.4 26.4 L 30.8 20.8 L 35.2 35.2 L 39.6 37 L 44 28.9 L 48.4 24 L 52.8 13.2 L 57.2 20.2 L 61.6 27.1 L 66 32.8 L 70.4 35.7 L 74.8 25.8 L 79.2 16.9 L 83.6 3 L 88 21.9 L 92.4 25 L 96.8 34.8 L 101.2 36.6 L 105.6 27.7 L 110 22.2 L 114.4 25.3 L 118.8 12.4 L 123.2 24.1 L 127.6 28.5 L 132 25.5 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 24.7 L 4.4 33.9 L 8.8 36.4 L 13.2 26.7 L 17.6 22.6 L 22 18.6 L 26.4 26.4 L 30.8 20.8 L 35.2 35.2 L 39.6 37 L 44 28.9 L 48.4 24 L 52.8 13.2 L 57.2 20.2 L 61.6 27.1 L 66 32.8 L 70.4 35.7 L 74.8 25.8 L 79.2 16.9 L 83.6 3 L 88 21.9 L 92.4 25 L 96.8 34.8 L 101.2 36.6 L 105.6 27.7 L 110 22.2 L 114.4 25.3 L 118.8 12.4 L 123.2 24.1 L 127.6 28.5 L 132 25.5" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="25.5" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">Cost per merged PR</span>
+      <span class="kpi-v"><span class="kpi-n">$13.70</span><span class="kpi-d">median</span></span>
+    </div>
+    <div class="kpi" style="--tint:var(--pass)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-branch"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 37 L 5.5 35.9 L 11 34.8 L 16.5 34.8 L 22 33.7 L 27.5 32.6 L 33 31.5 L 38.5 30.4 L 44 29.3 L 49.5 28.2 L 55 27.1 L 60.5 24.9 L 66 23.8 L 71.5 22.7 L 77 20.5 L 82.5 19.5 L 88 17.3 L 93.5 15.1 L 99 14 L 104.5 11.8 L 110 10.7 L 115.5 8.5 L 121 7.4 L 126.5 5.2 L 132 3 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 37 L 5.5 35.9 L 11 34.8 L 16.5 34.8 L 22 33.7 L 27.5 32.6 L 33 31.5 L 38.5 30.4 L 44 29.3 L 49.5 28.2 L 55 27.1 L 60.5 24.9 L 66 23.8 L 71.5 22.7 L 77 20.5 L 82.5 19.5 L 88 17.3 L 93.5 15.1 L 99 14 L 104.5 11.8 L 110 10.7 L 115.5 8.5 L 121 7.4 L 126.5 5.2 L 132 3" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="3" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">Merged</span>
+      <span class="kpi-v"><span class="kpi-n">31</span><span class="kpi-d">of 38 closed</span></span>
+    </div>
+    <div class="kpi" style="--tint:var(--accent)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-checkc"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 37 L 5.5 25.7 L 11 31.3 L 16.5 17.2 L 22 22.8 L 27.5 11.5 L 33 20 L 38.5 5.8 L 44 14.3 L 49.5 3 L 55 11.5 L 60.5 17.2 L 66 8.7 L 71.5 14.3 L 77 5.8 L 82.5 17.2 L 88 8.7 L 93.5 14.3 L 99 5.8 L 104.5 11.5 L 110 3 L 115.5 14.3 L 121 8.7 L 126.5 11.5 L 132 11.5 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 37 L 5.5 25.7 L 11 31.3 L 16.5 17.2 L 22 22.8 L 27.5 11.5 L 33 20 L 38.5 5.8 L 44 14.3 L 49.5 3 L 55 11.5 L 60.5 17.2 L 66 8.7 L 71.5 14.3 L 77 5.8 L 82.5 17.2 L 88 8.7 L 93.5 14.3 L 99 5.8 L 104.5 11.5 L 110 3 L 115.5 14.3 L 121 8.7 L 126.5 11.5 L 132 11.5" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="11.5" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">First-pass check rate</span>
+      <span class="kpi-v"><span class="kpi-n">71<small>%</small></span><span class="kpi-d">6 send-backs</span></span>
+    </div>
+    <div class="kpi dim flat" style="--tint:var(--accent)">
+      <div class="kpi-top"><span class="kpi-ic"><svg width="20" height="20"><use href="#i-clock"/></svg></span><span class="kpi-sp"><svg viewBox="0 0 132 40" preserveAspectRatio="none"><path class="sp-a" d="M 0 3 L 5.5 16.6 L 11 9.8 L 16.5 23.4 L 22 16.6 L 27.5 30.2 L 33 20 L 38.5 33.6 L 44 23.4 L 49.5 37 L 55 26.8 L 60.5 30.2 L 66 20 L 71.5 33.6 L 77 23.4 L 82.5 30.2 L 88 35.3 L 93.5 26.8 L 99 31.9 L 104.5 23.4 L 110 30.2 L 115.5 33.6 L 121 25.1 L 126.5 30.2 L 132 26.8 L 132 40 L 0 40 Z"/><path class="sp-l" d="M 0 3 L 5.5 16.6 L 11 9.8 L 16.5 23.4 L 22 16.6 L 27.5 30.2 L 33 20 L 38.5 33.6 L 44 23.4 L 49.5 37 L 55 26.8 L 60.5 30.2 L 66 20 L 71.5 33.6 L 77 23.4 L 82.5 30.2 L 88 35.3 L 93.5 26.8 L 99 31.9 L 104.5 23.4 L 110 30.2 L 115.5 33.6 L 121 25.1 L 126.5 30.2 L 132 26.8" vector-effect="non-scaling-stroke"/><ellipse class="sp-dot" cx="132" cy="26.8" rx="3.85" ry="3.18"/></svg></span></div>
+      <span class="kpi-l">Median queue latency</span>
+      <span class="kpi-v"><span class="kpi-n">38<small>m</small></span><span class="kpi-d">p90 3h 10m</span></span>
+    </div>
+  </div>
+
+  <p class="base"><svg width="14" height="14" style="color:var(--faint)"><use href="#i-help"/></svg><b>Context measure, not comparable</b> · pre-factory cycle time 3.2d · human review 41 min per ticket</p>
+
+  <div class="rep-a">
+    <div class="card">
+      <div class="tbl-h">
+        <div class="tbl-t"><h2>Cost per merged PR</h2><span>7 Aug – 6 Sep</span></div>
+        <div class="tbl-x"><span class="pill warn">Median $13.70</span></div>
+      </div>
+      <div class="chart">
+        <svg viewBox="0 0 380 210">
+          <line class="cx-grid" x1="40" y1="178" x2="372" y2="178"/>
+          <line class="cx-grid" x1="40" y1="124" x2="372" y2="124"/>
+          <line class="cx-grid" x1="40" y1="70" x2="372" y2="70"/>
+          <line class="cx-grid" x1="40" y1="16" x2="372" y2="16"/>
+          <text class="tick r" x="32" y="182">$0</text><text class="tick r" x="32" y="128">$10</text>
+          <text class="tick r" x="32" y="74">$20</text><text class="tick r" x="32" y="20">$30</text>
+          <path class="cx-area" d="M 40.0 101.3 L 51.1 134.3 L 62.1 143.4 L 73.2 108.3 L 84.3 93.8 L 95.3 79.2 L 106.4 107.3 L 117.5 87.3 L 128.5 139.1 L 139.6 145.6 L 150.7 116.4 L 161.7 98.6 L 172.8 59.7 L 183.9 85.1 L 194.9 110.0 L 206.0 130.5 L 217.1 140.7 L 228.1 105.1 L 239.2 73.2 L 250.3 23.0 L 261.3 91.1 L 272.4 102.4 L 283.5 137.5 L 294.5 144.0 L 305.6 112.1 L 316.7 92.1 L 327.7 103.5 L 338.8 57.0 L 349.9 99.2 L 360.9 114.8 L 372.0 104.0 L 372.0 178.0 L 40.0 178.0 Z"/>
+          <line class="cx-med" x1="40" y1="104.0" x2="372" y2="104.0"/>
+          <path class="cx-line" d="M 40.0 101.3 L 51.1 134.3 L 62.1 143.4 L 73.2 108.3 L 84.3 93.8 L 95.3 79.2 L 106.4 107.3 L 117.5 87.3 L 128.5 139.1 L 139.6 145.6 L 150.7 116.4 L 161.7 98.6 L 172.8 59.7 L 183.9 85.1 L 194.9 110.0 L 206.0 130.5 L 217.1 140.7 L 228.1 105.1 L 239.2 73.2 L 250.3 23.0 L 261.3 91.1 L 272.4 102.4 L 283.5 137.5 L 294.5 144.0 L 305.6 112.1 L 316.7 92.1 L 327.7 103.5 L 338.8 57.0 L 349.9 99.2 L 360.9 114.8 L 372.0 104.0"/>
+          <line x1="250.3" y1="23.0" x2="250.3" y2="178" stroke="var(--border-2)" stroke-width="1" stroke-dasharray="3 3"/>
+          <circle cx="250.3" cy="23.0" r="4" fill="var(--card)" stroke="var(--accent)" stroke-width="2.5"/>
+          <g transform="translate(92,8)">
+            <rect x="0" y="0" width="148" height="40" rx="8" fill="var(--card-3)" stroke="var(--border-2)"/>
+            <text class="tick" x="11" y="17" style="fill:var(--text);font-size:12.5px;font-weight:600">26 Aug &#183; $28.70</text>
+            <text class="tick" x="11" y="32" style="font-size:11.5px">T-0403 escalation</text>
+          </g>
+          <text class="tick" x="40" y="200">7 Aug</text><text class="tick" x="117" y="200">14 Aug</text>
+          <text class="tick" x="195" y="200">21 Aug</text><text class="tick" x="272" y="200">28 Aug</text>
+          <text class="tick r" x="372" y="200">6 Sep</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tbl-h"><div class="tbl-t"><h2>Stage cost share</h2><span>30 days</span></div></div>
+      <div class="donut">
+        <div class="dwrap">
+          <svg viewBox="0 0 168 168">
+            <circle class="d-a" cx="84" cy="84" r="63" stroke-dasharray="227.6 168.2" stroke-dashoffset="0"/>
+            <circle class="d-c" cx="84" cy="84" r="63" stroke-dasharray="81.1 314.7" stroke-dashoffset="-231.6"/>
+            <circle class="d-f" cx="84" cy="84" r="63" stroke-dasharray="81.1 314.7" stroke-dashoffset="-314.7"/>
+          </svg>
+          <b>$430.40</b><span>Total</span>
+        </div>
+        <div class="dleg">
+          <div class="rp-leg"><i style="opacity:1"></i><div><span class="rp-legn">S4<b>58%</b></span><em>$249.60</em></div></div>
+          <div class="rp-leg"><i style="opacity:.66"></i><div><span class="rp-legn">S3<b>21%</b></span><em>$90.40</em></div></div>
+          <div class="rp-leg"><i style="opacity:.4"></i><div><span class="rp-legn">Other<b>21%</b></span><em>$90.40</em></div></div>
+          <p class="rp-sub">S1 9% · S6 6% · S2 4% · S5 2%</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tbl-h">
+        <div class="tbl-t"><h2>Runs by outcome</h2><span>253 runs</span></div>
+        <div class="tbl-x"><span class="pill pass"><i class="dot"></i>Pass 212</span><span class="pill fail">Fail 23</span><span class="pill">Other 18</span></div>
+      </div>
+      <div class="chart">
+        <svg viewBox="0 0 380 210"><line class="cx-grid" x1="36" y1="178" x2="372" y2="178"/><line class="cx-grid" x1="36" y1="98" x2="372" y2="98"/><line class="cx-grid" x1="36" y1="18" x2="372" y2="18"/><text class="tick r" x="28" y="182">0</text><text class="tick r" x="28" y="102">6</text><text class="tick r" x="28" y="22">12</text><rect class="b-p" x="37.2" y="71.3" width="8.2" height="106.7" rx="2"/><rect class="b-o" x="37.2" y="58.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="48.0" y="98.0" width="8.2" height="80.0" rx="2"/><rect class="b-f" x="48.0" y="84.7" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="58.9" y="151.3" width="8.2" height="26.7" rx="2"/><rect class="b-p" x="69.7" y="138.0" width="8.2" height="40.0" rx="2"/><rect class="b-p" x="80.6" y="98.0" width="8.2" height="80.0" rx="2"/><rect class="b-o" x="80.6" y="84.7" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="91.4" y="111.3" width="8.2" height="66.7" rx="2"/><rect class="b-f" x="91.4" y="98.0" width="8.2" height="13.3" rx="2"/><rect class="b-o" x="91.4" y="84.7" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="102.2" y="98.0" width="8.2" height="80.0" rx="2"/><rect class="b-o" x="102.2" y="84.7" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="113.1" y="58.0" width="8.2" height="120.0" rx="2"/><rect class="b-f" x="113.1" y="44.7" width="8.2" height="13.3" rx="2"/><rect class="b-o" x="113.1" y="31.3" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="123.9" y="31.3" width="8.2" height="146.7" rx="2"/><rect class="b-o" x="123.9" y="18.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="134.7" y="138.0" width="8.2" height="40.0" rx="2"/><rect class="b-p" x="145.6" y="151.3" width="8.2" height="26.7" rx="2"/><rect class="b-p" x="156.4" y="98.0" width="8.2" height="80.0" rx="2"/><rect class="b-o" x="156.4" y="84.7" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="167.3" y="98.0" width="8.2" height="80.0" rx="2"/><rect class="b-f" x="167.3" y="84.7" width="8.2" height="13.3" rx="2"/><rect class="b-o" x="167.3" y="71.3" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="178.1" y="84.7" width="8.2" height="93.3" rx="2"/><rect class="b-p" x="188.9" y="31.3" width="8.2" height="146.7" rx="2"/><rect class="b-f" x="188.9" y="18.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="199.8" y="44.7" width="8.2" height="133.3" rx="2"/><rect class="b-f" x="199.8" y="31.3" width="8.2" height="13.3" rx="2"/><rect class="b-o" x="199.8" y="18.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="210.6" y="138.0" width="8.2" height="40.0" rx="2"/><rect class="b-p" x="221.5" y="164.7" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="232.3" y="58.0" width="8.2" height="120.0" rx="2"/><rect class="b-f" x="232.3" y="44.7" width="8.2" height="13.3" rx="2"/><rect class="b-o" x="232.3" y="31.3" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="243.1" y="71.3" width="8.2" height="106.7" rx="2"/><rect class="b-f" x="243.1" y="18.0" width="8.2" height="53.3" rx="2"/><rect class="b-p" x="254.0" y="71.3" width="8.2" height="106.7" rx="2"/><rect class="b-f" x="254.0" y="58.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="264.8" y="71.3" width="8.2" height="106.7" rx="2"/><rect class="b-f" x="264.8" y="58.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="275.7" y="31.3" width="8.2" height="146.7" rx="2"/><rect class="b-o" x="275.7" y="18.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="286.5" y="151.3" width="8.2" height="26.7" rx="2"/><rect class="b-p" x="297.3" y="138.0" width="8.2" height="40.0" rx="2"/><rect class="b-p" x="308.2" y="44.7" width="8.2" height="133.3" rx="2"/><rect class="b-p" x="319.0" y="71.3" width="8.2" height="106.7" rx="2"/><rect class="b-o" x="319.0" y="58.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="329.8" y="44.7" width="8.2" height="133.3" rx="2"/><rect class="b-f" x="329.8" y="31.3" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="340.7" y="84.7" width="8.2" height="93.3" rx="2"/><rect class="b-o" x="340.7" y="71.3" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="351.5" y="31.3" width="8.2" height="146.7" rx="2"/><rect class="b-f" x="351.5" y="18.0" width="8.2" height="13.3" rx="2"/><rect class="b-p" x="362.4" y="151.3" width="8.2" height="26.7" rx="2"/><text class="tick" x="36" y="200">7 Aug</text><text class="tick" x="116" y="200">14 Aug</text><text class="tick" x="196" y="200">21 Aug</text><text class="tick" x="276" y="200">28 Aug</text><text class="tick r" x="372" y="200">5 Sep</text></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="rep-b">
+    <div class="card">
+      <div class="tbl-h"><div class="tbl-t"><h2>Tag leaderboard</h2><span>5 tags</span></div></div>
+      <div class="tools">
+        <div class="tool"><span class="rp-tk">FM-4</span><span class="rp-tp ell">stale context</span><span class="dbar"><i style="width:100%"></i></span><b>5</b></div>
+        <div class="tool"><span class="rp-tk">FM-7</span><span class="rp-tp ell">scope creep</span><span class="dbar"><i style="width:80%"></i></span><b>4</b></div>
+        <div class="tool"><span class="rp-tk">FM-10</span><span class="rp-tp ell">packet defect</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
+        <div class="tool"><span class="rp-tk">FM-12</span><span class="rp-tp ell">flaky check</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
+        <div class="tool"><span class="rp-tk">FM-1</span><span class="rp-tp ell">wrong scope</span><span class="dbar"><i style="width:20%"></i></span><b>1</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tbl-h"><div class="tbl-t"><h2>Queue latency</h2><span>Median 38m</span></div></div>
+      <div class="heat">
+        <svg viewBox="0 0 350 250"><defs><pattern id="hz" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="var(--card-2)"/><line x1="0" y1="0" x2="0" y2="7" stroke="var(--hatch)" stroke-width="2"/></pattern></defs><rect x="44.0" y="10.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="87.0" y="10.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="130.0" y="10.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="173.0" y="10.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="216.0" y="10.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="259.0" y="10.0" width="38" height="27" rx="4" fill="url(#hz)"/><rect x="302.0" y="10.0" width="38" height="27" rx="4" fill="url(#hz)"/><text class="tick r" x="36" y="28.0">08:00</text><rect x="44.0" y="42.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="87.0" y="42.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="130.0" y="42.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="173.0" y="42.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="216.0" y="42.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="259.0" y="42.0" width="38" height="27" rx="4" fill="url(#hz)"/><rect x="302.0" y="42.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.76"/><text class="tick r" x="36" y="60.0">10:00</text><rect x="44.0" y="74.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="87.0" y="74.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="130.0" y="74.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="173.0" y="74.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="216.0" y="74.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="259.0" y="74.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="1.00"/><rect x="302.0" y="74.0" width="38" height="27" rx="4" fill="url(#hz)"/><text class="tick r" x="36" y="92.0">12:00</text><rect x="44.0" y="106.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="87.0" y="106.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="130.0" y="106.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="173.0" y="106.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="216.0" y="106.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.22"/><rect x="259.0" y="106.0" width="38" height="27" rx="4" fill="url(#hz)"/><rect x="302.0" y="106.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.76"/><text class="tick r" x="36" y="124.0">14:00</text><rect x="44.0" y="138.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="87.0" y="138.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="130.0" y="138.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="173.0" y="138.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.38"/><rect x="216.0" y="138.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="259.0" y="138.0" width="38" height="27" rx="4" fill="url(#hz)"/><rect x="302.0" y="138.0" width="38" height="27" rx="4" fill="url(#hz)"/><text class="tick r" x="36" y="156.0">16:00</text><rect x="44.0" y="170.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="87.0" y="170.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="130.0" y="170.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="173.0" y="170.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.56"/><rect x="216.0" y="170.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="0.76"/><rect x="259.0" y="170.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="1.00"/><rect x="302.0" y="170.0" width="38" height="27" rx="4" fill="var(--accent)" opacity="1.00"/><text class="tick r" x="36" y="188.0">18:00</text><text class="tick" x="63.0" y="215.0" text-anchor="middle">Mon</text><text class="tick" x="106.0" y="215.0" text-anchor="middle">Tue</text><text class="tick" x="149.0" y="215.0" text-anchor="middle">Wed</text><text class="tick" x="192.0" y="215.0" text-anchor="middle">Thu</text><text class="tick" x="235.0" y="215.0" text-anchor="middle">Fri</text><text class="tick" x="278.0" y="215.0" text-anchor="middle">Sat</text><text class="tick" x="321.0" y="215.0" text-anchor="middle">Sun</text><text class="tick r" x="78" y="242">Faster</text><rect x="86" y="233" width="15" height="9" rx="2.5" fill="var(--accent)" opacity="0.22"/><rect x="105" y="233" width="15" height="9" rx="2.5" fill="var(--accent)" opacity="0.38"/><rect x="124" y="233" width="15" height="9" rx="2.5" fill="var(--accent)" opacity="0.56"/><rect x="143" y="233" width="15" height="9" rx="2.5" fill="var(--accent)" opacity="0.76"/><rect x="162" y="233" width="15" height="9" rx="2.5" fill="var(--accent)" opacity="1.00"/><text class="tick" x="185" y="242">Slower</text><rect x="245" y="233" width="15" height="9" rx="2.5" fill="url(#hz)" stroke="var(--border-2)" stroke-width="0.8"/><text class="tick" x="267" y="242">No data</text></svg>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tbl-h"><div class="tbl-t"><h2>Model spend</h2><span>$430.40</span></div></div>
+      <div class="plist mlist">
+        <div class="prow mrow"><span class="ell">claude-opus-5</span><span class="r" style="font-size:13.5px">$318.40</span><span class="r mut" style="font-size:13px">74%</span><span class="msp"><svg viewBox="0 0 132 40" preserveAspectRatio="none" style="--tint:var(--accent)"><path class="sp-a" d="M 0 37 L 5.5 32.1 L 11 35.4 L 16.5 28.9 L 22 33.8 L 27.5 27.3 L 33 30.5 L 38.5 24 L 44 28.9 L 49.5 22.4 L 55 25.7 L 60.5 19.2 L 66 24 L 71.5 17.6 L 77 20.8 L 82.5 14.3 L 88 19.2 L 93.5 12.7 L 99 16 L 104.5 9.5 L 110 14.3 L 115.5 7.9 L 121 11.1 L 126.5 6.2 L 132 3 L 132 40 L 0 40 Z"/><path class="sp-l" data-smooth d="M 0 37 L 5.5 32.1 L 11 35.4 L 16.5 28.9 L 22 33.8 L 27.5 27.3 L 33 30.5 L 38.5 24 L 44 28.9 L 49.5 22.4 L 55 25.7 L 60.5 19.2 L 66 24 L 71.5 17.6 L 77 20.8 L 82.5 14.3 L 88 19.2 L 93.5 12.7 L 99 16 L 104.5 9.5 L 110 14.3 L 115.5 7.9 L 121 11.1 L 126.5 6.2 L 132 3" vector-effect="non-scaling-stroke"/></svg></span></div>
+        <div class="prow mrow"><span class="ell">claude-sonnet-5</span><span class="r" style="font-size:13.5px">$88.10</span><span class="r mut" style="font-size:13px">20%</span><span class="msp"><svg viewBox="0 0 132 40" preserveAspectRatio="none" style="--tint:var(--accent)"><path class="sp-a" d="M 0 37 L 5.5 31.3 L 11 37 L 16.5 25.7 L 22 31.3 L 27.5 20 L 33 31.3 L 38.5 14.3 L 44 25.7 L 49.5 20 L 55 25.7 L 60.5 14.3 L 66 20 L 71.5 8.7 L 77 20 L 82.5 14.3 L 88 20 L 93.5 8.7 L 99 14.3 L 104.5 8.7 L 110 14.3 L 115.5 3 L 121 8.7 L 126.5 3 L 132 8.7 L 132 40 L 0 40 Z"/><path class="sp-l" data-smooth d="M 0 37 L 5.5 31.3 L 11 37 L 16.5 25.7 L 22 31.3 L 27.5 20 L 33 31.3 L 38.5 14.3 L 44 25.7 L 49.5 20 L 55 25.7 L 60.5 14.3 L 66 20 L 71.5 8.7 L 77 20 L 82.5 14.3 L 88 20 L 93.5 8.7 L 99 14.3 L 104.5 8.7 L 110 14.3 L 115.5 3 L 121 8.7 L 126.5 3 L 132 8.7" vector-effect="non-scaling-stroke"/></svg></span></div>
+        <div class="prow mrow"><span class="ell">claude-haiku-4-5</span><span class="r" style="font-size:13.5px">$4.20</span><span class="r mut" style="font-size:13px">1%</span><span class="msp"><svg viewBox="0 0 132 40" preserveAspectRatio="none" style="--tint:var(--accent)"><path class="sp-a" d="M 0 37 L 5.5 34.9 L 11 31.7 L 16.5 32.8 L 22 28.5 L 27.5 26.4 L 33 27.4 L 38.5 24.2 L 44 21.1 L 49.5 23.2 L 55 20 L 60.5 17.9 L 66 18.9 L 71.5 15.8 L 77 13.6 L 82.5 14.7 L 88 11.5 L 93.5 12.6 L 99 9.4 L 104.5 7.3 L 110 8.3 L 115.5 5.1 L 121 4.1 L 126.5 5.1 L 132 3 L 132 40 L 0 40 Z"/><path class="sp-l" data-smooth d="M 0 37 L 5.5 34.9 L 11 31.7 L 16.5 32.8 L 22 28.5 L 27.5 26.4 L 33 27.4 L 38.5 24.2 L 44 21.1 L 49.5 23.2 L 55 20 L 60.5 17.9 L 66 18.9 L 71.5 15.8 L 77 13.6 L 82.5 14.7 L 88 11.5 L 93.5 12.6 L 99 9.4 L 104.5 7.3 L 110 8.3 L 115.5 5.1 L 121 4.1 L 126.5 5.1 L 132 3" vector-effect="non-scaling-stroke"/></svg></span></div>
+        <div class="prow nym"><span class="ell">Defect escape rate</span><span class="r fnt" style="font-size:13px">not yet measurable</span></div>
+      </div>
+    </div>
+  </div>
+</section>

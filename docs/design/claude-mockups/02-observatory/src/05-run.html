@@ -1,0 +1,187 @@
+<section class="screen" id="s-run" data-title="Run" hidden>
+  <style data-screen="run">
+  /* ===== Run detail (BRIEF-v3 §4.5): R13 structure, R23 stat boxes, R19 glyphs ===== */
+  #s-run .dhead{margin-bottom:20px}
+  #s-run .th{padding:20px 20px 17px}
+  #s-run .th h2{font-size:24px}
+  #s-run .rd-meta{font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  #s-run .rd-stats{padding:0 20px 22px}
+
+  /* two equal columns: the gutter falls on the stat strip's middle division, and both
+     columns close on one bottom edge (R13) — the left card stretches, the open step takes the slack */
+  #s-run .rd-g{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:stretch}
+  #s-run .rd-col{display:flex;flex-direction:column;gap:20px;min-width:0}
+  #s-run .rd-main{display:flex;flex-direction:column}
+
+  /* step list — 60px rows, R19 checklist glyphs */
+  #s-run .rd-steps{padding:0 12px 20px;flex:1;display:flex;flex-direction:column}
+  #s-run .rd-h{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:13px;
+    height:60px;padding:0 8px;border-bottom:1px solid var(--border);border-radius:0}
+  #s-run .rd-step:last-child .rd-h{border-bottom:0}
+  #s-run .rd-gl{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+    border:1.5px solid var(--border-2);box-sizing:border-box}
+  #s-run .rd-gl svg{display:none}
+  #s-run .rd-gl.done{background:var(--pass);border-color:var(--pass);color:var(--accent-ink)}
+  #s-run .rd-gl.done svg{display:block;width:12px;height:12px}
+  #s-run .rd-gl.run{border-color:var(--accent);
+    box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent)}
+  #s-run .rd-t{font-size:14.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #s-run .rd-r{display:flex;align-items:center;gap:13px;font-size:13px;color:var(--muted);
+    font-variant-numeric:tabular-nums}
+  #s-run .rd-r svg{color:var(--faint);flex:0 0 15px}
+  #s-run .rd-fx{color:var(--warn)}
+  #s-run .rd-step.open{background:var(--card-2);border:1px solid var(--border);border-radius:12px;
+    margin:14px 0;flex:1;display:flex;flex-direction:column;min-height:0}
+  #s-run .rd-step.open .rd-h{border-bottom:0;padding:0 7px;flex:0 0 60px}
+  #s-run .rd-body{padding:6px 7px 20px 40px;flex:1;display:flex;flex-direction:column;min-height:0}
+  #s-run .rd-blk{flex:1;display:flex;flex-direction:column;min-height:0}
+  #s-run .rd-blk+.rd-blk{margin-top:26px}
+  #s-run .rd-blk .lbl{display:block;margin-bottom:12px;font-size:13px;font-weight:500;
+    letter-spacing:0;text-transform:none;color:var(--muted)}
+  #s-run .rd-blk pre{margin:0;background:var(--card-3);border:1px solid var(--border);border-radius:10px;
+    padding:15px 17px;font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12.5px;line-height:2.2;letter-spacing:-.02em;color:var(--muted);white-space:pre;overflow-x:auto;
+    flex:1;display:flex;flex-direction:column;justify-content:center}
+  #s-run .rd-blk pre code{font:inherit;letter-spacing:inherit}
+  #s-run .rd-blk pre b{font-weight:400;color:var(--text)}
+  #s-run .rd-blk pre .er{color:var(--fail)}
+  #s-run .rd-blk pre .ok{color:var(--pass)}
+
+  /* inputs by hash */
+  #s-run .rd-list{padding:0 12px 14px}
+  #s-run .rd-irow{display:grid;grid-template-columns:74px minmax(0,1fr) 78px;align-items:center;gap:12px;
+    height:45px;padding:0 8px;border-bottom:1px solid var(--border)}
+  #s-run .rd-irow:last-child{border-bottom:0}
+  #s-run .rd-k{font-size:12.5px;color:var(--faint)}
+  #s-run .rd-n{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #s-run .rd-hash{font-size:12.5px;color:var(--muted);text-align:right}
+
+  /* guard decisions — three numbers at stat-box scale, not KPI scale */
+  #s-run .rd-gc{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:2px 20px 20px}
+  #s-run .rd-gc b{display:block;font-size:20px;font-weight:600;letter-spacing:-.03em;line-height:1.35}
+  #s-run .rd-gc span{font-size:12.5px;color:var(--muted)}
+
+  /* event log — one inset mono block */
+  #s-run .rd-log{margin:0 20px 20px;padding:15px 17px;
+    font-family:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12.5px;line-height:1.75;letter-spacing:-.02em;color:var(--muted);white-space:pre;overflow-x:auto}
+  #s-run .rd-log b{font-weight:400;color:var(--faint)}
+  #s-run .rd-log .er{color:var(--fail)}
+  #s-run .rd-log .ok{color:var(--pass)}
+  @media (max-width:1440px){#s-run .rd-irow{grid-template-columns:66px minmax(0,1fr) 74px}}
+  </style>
+
+  <div class="card dhead">
+    <div class="th">
+      <div>
+        <div class="th-key">T-0412 · LED-2291 · S4 Implementation</div>
+        <h2>run_7f3a</h2>
+      </div>
+      <div class="right">
+        <span class="rd-meta">claude-opus-5 · Cursor SDK</span>
+        <span class="pill pass"><i class="dot"></i>Pass</span>
+      </div>
+    </div>
+    <div class="stats rd-stats">
+      <div class="stat"><span class="stat-l">Tasks</span><b class="stat-v">6</b></div>
+      <div class="stat"><span class="stat-l">Fix rounds</span><b class="stat-v">1</b></div>
+      <div class="stat"><span class="stat-l">Duration</span><b class="stat-v">31:05</b></div>
+      <div class="stat acc"><span class="stat-l">Cost</span>
+        <b class="stat-v">$9.85 <small>of $12.00</small></b>
+        <span class="bar"><i style="width:82%"></i></span></div>
+    </div>
+  </div>
+
+  <div class="rd-g">
+    <div class="card rd-main">
+      <div class="card-h"><h2>Tasks</h2><span class="aux">6 validated</span></div>
+      <div class="rd-steps">
+        <div class="rd-step">
+          <div class="rd-h">
+            <span class="rd-gl done"><svg><use href="#i-check"/></svg></span>
+            <span class="rd-t">Add CurrencyValidator</span>
+            <span class="rd-r">4:12<svg width="15" height="15"><use href="#i-chevr"/></svg></span>
+          </div>
+        </div>
+        <div class="rd-step">
+          <div class="rd-h">
+            <span class="rd-gl done"><svg><use href="#i-check"/></svg></span>
+            <span class="rd-t">Wire into BatchIntake</span>
+            <span class="rd-r">6:40<svg width="15" height="15"><use href="#i-chevr"/></svg></span>
+          </div>
+        </div>
+        <div class="rd-step open">
+          <div class="rd-h step-h">
+            <span class="rd-gl done"><svg><use href="#i-check"/></svg></span>
+            <span class="rd-t">Unit tests</span>
+            <span class="rd-r"><span class="rd-fx">1 fix round</span>9:05
+              <svg width="15" height="15"><use href="#i-chevd"/></svg></span>
+          </div>
+          <div class="rd-body">
+            <div class="rd-blk"><span class="lbl">Failing check</span><pre><code><span class="er">unit</span>  2 tests red        <b>13:39:04</b>
+expected CURRENCY_MISMATCH, got null</code></pre></div>
+            <div class="rd-blk"><span class="lbl">Fix round 1</span><pre><code>validator wired before persist    <b>13:39:20</b>
+<span class="ok">unit</span>  142 tests pass     <b>13:41:37</b></code></pre></div>
+          </div>
+        </div>
+        <div class="rd-step">
+          <div class="rd-h">
+            <span class="rd-gl done"><svg><use href="#i-check"/></svg></span>
+            <span class="rd-t">Integration test</span>
+            <span class="rd-r">5:31<svg width="15" height="15"><use href="#i-chevr"/></svg></span>
+          </div>
+        </div>
+        <div class="rd-step">
+          <div class="rd-h">
+            <span class="rd-gl done"><svg><use href="#i-check"/></svg></span>
+            <span class="rd-t">Error message copy</span>
+            <span class="rd-r">1:48<svg width="15" height="15"><use href="#i-chevr"/></svg></span>
+          </div>
+        </div>
+        <div class="rd-step">
+          <div class="rd-h">
+            <span class="rd-gl done"><svg><use href="#i-check"/></svg></span>
+            <span class="rd-t">Changelog</span>
+            <span class="rd-r">0:52<svg width="15" height="15"><use href="#i-chevr"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rd-col">
+      <div class="card">
+        <div class="card-h"><h2>Inputs</h2><span class="aux">9 hashes verified</span></div>
+        <div class="rd-list">
+          <div class="rd-irow"><span class="rd-k">Agent</span><span class="rd-n">s4-implementer</span><span class="rd-hash mono">a11f…3c</span></div>
+          <div class="rd-irow"><span class="rd-k">Skill</span><span class="rd-n">s4-implement.md</span><span class="rd-hash mono">77c0…b8</span></div>
+          <div class="rd-irow"><span class="rd-k">Shared</span><span class="rd-n">repo-conventions</span><span class="rd-hash mono">5d2e…01</span></div>
+          <div class="rd-irow"><span class="rd-k">Rubric</span><span class="rd-n">rubric-s4</span><span class="rd-hash mono">e9b1…77</span></div>
+          <div class="rd-irow"><span class="rd-k">Plan</span><span class="rd-n">plan v2</span><span class="rd-hash mono">0b3d…f9</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Guard decisions</h2></div>
+        <div class="rd-gc">
+          <div><b>214</b><span>Allow</span></div>
+          <div><b>3</b><span>Redact</span></div>
+          <div><b>0</b><span>Deny</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Event log</h2><span class="aux"><span class="seg"><button class="on">Raw</button><button>JSON</button></span></span></div>
+        <pre class="rd-log inset"><b>13:21:08</b>  run started, lease runner-01
+<b>13:21:11</b>  inputs verified (9 hashes)
+<b>13:21:40</b>  task 1 started
+<b>13:32:32</b>  task 2 validated
+<b>13:39:04</b>  <span class="er">task 3 unit recipe fail (2 red)</span>
+<b>13:39:20</b>  fix round 1 started
+<b>13:41:37</b>  task 3 validated
+<b>13:49:48</b>  task 6 validated
+<b>13:50:30</b>  handoff v1 written
+<b>13:52:13</b>  <span class="ok">run ended pass</span> — settled $9.85</pre>
+      </div>
+    </div>
+  </div>
+</section>

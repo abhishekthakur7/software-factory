@@ -1,0 +1,161 @@
+<section class="screen" id="s-queue" data-title="Queue">
+<style data-screen="queue">
+/* ---- Queue (R18 table shell, R19 detail card, R23 details rail) ---- */
+#s-queue .q-grid{grid-template-columns:minmax(0,1fr) 308px;gap:20px;align-items:stretch}
+
+/* list: R18 rows, 60px, one pill per row, trailing kebab circle */
+#s-queue .qu-row,#s-queue .qu-head{grid-template-columns:152px 66px minmax(0,1fr) 122px 62px 30px;gap:12px}
+#s-queue .qu-k{display:flex;align-items:center;gap:11px;min-width:0;font-weight:500}
+#s-queue .qu-k svg{flex:0 0 17px;width:17px;height:17px;color:var(--faint)}
+#s-queue .row.is-sel .qu-k svg{color:var(--accent)}
+#s-queue .qu-key{font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+#s-queue .qu-sub{color:var(--muted)}
+#s-queue .row.is-sel .qu-sub{color:var(--text)}
+#s-queue .qu-row>.pill{justify-self:start}
+#s-queue .qu-age{font-size:13.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+#s-queue .qu-head .qu-age{text-align:right}
+
+/* detail card: R19 card anatomy */
+#s-queue .qd{padding:19px 22px 18px}
+#s-queue .qu-h{display:flex;align-items:center;gap:8px;margin-bottom:15px}
+#s-queue .qu-h .tabs{margin-left:auto}
+#s-queue .qd h2{font-size:17px;font-weight:600;letter-spacing:-.02em;line-height:1.35;margin:0 0 3px}
+#s-queue .qu-meta{font-size:13px;color:var(--muted);margin:0 0 8px;font-variant-numeric:tabular-nums}
+#s-queue .qu-slot{display:grid;grid-template-columns:28px 196px minmax(0,1fr) auto;align-items:center;
+  gap:13px;height:56px;border-top:1px solid var(--border)}
+#s-queue .qu-n{font-size:14.5px;font-weight:500}
+#s-queue .qu-r{font-size:13.5px;color:var(--muted)}
+#s-queue .qu-s{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:500;color:var(--warn)}
+#s-queue .qu-s.ok{color:var(--pass)}
+#s-queue .qu-c{flex:0 0 18px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;
+  border:1.5px solid currentColor;opacity:.85}
+#s-queue .qu-s.ok .qu-c{background:var(--pass);border-color:var(--pass);color:var(--accent-ink);opacity:1}
+#s-queue .qu-ev{display:flex;align-items:center;gap:9px;height:54px;font-size:14px;
+  border-top:1px solid var(--border)}
+#s-queue .qu-ev b{font-weight:600}
+#s-queue .qu-link{margin-left:auto;display:inline-flex;align-items:center;gap:7px;
+  font-size:13.5px;font-weight:500;color:var(--accent)}
+#s-queue .qu-link svg{color:var(--accent)}
+#s-queue .qu-acts{display:flex;gap:8px;padding-top:16px;border-top:1px solid var(--border)}
+/* §3: disabled = 45% opacity, no other change (the shared .btn.off is .34 + saturate) */
+#s-queue .qu-acts .btn.off{opacity:.45;filter:none}
+
+/* rail: R23 details rail — two cards */
+#s-queue .rail{gap:20px}
+#s-queue .rail>.card{display:flex;flex-direction:column}
+#s-queue .rail>.card:nth-child(1){flex:1.58 1 0}
+#s-queue .rail>.card:nth-child(2){flex:1 1 0}
+#s-queue .rail .card-h{padding:17px 18px 12px}
+#s-queue .rail .card-h h2{font-size:17px}
+#s-queue .gauge{flex:1;justify-content:center;padding:0 12px 16px}
+#s-queue .gwrap{max-width:272px}
+#s-queue .qu-part{flex:0 0 auto;border-top:1px solid var(--border);padding:15px 0 0;
+  display:flex;flex-direction:column}
+#s-queue .qu-part>.lbl{padding:0 18px 11px;color:var(--faint)}
+#s-queue .segbar{height:10px;margin:0 18px}
+#s-queue .leg{flex:0 0 auto;padding:4px 18px 12px}
+#s-queue .leg-r{flex:0 0 76px;min-height:0;font-size:13.5px}
+#s-queue .leg-r+.leg-r{border-top:1px solid var(--border)}
+#s-queue .qu-kl{flex:1;display:flex;flex-direction:column;padding:0 18px 12px}
+#s-queue .qu-kr{flex:1 1 0;display:flex;align-items:center;min-height:64px;font-size:13.5px;color:var(--muted)}
+#s-queue .qu-kr+.qu-kr{border-top:1px solid var(--border)}
+#s-queue .qu-kr b{margin-left:auto;font-size:15px;font-weight:600;color:var(--text);
+  font-variant-numeric:tabular-nums}
+#s-queue .kebab{margin-left:4px}
+</style>
+
+  <div class="q-grid">
+    <div class="q-main">
+      <div class="card tbl">
+        <div class="tbl-h">
+          <div class="tbl-t"><h2>Queue</h2><span>10 items</span></div>
+          <div class="tbl-x">
+            <span class="tsearch"><svg width="16" height="16"><use href="#i-search"/></svg>
+              <span>Search by ticket or subject..</span></span>
+            <span class="fpill">Bucket <svg width="14" height="14"><use href="#i-chevd"/></svg></span>
+            <span class="fpill">Kind <svg width="14" height="14"><use href="#i-chevd"/></svg></span>
+            <span class="fpill">Ticket <svg width="14" height="14"><use href="#i-chevd"/></svg></span>
+          </div>
+        </div>
+        <ul class="rows">
+          <li class="rowhead qu-head"><span>Kind</span><span>Ticket</span><span>Subject</span><span>Bucket</span><span class="qu-age">Age</span><span></span></li>
+          <li class="row qu-row is-sel"><span class="qu-k"><svg><use href="#i-checkc"/></svg><span class="ell">Packet approval</span></span><a class="qu-key" href="#ticket">T-0412</a><span class="qu-sub ell">Reject settlement batches whose currency differs from the merchant account</span><span class="pill warn">Act today</span><span class="qu-age">58m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-file"/></svg><span class="ell">Plan approval</span></span><a class="qu-key" href="#ticket">T-0415</a><span class="qu-sub ell">Backfill merchant timezone on legacy accounts</span><span class="pill warn">Act today</span><span class="qu-age">2h 54m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-alert"/></svg><span class="ell">Red check</span></span><a class="qu-key" href="#ticket">T-0417</a><span class="qu-sub ell">Retry settlement webhook with exponential backoff</span><span class="pill warn">Act today</span><span class="qu-age">1h 51m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-zap"/></svg><span class="ell">Escalation</span></span><a class="qu-key" href="#ticket">T-0403</a><span class="qu-sub ell">Rename ledger_entry.amount_cents to minor_units</span><span class="pill warn">Act today</span><span class="qu-age">2h 18m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-shield"/></svg><span class="ell">Control event</span></span><span class="qu-key fnt">—</span><span class="qu-sub ell">Sandbox egress denied</span><span class="pill warn">Act today</span><span class="qu-age">6h</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-help"/></svg><span class="ell">Questions</span></span><a class="qu-key" href="#ticket">T-0418</a><span class="qu-sub ell">Show settlement ETA on merchant dashboard</span><span class="pill">This week</span><span class="qu-age">1h 46m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-check"/></svg><span class="ell">Eligibility</span></span><a class="qu-key" href="#ticket">T-0420</a><span class="qu-sub ell">Remove deprecated v1 export endpoint</span><span class="pill">This week</span><span class="qu-age">30m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-list"/></svg><span class="ell">Rubric inspection</span></span><a class="qu-key" href="#ticket">T-0409</a><span class="qu-sub ell">Add idempotency key to refund POST</span><span class="pill">This week</span><span class="qu-age">3h 08m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-branch"/></svg><span class="ell">PR outcome</span></span><a class="qu-key" href="#ticket">T-0398</a><span class="qu-sub ell">Fix rounding drift in FX conversion</span><span class="pill">When convenient</span><span class="qu-age">2d</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+          <li class="row qu-row"><span class="qu-k"><svg><use href="#i-pause"/></svg><span class="ell">Manual pause</span></span><a class="qu-key" href="#ticket">T-0411</a><span class="qu-sub ell">Validate IBAN checksum at intake</span><span class="pill">When convenient</span><span class="qu-age">26m</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        </ul>
+      </div>
+
+      <div class="card qd is-sel">
+        <div class="qu-h">
+          <span class="pill acc">Packet approval</span>
+          <span class="pill warn">Act today</span>
+          <span class="tabs"><button class="tab on">Packet</button><button class="tab">Evidence</button><button class="tab">Slots</button></span>
+        </div>
+        <h2>Reject settlement batches whose currency differs from the merchant account</h2>
+        <p class="qu-meta"><a href="#ticket">T-0412</a> · 58m</p>
+        <div class="qu-slot"><span class="av">TW</span><span class="qu-n">Tomasz Wierzbicki</span><span class="qu-r">Reviewer</span><span class="qu-s ok"><i class="qu-c"><svg width="10" height="10"><use href="#i-check"/></svg></i>Approved 14:12</span></div>
+        <div class="qu-slot"><span class="av">PR</span><span class="qu-n">Priya Raman</span><span class="qu-r">Owner</span><span class="qu-s ok"><i class="qu-c"><svg width="10" height="10"><use href="#i-check"/></svg></i>Approved 14:19</span></div>
+        <div class="qu-slot"><span class="av">IC</span><span class="qu-n">Ines Carvalho</span><span class="qu-r">Security</span><span class="qu-s"><i class="qu-c"></i>Open</span></div>
+        <div class="qu-ev">
+          <b>9 checks</b><span class="mut">8 pass · 1 waived</span>
+          <a class="qu-link">Open evidence<svg width="14" height="14"><use href="#i-arrowr"/></svg></a>
+        </div>
+        <div class="qu-acts">
+          <button class="btn pri off">Approve</button>
+          <button class="btn">Request changes</button>
+          <button class="btn"><svg width="16" height="16"><use href="#i-back"/></svg>Send back</button>
+          <button class="btn">Abandon</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="rail">
+      <div class="card">
+        <div class="card-h"><h2>Median latency</h2></div>
+        <div class="gauge">
+          <div class="gwrap">
+            <svg viewBox="0 0 176 140">
+              <path class="g-track" d="M 27.9 109.9 A 64 64 0 1 1 148.1 109.9"/>
+              <path class="g-val" d="M 27.9 109.9 A 64 64 0 1 1 148.1 109.9" stroke-dasharray="77.8 400"/>
+              <text class="tick" x="11" y="134">0</text>
+              <text class="tick r" x="165" y="134">2h</text>
+            </svg>
+            <span class="gauge-n">38m</span>
+          </div>
+          <span class="gauge-l">p90 <b>3h 10m</b></span>
+        </div>
+        <div class="qu-part">
+          <span class="lbl">By bucket</span>
+          <div class="segbar">
+            <span style="flex:5;background:var(--warn)"></span>
+            <span style="flex:3;background:var(--muted)"></span>
+            <span style="flex:2;background:var(--faint)"></span>
+          </div>
+          <div class="leg">
+            <div class="leg-r"><i class="bdot b-1"></i>Act today<b>5</b></div>
+            <div class="leg-r"><i class="bdot b-2"></i>This week<b>3</b></div>
+            <div class="leg-r"><i class="bdot b-3"></i>When convenient<b>2</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>By kind</h2></div>
+        <div class="qu-kl">
+          <div class="qu-kr">Approvals<b>2</b></div>
+          <div class="qu-kr">Checks<b>1</b></div>
+          <div class="qu-kr">Escalations<b>1</b></div>
+          <div class="qu-kr">Questions<b>1</b></div>
+          <div class="qu-kr">Other<b>5</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

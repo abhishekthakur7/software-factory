@@ -1,0 +1,113 @@
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, q=new URLSearchParams(location.search);
+  var screens=['queue','tickets','ticket','runs','run','report','factory','governance'];
+  function setTheme(t){
+    root.setAttribute('data-theme',t);
+    document.querySelector('.ic-moon').hidden=(t!=='dark');
+    document.querySelector('.ic-sun').hidden=(t==='dark');
+  }
+  setTheme(q.get('theme')==='light'?'light':'dark');
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    setTheme(root.getAttribute('data-theme')==='dark'?'light':'dark');
+  });
+  var navFor={queue:'queue',tickets:'tickets',ticket:'tickets',runs:'runs',run:'runs',report:'report',
+              factory:'factory',governance:'governance'};
+  function show(id){
+    if(screens.indexOf(id)<0 || !document.getElementById('s-'+id)) id='queue';
+    screens.forEach(function(s){
+      var el=document.getElementById('s-'+s); if(el) el.hidden=(s!==id);
+    });
+    document.querySelectorAll('[data-nav]').forEach(function(a){
+      a.classList.toggle('is-active',a.getAttribute('data-nav')===navFor[id]);
+    });
+    document.getElementById('pgTitle').textContent=document.getElementById('s-'+id).getAttribute('data-title');
+    document.getElementById('tbRange').hidden=(id!=='report');
+    document.querySelectorAll('.tb-actions').forEach(function(g){
+      g.hidden=(g.getAttribute('data-for')!==id);
+    });
+    document.querySelector('.content').scrollTop=0;
+  }
+  /* --- sparkline smoothing (R18) ---------------------------------------
+     Rewrites every polyline `.kpi-sp path` (and anything marked data-smooth)
+     into one smooth curve: resample to N points with a gaussian window, keep
+     the first and last point, then Catmull-Rom -> cubic bezier. A closed path
+     (the area fill) keeps its two baseline corners, so line and area stay in
+     sync. The .sp-dot ring is placed on the last point. */
+  var SP_N=12, SP_K=0.45;
+  function spRound(v){ return Math.round(v*100)/100; }
+  function spPoints(d){
+    var a=d.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)||[], p=[];
+    for(var i=0;i+1<a.length;i+=2) p.push([+a[i],+a[i+1]]);
+    return p;
+  }
+  function spResample(P,N){
+    var n=P.length; if(n<=N) return P.slice();
+    var step=(n-1)/(N-1), sig=step*SP_K, out=[], i, j;
+    for(i=0;i<N;i++){
+      if(i===0){ out.push(P[0]); continue; }
+      if(i===N-1){ out.push(P[n-1]); continue; }
+      var t=i*step, sw=0, sx=0, sy=0,
+          lo=Math.max(0,Math.floor(t-3*sig)), hi=Math.min(n-1,Math.ceil(t+3*sig));
+      for(j=lo;j<=hi;j++){
+        var w=Math.exp(-0.5*Math.pow((j-t)/sig,2));
+        sw+=w; sx+=P[j][0]*w; sy+=P[j][1]*w;
+      }
+      out.push([sx/sw,sy/sw]);
+    }
+    return out;
+  }
+  function spCurve(P){
+    var d='M '+spRound(P[0][0])+' '+spRound(P[0][1]);
+    for(var i=0;i<P.length-1;i++){
+      var p0=P[i>0?i-1:0], p1=P[i], p2=P[i+1], p3=P[i+2<P.length?i+2:P.length-1];
+      d+=' C '+spRound(p1[0]+(p2[0]-p0[0])/6)+' '+spRound(p1[1]+(p2[1]-p0[1])/6)
+        +' '+spRound(p2[0]-(p3[0]-p1[0])/6)+' '+spRound(p2[1]-(p3[1]-p1[1])/6)
+        +' '+spRound(p2[0])+' '+spRound(p2[1]);
+    }
+    return d;
+  }
+  function smoothSparklines(){
+    var list=[];
+    document.querySelectorAll('.kpi-sp path,[data-smooth]').forEach(function(el){
+      if(el.tagName.toLowerCase()==='path') list.push(el);
+      else el.querySelectorAll('path').forEach(function(p){ list.push(p); });
+    });
+    list.forEach(function(el){
+      var d=el.getAttribute('d')||'';
+      if(/[CcQqSsTtAa]/.test(d)) return;                 /* already a curve */
+      var P=spPoints(d), closed=/[Zz]\s*$/.test(d), foot=null;
+      if(closed && P.length>4) foot=P.splice(P.length-2,2);
+      if(P.length<6) return;
+      var S=spResample(P,SP_N), nd=spCurve(S);
+      if(foot) nd+=' L '+spRound(foot[0][0])+' '+spRound(foot[0][1])
+                 +' L '+spRound(foot[1][0])+' '+spRound(foot[1][1])+' Z';
+      el.setAttribute('d',nd);
+      if(!closed && el.ownerSVGElement) el.ownerSVGElement.sfLast=S[S.length-1];
+    });
+    document.querySelectorAll('.sp-dot').forEach(function(dot){
+      var svg=dot.ownerSVGElement, p=svg&&svg.sfLast;
+      if(!p) return;
+      dot.setAttribute('cx',spRound(p[0]));
+      dot.setAttribute('cy',spRound(p[1]));
+    });
+  }
+  smoothSparklines();
+
+  show((location.hash||'#queue').slice(1));
+  window.addEventListener('hashchange',function(){ show(location.hash.slice(1)); });
+  document.querySelectorAll('.step-h').forEach(function(h){
+    h.addEventListener('click',function(){
+      var s=h.parentNode, open=s.classList.toggle('open');
+      var u=h.querySelector('.right svg use');
+      if(u) u.setAttribute('href',open?'#i-chevd':'#i-chevr');
+    });
+  });
+})();
+</script>
+</body>
+</html>

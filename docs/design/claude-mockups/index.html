@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soft Factory mockups, round 2</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  color-scheme: light;
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface-2: #f2f2ef;
+  --border: #e2e2dd;
+  --border-strong: #cbcbc5;
+  --text: #191b1d;
+  --muted: #5e6367;
+  --faint: #8b8f93;
+  --accent: #3c5a70;
+  --tag-bg: #f2f2ef;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1113;
+    --surface: #16191b;
+    --surface-2: #1b1e21;
+    --border: rgba(255,255,255,.10);
+    --border-strong: rgba(255,255,255,.20);
+    --text: #e6e8e9;
+    --muted: #9aa0a5;
+    --faint: #7a8085;
+    --accent: #8fb2c9;
+    --tag-bg: rgba(255,255,255,.06);
+  }
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1113;
+  --surface: #16191b;
+  --surface-2: #1b1e21;
+  --border: rgba(255,255,255,.10);
+  --border-strong: rgba(255,255,255,.20);
+  --text: #e6e8e9;
+  --muted: #9aa0a5;
+  --faint: #7a8085;
+  --accent: #8fb2c9;
+  --tag-bg: rgba(255,255,255,.06);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+code, .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: .92em;
+}
+
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+
+/* top bar */
+.top {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.top .wrap {
+  display: flex; align-items: center; gap: 24px;
+  height: 52px;
+}
+.brand { font-size: 13px; font-weight: 600; letter-spacing: -.005em; white-space: nowrap; }
+.top nav { display: flex; align-items: center; gap: 18px; margin-left: auto; }
+.top nav a {
+  font-size: 13px; color: var(--muted); text-decoration: none; white-space: nowrap;
+}
+.top nav a:hover { color: var(--text); }
+.sep { width: 1px; height: 18px; background: var(--border); }
+
+.tbtn {
+  font: inherit; font-size: 12px; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 10px; cursor: pointer;
+}
+.tbtn:hover { color: var(--text); border-color: var(--border-strong); }
+
+/* hero */
+.hero { padding: 56px 0 40px; border-bottom: 1px solid var(--border); }
+h1 { margin: 0 0 12px; font-size: 27px; line-height: 1.2; font-weight: 600; letter-spacing: -.015em; }
+.lede { margin: 0; max-width: 62ch; font-size: 15px; color: var(--muted); }
+.hero-links { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-block; text-decoration: none;
+  font-size: 12px; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 12px;
+}
+.chip:hover { color: var(--text); border-color: var(--border-strong); }
+
+/* direction */
+.dir { padding: 48px 0; border-bottom: 1px solid var(--border); scroll-margin-top: 52px; }
+.dir:last-of-type { border-bottom: 0; }
+.dir-head { display: flex; align-items: flex-start; gap: 24px; }
+.eyebrow {
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 6px;
+}
+h2 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.01em; }
+.open {
+  margin-left: auto; flex: 0 0 auto; text-decoration: none;
+  font-size: 13px; font-weight: 500; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 7px; padding: 7px 16px;
+}
+.open:hover { border-color: var(--text); }
+
+.char { margin: 16px 0 0; max-width: 78ch; color: var(--muted); }
+
+.meta { margin: 24px 0 0; display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid var(--border); }
+.meta > div {
+  flex: 1 1 220px; min-width: 200px;
+  padding: 12px 20px 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.meta dt {
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
+  margin-bottom: 3px;
+}
+.meta dd { margin: 0; font-size: 13px; color: var(--text); }
+
+/* screen links */
+.section-label {
+  margin: 36px 0 12px;
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
+}
+.links {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  background: var(--surface);
+}
+.links > div { padding: 10px 14px; border-right: 1px solid var(--border); }
+.links > div:last-child { border-right: 0; }
+.links .name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.links .hash { font-size: 11px; color: var(--faint); margin-bottom: 6px; }
+.links .pair a {
+  font-size: 12px; color: var(--muted); text-decoration: none;
+  border-bottom: 1px solid var(--border-strong); padding-bottom: 1px;
+}
+.links .pair a:hover { color: var(--text); border-bottom-color: var(--text); }
+.links .pair span { color: var(--faint); padding: 0 6px; }
+
+/* captures */
+.shots { display: grid; gap: 28px; }
+.pair-title {
+  margin: 0 0 10px; font-size: 13px; font-weight: 500;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.pair-title .idx { color: var(--faint); font-variant-numeric: tabular-nums; }
+.pair-title .hash { color: var(--faint); font-size: 11px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+figure { margin: 0; }
+.shot {
+  display: block; position: relative;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); overflow: hidden;
+}
+.shot:hover { border-color: var(--border-strong); }
+.shot::before {
+  content: "capture not available";
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--faint);
+}
+.shot img {
+  position: relative;
+  display: block; width: 100%; max-width: 100%; height: auto;
+  background: var(--surface);
+}
+figcaption {
+  margin-top: 7px; font-size: 12px; color: var(--muted);
+  display: flex; align-items: baseline; gap: 8px;
+}
+figcaption .theme {
+  font-size: 11px; color: var(--faint);
+  background: var(--tag-bg); border: 1px solid var(--border);
+  border-radius: 999px; padding: 1px 8px;
+}
+
+footer { padding: 32px 0 64px; color: var(--faint); font-size: 12px; }
+footer a { color: var(--muted); }
+
+@media (max-width: 900px) {
+  .wrap { padding: 0 20px; }
+  .two { grid-template-columns: 1fr; }
+  .dir-head { flex-wrap: wrap; }
+  .open { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+<span class="brand">Soft Factory mockups</span>
+<nav>
+<a href="#workbench">01 Workbench</a>
+<a href="#observatory">02 Observatory</a>
+<a href="#canvas">03 Canvas</a>
+<span class="sep" aria-hidden="true"></span>
+<a href="BRIEF.md">BRIEF.md</a>
+<button class="tbtn" id="theme-toggle" type="button">Dark theme</button>
+</nav>
+</div></header>
+<main>
+<section class="hero"><div class="wrap">
+<h1>Soft Factory mockups, round 2</h1>
+<p class="lede">Three directions, the same seven screens and the same fixed data, each built out in light and dark; Observatory adds an eighth screen, Governance. 44 captures at 1600 px wide.</p>
+<div class="hero-links">
+<a class="chip" href="BRIEF.md">Shared brief &mdash; BRIEF.md</a>
+<a class="chip" href="01-workbench/index.html">01 Workbench</a>
+<a class="chip" href="02-observatory/index.html">02 Observatory</a>
+<a class="chip" href="03-canvas/index.html">03 Canvas</a>
+</div>
+</div></section>
+<section class="dir" id="workbench"><div class="wrap">
+<div class="dir-head">
+<div><div class="eyebrow">Direction 01</div><h2>Workbench</h2></div>
+<a class="open" href="01-workbench/index.html">Open</a>
+</div>
+<p class="char">A clean operations workbench. A dark charcoal sidebar stands against a white content area; everything else is hairline borders and dense, readable tables, with floating layers exactly where a person acts — a detail card over the queue list, a dark bulk bar under a selection. One accent, deep green in light and lime on dark, with semantic colour reserved strictly for outcomes, states and buckets. Light-first, and the dark theme is tuned rather than inverted: elevation comes from lighter surfaces, borders sit at 8–17% white.</p>
+<dl class="meta">
+<div><dt>Fonts</dt><dd>Plus Jakarta Sans (UI), Geist Mono (ids, hashes, numbers)</dd></div>
+<div><dt>Accent</dt><dd>Deep green in light, lime on dark</dd></div>
+<div><dt>Default theme</dt><dd>Light-first</dd></div>
+<div><dt>Folder</dt><dd><code>01-workbench/</code></dd></div>
+</dl>
+<div class="section-label">Screens</div>
+<div class="links">
+<div>
+<div class="name">Queue</div>
+<div class="hash mono">#queue</div>
+<div class="pair"><a href="01-workbench/index.html?theme=light#queue">light</a><span>/</span><a href="01-workbench/index.html?theme=dark#queue">dark</a></div>
+</div>
+<div>
+<div class="name">Tickets</div>
+<div class="hash mono">#tickets</div>
+<div class="pair"><a href="01-workbench/index.html?theme=light#tickets">light</a><span>/</span><a href="01-workbench/index.html?theme=dark#tickets">dark</a></div>
+</div>
+<div>
+<div class="name">Ticket detail</div>
+<div class="hash mono">#ticket</div>
+<div class="pair"><a href="01-workbench/index.html?theme=light#ticket">light</a><span>/</span><a href="01-workbench/index.html?theme=dark#ticket">dark</a></div>
+</div>
+<div>
+<div class="name">Runs</div>
+<div class="hash mono">#runs</div>
+<div class="pair"><a href="01-workbench/index.html?theme=light#runs">light</a><span>/</span><a href="01-workbench/index.html?theme=dark#runs">dark</a></div>
+</div>
+<div>
+<div class="name">Run detail</div>
+<div class="hash mono">#run</div>
+<div class="pair"><a href="01-workbench/index.html?theme=light#run">light</a><span>/</span><a href="01-workbench/index.html?theme=dark#run">dark</a></div>
+</div>
+<div>
+<div class="name">Report</div>
+<div class="hash mono">#report</div>
+<div class="pair"><a href="01-workbench/index.html?theme=light#report">light</a><span>/</span><a href="01-workbench/index.html?theme=dark#report">dark</a></div>
+</div>
+<div>
+<div class="name">Factory</div>
+<div class="hash mono">#factory</div>
+<div class="pair"><a href="01-workbench/index.html?theme=light#factory">light</a><span>/</span><a href="01-workbench/index.html?theme=dark#factory">dark</a></div>
+</div>
+</div>
+<div class="section-label">Captures</div>
+<div class="shots">
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">01</span><span>Queue</span><span class="hash mono">#queue</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1350" href="01-workbench/captures/01-queue-light.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/01-queue-light.png" alt="01 Workbench — Queue, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Queue</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1350" href="01-workbench/captures/01-queue-dark.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/01-queue-dark.png" alt="01 Workbench — Queue, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Queue</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">02</span><span>Tickets</span><span class="hash mono">#tickets</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1000" href="01-workbench/captures/02-tickets-light.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/02-tickets-light.png" alt="01 Workbench — Tickets, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Tickets</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1000" href="01-workbench/captures/02-tickets-dark.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/02-tickets-dark.png" alt="01 Workbench — Tickets, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Tickets</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">03</span><span>Ticket detail</span><span class="hash mono">#ticket</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1380" href="01-workbench/captures/03-ticket-light.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/03-ticket-light.png" alt="01 Workbench — Ticket detail, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Ticket detail</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1380" href="01-workbench/captures/03-ticket-dark.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/03-ticket-dark.png" alt="01 Workbench — Ticket detail, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Ticket detail</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">04</span><span>Runs</span><span class="hash mono">#runs</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1340" href="01-workbench/captures/04-runs-light.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/04-runs-light.png" alt="01 Workbench — Runs, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Runs</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1340" href="01-workbench/captures/04-runs-dark.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/04-runs-dark.png" alt="01 Workbench — Runs, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Runs</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">05</span><span>Run detail</span><span class="hash mono">#run</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1690" href="01-workbench/captures/05-run-light.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/05-run-light.png" alt="01 Workbench — Run detail, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Run detail</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1690" href="01-workbench/captures/05-run-dark.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/05-run-dark.png" alt="01 Workbench — Run detail, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Run detail</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">06</span><span>Report</span><span class="hash mono">#report</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1560" href="01-workbench/captures/06-report-light.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/06-report-light.png" alt="01 Workbench — Report, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Report</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1560" href="01-workbench/captures/06-report-dark.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/06-report-dark.png" alt="01 Workbench — Report, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Report</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">07</span><span>Factory</span><span class="hash mono">#factory</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1830" href="01-workbench/captures/07-factory-light.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/07-factory-light.png" alt="01 Workbench — Factory, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Factory</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1830" href="01-workbench/captures/07-factory-dark.png" target="_blank" rel="noopener">
+<img src="01-workbench/captures/07-factory-dark.png" alt="01 Workbench — Factory, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Factory</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div></section>
+<section class="dir" id="observatory"><div class="wrap">
+<div class="dir-head">
+<div><div class="eyebrow">Direction 02</div><h2>Observatory</h2></div>
+<a class="open" href="02-observatory/index.html">Open</a>
+</div>
+<p class="char">A monitoring room. Near-black surfaces, cards separated by 1px hairlines at 8% white, small tabular numerals, a sparkline wherever a number lives, and a live activity rail on the two screens where work is in flight. Status colour carries all the meaning; nothing is coloured for decoration. Dark-first, and the light theme is a tuned off-white console — each semantic hue re-picked against white rather than inverted, so a chip reads with the same weight in both themes.</p>
+<dl class="meta">
+<div><dt>Fonts</dt><dd>Geist (UI), Geist Mono (log lines and hashes only)</dd></div>
+<div><dt>Accent</dt><dd>Green, with status colour carrying the meaning</dd></div>
+<div><dt>Default theme</dt><dd>Dark-first</dd></div>
+<div><dt>Folder</dt><dd><code>02-observatory/</code></dd></div>
+</dl>
+<div class="section-label">Screens</div>
+<div class="links">
+<div>
+<div class="name">Queue</div>
+<div class="hash mono">#queue</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#queue">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#queue">dark</a></div>
+</div>
+<div>
+<div class="name">Tickets</div>
+<div class="hash mono">#tickets</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#tickets">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#tickets">dark</a></div>
+</div>
+<div>
+<div class="name">Ticket detail</div>
+<div class="hash mono">#ticket</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#ticket">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#ticket">dark</a></div>
+</div>
+<div>
+<div class="name">Runs</div>
+<div class="hash mono">#runs</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#runs">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#runs">dark</a></div>
+</div>
+<div>
+<div class="name">Run detail</div>
+<div class="hash mono">#run</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#run">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#run">dark</a></div>
+</div>
+<div>
+<div class="name">Report</div>
+<div class="hash mono">#report</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#report">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#report">dark</a></div>
+</div>
+<div>
+<div class="name">Factory</div>
+<div class="hash mono">#factory</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#factory">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#factory">dark</a></div>
+</div>
+<div>
+<div class="name">Governance</div>
+<div class="hash mono">#governance</div>
+<div class="pair"><a href="02-observatory/index.html?theme=light#governance">light</a><span>/</span><a href="02-observatory/index.html?theme=dark#governance">dark</a></div>
+</div>
+</div>
+<div class="section-label">Captures</div>
+<div class="shots">
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">01</span><span>Queue</span><span class="hash mono">#queue</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1310" href="02-observatory/captures/01-queue-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/01-queue-light.png" alt="02 Observatory — Queue, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Queue</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1310" href="02-observatory/captures/01-queue-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/01-queue-dark.png" alt="02 Observatory — Queue, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Queue</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">02</span><span>Tickets</span><span class="hash mono">#tickets</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1230" href="02-observatory/captures/02-tickets-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/02-tickets-light.png" alt="02 Observatory — Tickets, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Tickets</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1230" href="02-observatory/captures/02-tickets-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/02-tickets-dark.png" alt="02 Observatory — Tickets, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Tickets</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">03</span><span>Ticket detail</span><span class="hash mono">#ticket</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1330" href="02-observatory/captures/03-ticket-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/03-ticket-light.png" alt="02 Observatory — Ticket detail, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Ticket detail</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1330" href="02-observatory/captures/03-ticket-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/03-ticket-dark.png" alt="02 Observatory — Ticket detail, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Ticket detail</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">04</span><span>Runs</span><span class="hash mono">#runs</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1640" href="02-observatory/captures/04-runs-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/04-runs-light.png" alt="02 Observatory — Runs, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Runs</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1640" href="02-observatory/captures/04-runs-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/04-runs-dark.png" alt="02 Observatory — Runs, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Runs</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">05</span><span>Run detail</span><span class="hash mono">#run</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1150" href="02-observatory/captures/05-run-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/05-run-light.png" alt="02 Observatory — Run detail, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Run detail</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1150" href="02-observatory/captures/05-run-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/05-run-dark.png" alt="02 Observatory — Run detail, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Run detail</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">06</span><span>Report</span><span class="hash mono">#report</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1060" href="02-observatory/captures/06-report-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/06-report-light.png" alt="02 Observatory — Report, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Report</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1060" href="02-observatory/captures/06-report-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/06-report-dark.png" alt="02 Observatory — Report, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Report</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">07</span><span>Factory</span><span class="hash mono">#factory</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1400" href="02-observatory/captures/07-factory-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/07-factory-light.png" alt="02 Observatory — Factory, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Factory</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1400" href="02-observatory/captures/07-factory-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/07-factory-dark.png" alt="02 Observatory — Factory, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Factory</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">08</span><span>Governance</span><span class="hash mono">#governance</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1680" href="02-observatory/captures/08-governance-light.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/08-governance-light.png" alt="02 Observatory — Governance, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Governance</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1680" href="02-observatory/captures/08-governance-dark.png" target="_blank" rel="noopener">
+<img src="02-observatory/captures/08-governance-dark.png" alt="02 Observatory — Governance, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Governance</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div></section>
+<section class="dir" id="canvas"><div class="wrap">
+<div class="dir-head">
+<div><div class="eyebrow">Direction 03</div><h2>Canvas</h2></div>
+<a class="open" href="03-canvas/index.html">Open</a>
+</div>
+<p class="char">The factory drawn as a node canvas. A ticket&#x27;s S0 to S6 walk is a graph of node cards on a dotted canvas, with labelled bezier edges for the artefacts that flow between stages and the review gate drawn as an approved / send-back branch; a console and a per-stage debug panel sit beneath it, the manifest becomes a node library, and the tables live inside frosted cards. Light-first, with glass used sparingly — 72% white cards over a soft gradient in light, 85% #1A1D24 over #0F1115 in dark, always with a 1px border so text stays crisp.</p>
+<dl class="meta">
+<div><dt>Fonts</dt><dd>Outfit (UI), JetBrains Mono (console, hashes, numbers)</dd></div>
+<div><dt>Accent</dt><dd>Indigo for edges and selection, lime for the Run button only</dd></div>
+<div><dt>Default theme</dt><dd>Light-first</dd></div>
+<div><dt>Folder</dt><dd><code>03-canvas/</code></dd></div>
+</dl>
+<div class="section-label">Screens</div>
+<div class="links">
+<div>
+<div class="name">Queue</div>
+<div class="hash mono">#queue</div>
+<div class="pair"><a href="03-canvas/index.html?theme=light#queue">light</a><span>/</span><a href="03-canvas/index.html?theme=dark#queue">dark</a></div>
+</div>
+<div>
+<div class="name">Tickets</div>
+<div class="hash mono">#tickets</div>
+<div class="pair"><a href="03-canvas/index.html?theme=light#tickets">light</a><span>/</span><a href="03-canvas/index.html?theme=dark#tickets">dark</a></div>
+</div>
+<div>
+<div class="name">Ticket detail</div>
+<div class="hash mono">#ticket</div>
+<div class="pair"><a href="03-canvas/index.html?theme=light#ticket">light</a><span>/</span><a href="03-canvas/index.html?theme=dark#ticket">dark</a></div>
+</div>
+<div>
+<div class="name">Runs</div>
+<div class="hash mono">#runs</div>
+<div class="pair"><a href="03-canvas/index.html?theme=light#runs">light</a><span>/</span><a href="03-canvas/index.html?theme=dark#runs">dark</a></div>
+</div>
+<div>
+<div class="name">Run detail</div>
+<div class="hash mono">#run</div>
+<div class="pair"><a href="03-canvas/index.html?theme=light#run">light</a><span>/</span><a href="03-canvas/index.html?theme=dark#run">dark</a></div>
+</div>
+<div>
+<div class="name">Report</div>
+<div class="hash mono">#report</div>
+<div class="pair"><a href="03-canvas/index.html?theme=light#report">light</a><span>/</span><a href="03-canvas/index.html?theme=dark#report">dark</a></div>
+</div>
+<div>
+<div class="name">Factory</div>
+<div class="hash mono">#factory</div>
+<div class="pair"><a href="03-canvas/index.html?theme=light#factory">light</a><span>/</span><a href="03-canvas/index.html?theme=dark#factory">dark</a></div>
+</div>
+</div>
+<div class="section-label">Captures</div>
+<div class="shots">
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">01</span><span>Queue</span><span class="hash mono">#queue</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1150" href="03-canvas/captures/01-queue-light.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/01-queue-light.png" alt="03 Canvas — Queue, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Queue</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1150" href="03-canvas/captures/01-queue-dark.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/01-queue-dark.png" alt="03 Canvas — Queue, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Queue</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">02</span><span>Tickets</span><span class="hash mono">#tickets</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1020" href="03-canvas/captures/02-tickets-light.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/02-tickets-light.png" alt="03 Canvas — Tickets, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Tickets</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1020" href="03-canvas/captures/02-tickets-dark.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/02-tickets-dark.png" alt="03 Canvas — Tickets, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Tickets</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">03</span><span>Ticket detail</span><span class="hash mono">#ticket</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1800" href="03-canvas/captures/03-ticket-light.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/03-ticket-light.png" alt="03 Canvas — Ticket detail, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Ticket detail</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1800" href="03-canvas/captures/03-ticket-dark.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/03-ticket-dark.png" alt="03 Canvas — Ticket detail, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Ticket detail</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">04</span><span>Runs</span><span class="hash mono">#runs</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1225" href="03-canvas/captures/04-runs-light.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/04-runs-light.png" alt="03 Canvas — Runs, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Runs</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1225" href="03-canvas/captures/04-runs-dark.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/04-runs-dark.png" alt="03 Canvas — Runs, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Runs</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">05</span><span>Run detail</span><span class="hash mono">#run</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1800" href="03-canvas/captures/05-run-light.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/05-run-light.png" alt="03 Canvas — Run detail, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Run detail</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1800" href="03-canvas/captures/05-run-dark.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/05-run-dark.png" alt="03 Canvas — Run detail, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Run detail</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">06</span><span>Report</span><span class="hash mono">#report</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1740" href="03-canvas/captures/06-report-light.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/06-report-light.png" alt="03 Canvas — Report, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Report</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1740" href="03-canvas/captures/06-report-dark.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/06-report-dark.png" alt="03 Canvas — Report, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Report</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+<div class="shotpair">
+<div class="pair-title"><span class="idx mono">07</span><span>Factory</span><span class="hash mono">#factory</span></div>
+<div class="two">
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1290" href="03-canvas/captures/07-factory-light.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/07-factory-light.png" alt="03 Canvas — Factory, light theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Factory</span><span class="theme">light</span></figcaption>
+</figure>
+<figure>
+<a class="shot" style="aspect-ratio: 1600 / 1290" href="03-canvas/captures/07-factory-dark.png" target="_blank" rel="noopener">
+<img src="03-canvas/captures/07-factory-dark.png" alt="03 Canvas — Factory, dark theme" loading="lazy" decoding="async">
+</a>
+<figcaption><span>Factory</span><span class="theme">dark</span></figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div></section>
+</main>
+<footer><div class="wrap">
+Data, screens and quality bar are fixed by <a href="BRIEF.md">BRIEF.md</a>. The earlier set in <code>docs/design/mockups/</code> is a separate round with different data.
+</div></footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme-toggle');
+  var KEY = 'sf-gallery-theme';
+
+  try { var saved = localStorage.getItem(KEY); if (saved) root.setAttribute('data-theme', saved); } catch (err) {}
+
+  function current() {
+    return root.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }
+  function label() { btn.textContent = current() === 'dark' ? 'Light theme' : 'Dark theme'; }
+  label();
+
+  btn.addEventListener('click', function () {
+    var next = current() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem(KEY, next); } catch (err) {}
+    label();
+  });
+
+  // Captures are re-shot by their own directions; keep the reserved box honest.
+  Array.prototype.forEach.call(document.querySelectorAll('.shot img'), function (img) {
+    function fit() {
+      if (img.naturalWidth && img.naturalHeight) {
+        img.parentNode.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+      }
+    }
+    if (img.complete) fit(); else img.addEventListener('load', fit);
+    img.addEventListener('error', function () { img.style.display = 'none'; });
+  });
+})();
+</script>
+</body>
+</html>

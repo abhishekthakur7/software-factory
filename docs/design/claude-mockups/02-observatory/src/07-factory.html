@@ -1,0 +1,137 @@
+<section class="screen" id="s-factory" data-title="Factory" hidden>
+<style data-screen="factory">
+/* Factory (BRIEF-v3 §4.7): manifest in the R18 table shell, agents as R23 node
+   cards five across, sandbox policy as R22 settings rows. */
+#s-factory .card{border-radius:16px}
+#s-factory .fhead{gap:13px;margin-bottom:20px}
+#s-factory .fhead .ok{font-size:14px}
+#s-factory .tbl-h{padding:0 22px}
+/* Seven columns so the row carries ink to the right edge (R15's model table);
+   the tracks are fr so they shrink together instead of opening a dead band. */
+#s-factory .mtrow{grid-template-columns:minmax(0,1fr) minmax(0,.82fr) minmax(0,.9fr) 56px
+  minmax(0,1.22fr) minmax(0,.94fr) 186px;gap:20px}
+#s-factory .row.mtrow{height:60px}
+#s-factory .rowhead.mtrow{height:44px}
+#s-factory .mtrow>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#s-factory .mtrow .model,#s-factory .mtrow .tier,
+#s-factory .mtrow .fc-rub,#s-factory .mtrow .fc-tools{font-size:13.5px;color:var(--muted)}
+#s-factory .mtrow .fc-agent{font-size:14px}
+#s-factory .mtrow .fc-tools{font-size:13px;letter-spacing:-.012em}
+#s-factory .mtrow .fc-rub b{font-weight:400;color:var(--faint)}
+#s-factory .bcell{display:flex;align-items:center;justify-content:flex-end;gap:13px;overflow:visible}
+#s-factory .bcell .dbar{flex:0 0 112px;width:112px}
+#s-factory .bcell em{flex:0 0 56px}
+#s-factory .rowhead .bcell{justify-content:flex-start}
+
+#s-factory .fc-band{margin:0 0 14px}
+#s-factory .fc-band h2{font-size:17px;font-weight:600;letter-spacing:-.02em}
+#s-factory .fc-band span{display:block;font-size:13px;color:var(--muted);margin-top:1px}
+#s-factory .agents{grid-template-columns:repeat(5,minmax(0,1fr));gap:20px;margin-bottom:20px}
+#s-factory .node{width:auto;--em:var(--muted)}
+#s-factory .node.is-live{--em:var(--accent)}
+#s-factory .node-st{margin-top:16px;gap:8px}
+#s-factory .node-st .ell{flex:1 1 auto}
+#s-factory .node-st b{flex:0 0 auto;font-size:13px}
+#s-factory .node.is-live .node-st b{color:var(--accent)}
+#s-factory .prog i{opacity:.9}
+#s-factory .node.is-live .prog i{opacity:1}
+
+#s-factory .pol{padding:22px 24px 24px}
+#s-factory .pol .sec-h{padding-bottom:16px}
+#s-factory .pol .sec-h p{font-family:'Geist Mono',ui-monospace,monospace;font-size:12.5px;letter-spacing:-.02em}
+#s-factory .pol .set{grid-template-columns:380px minmax(0,1fr);padding:22px 0}
+#s-factory .pol .set:last-child{padding-bottom:0}
+</style>
+
+  <div class="fhead">
+    <h2>Manifest v14</h2>
+    <span class="mono mut" style="font-size:13.5px">9c1e42…8af2</span>
+    <span class="right">
+      <span class="ok"><i></i>Gate pass · 41 fixtures</span>
+      <button class="btn pri"><svg width="16" height="16"><use href="#i-branch"/></svg>Open PR</button>
+    </span>
+  </div>
+
+  <div class="card tbl" style="margin-bottom:20px">
+    <div class="tbl-h">
+      <div class="tbl-t"><h2>Manifest</h2><span>7 stages</span></div>
+    </div>
+    <ul class="rows">
+      <li class="rowhead mtrow"><span>Stage</span><span>Agent</span><span>Model</span><span>Tier</span><span>Rubric</span><span>Tools</span><span class="bcell">Budget</span></li>
+      <li class="row mtrow"><span>S0 Intake</span><span class="fc-agent">s0-intake</span><span class="model">claude-haiku-4-5</span><span class="tier">all</span><span class="fc-rub">rubric-s0 <b>· 7 lines</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:3%"></i></span><em>$0.10</em></span></li>
+      <li class="row mtrow"><span>S1 Context</span><span class="fc-agent">s1-context</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s1 <b>· 11 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
+      <li class="row mtrow"><span>S2 Clarify</span><span class="fc-agent">s2-clarify</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s2 <b>· checklists</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:12.5%"></i></span><em>$1.50</em></span></li>
+      <li class="row mtrow"><span>S3 Spec and plan</span><span class="fc-agent">s3-planner</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s3 <b>· 14 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:50%"></i></span><em>$6.00</em></span></li>
+      <li class="row mtrow is-sel"><span>S4 Implementation</span><span class="fc-agent">s4-implementer</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s4 <b>· 9 lines</b></span><span class="fc-tools">read, edit, recipe, codegraph</span><span class="bcell"><span class="dbar"><i style="width:100%"></i></span><em>$12.00</em></span></li>
+      <li class="row mtrow"><span>S5 Checks</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">rubric-s5 <b>· 12 lines</b></span><span class="fc-tools">recipe</span><span class="bcell"><span class="dbar"><i style="width:8.3%"></i></span><em>$1.00</em></span></li>
+      <li class="row mtrow"><span>S6 Packet</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">rubric-s6 <b>· 6 lines</b></span><span class="fc-tools">none</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
+    </ul>
+  </div>
+
+  <div class="fc-band"><h2>Agents</h2><span>5 definitions · 30-day pass rate</span></div>
+  <div class="agents">
+    <div class="node">
+      <div class="node-h">
+        <span class="node-ic"><svg width="18" height="18"><use href="#i-file"/></svg></span>
+        <span class="ell"><span class="node-t">s0-intake</span><span class="node-s">claude-haiku-4-5</span></span>
+      </div>
+      <div class="node-st"><span class="ell">run_1e05 · 61 runs</span><b>97%</b></div>
+      <span class="prog"><i style="width:97%"></i></span>
+    </div>
+    <div class="node">
+      <div class="node-h">
+        <span class="node-ic"><svg width="18" height="18"><use href="#i-layers"/></svg></span>
+        <span class="ell"><span class="node-t">s1-context</span><span class="node-s">claude-sonnet-5</span></span>
+      </div>
+      <div class="node-st"><span class="ell">run_77d2 · 58 runs</span><b>93%</b></div>
+      <span class="prog"><i style="width:93%"></i></span>
+    </div>
+    <div class="node">
+      <div class="node-h">
+        <span class="node-ic"><svg width="18" height="18"><use href="#i-help"/></svg></span>
+        <span class="ell"><span class="node-t">s2-clarify</span><span class="node-s">claude-sonnet-5</span></span>
+      </div>
+      <div class="node-st"><span class="ell">run_51a7 · 54 runs</span><b>91%</b></div>
+      <span class="prog"><i style="width:91%"></i></span>
+    </div>
+    <div class="node">
+      <div class="node-h">
+        <span class="node-ic"><svg width="18" height="18"><use href="#i-list"/></svg></span>
+        <span class="ell"><span class="node-t">s3-planner</span><span class="node-s">claude-opus-5</span></span>
+      </div>
+      <div class="node-st"><span class="ell">run_c4d8 · 52 runs</span><b>88%</b></div>
+      <span class="prog"><i style="width:88%"></i></span>
+    </div>
+    <div class="node is-live">
+      <div class="node-h">
+        <span class="node-ic"><svg width="18" height="18"><use href="#i-cpu"/></svg></span>
+        <span class="ell"><span class="node-t">s4-implementer</span><span class="node-s">claude-opus-5</span></span>
+      </div>
+      <div class="node-st"><i class="live"></i><span class="ell">run_d204 · 49 runs</span><b>79%</b></div>
+      <span class="prog"><i style="width:79%"></i></span>
+    </div>
+  </div>
+
+  <div class="card pol">
+    <div class="sec-h">
+      <div><h2>Sandbox policy</h2><p>c8a0…42</p></div>
+      <a class="sec-link">factory/policy/sandbox.yaml <svg width="14" height="14"><use href="#i-ext"/></svg></a>
+    </div>
+    <div class="set">
+      <div><span class="set-l">Copy-on-write worktree</span><span class="set-p">Writes land in a throwaway copy</span></div>
+      <div class="set-c"><span class="switch on"><i></i></span></div>
+    </div>
+    <div class="set">
+      <div><span class="set-l">Allowlisted environment</span><span class="set-p">Built by the launcher</span></div>
+      <div class="set-c"><span class="switch on"><i></i></span></div>
+    </div>
+    <div class="set">
+      <div><span class="set-l">Push URL</span><span class="set-p">No remote push from a run</span></div>
+      <div class="set-c"><span class="switch"><i></i></span></div>
+    </div>
+    <div class="set">
+      <div><span class="set-l">Loopback proxy allowlist</span><span class="set-p">Hosts allowed per stage</span></div>
+      <div class="set-c"><span class="switch on"><i></i></span></div>
+    </div>
+  </div>
+</section>
