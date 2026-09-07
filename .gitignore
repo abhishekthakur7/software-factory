@@ -5,3 +5,4 @@ runs/
 *.sqlite-shm
 .claude/settings.local.json
 .serena/
+.playwright-cli/
