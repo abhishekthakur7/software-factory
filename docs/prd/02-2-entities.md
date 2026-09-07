@@ -24,19 +24,19 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | `state` | See 2.3 |
 | `blocked_on` | Null, or the single `queue_item` id for the current blocking decision or question round; a question-round item references its versioned `question_set` so several blocking questions remain one resumable boundary |
 | `pause_requested`, `paused_at` | Human-requested stable-boundary pause; independent of the stage state (R-H-13) |
-| `base_sha`, `target_base_sha`, `branch`, `worktree_path`, `head_sha` | The commit from which the current ticket branch is based, the current fetched head of the configured target branch, the ticket branch, its worktree, and the branch head. A human refresh creates a new tuple and invalidates downstream evidence (R-S5-12); a disjoint runner advance re-pins them and enters the review binding as evidence (R-S5-14) |
+| `base_sha`, `target_base_sha`, `branch`, `worktree_path`, `head_sha` | The commit from which the current ticket branch is based, the current fetched head of the configured target branch, the ticket branch, its worktree, and the branch head. A human refresh creates a new tuple and invalidates downstream evidence (R-S5-12) |
 | `pr_url`, `pr_identity`, `last_remote_head_sha`, `last_pr_body_hash` | Set from reconciled `pr_create`/`pr_update` receipts after S6 approval and retained across revision cycles |
 | `baseline` | True for the pre-factory tickets of R-O-6; never mixed with factory tickets |
 | `opened_at`, `factory_completed_at`, `closed_at`, `close_reason` | `factory_completed_at` is set at `pr_opened`; `closed_at` only when the human records `merged`, `abandoned`, or `rejected`, so factory cycle time and external outcome are not conflated |
 | `final_head_sha`, `final_target_base_sha`, `final_pr_body_hash`, `merge_sha`, `required_checks_disposition`, `approval_disposition`, `external_revision_count` | Initial manual outcome evidence from R-H-11. The body hash comes from a governed observed-body snapshot or immutable remote locator. `approval_disposition` is `matched`, `mismatched`, or `unknown`; S7 automates observation Later |
 | `close_survey` | Later: optional one-question answer at close (charter section 8, FM-09) |
 
-**`stage_run`**. One row per ticket-stage execution. This is the C5 ledger at execution grain. At S4 there is one row per plan-task execution; `attempt` counts every start and `verification_attempt` counts only executions that reach task validation. S4 also holds the runner-driven runs of R-S4-9 and R-S5-14, distinguished by `run_kind`. S5 has one run per complete check pass. S6 has one run per packet/PR-body assembly and local validation cycle; human approvals are separate records and outbox dispatch/reconciliation lives only on `external_write`, so delivery retries do not distort stage reliability.
+**`stage_run`**. One row per ticket-stage execution. This is the C5 ledger at execution grain. At S4 there is one row per plan-task execution; `attempt` counts every start and `verification_attempt` counts only executions that reach task validation. S4 also holds the runner-driven runs of R-S4-9, distinguished by `run_kind`. S5 has one run per complete check pass. S6 has one run per packet/PR-body assembly and local validation cycle; human approvals are separate records and outbox dispatch/reconciliation lives only on `external_write`, so delivery retries do not distort stage reliability.
 
 | Field | Meaning |
 |---|---|
 | `id`, `ticket_id`, `stage`, `plan_item`, `plan_tuple_id`, `attempt`, `verification_attempt` | `ticket_id` is non-null and `stage` is S0 to S7. `plan_item` and `verification_attempt` are null outside S4. `attempt` increments on every fresh execution of the same stage or S4 task; `verification_attempt` is 1 to 3 per approved plan-item version and is null when execution never reached validation |
-| `run_kind` | `task` everywhere except the S4 cases: `task` for a plan-task execution with an agent; `fix_round` for an R-S4-9 agent run against failing machine checks; `base_advance` for the runner's script-only rebase under R-S5-14; `validation_only` for the runner's script-only execution of every task's validation recipes after a fix round or base advance. Only `task` rows carry `plan_item` and `verification_attempt`; the other kinds are excluded from the first-attempt measure and reported separately |
+| `run_kind` | `task` everywhere except the S4 cases: `task` for a plan-task execution with an agent; `fix_round` for an R-S4-9 agent run against failing machine checks; `validation_only` for the runner's script-only execution of every task's validation recipes after a fix round. Only `task` rows carry `plan_item` and `verification_attempt`; the other kinds are excluded from the first-attempt measure and reported separately (`base_advance` is Later, R-S5-14) |
 | `parent_run_id` | Null except for a sub-invocation a stage makes, such as an R-S2-3 restatement: a child row carries its own runtime, model, tokens, cost, and wall clock, counts against its parent's budget (R-I-6), and is excluded from the first-attempt measure |
 | `tier` | The tier in force when the run started |
 | `runtime`, `runtime_version`, `adapter_version`, `model_requested`, `model_resolved` | Exact package/build identities and requested and resolved hosted-model identifiers, recorded verbatim (C4, D5). Null for a script-only stage; resolution never silently selects another model |
@@ -65,7 +65,7 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | Field | Meaning |
 |---|---|
 | `id`, `ticket_id`, `stage_run_id`, `guard_decision_id` | The guard decision is required for content-bearing artefacts; safe metadata-only records name the policy decision that classified them so |
-| `kind` | `ticket_source` (the permitted, redacted source fields written at S0), `brief`, `criteria`, `question_set`, `risk_map`, `plan`, `handoff`, `deviation_list`, `failure_history`, `check_evidence`, `tool_input`, `tool_result`, `packet`, `pr_body`, `pr_checks_summary` (Later), `export` (a directory) |
+| `kind` | `ticket_source` (the permitted, redacted source fields written at S0), `brief`, `criteria`, `question_set`, `risk_map`, `plan`, `handoff`, `failure_history`, `check_evidence`, `tool_input`, `tool_result`, `packet`, `pr_body`, `pr_checks_summary` (Later), `export` (a directory) |
 | `version`, `path`, `hash`, `created_at` | |
 | `data_class`, `redaction_state`, `retention_until` | Governance metadata from R-T-9 |
 | `supersedes` | Previous version's id, or null |
@@ -111,12 +111,12 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | `supersedes`, `withdrawn`, `withdrawal_reason` | Prior assumption id, or null. Replacing or withdrawing an assumption appends a row naming the prior row; prior rows are never updated. `withdrawn = true` requires null `text` and a non-empty reason. An assumption is current when no later row supersedes it, so active/superseded is derived rather than stored |
 | `created_at` | |
 
-**`deviation`**. One row per deviation from the approved plan. This is the deviation-list schema S4 hands back and S6 shows before the diff.
+**`deviation`**. One row per deviation from the approved plan, written by the trusted runner from the S4 hand-back; the canonical digest of the ticket's deviation rows at a hand-back is the deviation digest bound at S5 and shown at S6 before the diff.
 
 | Field | Meaning |
 |---|---|
 | `id`, `ticket_id`, `stage_run_id`, `plan_item` | |
-| `plan_said`, `agent_did`, `why` | |
+| `plan_said`, `agent_did`, `why` | For a base-test change or removal, `why` names the `AC-n` criterion or the `no_behaviour_change` task from the plan's test strategy row (R-S4-10) |
 | `kind` | `judgment` or `error` |
 | `contract_change` | Boolean (FM-15) |
 
@@ -143,7 +143,7 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | `id`, `ticket_id`, `event_kind` | `revision_after_approval`, `incident`, `control_defect`, `override`, `abandoned`, `escalation`, `stale_index`, `send_back`, `packet_defect`, `policy_exception` |
 | `fm_id` | A catalogue id, required |
 | `ref` | The exact stage run, question/version, artefact, queue item, approval record, incident/control event, or external incident the tag points at. An FM-10 decision defect points to the affected approval record, not merely its shared queue item |
-| `severity`, `note`, `tagged_by`, `tagged_at` | Severity is `sev1` to `sev4` and required for incident, control-defect, and policy-exception tags. `tagged_by` is a human except `stale_index`, escalation, and mechanically detected control defects. For `send_back` the note carries the ground from `checklists/send-back-grounds.md`. A policy-exception tag must reference a valid waiver and grants no authority itself |
+| `severity`, `note`, `tagged_by`, `tagged_at` | Severity is `sev1` to `sev4` and required for incident, control-defect, and policy-exception tags. `tagged_by` is a human except `stale_index`, escalation, and mechanically detected control defects. For `send_back` the note carries the ground from `rubrics/checklists/send-back-grounds.md`. A policy-exception tag must reference a valid waiver and grants no authority itself |
 | `resolves_tag_id`, `resolution_evidence_ref` | Optional prior defect tag and immutable evidence that resolves it. Defect status is derived; an occurrence row is never overwritten or made to disappear |
 
 **`incident_observation`**. Append-only records separate occurrence from review and coverage. Common fields are `id`, optional ticket id, factory-manifest hash, record kind (`production_incident_event`, `production_disposition`, `production_coverage`, `control_defect_event`, `control_disposition`), optional control category (`data_boundary`, `execution_boundary`, `approval_binding`, `reviewer_enforcement`, `audit_reconstruction`), recorder identity/role, timestamp, and immutable evidence refs. An event is an immutable root with its required `incident` or `control_defect` tag, severity under pinned `incident-policy.yaml`, occurrence time, and note; it is never superseded. A disposition names its event root, attribution (`attributable`, `not_attributable`, `undetermined`), disposition (`open`, `remediated`, `reviewed_no_change`), catalogue/rubric remediation refs, and may supersede only an earlier disposition for that root. A production-coverage record has status `none_observed`, `unknown`, or `not_deployed`, deployment/exposure start and source when applicable, `observed_through`, and may supersede only earlier coverage for that ticket; `none_observed` requires demonstrable exposure. Ticketless control events capture factory defects found by conformance or operations. Production and control series never supersede each other, and the absence of a current coverage record is `unknown`.
@@ -154,7 +154,7 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 |---|---|
 | `id`, `stage_run_id`, `entry_path`, `entry_last_verified`, `stale` | Stale is computed from the entry's staleness rule at read time |
 
-**`score`**. One row per grader verdict on a stage run, from the observer pass, an eval, or a benchmark. Filled by Later machinery (R-O-10, R-F-3, R-F-12); the table exists from the start.
+**`score`**. One row per grader verdict on a stage run, from the observer pass, an eval, or a benchmark. Created with R-O-10 (Later).
 
 | Field | Meaning |
 |---|---|
@@ -165,14 +165,14 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | `human_grade`, `graded_by` | Filled when the engineer grades the same item, for calibration (R-O-11) |
 | `scored_at` | |
 
-**`human_signal`**. Human reactions captured from outside the queue, read-only. Filled Later by R-S7-6.
+**`human_signal`**. Human reactions captured from outside the queue, read-only. Created with R-S7-6 (Later).
 
 | Field | Meaning |
 |---|---|
 | `id`, `ticket_id`, `source`, `ref` | `source` is `pr_review_comment` |
 | `author`, `text_digest`, `at` | Digest, not payload; the comment stays on GitHub |
 
-**`proposal`**. One row per improvement proposal, whoever drafted it. Filled Later by R-F-10.
+**`proposal`**. One row per improvement proposal, whoever drafted it. Created with R-F-10 (Later).
 
 | Field | Meaning |
 |---|---|
@@ -181,14 +181,14 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 | `diff_ref`, `eval_change` | The pull request on the factory repository and the eval change that accompanies it |
 | `proposed_by`, `state`, `decided_by`, `at` | `proposed_by` is the engineer or the improvement agent; `state` is `open`, `merged`, `rejected` |
 
-**`benchmark`**. One row per configuration run against a fixture set. Filled Later by R-F-12.
+**`benchmark`**. One row per configuration run against a fixture set. Created with R-F-12 (Later).
 
 | Field | Meaning |
 |---|---|
 | `id`, `fixture_set`, `stage`, `manifest_hash` | The configuration under test, by its manifest hash |
 | `scores_ref`, `cost`, `currency`, `cost_basis`, `pricing_table_hash`, `at` | Scores are `score` rows with `context = benchmark`; cost fields use the same provenance contract as a stage run |
 
-**`fixture_candidate`**. One row per candidate eval fixture written from an outcome. Filled Later by R-F-15; a row never writes into `factory/`.
+**`fixture_candidate`**. One row per candidate eval fixture written from an outcome. Created with R-F-15 (Later); a row never writes into `factory/`.
 
 | Field | Meaning |
 |---|---|
@@ -209,7 +209,7 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 
 **`waiver`**. One immutable row: `id`, ticket id, policy id/version/hash from `waiver-policy.yaml` or the check's explicitly named content-addressed policy, waived check result or human verdict, subject kind (`plan_candidate` or `review_tuple`) and canonical subject hash, optional evidence-tuple id, authorised actor identity and role, reason, exact ticket/path/check/condition scope, compensating controls, evidence ids and hashes, issued time, mandatory expiry, canonical serialization version, and `content_hash`. A plan-candidate hash canonically binds the waived verdict, its subject artefact and evidence hashes, rubric/check identity, and pinned manifest, trust, authority and waiver-policy context; it is then included in the plan tuple. An S5 waiver binds the review tuple. Validity is derived from subject, policy, evidence, actor authority, and expiry. The accompanying `policy_exception` tag points here for reporting but grants no authority.
 
-**`evidence_tuple`**. One immutable row per R-T-10 binding. Common fields: `id`, `kind`, `ticket_id`, current target-base SHA; manifest, project-config, trust-profile, trust-approval-set and recipe hashes; sandbox and toolchain digests; `created_at`; canonical serialization version; and `content_hash`. A `plan` tuple adds ticket-source, brief, criteria and plan hashes, question-resolution-set and current-assumption-set hashes, `base_sha`, planned reviewer-set hash, semantic-checklist, human-verdict-set and plan-waiver-set hashes. Its `content_hash` is the plan-approval subject. A `review` tuple adds `plan_tuple_id`, satisfying plan-approval-set hash, exact head, diff and deviation-list hashes, and actual/effective reviewer-set ids and hashes. Tuples are never updated with validity state; validity is derived by comparison with current state, authority, and approval-set expiry, and rejection records the reason.
+**`evidence_tuple`**. One immutable row per R-T-10 binding. Common fields: `id`, `kind`, `ticket_id`, current target-base SHA; manifest, project-config, trust-profile, trust-approval-set and recipe hashes; sandbox and toolchain digests; `created_at`; canonical serialization version; and `content_hash`. A `plan` tuple adds ticket-source, brief, criteria and plan hashes, question-resolution-set and current-assumption-set hashes, `base_sha`, planned reviewer-set hash, semantic-checklist, human-verdict-set and plan-waiver-set hashes. Its `content_hash` is the plan-approval subject. A `review` tuple adds `plan_tuple_id`, satisfying plan-approval-set hash, exact head, diff and deviation-set hashes, and actual/effective reviewer-set ids and hashes. Tuples are never updated with validity state; validity is derived by comparison with current state, authority, and approval-set expiry, and rejection records the reason.
 
 **`external_write`**. The transactional outbox of R-T-11: `id`, optional `ticket_id`, originating stage-run id, `operation`, `idempotency_key`, governed payload artefact and digest, authorising guard-decision id, review tuple and review-approval-subject/set hashes where applicable, publication-target hash, repository/target/head refs, desired and expected prior remote head SHAs, PR-body hash, revision number, remote PR identity, `state` (`pending`, `sending`, `reconciled`, `failed`, `superseded`), attempt count, remote identity and governed receipt artefact, last error, and timestamps. One key's destination and payload fields are immutable. Payloads obey R-T-9 and never contain credentials.
 
