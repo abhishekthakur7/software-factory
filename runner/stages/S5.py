@@ -1,18 +1,42 @@
-"""Stub S5 driver: the freshness preflight, then the placeholder `check_evidence`.
+"""S5: the review-tuple preflight, then every blocking check at this milestone, over base and head.
 
-Real S5 never leaves `checks` on its own pass (the S6 assembly pass does,
-and only once S5 has also passed -- see `gates.checks_gate`), so
-`PASS_EVENT` is `None`. The preflight runs before the stub artefact is
-ever written: a stale candidate must never reach even a placeholder S5
-result, since a later pass over a stale binding would otherwise look like
-real evidence.
+The preflight (`freshness.check` at `S5_PREFLIGHT`, then `binding.preflight_review_tuple`)
+runs before any check does: a stale base or a `PreflightRefused` candidate component
+writes exactly one refusal and the run ends there, since a check run over a binding
+that cannot become a review tuple would have nothing real to bind its result to.
+Once one review tuple exists, the driver takes plain base and head checkouts of the
+ticket's own clone, runs the pilot project's own recipes over a throwaway copy of
+each (the fixture project's recipes write class directories into their own cwd), then
+the scripts in `CHECK_ORDER` over the resulting diff and recipe evidence. Every
+`check_result` this run writes binds that one review tuple. Checks continue after a
+red result -- only the preflight itself stops the run early -- and a governed
+recipe's own raw pass/fail never blocks by itself: `regression_only` is the one
+`CHECK_ORDER` entry that decides whether a lint, compile, integration, or end-to-end
+result actually blocks, folding the four raw `recipe:<id>@<base|head>` results for
+those kinds into one verdict; an ungoverned unit-test recipe's own head result blocks
+directly, exactly like every other check in `CHECK_ORDER`. A run with every blocking
+result `pass` ends `pass` and leaves the state to `checks_gate`; a run with any red
+result checks whether it is confined to a set a machine can retry on its own
+(`runner.checks.red_route.classify`, built alongside this driver) and either sends the
+ticket back to `implementing` for a fix round or opens one `red_check` item naming
+every red and blind-spot result together.
 """
+import json
+import os
+import re
 import sqlite3
+import subprocess
 from pathlib import Path
 
-from runner import freshness
-from runner.paths import RUNS_DIR
-from runner.stages._common import run_stub
+import yaml
+
+from runner import (
+    approvals, artefact_registry, artefacts, binding, canonical, checklist, freshness, git_trees, owners, plan_tuple,
+    queue, record, recipes, reviewer_sets, transitions,
+)
+from runner.checks import exclusion, regression_only
+from runner.fs import write_text
+from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
 
 ARTEFACT_KIND = "check_evidence"
 PASS_EVENT = None
@@ -30,13 +54,552 @@ CHECK_ORDER: tuple[str, ...] = (
     "base_test_diff",
 )
 
+_SCRIPTS_DIR = REPO_ROOT / "factory" / "scripts" / "checks"
+SIZE_GATE_SCRIPT = _SCRIPTS_DIR / "size_gate"
+SCOPE_DIFF_SCRIPT = _SCRIPTS_DIR / "scope_diff"
+SOURCE_DECLARATION_DIFF_SCRIPT = _SCRIPTS_DIR / "source_declaration_diff"
+BEHAVIOR_CONTRACT_EVIDENCE_SCRIPT = _SCRIPTS_DIR / "behavior_contract_evidence"
+BASE_TEST_DIFF_SCRIPT = _SCRIPTS_DIR / "base_test_diff"
 
-def run(
-    conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_dir: Path = RUNS_DIR,
-) -> str | tuple[str, str]:
+TIERS_PATH = FACTORY_DIR / "config" / "tiers.yaml"
+LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
+
+_RAN_LINE = re.compile(r"^ran: (?P<fqcn>[\w.$]+)#(?P<method>\w+)$")
+_FAILED_LINE = re.compile(r"^FAILED: (?P<method>\w+):")
+
+
+def _tier(ticket: sqlite3.Row) -> str:
+    return ticket["tier_final"] or ticket["tier_provisional"] or "standard"
+
+
+def _run_dir(runs_dir: Path, ticket_id: int, stage_run_id: int) -> Path:
+    return Path(runs_dir) / "tickets" / str(ticket_id) / "runs" / str(stage_run_id)
+
+
+def _repo(runs_dir: Path, ticket_id: int) -> Path:
+    return Path(runs_dir) / "tickets" / str(ticket_id) / "repo"
+
+
+def _project_config() -> dict:
+    return yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+
+
+def _limits_config() -> dict:
+    return yaml.safe_load(Path(LIMITS_PATH).read_text())
+
+
+def _scope_paths(plan_text: str) -> list[str]:
+    """The plan's `Scope and discretion` `touch`/`create`/`delete` paths; a `discretion` glob contributes nothing."""
+    section = artefacts.parse(plan_text).section("Scope and discretion")
+    rows = section.table() if section is not None else None
+    return [row["path"] for row in (rows or []) if row.get("action") in ("touch", "create", "delete") and row.get("path")]
+
+
+def _record_check_result(
+    conn: sqlite3.Connection, stage_run_id: int, *, check_name: str, result: str, summary: str,
+    evidence_tuple_id: int | None = None, evidence_artefact: int | None = None,
+) -> int:
+    row = {
+        "stage_run_id": stage_run_id, "check_name": check_name, "check_tier": "blocking", "source": "runner",
+        "result": result, "summary": summary, "evidence_tuple_id": evidence_tuple_id,
+        "evidence_artefact": evidence_artefact, "canonical_serialization_version": canonical.SERIALIZATION_VERSION,
+    }
+    row["content_hash"] = canonical.content_hash(row)
+    return record.insert(conn, "check_result", **row)
+
+
+# ---- preflight: the review tuple, or one refusal ----
+
+
+def _latest_plan_tuple(conn: sqlite3.Connection, ticket_id: int) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'plan' ORDER BY id DESC LIMIT 1", (ticket_id,)
+    ).fetchone()
+
+
+def _planned_slots(conn: sqlite3.Connection, plan_row: sqlite3.Row) -> list[reviewer_sets.Slot]:
+    row = conn.execute(
+        "SELECT * FROM reviewer_set WHERE ticket_id = ? AND kind = 'planned' AND content_hash = ? ORDER BY id DESC LIMIT 1",
+        (plan_row["ticket_id"], plan_row["planned_reviewer_set_hash"]),
+    ).fetchone()
+    if row is None:
+        return []
+    return [reviewer_sets.Slot.from_json(item) for item in json.loads(row["slots"] or "[]")]
+
+
+def _diff_touched_paths(repo: Path, base_sha: str, head_sha: str) -> list[str]:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), "diff", "--name-only", base_sha, head_sha], capture_output=True, text=True, check=True,
+    )
+    return [line for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _preflight(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, *, plan_text: str, runs_dir: Path,
+):
+    """The S5 preflight: one review tuple, or `(None, (outcome, failure_kind))` naming the refusal."""
     fresh = freshness.check(
         conn, ticket["id"], boundary=freshness.S5_PREFLIGHT, target_branch=freshness.target_branch(), runs_dir=runs_dir,
     )
     if not fresh.fresh:
-        return "fail", "stale_binding"
-    return run_stub(conn, ticket, "S5", stage_run_id, ARTEFACT_KIND, runs_dir)
+        return None, ("fail", "stale_binding")
+
+    plan_row = _latest_plan_tuple(conn, ticket["id"])
+    if plan_row is None:
+        _record_check_result(conn, stage_run_id, check_name="review_tuple_preflight", result="fail", summary="no plan tuple is recorded for this ticket")
+        return None, ("fail", "stale_binding")
+
+    repo = _repo(runs_dir, ticket["id"])
+    diff_paths = _diff_touched_paths(repo, plan_row["base_sha"], ticket["head_sha"])
+    owners_obj = owners.load_owners()
+    planned_slots = _planned_slots(conn, plan_row)
+
+    actual = reviewer_sets.derive_actual(
+        conn, ticket_id=ticket["id"], repo_path=repo, target_base_sha=ticket["target_base_sha"],
+        changed_paths=diff_paths, owners=owners_obj, sensitive_paths=exclusion.load_sensitive_paths(),
+        authority_policy_hash=owners.authority_policy_hash(),
+        membership_snapshot_hash=canonical.content_hash(
+            owners.identity_snapshot(owners_obj, owners_obj.roles["s3_reviewer"]["identity"])
+        ),
+    )
+    if actual.blocked:
+        # An unresolved, non-sensitive slot needs no transition of its own:
+        # `checks_gate` already routes on this same `reviewer_set` row's
+        # unresolved slot (the row `derive_actual` just wrote) the next
+        # time the ticket is advanced. A sensitive path re-triggers pilot
+        # exclusion only when the plan's own scope already declared it;
+        # otherwise the accidental touch is left for a human to see and
+        # route through S4 removal.
+        if actual.sensitive:
+            try:
+                event = exclusion.decide_at_checks(plan_paths=_scope_paths(plan_text), diff_paths=diff_paths)
+            except ValueError:
+                event = None
+            if event == "checks_sensitive_path_required":
+                _record_check_result(
+                    conn, stage_run_id, check_name="exclusion", result="fail",
+                    summary=f"sensitive path required by the plan's own scope: {', '.join(actual.unresolved) or diff_paths}",
+                )
+                exclusion.apply_recorded_exclusion(conn, ticket["id"])
+                return None, "fail"
+        return None, ("fail", "structural")
+
+    effective_id = reviewer_sets.effective_set(conn, ticket_id=ticket["id"], planned=planned_slots, actual=actual)
+    quorum = approvals.evaluate(conn, gate="plan", subject_hash=plan_row["content_hash"], slots=planned_slots)
+    current_plan = plan_tuple.derive_components(conn, ticket)
+
+    components = binding.ReviewComponents(
+        plan_tuple_id=plan_row["id"],
+        plan_approval_set_hash=quorum.approval_set_hash,
+        head_sha=ticket["head_sha"],
+        diff_hash=fresh.diff_hash,
+        deviation_set_hash=binding.deviation_set_hash(conn, ticket["id"]),
+        target_base_sha=ticket["target_base_sha"],
+        actual_reviewer_set_id=actual.id,
+        actual_reviewer_set_hash=record.get(conn, "reviewer_set", actual.id)["content_hash"],
+        effective_reviewer_set_id=effective_id,
+        effective_reviewer_set_hash=record.get(conn, "reviewer_set", effective_id)["content_hash"],
+        manifest_hash=current_plan.manifest_hash,
+        project_config_hash=current_plan.project_config_hash,
+        trust_profile_hash=current_plan.trust_profile_hash,
+        trust_approval_set_hash=current_plan.trust_approval_set_hash,
+        recipe_hash=current_plan.recipe_hash,
+        sandbox_digest=current_plan.sandbox_digest,
+        toolchain_digest=current_plan.toolchain_digest,
+    )
+    try:
+        review_tuple_id = binding.preflight_review_tuple(
+            conn, ticket["id"], plan_tuple_id=plan_row["id"], plan_slots=planned_slots,
+            components=components, current_plan=current_plan,
+        )
+    except binding.PreflightRefused as exc:
+        _record_check_result(conn, stage_run_id, check_name="review_tuple_preflight", result="fail", summary=exc.reason)
+        return None, ("fail", "stale_binding")
+
+    return {"review_tuple_id": review_tuple_id, "plan_row": plan_row, "planned_slots": planned_slots, "components": components, "repo": repo}, None
+
+
+# ---- base/head checkouts and the project's own recipes ----
+
+
+def _vendor_classpath(project: dict) -> str:
+    """Every jar already materialised under `project.yaml`'s configured vendor path, or `""` when none has been built yet."""
+    vendor_dir = REPO_ROOT / project["vendor"]
+    if not vendor_dir.is_dir():
+        return ""
+    return os.pathsep.join(str(p) for p in sorted(vendor_dir.rglob("*.jar")))
+
+
+def _checkouts(repo: Path, base_sha: str, head_sha: str, run_dir: Path) -> tuple[Path, Path, Path, Path]:
+    checkouts_dir = run_dir / "checkouts"
+    base_checkout = git_trees.plain_checkout(repo, base_sha, checkouts_dir / "base")
+    head_checkout = git_trees.plain_checkout(repo, head_sha, checkouts_dir / "head")
+    base_copy = git_trees.throwaway_copy(base_checkout, checkouts_dir / "base-recipes")
+    head_copy = git_trees.throwaway_copy(head_checkout, checkouts_dir / "head-recipes")
+    return base_checkout, head_checkout, base_copy, head_copy
+
+
+def _run_recipes(
+    conn: sqlite3.Connection, ticket_id: int, stage_run_id: int, *, catalogue, project_recipes: list[str],
+    base_copy: Path, head_copy: Path, run_dir: Path, review_tuple_id: int, vendor_classpath: str,
+) -> tuple[dict, list[tuple[str, str, int]], Path]:
+    """Run every project recipe at base and head; return `(recipe_results, blocking, results_dir)`.
+
+    `blocking` carries only the ungoverned recipes' head results (a unit
+    test blocks on any head red on its own); a governed recipe's raw
+    result is recorded for evidence but never entered here, since
+    `regression_only` alone decides whether it actually blocks.
+    """
+    results_dir = run_dir / "recipes"
+    recipe_results: dict[str, dict] = {}
+    blocking: list[tuple[str, str, int]] = []
+    prior_evidence = artefact_registry.latest(conn, ticket_id, ARTEFACT_KIND)
+
+    for recipe_id in project_recipes:
+        recipe = catalogue[recipe_id]
+        recipe_results[recipe_id] = {}
+        for side, checkout in (("base", base_copy), ("head", head_copy)):
+            result = recipes.run(
+                recipe_id, {"vendor_classpath": vendor_classpath}, catalogue=catalogue,
+                cwd_roles={"checkout": checkout}, results_dir=results_dir / side, env_source=os.environ,
+            )
+            recipe_results[recipe_id][side] = result
+
+            evidence_id = None
+            if result.stdout_path is not None:
+                evidence_id = artefact_registry.register(
+                    conn, ticket_id=ticket_id, kind=ARTEFACT_KIND, path=result.stdout_path,
+                    stage_run_id=stage_run_id, supersedes=prior_evidence["id"] if prior_evidence is not None else None,
+                )
+                prior_evidence = record.get(conn, "artefact", evidence_id)
+
+            outcome = "pass" if result.outcome == "pass" else "fail"
+            cr_id = _record_check_result(
+                conn, stage_run_id, check_name=f"recipe:{recipe_id}@{side}", result=outcome,
+                summary=json.dumps({"outcome": result.outcome, "exit_code": result.exit_code}, sort_keys=True),
+                evidence_tuple_id=review_tuple_id, evidence_artefact=evidence_id,
+            )
+            if side == "head" and regression_only.recipe_governed_kind(kind=recipe.kind, level=recipe.level) is None:
+                blocking.append((f"recipe:{recipe_id}@head", outcome, cr_id))
+
+    return recipe_results, blocking, results_dir
+
+
+def _recipe_output_text(result: recipes.RecipeResult) -> str:
+    parts = []
+    for path in (result.stdout_path, result.stderr_path):
+        if path is not None and Path(path).is_file():
+            parts.append(Path(path).read_text())
+    return "\n".join(parts)
+
+
+def _failed_test_identities(text: str) -> list[dict]:
+    """`{"class","method"}` identities `java_test`'s stdout marks `FAILED`, paired with the
+    class the preceding `ran:` line named for that same method."""
+    failed: list[dict] = []
+    ran_class_by_method: dict[str, str] = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        ran = _RAN_LINE.match(line)
+        if ran:
+            ran_class_by_method[ran.group("method")] = ran.group("fqcn")
+            continue
+        bad = _FAILED_LINE.match(line)
+        if bad and bad.group("method") in ran_class_by_method:
+            failed.append({"class": ran_class_by_method[bad.group("method")], "method": bad.group("method")})
+    return failed
+
+
+def _tests_payload(catalogue, project_recipes: list[str], recipe_results: dict, side: str) -> dict:
+    ran: list[dict] = []
+    for recipe_id in project_recipes:
+        if catalogue[recipe_id].kind != "test":
+            continue
+        ran += [dict(entry) for entry in (recipe_results[recipe_id][side].tests_ran or ())]
+    return {"ran": ran}
+
+
+def _verdicts_payload(conn: sqlite3.Connection, ticket_id: int) -> list[dict]:
+    """`checklist.verdict_set` with `evidence_ids` decoded back to a list, matching what
+    `behavior_contract_evidence`'s own falsy-check on an empty list expects."""
+    payload = []
+    for row in checklist.verdict_set(conn, ticket_id):
+        entry = dict(row)
+        entry["evidence_ids"] = json.loads(entry["evidence_ids"]) if entry.get("evidence_ids") else []
+        payload.append(entry)
+    return payload
+
+
+# ---- the CHECK_ORDER scripts and regression-only ----
+
+
+def _run_check_script(
+    conn: sqlite3.Connection, stage_run_id: int, *, check_name: str, script: Path, args: list[str],
+    review_tuple_id: int, trust_json_over_exit_code: bool = False,
+) -> tuple[dict, int]:
+    """Run one standalone check script and record its `check_result`.
+
+    A non-zero exit is the script's own fail signal only for `size_gate`
+    (`trust_json_over_exit_code=True`); every other script this driver
+    calls exits 0 whether its own `result` is `pass` or `fail`, so a
+    non-zero exit from one of them means the script itself could not run
+    -- a `blind_spot` naming it, never an invented result.
+    """
+    completed = subprocess.run([str(script), *args], capture_output=True, text=True)
+    if not trust_json_over_exit_code and completed.returncode != 0:
+        payload = {"result": "blind_spot", "reason": f"{script.name} exited {completed.returncode}: {completed.stderr.strip()}"}
+    else:
+        try:
+            payload = json.loads(completed.stdout)
+        except (json.JSONDecodeError, ValueError):
+            payload = {"result": "blind_spot", "reason": f"{script.name} produced no parseable JSON: {completed.stderr.strip()}"}
+    cr_id = _record_check_result(
+        conn, stage_run_id, check_name=check_name, result=payload.get("result", "blind_spot"),
+        summary=json.dumps(payload, sort_keys=True), evidence_tuple_id=review_tuple_id,
+    )
+    return payload, cr_id
+
+
+def _run_regression_only(
+    conn: sqlite3.Connection, stage_run_id: int, *, catalogue, project_recipes: list[str], recipe_results: dict,
+    review_tuple_id: int,
+) -> tuple[dict, int]:
+    by_recipe: dict[str, dict] = {}
+    any_new_or_worse = False
+    for recipe_id in project_recipes:
+        recipe = catalogue[recipe_id]
+        governed_kind = regression_only.recipe_governed_kind(kind=recipe.kind, level=recipe.level)
+        if governed_kind is None:
+            continue
+        base_result, head_result = recipe_results[recipe_id]["base"], recipe_results[recipe_id]["head"]
+        if recipe.kind == "test":
+            base_text, head_text = _recipe_output_text(base_result), _recipe_output_text(head_result)
+            comparison = regression_only.compare_tests(
+                base_ran=list(base_result.tests_ran or ()), head_ran=list(head_result.tests_ran or ()),
+                base_failed=_failed_test_identities(base_text), head_failed=_failed_test_identities(head_text),
+            )
+        else:
+            comparison = regression_only.compare_diagnostics(_recipe_output_text(base_result), _recipe_output_text(head_result))
+        by_recipe[recipe_id] = {
+            "governed_kind": governed_kind, "new_or_worse": list(comparison.new_or_worse), "inherited": list(comparison.inherited),
+        }
+        any_new_or_worse = any_new_or_worse or bool(comparison.new_or_worse)
+
+    payload = {"result": "fail" if any_new_or_worse else "pass", "by_recipe": by_recipe}
+    cr_id = _record_check_result(
+        conn, stage_run_id, check_name="regression_only", result=payload["result"],
+        summary=json.dumps(payload, sort_keys=True), evidence_tuple_id=review_tuple_id,
+    )
+    return payload, cr_id
+
+
+# ---- criterion 9: a public-compatibility blind spot re-triggers pilot exclusion ----
+
+
+def _handle_compatibility_exclusion(
+    conn: sqlite3.Connection, ticket_id: int, stage_run_id: int, *, bce_payload: dict, plan_paths: list[str],
+) -> bool:
+    """A `behavior_contract_evidence` blind spot naming a public declaration's binary
+    compatibility re-triggers pilot exclusion exactly when the declaration's own file is
+    an excluded path the plan's scope already declared -- the same route S1 and S3 take
+    for a discovered excluded surface. Every other public-compatibility blind spot (no
+    excluded surface matches its file, or the touch was never in the plan's own scope)
+    rides into the ordinary `red_check` aggregation instead: this driver never guesses at
+    a route `exclusion.decide_at_checks` itself does not confirm.
+    """
+    for spot in bce_payload.get("blind_spots", []):
+        if spot.get("reason") != "binary compatibility":
+            continue
+        item_path = spot.get("item", "").rsplit(":", 1)[0]
+        try:
+            event = exclusion.decide_at_checks(plan_paths=plan_paths, diff_paths=[item_path])
+        except ValueError:
+            continue
+        if event != "checks_sensitive_path_required":
+            continue
+        _record_check_result(
+            conn, stage_run_id, check_name="exclusion", result="fail",
+            summary=f"public-compatibility change on a plan-declared excluded path: {item_path}",
+        )
+        exclusion.apply_recorded_exclusion(conn, ticket_id)
+        return True
+    return False
+
+
+# ---- aggregation: every red result into one route or one red_check item ----
+
+
+def _apply_routing(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, *, review_tuple_id: int,
+    blocking_results: list[tuple[str, str, int]], catalogue, project_recipes: list[str], recipe_results: dict,
+) -> None:
+    non_passing = [entry for entry in blocking_results if entry[1] != "pass"]
+    if not non_passing:
+        return
+
+    # `runner.checks.red_route` is T-A-29's own module, built in parallel
+    # with this one; imported here, at the one call site that needs it,
+    # so this file still imports cleanly before that ticket merges.
+    from runner.checks.red_route import CheckOutcome, RecipeOutcome, classify
+
+    recipe_outcomes = [
+        RecipeOutcome(
+            recipe_id=recipe_id, kind=catalogue[recipe_id].kind, level=catalogue[recipe_id].level,
+            base=recipe_results[recipe_id]["base"].outcome, head=recipe_results[recipe_id]["head"].outcome,
+        )
+        for recipe_id in project_recipes
+    ]
+    check_outcomes = [CheckOutcome(check_name=name, result=outcome) for name, outcome, _cr_id in blocking_results]
+    rounds_run = conn.execute(
+        "SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = 'S4' AND run_kind = 'fix_round'", (ticket["id"],)
+    ).fetchone()[0]
+    cap = _limits_config()["fix_rounds"]["max_per_ticket"]
+    route = classify([*recipe_outcomes, *check_outcomes], rounds_run=rounds_run, cap=cap)
+
+    if route.route == "fix_round":
+        _record_check_result(
+            conn, stage_run_id, check_name="fix_round_route", result="pass", summary=route.reason,
+            evidence_tuple_id=review_tuple_id,
+        )
+        transitions.apply(conn, ticket["id"], "checks_fix_round")
+        return
+
+    _record_check_result(
+        conn, stage_run_id, check_name="fix_round_route", result="fail", summary=route.reason,
+        evidence_tuple_id=review_tuple_id,
+    )
+    queue.open_item(conn, ticket_id=ticket["id"], kind="red_check", stage="S5", tier=_tier(ticket), ref=f"stage_run:{stage_run_id}")
+
+
+# ---- the driver ----
+
+
+def run(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_dir: Path = RUNS_DIR,
+) -> str | tuple[str, str]:
+    ticket_id = ticket["id"]
+    run_dir = _run_dir(runs_dir, ticket_id, stage_run_id)
+    tier = _tier(ticket)
+
+    plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
+    plan_text = Path(plan_artefact["path"]).read_text() if plan_artefact is not None else ""
+
+    preflight, failure = _preflight(conn, ticket, stage_run_id, plan_text=plan_text, runs_dir=runs_dir)
+    if failure is not None:
+        return failure
+    review_tuple_id = preflight["review_tuple_id"]
+    plan_row = preflight["plan_row"]
+    planned_slots = preflight["planned_slots"]
+    components = preflight["components"]
+    repo = preflight["repo"]
+
+    project = _project_config()
+    project_recipes = [r for r in (project.get("recipes") or []) if r]
+    catalogue = recipes.load_catalogue()
+    vendor_classpath = _vendor_classpath(project)
+
+    base_sha, head_sha = plan_row["base_sha"], ticket["head_sha"]
+    base_checkout, head_checkout, base_copy, head_copy = _checkouts(repo, base_sha, head_sha, run_dir)
+
+    recipe_results, blocking_results, _results_dir = _run_recipes(
+        conn, ticket_id, stage_run_id, catalogue=catalogue, project_recipes=project_recipes,
+        base_copy=base_copy, head_copy=head_copy, run_dir=run_dir, review_tuple_id=review_tuple_id,
+        vendor_classpath=vendor_classpath,
+    )
+
+    diff_text = subprocess.run(
+        ["git", "-C", str(repo), "diff", base_sha, head_sha], capture_output=True, text=True, check=True,
+    ).stdout
+    diff_path = run_dir / "diff.patch"
+    write_text(diff_path, diff_text)
+    diff_paths = _diff_touched_paths(repo, base_sha, head_sha)
+    touched_path = run_dir / "touched_files.txt"
+    write_text(touched_path, "\n".join(diff_paths) + ("\n" if diff_paths else ""))
+
+    size_payload, size_cr_id = _run_check_script(
+        conn, stage_run_id, check_name="size_gate", script=SIZE_GATE_SCRIPT, review_tuple_id=review_tuple_id,
+        trust_json_over_exit_code=True,
+        args=["--plan", str(plan_artefact["path"]), "--tier", tier, "--diff", str(diff_path),
+              "--tiers-config", str(TIERS_PATH), "--project-config", str(PROJECT_CONFIG)],
+    )
+    blocking_results.append(("size_gate", size_payload.get("result", "blind_spot"), size_cr_id))
+
+    scope_payload, scope_cr_id = _run_check_script(
+        conn, stage_run_id, check_name="scope_diff", script=SCOPE_DIFF_SCRIPT, review_tuple_id=review_tuple_id,
+        args=["--diff", str(diff_path), "--plan", str(plan_artefact["path"])],
+    )
+    blocking_results.append(("scope_diff", scope_payload.get("result", "blind_spot"), scope_cr_id))
+
+    decl_payload, decl_cr_id = _run_check_script(
+        conn, stage_run_id, check_name="source_declaration_diff", script=SOURCE_DECLARATION_DIFF_SCRIPT,
+        review_tuple_id=review_tuple_id,
+        args=["--base", str(base_checkout), "--head", str(head_checkout), "--files", str(touched_path),
+              "--plan", str(plan_artefact["path"])],
+    )
+    blocking_results.append(("source_declaration_diff", decl_payload.get("result", "blind_spot"), decl_cr_id))
+    declarations_path = run_dir / "source_declaration_diff.json"
+    write_text(declarations_path, json.dumps(decl_payload, sort_keys=True))
+
+    tests_base_path, tests_head_path = run_dir / "tests_base.json", run_dir / "tests_head.json"
+    write_text(tests_base_path, json.dumps(_tests_payload(catalogue, project_recipes, recipe_results, "base")))
+    write_text(tests_head_path, json.dumps(_tests_payload(catalogue, project_recipes, recipe_results, "head")))
+    verdicts_path = run_dir / "verdicts.json"
+    write_text(verdicts_path, json.dumps(_verdicts_payload(conn, ticket_id)))
+
+    bce_payload, bce_cr_id = _run_check_script(
+        conn, stage_run_id, check_name="behavior_contract_evidence", script=BEHAVIOR_CONTRACT_EVIDENCE_SCRIPT,
+        review_tuple_id=review_tuple_id,
+        args=["--plan", str(plan_artefact["path"]), "--verdicts", str(verdicts_path), "--tests-base", str(tests_base_path),
+              "--tests-head", str(tests_head_path), "--declarations", str(declarations_path),
+              "--generated-paths", ",".join(project.get("generated_paths") or [])],
+    )
+    blocking_results.append(("behavior_contract_evidence", bce_payload.get("result", "blind_spot"), bce_cr_id))
+
+    if _handle_compatibility_exclusion(conn, ticket_id, stage_run_id, bce_payload=bce_payload, plan_paths=_scope_paths(plan_text)):
+        return "fail"
+
+    regression_payload, regression_cr_id = _run_regression_only(
+        conn, stage_run_id, catalogue=catalogue, project_recipes=project_recipes, recipe_results=recipe_results,
+        review_tuple_id=review_tuple_id,
+    )
+    blocking_results.append(("regression_only", regression_payload["result"], regression_cr_id))
+
+    test_globs = sorted({
+        glob for recipe_id in project_recipes if catalogue[recipe_id].kind == "test"
+        for glob in (catalogue[recipe_id].test_globs or ())
+    })
+    base_test_payload, base_test_cr_id = _run_check_script(
+        conn, stage_run_id, check_name="base_test_diff", script=BASE_TEST_DIFF_SCRIPT, review_tuple_id=review_tuple_id,
+        args=["--base", str(base_checkout), "--head", str(head_checkout), "--globs", ",".join(test_globs),
+              "--plan", str(plan_artefact["path"]), "--tests-base", str(tests_base_path), "--tests-head", str(tests_head_path)],
+    )
+    blocking_results.append(("base_test_diff", base_test_payload.get("result", "blind_spot"), base_test_cr_id))
+
+    quorum = approvals.evaluate(conn, gate="plan", subject_hash=plan_row["content_hash"], slots=planned_slots)
+    binding_ok = quorum.satisfied and quorum.approval_set_hash == components.plan_approval_set_hash
+    binding_payload = {"result": "pass" if binding_ok else "fail", "reasons": list(quorum.reasons)}
+    binding_cr_id = _record_check_result(
+        conn, stage_run_id, check_name="approval_binding", result=binding_payload["result"],
+        summary=json.dumps(binding_payload, sort_keys=True), evidence_tuple_id=review_tuple_id,
+    )
+    blocking_results.append(("approval_binding", binding_payload["result"], binding_cr_id))
+
+    summary_path = run_dir / "check_evidence.json"
+    write_text(summary_path, json.dumps(
+        {"checks": [{"id": cr_id, "check_name": name, "result": outcome} for name, outcome, cr_id in blocking_results]},
+        sort_keys=True,
+    ))
+    prior_summary = artefact_registry.latest(conn, ticket_id, ARTEFACT_KIND)
+    artefact_registry.register(
+        conn, ticket_id=ticket_id, kind=ARTEFACT_KIND, path=summary_path, stage_run_id=stage_run_id,
+        supersedes=prior_summary["id"] if prior_summary is not None else None,
+    )
+
+    if all(outcome == "pass" for _name, outcome, _cr_id in blocking_results):
+        return "pass"
+
+    _apply_routing(
+        conn, ticket, stage_run_id, review_tuple_id=review_tuple_id, blocking_results=blocking_results,
+        catalogue=catalogue, project_recipes=project_recipes, recipe_results=recipe_results,
+    )
+    return "fail"
