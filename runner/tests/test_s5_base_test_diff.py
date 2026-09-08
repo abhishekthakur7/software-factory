@@ -34,6 +34,8 @@ def _run(case: dict) -> subprocess.CompletedProcess:
     ]
     if case.get("globs_base"):
         argv += ["--globs-base", case["globs_base"]]
+    if case.get("tests_head_in_base"):
+        argv += ["--tests-head-in-base", str(fixture / "tests_head_in_base.json")]
     return subprocess.run(argv, capture_output=True, text=True)
 
 
@@ -84,3 +86,40 @@ def test_planned_change_with_criteria_is_not_unplanned():
     payload = json.loads(_run(case).stdout)
     assert payload["unplanned"] == []
     assert payload["planned"] == [{"test": "src/test/java/com/fixture/WidgetTest.java", "action": "change", "names": ["AC-3"]}]
+
+
+def test_both_views_rerun_records_pass_when_the_head_test_fails_at_base_and_passes_at_head():
+    """R-S4-10: a planned change naming an `AC-n` criterion whose head-version test fails
+    when rerun against base production code -- a real regression caught -- records `verdict:
+    pass` for that entry, and the check's own overall result is `pass`."""
+    case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "both_views_rerun_proves_the_change")
+    result = _run(case)
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["result"] == "pass"
+    assert payload["planned"] == [
+        {"test": "src/test/java/com/fixture/WidgetTest.java", "action": "change", "names": ["AC-3"], "verdict": "pass"}
+    ]
+
+
+def test_both_views_rerun_records_a_blind_spot_when_the_head_test_passes_at_base_too():
+    """R-S4-10: the same planned change, but its head-version test also passes when rerun
+    against base -- it proves nothing about the change -- records `verdict: blind_spot`, and
+    the check's own overall result is `blind_spot`, not `fail`."""
+    case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "both_views_rerun_proves_nothing")
+    result = _run(case)
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["result"] == "blind_spot"
+    assert payload["planned"][0]["verdict"] == "blind_spot"
+
+
+def test_a_no_behaviour_change_task_row_is_exempt_from_the_both_views_rerun():
+    """R-S4-10: a planned `change` row naming a `no_behaviour_change` task instead of an
+    `AC-n` criterion is `exempt` -- never rerun -- and still passes."""
+    case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "no_behaviour_change_task_is_exempt_from_the_rerun")
+    result = _run(case)
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["result"] == "pass"
+    assert payload["planned"][0]["verdict"] == "exempt"

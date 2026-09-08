@@ -1,0 +1,28 @@
+{
+  "ticket": {"id": 502, "title": "read-only survey of Widget callers", "service": "fixture-project", "ticket_type": "small_feature", "tier": "standard"},
+  "identity": {
+    "review_tuple_id": 9002, "review_tuple_hash": "review-hash-2", "plan_tuple_id": 8002, "plan_tuple_hash": "plan-hash-2",
+    "base_sha": "base111", "head_sha": "head222", "target_base_sha": "target333", "manifest_hash": "manifest444",
+    "diff_hash": "diff556", "deviation_set_hash": "devset667", "effective_reviewer_set_hash": "revset778"
+  },
+  "freshness": {"fresh": true, "boundary": "before_dispatch", "target_head_sha": "target333", "checked_at": "2026-01-01T00:00:00+00:00", "reasons": []},
+  "artefacts": {"brief": {"id": 5, "path": "brief.md", "hash": "briefhash2"}, "criteria": {"id": 6, "path": "criteria.md", "hash": "critshash2"}, "plan": {"id": 7, "path": "plan.md", "hash": "planhash2"}, "check_evidence": {"id": 8, "path": "check_evidence.json", "hash": "checkevhash2"}},
+  "checks": [
+    {"id": 201, "check_name": "impact_scan", "result": "pass", "status": "pass", "kind": "impact", "content_hash": "ch-impact", "waiver_id": null, "evidence_artefact_hash": "ev-impact", "summary": "found two call sites of Widget.compute"}
+  ],
+  "fix_rounds": [],
+  "base_test_changes": [],
+  "readiness": [],
+  "approvals": [],
+  "waivers": [],
+  "deviations": [],
+  "assumptions": [],
+  "blind_spots": [],
+  "test_summary": {"strategy_rows": [], "diff_test_files": []},
+  "plan_sections": {
+    "intent": "Survey Widget.compute's callers before any behaviour change.",
+    "scrutiny": "Look hardest at whether the impact survey missed a caller.",
+    "alternatives": [], "contracts_changed": [], "non_goals": [], "scope_rows": [], "risk_map": [], "checklist_verdicts": []
+  },
+  "diff_path": "diff.patch"
+}

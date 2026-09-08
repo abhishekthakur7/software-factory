@@ -1,0 +1,15 @@
+diff --git a/src/main/java/com/fixture/Widget.java b/src/main/java/com/fixture/Widget.java
+index 1111111..2222222 100644
+--- a/src/main/java/com/fixture/Widget.java
++++ b/src/main/java/com/fixture/Widget.java
+@@ -1,6 +1,9 @@
+ package com.fixture;
+
+ public class Widget {
+     public int compute(int n) {
++        if (n < 0) {
++            throw new IllegalArgumentException("n must not be negative");
++        }
+         return n * 2;
+     }
+ }

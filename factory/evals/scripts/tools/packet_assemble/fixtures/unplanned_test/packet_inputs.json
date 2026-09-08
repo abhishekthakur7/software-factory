@@ -1,0 +1,31 @@
+{
+  "ticket": {"id": 503, "title": "add a helper test with no planned purpose", "service": "fixture-project", "ticket_type": "small_feature", "tier": "standard"},
+  "identity": {
+    "review_tuple_id": 9003, "review_tuple_hash": "review-hash-3", "plan_tuple_id": 8003, "plan_tuple_hash": "plan-hash-3",
+    "base_sha": "base111", "head_sha": "head223", "target_base_sha": "target333", "manifest_hash": "manifest444",
+    "diff_hash": "diff557", "deviation_set_hash": "devset668", "effective_reviewer_set_hash": "revset779"
+  },
+  "freshness": {"fresh": true, "boundary": "before_dispatch", "target_head_sha": "target333", "checked_at": "2026-01-01T00:00:00+00:00", "reasons": []},
+  "artefacts": {"brief": {"id": 9, "path": "brief.md", "hash": "briefhash3"}, "criteria": {"id": 10, "path": "criteria.md", "hash": "critshash3"}, "plan": {"id": 11, "path": "plan.md", "hash": "planhash3"}, "check_evidence": {"id": 12, "path": "check_evidence.json", "hash": "checkevhash3"}},
+  "checks": [
+    {"id": 301, "check_name": "size_gate", "result": "pass", "status": "pass", "content_hash": "ch-size3", "waiver_id": null, "evidence_artefact_hash": "ev-size3", "summary": "within tier limits"}
+  ],
+  "fix_rounds": [],
+  "base_test_changes": [],
+  "readiness": [],
+  "approvals": [],
+  "waivers": [],
+  "deviations": [],
+  "assumptions": [],
+  "blind_spots": [],
+  "test_summary": {
+    "strategy_rows": [{"test": "WidgetUnitTest.java", "action": "change", "size": "small", "criteria": "AC-1", "proves": "the guard clause rejects negative input"}],
+    "diff_test_files": ["src/test/java/com/fixture/WidgetUnitTest.java", "src/test/java/com/fixture/NewHelperTest.java"]
+  },
+  "plan_sections": {
+    "intent": "Add a guard clause; the agent also added an unplanned helper test.",
+    "scrutiny": "Look hardest at whether the extra test was actually needed.",
+    "alternatives": [], "contracts_changed": [], "non_goals": [], "scope_rows": [], "risk_map": [], "checklist_verdicts": []
+  },
+  "diff_path": "diff.patch"
+}

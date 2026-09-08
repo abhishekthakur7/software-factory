@@ -1,0 +1,59 @@
+{
+  "ticket": {"id": 501, "title": "guard clause for negative input", "service": "fixture-project", "ticket_type": "small_feature", "tier": "standard"},
+  "identity": {
+    "review_tuple_id": 9001, "review_tuple_hash": "review-hash-1", "plan_tuple_id": 8001, "plan_tuple_hash": "plan-hash-1",
+    "base_sha": "base111", "head_sha": "head222", "target_base_sha": "target333", "manifest_hash": "manifest444",
+    "diff_hash": "diff555", "deviation_set_hash": "devset666", "effective_reviewer_set_hash": "revset777"
+  },
+  "freshness": {"fresh": true, "boundary": "before_dispatch", "target_head_sha": "target333", "checked_at": "2026-01-01T00:00:00+00:00", "reasons": []},
+  "artefacts": {
+    "brief": {"id": 1, "path": "brief.md", "hash": "briefhash"},
+    "criteria": {"id": 2, "path": "criteria.md", "hash": "critshash"},
+    "plan": {"id": 3, "path": "plan.md", "hash": "planhash"},
+    "check_evidence": {"id": 4, "path": "check_evidence.json", "hash": "checkevhash"}
+  },
+  "checks": [
+    {"id": 101, "check_name": "size_gate", "result": "pass", "status": "pass", "content_hash": "ch-size", "waiver_id": null, "evidence_artefact_hash": "ev-size", "summary": "within tier limits"},
+    {"id": 103, "check_name": "source_declaration_diff", "result": "blind_spot", "status": "waived", "kind": "declaration", "content_hash": "ch-decl", "waiver_id": 501, "evidence_artefact_hash": "ev-decl", "summary": "declaration unresolved, waived"}
+  ],
+  "fix_rounds": [{"stage_run_id": 5551, "started_at": "2026-01-01T01:00:00+00:00", "recipes_cleared": ["fixture_compile", "fixture_unit"]}],
+  "base_test_changes": [
+    {"deviation_id": 701, "path": "src/test/java/com/fixture/WidgetUnitTest.java", "action": "change", "plan_item": "AC-1", "diff_hash": "diffhash-1",
+     "diff": "--- a/WidgetUnitTest.java\n+++ b/WidgetUnitTest.java\n@@ -1 +1 @@\n-old\n+new\n"}
+  ],
+  "readiness": [
+    {"condition": "restatement_agreed", "status": "pass", "source_artefact": "criteria:2", "hash": "readyhash-1", "waiver_id": "", "note": "agreed"},
+    {"condition": "risk_map", "status": "pass", "source_artefact": "plan:3", "hash": "readyhash-2", "waiver_id": "", "note": ""}
+  ],
+  "approvals": [
+    {"id": 301, "gate": "plan", "slot_id": "s3_reviewer:1", "actor_identity": "abhishek", "role": "s3_reviewer", "decision": "approve", "decided_at": "2026-01-01T00:30:00+00:00", "expires_at": "2026-02-01T00:00:00+00:00", "content_hash": "apprhash-1"}
+  ],
+  "waivers": [
+    {"id": 501, "policy_id": "waiver-policy", "policy_version": "1", "subject_kind": "review_tuple", "scope": "declaration:WidgetUnitTest", "expires_at": "2026-03-01T00:00:00+00:00", "waived_check_result_id": 103, "waived_human_verdict_id": null, "content_hash": "waiverhash-1"}
+  ],
+  "deviations": [
+    {"plan_item": "AC-1", "plan_said": "the guard clause rejects negative input", "agent_did": "edited src/test/java/com/fixture/WidgetUnitTest.java", "why": "base test change recorded by the runner", "kind": "judgment", "contract_change": 0}
+  ],
+  "assumptions": [{"id": 1, "text": "negative input is the only boundary in scope", "origin": "agent", "created_at": "2026-01-01T00:10:00+00:00"}],
+  "blind_spots": [{"kind": "declaration", "text": "WidgetUnitTest.java's guard clause signature was not independently confirmed", "source_artefact": "check_result:103", "hash": "ev-decl"}],
+  "test_summary": {
+    "strategy_rows": [{"test": "WidgetUnitTest.java", "action": "change", "size": "small", "criteria": "AC-1", "proves": "the guard clause rejects negative input"}],
+    "diff_test_files": ["src/test/java/com/fixture/WidgetUnitTest.java"]
+  },
+  "plan_sections": {
+    "intent": "Add a guard clause so Widget.compute rejects negative input.",
+    "scrutiny": "Look hardest at the boundary condition and its test.",
+    "alternatives": [{"alternative": "throw a checked exception", "rejected_because": "the rest of the class uses unchecked exceptions"}],
+    "contracts_changed": [
+      {"unit": "Widget.compute", "kind": "method", "source_declaration": "changed: public int compute(int n)", "input": "changed: rejects n < 0",
+       "output": "unchanged", "errors": "changed: throws IllegalArgumentException", "side_effects": "unchanged", "invariants": "unchanged",
+       "authorization": "unchanged", "ordering_concurrency": "unchanged", "transaction_persistence": "unchanged",
+       "compatibility": "changed: negative input now throws instead of returning a negative result"}
+    ],
+    "non_goals": ["No change to Widget.compute's positive-input behaviour"],
+    "scope_rows": [{"path": "src/main/java/com/fixture/Other.java", "action": "discretion", "reason": "unrelated helper, left untouched"}],
+    "risk_map": [{"place": "Widget.compute's guard clause", "why": "the only behaviour change in this ticket"}],
+    "checklist_verdicts": [{"line": "contracts-1", "verdict": "pass", "evidence_ids": ["check_result:103"]}]
+  },
+  "diff_path": "diff.patch"
+}

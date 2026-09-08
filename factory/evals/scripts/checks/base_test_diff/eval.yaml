@@ -22,3 +22,18 @@ cases:
     fixture: fixtures/planned_change
     globs: "src/test/java/**/*Test.java"
     expect: pass
+  - name: both_views_rerun_proves_the_change
+    fixture: fixtures/both_views_pass
+    globs: "src/test/java/**/*Test.java"
+    tests_head_in_base: true
+    expect: pass
+  - name: both_views_rerun_proves_nothing
+    fixture: fixtures/both_views_blind_spot
+    globs: "src/test/java/**/*Test.java"
+    tests_head_in_base: true
+    expect: blind_spot
+  - name: no_behaviour_change_task_is_exempt_from_the_rerun
+    fixture: fixtures/both_views_exempt
+    globs: "src/test/java/**/*Test.java"
+    tests_head_in_base: true
+    expect: pass

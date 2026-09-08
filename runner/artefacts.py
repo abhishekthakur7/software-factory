@@ -18,8 +18,8 @@ from dataclasses import dataclass
 import yaml
 
 # The fixed section list per artefact kind, in the order the file must
-# carry them. `packet` is a stipulated placeholder until the S6 packet is
-# built for real; the structure check applies it as written until then.
+# carry them. `packet` and `pr_body` are script-assembled, never agent
+# prose, but still carry a fixed section order the structure check applies.
 SECTIONS: dict[str, tuple[str, ...]] = {
     "brief": (
         "Ticket summary",
@@ -64,11 +64,37 @@ SECTIONS: dict[str, tuple[str, ...]] = {
         "Unknowns",
         "Required approvers",
     ),
+    # Charter order: tuple identity and freshness open the packet, then one
+    # evidence table, the plan's own narrative sections, and the exact
+    # branch diff last.
     "packet": (
-        "Summary",
+        "Identity and freshness",
         "Evidence",
+        "Intent",
+        "Scrutiny",
+        "Decisions",
+        "Not touched",
+        "Risk map",
+        "Deviations",
+        "Assumptions",
         "Test summary",
-        "Approvers",
+        "Blind spots",
+        "Diff",
+    ),
+    # Same narrative and evidence links as the packet, minus the literal
+    # branch diff -- GitHub's own diff view is the pull request's diff surface.
+    "pr_body": (
+        "Identity and freshness",
+        "Evidence",
+        "Intent",
+        "Scrutiny",
+        "Decisions",
+        "Not touched",
+        "Risk map",
+        "Deviations",
+        "Assumptions",
+        "Test summary",
+        "Blind spots",
     ),
 }
 
@@ -97,6 +123,14 @@ PLAN_TABLES: dict[str, tuple[str, ...]] = {
     ),
     "Test strategy": ("test", "action", "size", "criteria", "proves"),
     "Size": ("estimated_lines", "estimated_files", "basis", "justification"),
+}
+
+# The packet/pr_body's one evidence table, in `Evidence`. Both the S6
+# driver (building `packet_inputs.json`) and the standalone assembly
+# scripts (rendering it) read this column order from here, so neither can
+# drift from the other.
+PACKET_TABLES: dict[str, tuple[str, ...]] = {
+    "Evidence": ("element", "kind", "source_artefact", "hash", "status", "detail"),
 }
 
 # `Rollout`'s five `### ` subsections and each one's exact columns.
