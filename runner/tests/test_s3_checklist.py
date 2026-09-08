@@ -13,7 +13,7 @@ import json
 import pytest
 import yaml
 
-from runner import artefact_registry, checklist, manifest, queue, record
+from runner import artefact_registry, checklist, manifest, queue, record, waivers
 from runner.db import connect
 from runner.paths import FACTORY_DIR
 
@@ -362,9 +362,17 @@ def test_a_blind_spot_naming_a_seeded_unexpired_waiver_does_not_block(tmp_path):
         evidence_ids=[], waiver_id=None, reviewer_identity=ABHISHEK, reviewer_role="s3_reviewer", note="no evidence available",
         rubric_paths=OK_RUBRIC_PATHS,
     )
+    # A real, policy-backed waiver: `completeness` now asks
+    # `runner.waivers.validity`, which checks the policy binding and actor
+    # authority alongside expiry, not expiry alone.
+    verdict = record.get(conn, "human_verdict", verdict_id)
+    policy = waivers.load_policy()
     record.insert(
         conn, "waiver", ticket_id=ticket_id, waived_human_verdict_id=verdict_id, actor_identity=ABHISHEK,
-        reason="accepted risk", issued_at=record.now(), expires_at="2999-01-01T00:00:00+00:00",
+        actor_role="s3_reviewer", policy_id="impact-blind-spot", policy_version="1", policy_hash=policy.policy_hash,
+        subject_kind="plan_candidate", subject_hash=waivers.subject_hash(conn, human_verdict=verdict),
+        reason="accepted risk", scope="ticket: R-CK-1:grader", compensating_controls="manual review",
+        evidence_ids="[]", evidence_hashes="[]", issued_at=record.now(), expires_at="2999-01-01T00:00:00+00:00",
     )
     status = checklist.completeness(conn, ticket, [instance])
     assert status.complete
