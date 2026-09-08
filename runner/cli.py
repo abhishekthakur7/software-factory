@@ -8,7 +8,7 @@ import argparse
 import sqlite3
 from pathlib import Path
 
-from runner import gates, record, transitions
+from runner import gates, queue, record, tags, transitions
 from runner.db import connect
 from runner.paths import RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -95,6 +95,35 @@ def main(argv: list[str] | None = None) -> int:
     show_parser = subparsers.add_parser("show")
     show_parser.add_argument("ticket_id", type=int)
 
+    queue_parser = subparsers.add_parser("queue")
+    queue_parser.add_argument("--all", action="store_true", dest="show_all")
+
+    act_parser = subparsers.add_parser("act")
+    act_parser.add_argument("item_id", type=int)
+    act_parser.add_argument("action")
+    act_parser.add_argument("--actor", required=True)
+    act_parser.add_argument("--bucket")
+    act_parser.add_argument("--note")
+    act_parser.add_argument("--to")
+    act_parser.add_argument("--fm")
+    act_parser.add_argument("--category")
+    act_parser.add_argument("--severity")
+    act_parser.add_argument("--option", type=int)
+
+    abandon_parser = subparsers.add_parser("abandon")
+    abandon_parser.add_argument("ticket_id", type=int)
+    abandon_parser.add_argument("--actor", required=True)
+    abandon_parser.add_argument("--fm", required=True)
+    abandon_parser.add_argument("--note")
+
+    tag_parser = subparsers.add_parser("tag")
+    tag_parser.add_argument("target")
+    tag_parser.add_argument("kind")
+    tag_parser.add_argument("--fm", required=True)
+    tag_parser.add_argument("--actor", required=True)
+    tag_parser.add_argument("--note")
+    tag_parser.add_argument("--severity")
+
     args = parser.parse_args(argv)
     # The run tree lives beside the database: one root holds every piece of
     # run state, so pointing `--db` elsewhere moves the artefacts with it.
@@ -107,6 +136,22 @@ def main(argv: list[str] | None = None) -> int:
             print(run(conn, args.ticket_id, args.stage, runs_dir))
         elif args.verb == "show":
             print(show(conn, args.ticket_id))
+        elif args.verb == "queue":
+            print(queue.list_queue(conn, include_resolved=args.show_all))
+        elif args.verb == "act":
+            print(queue.act(
+                conn, item_id=args.item_id, action=args.action, actor=args.actor,
+                bucket=args.bucket, note=args.note, to=args.to, fm_id=args.fm,
+                category=args.category, severity=args.severity, option=args.option,
+                runs_dir=runs_dir,
+            ))
+        elif args.verb == "abandon":
+            print(queue.abandon(conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note))
+        elif args.verb == "tag":
+            print(tags.tag(
+                conn, target=args.target, kind=args.kind, fm_id=args.fm,
+                actor=args.actor, note=args.note, severity=args.severity,
+            ))
         conn.commit()
     finally:
         conn.close()

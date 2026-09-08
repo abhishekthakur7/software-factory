@@ -1,0 +1,102 @@
+# One seeded ticket carrying every Initial queue-item kind at once, for the
+# listing and display tests in test_queue.py. `$name` resolves to a
+# previously inserted row's id; `$name` embedded inside a larger string (the
+# escalation item's polymorphic `ref`) is substituted the same way.
+all_kinds:
+  ticket:
+    - as: ticket1
+      state: intake
+      opened_at: "2024-01-01T00:00:00+00:00"
+      title: Sample fixture ticket
+      ticket_type: bug_fix
+      data_class: internal
+      trust_profile_hash: trust-profile-hash-1
+      trust_approval_set_hash: trust-approval-set-hash-1
+      scrutiny_requested: Look hardest at the authorization check.
+  reviewer_set:
+    - as: planned_set
+      ticket_id: $ticket1
+      kind: planned
+      subject_hash: plan-subject-1
+      slots: '[{"source_rule": "planned:1", "role": "s3_reviewer", "min_count": 1, "distinct_from": [], "resolved": true}]'
+    - as: effective_set
+      ticket_id: $ticket1
+      kind: effective
+      subject_hash: review-subject-1
+      slots: '[{"source_rule": "CODEOWNERS:1", "role": "s6_reviewer", "min_count": 1, "distinct_from": [], "resolved": true}]'
+  question:
+    - as: question1
+      ticket_id: $ticket1
+      stage: S2
+      round: 1
+      rank: 1
+      options: '[{"label": "A", "consequence": "does A"}, {"label": "B", "consequence": "does B"}]'
+      default_option: 0
+      state: open
+  stage_run:
+    - as: failed_run
+      ticket_id: $ticket1
+      stage: S4
+      attempt: 1
+      outcome: fail
+  queue_item:
+    - as: item_question
+      ticket_id: $ticket1
+      kind: question
+      stage: S2
+      tier: light
+      ref: $question1
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_eligibility
+      ticket_id: $ticket1
+      kind: eligibility
+      stage: S0
+      tier: light
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_plan_approval
+      ticket_id: $ticket1
+      kind: plan_approval
+      stage: S3
+      tier: standard
+      approval_subject_hash: plan-subject-1
+      reviewer_set_id: $planned_set
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_packet_approval
+      ticket_id: $ticket1
+      kind: packet_approval
+      stage: S6
+      tier: standard
+      approval_subject_hash: review-subject-1
+      reviewer_set_id: $effective_set
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_red_check
+      ticket_id: $ticket1
+      kind: red_check
+      stage: S5
+      tier: standard
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_escalation
+      ticket_id: $ticket1
+      kind: escalation
+      stage: S4
+      tier: heavy
+      ref: "stage_run:$failed_run"
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_manual_pause
+      ticket_id: $ticket1
+      kind: manual_pause
+      stage: S4
+      tier: heavy
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_pr_outcome
+      ticket_id: $ticket1
+      kind: pr_outcome
+      stage: S7
+      tier: light
+      queued_at: "2024-01-01T00:00:00+00:00"
+    - as: item_rubric_inspection
+      ticket_id: $ticket1
+      kind: rubric_inspection
+      stage: S3
+      tier: standard
+      queued_at: "2024-01-01T00:00:00+00:00"
