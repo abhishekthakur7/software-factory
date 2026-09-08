@@ -8,12 +8,15 @@ wrong state is refused as that ticket's own `stage_run` with outcome
 to its run history. Otherwise the driver runs, its outcome and `ended_at`
 are recorded, and -- unless this is a `validation_only` run or the
 driver has no `PASS_EVENT` (S0, S5, S6: their exits are gates, not an
-automatic stage pass) -- a `pass` outcome applies that event.
+automatic stage pass) -- a `pass` outcome applies that event. Every
+`stage_run`/`utility_run` write goes through `run_ledger`, never a direct
+`record.insert`/`record.update`, so attempt numbering and lease bookkeeping
+live in exactly one place.
 """
 import sqlite3
 from pathlib import Path
 
-from runner import record, transitions
+from runner import record, run_ledger, transitions
 from runner.paths import RUNS_DIR
 from runner.stages import S0, S1, S2, S3, S4, S5, S6
 from runner.state_table import STAGE_STATE
@@ -32,59 +35,31 @@ def run_stage(
     """Run `stage` for `ticket_id` and return its outcome ("pass", "refused", or "refused_request")."""
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
-        record.insert(
-            conn,
-            "utility_run",
-            kind="refused_request",
-            outputs=f"no such ticket: {ticket_id}",
-            started_at=record.now(),
-            ended_at=record.now(),
+        run_id = run_ledger.open_utility_run(
+            conn, kind="refused_request", outputs=f"no such ticket: {ticket_id}"
         )
+        run_ledger.finish(conn, run_id, "refused_request", table="utility_run")
         return "refused_request"
     if stage not in DRIVERS:
-        record.insert(
-            conn,
-            "utility_run",
-            ticket_id=ticket_id,
-            kind="refused_request",
-            outputs=f"no such stage: {stage}",
-            started_at=record.now(),
-            ended_at=record.now(),
+        run_id = run_ledger.open_utility_run(
+            conn, kind="refused_request", ticket_id=ticket_id, outputs=f"no such stage: {stage}"
         )
+        run_ledger.finish(conn, run_id, "refused_request", table="utility_run")
         return "refused_request"
 
-    prior_attempts = conn.execute(
-        "SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = ?", (ticket_id, stage)
-    ).fetchone()[0]
-    attempt = prior_attempts + 1
     run_kind = "validation_only" if validation_only else "task"
 
     if ticket["state"] != STAGE_STATE[stage]:
-        record.insert(
-            conn,
-            "stage_run",
-            ticket_id=ticket_id,
-            stage=stage,
-            attempt=attempt,
-            run_kind=run_kind,
-            outcome="refused",
-            started_at=record.now(),
-            ended_at=record.now(),
+        stage_run_id = run_ledger.open_stage_run(
+            conn, ticket_id=ticket_id, stage=stage, run_kind=run_kind
         )
+        run_ledger.finish(conn, stage_run_id, "refused")
         return "refused"
 
-    stage_run_id = record.insert(
-        conn,
-        "stage_run",
-        ticket_id=ticket_id,
-        stage=stage,
-        attempt=attempt,
-        run_kind=run_kind,
-        started_at=record.now(),
-    )
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=stage, run_kind=run_kind)
     driver = DRIVERS[stage]
     outcome = driver.run(conn, ticket, stage_run_id, runs_dir)
-    record.update(conn, "stage_run", stage_run_id, outcome=outcome, ended_at=record.now())
+    run_ledger.finish(conn, stage_run_id, outcome)
     if outcome == "pass" and not validation_only and driver.PASS_EVENT is not None:
         transitions.apply(conn, ticket_id, driver.PASS_EVENT)
     return outcome

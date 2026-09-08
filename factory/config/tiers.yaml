@@ -1,0 +1,41 @@
+# Placeholder tier budgets and lease length. These numbers hold until three
+# pilot tickets have run, then a reviewed change recalibrates them from those
+# records.
+
+tiers: [light, standard, heavy]
+
+budgets:
+  # Tokens and wall-clock seconds for one stage run at each tier; applies to
+  # every stage except where overridden below.
+  by_tier:
+    light:
+      tokens: 400000
+      wall_clock_seconds: 1200
+    standard:
+      tokens: 800000
+      wall_clock_seconds: 2400
+    heavy:
+      tokens: 1500000
+      wall_clock_seconds: 3600
+  # S5 runs build commands that carry their own timeout, so no wall-clock
+  # budget applies there, at any tier.
+  overrides:
+    S5:
+      wall_clock_seconds: null
+
+# The cumulative budget across all of one ticket's S4 task invocations
+# (plan-task runs, fix rounds, and their validation-only runs together).
+s4_per_ticket:
+  light:
+    tokens: 1000000
+    wall_clock_seconds: 2700
+  standard:
+    tokens: 2000000
+    wall_clock_seconds: 5400
+  heavy:
+    tokens: 4000000
+    wall_clock_seconds: 9000
+
+# Default lease length the run ledger gives a freshly opened or renewed run.
+leases:
+  seconds: 300

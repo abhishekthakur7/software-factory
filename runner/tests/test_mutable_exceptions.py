@@ -30,7 +30,7 @@ ALLOWED_COLUMNS = {
         "cost", "currency", "cost_basis", "pricing_table_hash", "cost_settled_at",
         "updated_at",
     },
-    "utility_run": set(),
+    "utility_run": {"outcome", "heartbeat_at", "lease_expires_at", "ended_at", "updated_at"},
     "tool_call": set(),
     "artefact": set(),
     "queue_item": {
@@ -152,7 +152,7 @@ def test_stage_run_cost_settlement_can_be_written_once(tmp_path):
     conn.execute(
         "UPDATE stage_run SET cost = ?, currency = ?, cost_basis = ?, "
         "pricing_table_hash = ?, cost_settled_at = ? WHERE id = ?",
-        (1.5, "USD", "list_price", "priceshash", "2026-01-01T00:00:00+00:00", stage_run_id),
+        (1.5, "USD", "price_table_estimate", "priceshash", "2026-01-01T00:00:00+00:00", stage_run_id),
     )
 
     row = record.get(conn, "stage_run", stage_run_id)
@@ -168,7 +168,7 @@ def test_must_reject_stage_run_cost_settlement_second_write(tmp_path):
     conn.execute(
         "UPDATE stage_run SET cost = ?, currency = ?, cost_basis = ?, "
         "pricing_table_hash = ?, cost_settled_at = ? WHERE id = ?",
-        (1.5, "USD", "list_price", "priceshash", "2026-01-01T00:00:00+00:00", stage_run_id),
+        (1.5, "USD", "price_table_estimate", "priceshash", "2026-01-01T00:00:00+00:00", stage_run_id),
     )
 
     with pytest.raises(sqlite3.IntegrityError):

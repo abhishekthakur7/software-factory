@@ -27,6 +27,19 @@ together with every other column naming the same sentinel). `ddl()` turns those 
 triggers that enforce them, so the allowlist has exactly one home: this
 module. A later ticket that needs a new field mutable marks it here rather
 than adding a second enforcement path.
+
+A column may also declare `values`, a closed set of strings `ddl()` turns
+into a `CHECK` constraint. SQLite evaluates `col IN (...)` to `NULL`, not to
+false, when `col` is `NULL`, and a `CHECK` only rejects a row when its
+expression is false — so a nullable column with `values` still accepts
+`NULL` with no extra clause. Each value set used by more than one column is
+a module-level constant so the two columns (or the code that writes them)
+can never drift apart by hand-copying the list twice.
+
+`VIEWS` names read-only `CREATE VIEW` statements over the tables above,
+emitted by `ddl()` after every table and its triggers. A view earns a place
+here only when it exists to exclude rows a plain `SELECT` would otherwise
+have to filter at every call site.
 """
 from dataclasses import dataclass, field
 
@@ -43,6 +56,8 @@ class Column:
     # column naming the same sentinel is in the group, the sentinel names
     # itself, and a non-null sentinel means the group is already settled.
     once: str | None = None
+    # The column's closed value set, or None for free text.
+    values: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +69,60 @@ class Table:
 def _id() -> Column:
     return Column("id", "INTEGER")
 
+
+# stage_run.stage's closed set: the S0 to S7 stage range.
+STAGES: tuple[str, ...] = ("S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7")
+
+# stage_run.run_kind's closed set: a plan-task execution with an agent, an
+# agent fix round against failing machine checks, and the runner's
+# script-only validation run after a fix round.
+RUN_KINDS: tuple[str, ...] = ("task", "fix_round", "validation_only")
+
+# stage_run.outcome's closed set.
+OUTCOMES: tuple[str, ...] = (
+    "pass",
+    "fail",
+    "infrastructure_failure",
+    "sandbox_violation",
+    "blocked",
+    "aborted_budget",
+    "aborted_human",
+    "refused",
+)
+
+# stage_run.failure_kind's closed set; nullable, so a passing or still-open
+# run simply carries no failure_kind rather than one of these values.
+FAILURE_KINDS: tuple[str, ...] = (
+    "implementation",
+    "verification",
+    "infrastructure",
+    "sandbox_integrity",
+    "structural",
+    "expired_lease",
+    "stale_binding",
+)
+
+# The cost-provenance basis, shared by stage_run and utility_run.
+COST_BASES: tuple[str, ...] = (
+    "provider_settled",
+    "runtime_estimate",
+    "price_table_estimate",
+    "unavailable",
+)
+
+# utility_run.kind's closed set: work that is not itself a ticket stage.
+UTILITY_KINDS: tuple[str, ...] = (
+    "setup",
+    "digest",
+    "baseline_import",
+    "purge",
+    "reindex",
+    "report",
+    "fixture_replay",
+    "improvement",
+    "refused_request",
+    "other",
+)
 
 TABLES: tuple[Table, ...] = (
     Table(
@@ -115,12 +184,12 @@ TABLES: tuple[Table, ...] = (
         (
             _id(),
             Column("ticket_id", "INTEGER", nullable=False, references="ticket.id"),
-            Column("stage", "TEXT", nullable=False),
+            Column("stage", "TEXT", nullable=False, values=STAGES),
             Column("plan_item", "TEXT"),
             Column("plan_tuple_id", "INTEGER", references="evidence_tuple.id"),
             Column("attempt", "INTEGER"),
             Column("verification_attempt", "INTEGER"),
-            Column("run_kind", "TEXT"),
+            Column("run_kind", "TEXT", values=RUN_KINDS),
             Column("parent_run_id", "INTEGER", references="stage_run.id"),
             Column("tier", "TEXT"),
             Column("runtime", "TEXT"),
@@ -145,12 +214,12 @@ TABLES: tuple[Table, ...] = (
             Column("tokens_out", "INTEGER"),
             Column("cost", "REAL", once="cost_settled_at"),
             Column("currency", "TEXT", once="cost_settled_at"),
-            Column("cost_basis", "TEXT", once="cost_settled_at"),
+            Column("cost_basis", "TEXT", once="cost_settled_at", values=COST_BASES),
             Column("pricing_table_hash", "TEXT", once="cost_settled_at"),
             Column("cost_settled_at", "TEXT", once="cost_settled_at"),
             Column("wall_clock_seconds", "REAL"),
-            Column("outcome", "TEXT", mutable=True),
-            Column("failure_kind", "TEXT", mutable=True),
+            Column("outcome", "TEXT", mutable=True, values=OUTCOMES),
+            Column("failure_kind", "TEXT", mutable=True, values=FAILURE_KINDS),
             Column("started_at", "TEXT", mutable=True),
             Column("heartbeat_at", "TEXT", mutable=True),
             Column("lease_expires_at", "TEXT", mutable=True),
@@ -163,7 +232,7 @@ TABLES: tuple[Table, ...] = (
         (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
-            Column("kind", "TEXT"),
+            Column("kind", "TEXT", values=UTILITY_KINDS),
             Column("inputs", "TEXT"),
             Column("outputs", "TEXT"),
             Column("manifest_hash", "TEXT"),
@@ -177,14 +246,20 @@ TABLES: tuple[Table, ...] = (
             Column("tokens", "INTEGER"),
             Column("cost", "REAL"),
             Column("currency", "TEXT"),
-            Column("cost_basis", "TEXT"),
+            Column("cost_basis", "TEXT", values=COST_BASES),
             Column("pricing_table_hash", "TEXT"),
             Column("wall_clock_seconds", "REAL"),
-            Column("outcome", "TEXT"),
-            Column("heartbeat_at", "TEXT"),
-            Column("lease_expires_at", "TEXT"),
+            # A utility run is opened and later finished, same as a stage
+            # run: outcome and ended_at are unknown until the work
+            # completes, and a live run's lease is renewed by heartbeat.
+            Column("outcome", "TEXT", mutable=True),
+            Column("heartbeat_at", "TEXT", mutable=True),
+            Column("lease_expires_at", "TEXT", mutable=True),
             Column("started_at", "TEXT"),
-            Column("ended_at", "TEXT"),
+            Column("ended_at", "TEXT", mutable=True),
+            # record.update always stamps this on an in-place change; every
+            # other table with a mutable field carries the same column.
+            Column("updated_at", "TEXT", mutable=True),
         ),
     ),
     Table(
@@ -654,6 +729,19 @@ LATER_TABLES: frozenset[str] = frozenset(
     {"score", "human_signal", "proposal", "benchmark", "fixture_candidate"}
 )
 
+# (name, select statement) pairs; `ddl()` emits one `CREATE VIEW IF NOT
+# EXISTS <name> AS <select>` per entry, after every table and its triggers.
+VIEWS: tuple[tuple[str, str], ...] = (
+    (
+        "stage_reliability_view",
+        # Selecting from stage_run alone is what excludes utility_run by
+        # construction: a later ticket narrows this further to first
+        # attempts, but a utility run can never appear here regardless.
+        "SELECT id, ticket_id, stage, attempt, verification_attempt, run_kind, "
+        "outcome, failure_kind, started_at, ended_at FROM stage_run",
+    ),
+)
+
 
 def _mutability_triggers(table: Table) -> list[str]:
     """The append-only and once-settlement triggers for one table.
@@ -690,8 +778,9 @@ def _mutability_triggers(table: Table) -> list[str]:
 
 
 def ddl() -> list[str]:
-    """Return one `CREATE TABLE IF NOT EXISTS` statement per table, followed by
-    that table's mutability-enforcing triggers, in `TABLES` order.
+    """Return one `CREATE TABLE IF NOT EXISTS` statement per table, that
+    table's mutability-enforcing triggers, and then every `VIEWS` entry, in
+    that order.
     """
     statements = []
     for table in TABLES:
@@ -703,6 +792,9 @@ def ddl() -> list[str]:
             piece = f"{column.name} {column.type}"
             if not column.nullable:
                 piece += " NOT NULL"
+            if column.values is not None:
+                quoted = ", ".join(f"'{value}'" for value in column.values)
+                piece += f" CHECK ({column.name} IN ({quoted}))"
             lines.append(piece)
         for column in table.columns:
             if column.references:
@@ -713,4 +805,6 @@ def ddl() -> list[str]:
         body = ",\n    ".join(lines)
         statements.append(f"CREATE TABLE IF NOT EXISTS {table.name} (\n    {body}\n)")
         statements.extend(_mutability_triggers(table))
+    for view_name, select_sql in VIEWS:
+        statements.append(f"CREATE VIEW IF NOT EXISTS {view_name} AS {select_sql}")
     return statements

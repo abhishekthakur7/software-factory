@@ -132,6 +132,12 @@ files:
     content_hash: d074772c30e456cd1ef3d2c808555a264971a92d525bf8b342d77b30bdcfc88f
   - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
+  - path: factory/config/tiers.yaml
+    content_hash: ae65addb28bd84bb1985ba72f32b99809fee15f3c1e10fad16720ccc69765ef4
+  - path: factory/config/owners.yaml
+    content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
+  - path: factory/config/trust-profile.yaml
+    content_hash: ec29090a843d393d1198a1199d3ce2b23ca7e80d1393c1c476b4c01fbe59fd85
 stages:
   S0:
     agent: null
