@@ -141,11 +141,13 @@ files:
   - path: factory/config/project.yaml
     content_hash: 694736458ee748af4d52bbc6908b2d063c03656087812c6258eef4dcdae8bf1e
   - path: factory/config/service-tiers.yaml
-    content_hash: d7d3f152da635fee4df57a93acf6c0184f5b6f8313969cfaccdd11e5aa0995d6
+    content_hash: d807d77e152a5af34391de17bc01262b37b5ba521e3d243d5ba8ac60d200c1af
   - path: factory/config/ticket-types.yaml
-    content_hash: 476043b5045d4a88f55fedf6815e7613e4921335015705135e04ea0f65830c3e
+    content_hash: 191d96ef01d4bb295c9f1f2f45f65fe528596ace0129b999f624b05016fc8fbc
   - path: factory/config/sensitive-paths.yaml
-    content_hash: e873633949b4517d2eb8d3c4abf034d15e1f217221b85d9b1399c76f018d0392
+    content_hash: d6f425fafb63a7a0fc5c0e51fe676ea0d2a097a8a4a9a796acee4ecba09e76af
+  - path: factory/config/exclusions.yaml
+    content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
   - path: factory/config/artifact-to-service.yaml
     content_hash: 0cba1d7191af7be150b9878286a250ec2f2337e6fa5981995f4d728bee71bf94
   - path: factory/config/command-recipes.yaml

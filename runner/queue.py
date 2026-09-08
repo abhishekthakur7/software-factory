@@ -203,15 +203,19 @@ def _answer(conn: sqlite3.Connection, item: sqlite3.Row, *, action: str, actor: 
     record.update(conn, "question", question_id, state="answered")
 
 
-def _override(conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, note: str | None, fm_id: str | None) -> None:
-    record.update(
-        conn,
-        "ticket",
-        item["ticket_id"],
-        tier_override_by=actor,
-        tier_override_at=record.now(),
-        tier_override_reason=note,
-    )
+def _override(
+    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, note: str | None, fm_id: str | None, tier: str | None,
+) -> None:
+    ticket = record.get(conn, "ticket", item["ticket_id"])
+    # R-S0-8: widening a pilot exclusion is a recorded graduation decision,
+    # never a tier override, so an excluded ticket refuses this action
+    # outright rather than silently letting a human route around S0.
+    if ticket["close_reason"] == "pilot_excluded":
+        raise ActionRefused(f"ticket {item['ticket_id']} is excluded under pilot eligibility; override is refused")
+    fields = {"tier_override_by": actor, "tier_override_at": record.now(), "tier_override_reason": note}
+    if tier is not None:
+        fields["tier_final"] = tier
+    record.update(conn, "ticket", item["ticket_id"], **fields)
     tags.tag(conn, target=f"ticket:{item['ticket_id']}", kind="override", fm_id=fm_id, actor=actor, note=note)
 
 
@@ -321,7 +325,10 @@ def _clear_blocked_on(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
         record.update(conn, "ticket", item["ticket_id"], blocked_on=None)
 
 
-def _resolve(conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, action: str, note: str | None, bucket: str | None) -> None:
+def _resolve(
+    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, action: str, note: str | None,
+    bucket: str | None, owners_obj: owners.Owners,
+) -> None:
     """Settle the item's once-only resolution columns and clear `ticket.blocked_on` if it named this item."""
     record.update(
         conn,
@@ -332,6 +339,7 @@ def _resolve(conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, action:
         action=action,
         note=note,
         active_attention_bucket=bucket,
+        resolved_role=_actor_role(owners_obj, actor),
     )
     _clear_blocked_on(conn, item)
 
@@ -349,6 +357,7 @@ def act(
     category: str | None = None,
     severity: str | None = None,
     option: int | None = None,
+    tier: str | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
     runs_dir: Path = RUNS_DIR,
 ) -> str:
@@ -357,7 +366,8 @@ def act(
     Raises `LookupError` for an unknown item and `ActionRefused` for every
     other refusal: an already-resolved item, an action not in this kind's
     mapping, an actor `owners_path` does not name, a missing mandatory
-    bucket, or an approval action whose actor fits no reviewer slot. A
+    bucket, an approval action whose actor fits no reviewer slot, or --
+    for an `eligibility` item -- an invalid governance state. A
     `control_event` is recorded and returns without resolving the item;
     every other action settles the item's resolution columns before
     returning.
@@ -379,6 +389,17 @@ def act(
     if action not in _allowed_actions(kind):
         raise ActionRefused(f"action {action!r} is not valid for queue item kind {kind!r}")
 
+    if kind == "eligibility":
+        # Imported here, not at module scope: S0 itself opens this item
+        # through `queue.open_item`, so a top-level import in either
+        # direction would be circular.
+        from runner.stages import S0
+
+        ticket = record.get(conn, "ticket", item["ticket_id"])
+        reasons = S0.governance_valid(conn, ticket)
+        if reasons:
+            raise ActionRefused(f"eligibility item {item_id} fails governance validity: {', '.join(reasons)}")
+
     owners_obj = owners.load_owners(owners_path)
     if actor not in _known_identities(owners_obj):
         raise ActionRefused(f"unknown actor identity: {actor!r}")
@@ -398,7 +419,7 @@ def act(
     elif action in _RESOLVE_ONLY_ACTIONS:
         pass
     elif action == "override":
-        _override(conn, item, actor=actor, note=note, fm_id=fm_id)
+        _override(conn, item, actor=actor, note=note, fm_id=fm_id, tier=tier)
     elif action == "approve":
         _approve(conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, note=note, runs_dir=runs_dir)
     elif action == "redirect":
@@ -416,7 +437,7 @@ def act(
     else:
         raise ActionRefused(f"unhandled action: {action!r}")
 
-    _resolve(conn, item, actor=actor, action=action, note=note, bucket=bucket)
+    _resolve(conn, item, actor=actor, action=action, note=note, bucket=bucket, owners_obj=owners_obj)
     return f"queue item {item_id}: resolved with {action}"
 
 

@@ -93,7 +93,9 @@ def test_advance_runs_the_due_stage_then_waits_at_the_gate_then_applies_it(db_pa
     """`factory advance` runs S0 in intake, then waits on the eligibility
     item, then admits the ticket once it is granted, then runs S1."""
     conn = connect(db_path)
-    ticket_id = tickets.open_ticket(conn, title="t")
+    # S0 is now the real driver: service and ticket_type must resolve to a
+    # real pilot-eligible pair for its lookups to pass rather than reject.
+    ticket_id = tickets.open_ticket(conn, title="t", service="fixture-project", ticket_type="small_feature")
     conn.commit()
     conn.close()
 

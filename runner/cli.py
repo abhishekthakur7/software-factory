@@ -224,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     act_parser.add_argument("--category")
     act_parser.add_argument("--severity")
     act_parser.add_argument("--option", type=int)
+    act_parser.add_argument("--tier")
 
     abandon_parser = subparsers.add_parser("abandon")
     abandon_parser.add_argument("ticket_id", type=int)
@@ -287,7 +288,7 @@ def main(argv: list[str] | None = None) -> int:
                 conn, item_id=args.item_id, action=args.action, actor=args.actor,
                 bucket=args.bucket, note=args.note, to=args.to, fm_id=args.fm,
                 category=args.category, severity=args.severity, option=args.option,
-                runs_dir=runs_dir,
+                tier=args.tier, runs_dir=runs_dir,
             ))
         elif args.verb == "abandon":
             print(queue.abandon(

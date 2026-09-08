@@ -19,7 +19,8 @@ from runner.db import connect
 ALLOWED_COLUMNS = {
     "ticket": {
         "state", "blocked_on", "pause_requested", "paused_at",
-        "tier_override_by", "tier_override_at", "tier_override_reason",
+        "service_tier", "ticket_type", "tier_provisional", "scrutiny_requested",
+        "tier_final", "tier_override_by", "tier_override_at", "tier_override_reason",
         "opened_at", "factory_completed_at", "closed_at", "close_reason",
         "pr_url", "pr_identity", "last_remote_head_sha", "last_pr_body_hash",
         "base_sha", "target_base_sha", "branch", "worktree_path", "head_sha",
@@ -35,7 +36,7 @@ ALLOWED_COLUMNS = {
     "tool_call": set(),
     "artefact": set(),
     "queue_item": {
-        "resolved_at", "resolved_by", "action", "note", "active_attention_bucket",
+        "resolved_at", "resolved_by", "resolved_role", "action", "note", "active_attention_bucket",
         "updated_at",
     },
     "question": {"state", "updated_at"},

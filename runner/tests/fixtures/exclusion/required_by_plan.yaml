@@ -1,0 +1,6 @@
+# The plan itself names the excluded sensitive path as in scope, so the
+# diff touching it is the plan's required surface, not an accidental one.
+plan_paths:
+  - src/main/java/com/fixture/auth/Login.java
+diff_paths:
+  - src/main/java/com/fixture/auth/Login.java

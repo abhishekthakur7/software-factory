@@ -1,0 +1,78 @@
+# Every surface Initial pilot eligibility excludes (R-S0-8), each mapped to
+# the path globs and the case-insensitive text patterns S0 scans the ticket
+# title against. This is a lax first cut, seeded generously and plainly; the
+# owner narrows it once real tickets show which patterns are too broad or
+# too quiet. `sensitive_path`'s own path globs are read from
+# `sensitive-paths.yaml` rather than repeated here.
+surfaces:
+  sensitive_path:
+    path_globs: []
+    text_patterns: []
+  auth_or_permission:
+    path_globs:
+      - "src/main/java/com/fixture/auth/**"
+      - "src/main/java/com/fixture/security/**"
+    text_patterns:
+      - "authentication"
+      - "authoriz"
+      - "authoris"
+      - "permission"
+      - "\\blogin\\b"
+      - "access control"
+  payments_or_secrets:
+    path_globs:
+      - "src/main/java/com/fixture/payments/**"
+      - "src/main/resources/secrets/**"
+    text_patterns:
+      - "payment"
+      - "billing"
+      - "credit card"
+      - "\\bsecret\\b"
+      - "api key"
+      - "credential"
+  schema_or_data_migration:
+    path_globs:
+      - "src/main/resources/db/migration/**"
+    text_patterns:
+      - "migration"
+      - "schema change"
+      - "alter table"
+      - "database schema"
+  infrastructure:
+    path_globs:
+      - "infra/**"
+      - "terraform/**"
+      - "**/Dockerfile"
+      - "**/*.tf"
+    text_patterns:
+      - "infrastructure"
+      - "deployment pipeline"
+      - "kubernetes"
+      - "terraform"
+  regulated_or_disallowed_data:
+    path_globs: []
+    text_patterns:
+      - "personal health information"
+      - "\\bphi\\b"
+      - "social security"
+      - "\\bssn\\b"
+      - "\\bgdpr\\b"
+      - "\\bpii\\b"
+  public_contract:
+    path_globs: []
+    text_patterns:
+      - "public api"
+      - "new endpoint"
+      - "breaking change"
+      - "event schema"
+      - "serialized format"
+      - "contract change"
+  unavailable_production_facts:
+    path_globs: []
+    text_patterns:
+      - "production logs"
+      - "error budget"
+      - "\\bsli\\b"
+      - "\\bslo\\b"
+      - "live traffic"
+      - "current production"

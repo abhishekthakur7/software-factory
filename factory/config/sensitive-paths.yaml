@@ -3,3 +3,5 @@
 # for paths CODEOWNERS does not cover.
 paths:
   "src/main/java/com/fixture/auth/**": abhishek
+  "src/main/java/com/fixture/payments/**": abhishek
+  "src/main/resources/secrets/**": abhishek

@@ -213,17 +213,29 @@ TABLES: tuple[Table, ...] = (
             Column("trust_profile_hash", "TEXT"),
             Column("trust_approval_set_hash", "TEXT"),
             Column("service", "TEXT"),
-            Column("service_tier", "TEXT"),
-            Column("ticket_type", "TEXT"),
+            # S0's lookups settle this group once, in place: a ticket
+            # seeded with a value already set keeps it (S0 stamps only the
+            # still-null members), and a second attempt to write any of
+            # them is rejected. tier_provisional is the group's own
+            # sentinel, since it is always the last of the three S0 sets.
+            Column("service_tier", "TEXT", once="tier_provisional"),
+            Column("ticket_type", "TEXT", once="tier_provisional"),
             # Pinned at eligibility; moved only by a human-approved manifest
             # migration, which returns the ticket to context.
             Column("factory_manifest_hash", "TEXT", mutable=True),
-            Column("tier_provisional", "TEXT"),
-            Column("tier_final", "TEXT"),
+            Column("tier_provisional", "TEXT", once="tier_provisional"),
+            # S0 may raise it to heavy on a sensitive-path candidate, a
+            # human may override it at eligibility, and S1's real final-tier
+            # computation moves it again later -- so unlike tier_provisional
+            # it settles in place rather than once at insert.
+            Column("tier_final", "TEXT", mutable=True),
             Column("tier_override_by", "TEXT", mutable=True),
             Column("tier_override_at", "TEXT", mutable=True),
             Column("tier_override_reason", "TEXT", mutable=True),
-            Column("scrutiny_requested", "TEXT"),
+            # S0's template fill sets it after the row already exists, and
+            # the human may edit it at eligibility, so it settles in place
+            # rather than once.
+            Column("scrutiny_requested", "TEXT", mutable=True),
             # Display summary, not an approval gate input.
             Column("required_approvers", "TEXT"),
             Column("state", "TEXT", mutable=True),
@@ -412,6 +424,11 @@ TABLES: tuple[Table, ...] = (
             Column("queued_at", "TEXT"),
             Column("resolved_at", "TEXT", once="resolved_at"),
             Column("resolved_by", "TEXT", once="resolved_at"),
+            # The role `resolved_by`'s identity held at decision time, from
+            # owners.yaml -- provenance recorded alongside the identity
+            # itself, since a role and the person holding it can each
+            # change independently.
+            Column("resolved_role", "TEXT", once="resolved_at"),
             Column("action", "TEXT", once="resolved_at"),
             Column("note", "TEXT", once="resolved_at"),
             Column("approval_subject_hash", "TEXT"),

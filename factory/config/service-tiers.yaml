@@ -1,5 +1,8 @@
 # Hand-maintained service tier: T1 (customer-facing, critical), T2
-# (important), or T3 (internal or tooling). Filled for the pilot service.
+# (important), or T3 (internal or tooling), plus the service's primary
+# language and the repositories it lives in. Filled for the pilot service.
 services:
   fixture-project:
     tier: T2
+    language: java
+    repositories: [fixture-project]
