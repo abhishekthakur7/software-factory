@@ -181,26 +181,15 @@ def _record_decision(
 
 
 def _answer(conn: sqlite3.Connection, item: sqlite3.Row, *, action: str, actor: str, option: int | None, note: str | None) -> None:
+    # Deferred import: `questions` imports this module back (for
+    # `open_item`), so a top-level import here would cycle.
+    from runner import questions
+
     table, _, raw_id = (item["ref"] or "").partition(":")
     question = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
     if question is None:
         raise ActionRefused(f"question item {item['id']} names no question: {item['ref']!r}")
-    question_id = question["id"]
-    if action == "answer":
-        resolution_kind, chosen = "chosen_option", option if option is not None else question["default_option"]
-    else:
-        resolution_kind, chosen = "default_accepted", question["default_option"]
-    record.insert(
-        conn,
-        "answer",
-        question_id=question_id,
-        resolution_kind=resolution_kind,
-        chosen_option=str(chosen) if chosen is not None else None,
-        free_text=note,
-        answered_by=actor,
-        answered_at=record.now(),
-    )
-    record.update(conn, "question", question_id, state="answered")
+    questions.record_answer(conn, question["id"], action=action, actor=actor, option=option, note=note)
 
 
 def _override(
