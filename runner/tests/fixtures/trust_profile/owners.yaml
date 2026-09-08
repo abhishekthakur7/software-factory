@@ -1,0 +1,36 @@
+# The authority policy: every named role's identity and responsibilities.
+roles:
+  factory_owner:
+    identity: abhishek
+    responsibilities: [tiers, topology, manifests_rubrics]
+  security_approver:
+    identity: abhishek
+    responsibilities: [trust_policy, sandbox_recipes, approvals]
+  legal_data_governance_approver:
+    identity: abhishek
+    responsibilities: [trust_policy, approvals]
+  service_owner:
+    identity: abhishek
+    responsibilities: [tiers, topology]
+  sensitive_path_owner:
+    identity: abhishek
+    responsibilities: [approvals, sandbox_recipes]
+  ticket_engineer:
+    identity: abhishek
+    responsibilities: [sandbox_recipes]
+  s3_reviewer:
+    identity: abhishek
+    responsibilities: [approvals]
+  s6_reviewer:
+    identity: abhishek
+    responsibilities: [approvals]
+  outcome_recorder:
+    identity: abhishek
+    responsibilities: [incident_attribution_disposition]
+  incident_reviewer:
+    identity: abhishek
+    responsibilities: [incident_attribution_disposition]
+shared_identities:
+  - identity: abhishek
+    roles: [factory_owner, service_owner, ticket_engineer, s3_reviewer, s6_reviewer, outcome_recorder, incident_reviewer]
+    note: the pilot has one person, who holds all of these non-sensitive roles at once.
