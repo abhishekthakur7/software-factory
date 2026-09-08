@@ -1,0 +1,5 @@
+# Glob to owner. Seeded with the pilot service's sensitive directories.
+# Where the repository has CODEOWNERS, it wins; this file adds owners only
+# for paths CODEOWNERS does not cover.
+paths:
+  "src/main/java/com/fixture/auth/**": abhishek

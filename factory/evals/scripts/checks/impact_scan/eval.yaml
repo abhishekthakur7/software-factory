@@ -1,0 +1,20 @@
+subject: factory/scripts/checks/impact_scan
+cases:
+  - name: authoritative
+    fixture: fixtures/authoritative
+    dependency:
+      group_id: com.fixtureeval
+      artifact_id: known
+    expect_coverage: authoritative
+  - name: partial
+    fixture: fixtures/partial
+    dependency:
+      group_id: com.fixtureeval
+      artifact_id: partial
+    expect_coverage: partial
+  - name: unknown
+    fixture: fixtures/unknown
+    dependency:
+      group_id: com.fixtureeval
+      artifact_id: mystery
+    expect_coverage: unknown

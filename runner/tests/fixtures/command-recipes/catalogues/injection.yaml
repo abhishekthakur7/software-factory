@@ -1,0 +1,16 @@
+# a literal argument value carrying command-substitution
+# syntax is refused before dispatch, so the digest here is never even
+# checked -- any placeholder value works.
+recipes:
+  - id: injection_test
+    executable: runner/tests/fixtures/command-recipes/scripts/ok.py
+    executable_digest: "0000000000000000000000000000000000000000000000000000000000000000"
+    args:
+      - "$(whoami)"
+    cwd_role: scratch
+    stages: [S4]
+    timeout_seconds: 5
+    expected_exit_codes: [0]
+    env_allowlist: []
+    network: none
+    output_retention: discard

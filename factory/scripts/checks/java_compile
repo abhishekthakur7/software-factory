@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""Compile a Java source tree and report pass or fail.
+
+Standalone: no import of `runner`, so the trusted control plane's own code
+never has to load inside the sandbox that runs a check.
+"""
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="java_compile")
+    parser.add_argument("--source-root", required=True)
+    parser.add_argument("--classpath", default="")
+    parser.add_argument("--out", required=True)
+    args = parser.parse_args(argv)
+
+    source_root = Path(args.source_root)
+    java_files = sorted(str(p) for p in source_root.rglob("*.java"))
+    if not java_files:
+        print(f"no .java files under {source_root}", file=sys.stderr)
+        return 1
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    cmd = ["javac", "-d", str(out_dir)]
+    if args.classpath:
+        cmd += ["-cp", args.classpath]
+    cmd += java_files
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    sys.stdout.write(result.stdout)
+    sys.stderr.write(result.stderr)
+    return result.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

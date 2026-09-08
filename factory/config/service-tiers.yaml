@@ -1,0 +1,5 @@
+# Hand-maintained service tier: T1 (customer-facing, critical), T2
+# (important), or T3 (internal or tooling). Filled for the pilot service.
+services:
+  fixture-project:
+    tier: T2

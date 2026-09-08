@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""Walk a project's Maven dependency tree through a local vendored repository.
+
+Standalone: no import of `runner`, and no network access -- every
+dependency is resolved by reading pom files under `--vendor-repo`, never a
+registry endpoint. Each resolved artefact is mapped to a service through a
+versioned "groupId:artifactId" mapping file; an artefact the mapping does
+not name resolves to `unknown` coverage rather than an error, since absence
+from that file is itself evidence, not a defect.
+"""
+import argparse
+import json
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import yaml
+
+
+def _strip_ns(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _parse_pom_dependencies(pom_path: Path) -> list[tuple[str, str, str]]:
+    root = ET.parse(pom_path).getroot()
+    dependencies = []
+    for child in root:
+        if _strip_ns(child.tag) != "dependencies":
+            continue
+        for dep_el in child:
+            if _strip_ns(dep_el.tag) != "dependency":
+                continue
+            fields = {}
+            for field_el in dep_el:
+                name = _strip_ns(field_el.tag)
+                if name in ("groupId", "artifactId", "version"):
+                    fields[name] = (field_el.text or "").strip()
+            dependencies.append((fields["groupId"], fields["artifactId"], fields["version"]))
+    return dependencies
+
+
+def _vendor_pom_path(vendor_repo: Path, group_id: str, artifact_id: str, version: str) -> Path:
+    return vendor_repo.joinpath(*group_id.split(".")) / artifact_id / version / f"{artifact_id}-{version}.pom"
+
+
+def _walk(vendor_repo: Path, group_id: str, artifact_id: str, version: str, depth: int, seen: set, out: list) -> None:
+    key = (group_id, artifact_id, version)
+    if key in seen:
+        return
+    seen.add(key)
+    out.append({"group_id": group_id, "artifact_id": artifact_id, "version": version, "depth": depth})
+    pom_path = _vendor_pom_path(vendor_repo, group_id, artifact_id, version)
+    if not pom_path.is_file():
+        return  # not resolvable inside the vendored repository: a leaf for this walk
+    for dep_group, dep_artifact, dep_version in _parse_pom_dependencies(pom_path):
+        _walk(vendor_repo, dep_group, dep_artifact, dep_version, depth + 1, seen, out)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="impact_scan")
+    parser.add_argument("--pom", required=True)
+    parser.add_argument("--vendor-repo", required=True)
+    parser.add_argument("--mapping", required=True)
+    args = parser.parse_args(argv)
+
+    vendor_repo = Path(args.vendor_repo)
+    resolved: list[dict] = []
+    seen: set = set()
+    for group_id, artifact_id, version in _parse_pom_dependencies(Path(args.pom)):
+        _walk(vendor_repo, group_id, artifact_id, version, 1, seen, resolved)
+
+    mapping_doc = yaml.safe_load(Path(args.mapping).read_text()) or {}
+    mappings = mapping_doc.get("mappings", {})
+    mapping_name = Path(args.mapping).name
+
+    dependencies = []
+    for entry in resolved:
+        key = f"{entry['group_id']}:{entry['artifact_id']}"
+        mapped = mappings.get(key)
+        dependencies.append({
+            **entry,
+            "direction": "outbound",
+            "method": "import_scan",
+            "mapping_used": mapping_name,
+            "coverage": mapped["coverage"] if mapped else "unknown",
+            "service": mapped["service"] if mapped else None,
+        })
+
+    print(json.dumps({"dependencies": dependencies}, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

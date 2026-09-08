@@ -1,0 +1,7 @@
+# Ticket types the pilot accepts, the Jira issue types each maps from, and
+# the services eligible for each type. Any other type is rejected at intake
+# with "outside pilot scope" until the owner widens this list.
+types:
+  small_feature:
+    jira_issue_types: [Story]
+    eligible_services: [fixture-project]

@@ -20,6 +20,7 @@ COPY_MOVE_CALLS = {
     ("shutil", "copy"),
     ("shutil", "copy2"),
     ("shutil", "copyfile"),
+    ("shutil", "copytree"),
     ("shutil", "move"),
     ("os", "rename"),
     ("os", "replace"),

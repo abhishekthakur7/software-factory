@@ -1,0 +1,4 @@
+mappings:
+  "com.fixtureeval:partial":
+    service: partial-service
+    coverage: partial

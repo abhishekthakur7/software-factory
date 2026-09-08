@@ -168,11 +168,15 @@ TABLES: tuple[Table, ...] = (
             Column("blocked_on", "INTEGER", references="queue_item.id", mutable=True),
             Column("pause_requested", "INTEGER", mutable=True),
             Column("paused_at", "TEXT", mutable=True),
-            Column("base_sha", "TEXT"),
-            Column("target_base_sha", "TEXT"),
-            Column("branch", "TEXT"),
-            Column("worktree_path", "TEXT"),
-            Column("head_sha", "TEXT"),
+            # These five are pinned at eligibility, after the ticket row
+            # already exists, so the first value is always an in-place
+            # update rather than part of the insert; they are moved again
+            # only by the human's refresh-base and by the S4 hand-back.
+            Column("base_sha", "TEXT", mutable=True),
+            Column("target_base_sha", "TEXT", mutable=True),
+            Column("branch", "TEXT", mutable=True),
+            Column("worktree_path", "TEXT", mutable=True),
+            Column("head_sha", "TEXT", mutable=True),
             Column("pr_url", "TEXT", mutable=True),
             Column("pr_identity", "TEXT", mutable=True),
             Column("last_remote_head_sha", "TEXT", mutable=True),

@@ -1,0 +1,15 @@
+# a declared digest that does not match the executable's
+# current bytes is refused at dispatch, even though the catalogue itself
+# loads without complaint.
+recipes:
+  - id: wrong_digest_test
+    executable: runner/tests/fixtures/command-recipes/scripts/ok.py
+    executable_digest: "0000000000000000000000000000000000000000000000000000000000000000"
+    args: []
+    cwd_role: scratch
+    stages: [S4]
+    timeout_seconds: 5
+    expected_exit_codes: [0]
+    env_allowlist: []
+    network: none
+    output_retention: discard

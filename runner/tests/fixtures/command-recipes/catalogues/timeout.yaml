@@ -1,0 +1,14 @@
+# a run past its declared timeout is terminated and recorded
+# with a timeout outcome.
+recipes:
+  - id: timeout_test
+    executable: runner/tests/fixtures/command-recipes/scripts/sleepy.py
+    executable_digest: "{{DIGEST}}"
+    args: []
+    cwd_role: scratch
+    stages: [S4]
+    timeout_seconds: 1
+    expected_exit_codes: [0]
+    env_allowlist: []
+    network: none
+    output_retention: discard

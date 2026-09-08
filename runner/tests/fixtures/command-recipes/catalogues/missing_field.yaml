@@ -1,0 +1,13 @@
+# a recipe missing a required field fails validation.
+# timeout_seconds is absent on purpose.
+recipes:
+  - id: missing_field_test
+    executable: runner/tests/fixtures/command-recipes/scripts/ok.py
+    executable_digest: "0000000000000000000000000000000000000000000000000000000000000000"
+    args: []
+    cwd_role: scratch
+    stages: [S4]
+    expected_exit_codes: [0]
+    env_allowlist: []
+    network: none
+    output_retention: discard

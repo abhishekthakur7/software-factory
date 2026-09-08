@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Compile the matching plain main-method test classes and run each one.
+
+Standalone: no import of `runner`. Echoes each test program's own
+"ran: <FullyQualifiedClass>#<method>" lines as they happen, then prints one
+final JSON line, {"level": ..., "ran": [{"class": ..., "method": ...}]},
+for the launcher to parse as the test identities that ran.
+"""
+import argparse
+import glob as globmod
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+_RAN_LINE = re.compile(r"^ran: (?P<fqcn>[\w.$]+)#(?P<method>\w+)$")
+
+
+def _class_name(java_file: Path, source_root: Path) -> str:
+    rel = java_file.relative_to(source_root).with_suffix("")
+    return ".".join(rel.parts)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="java_test")
+    parser.add_argument("--level", required=True)
+    parser.add_argument("--main-root", required=True)
+    parser.add_argument("--test-root", required=True)
+    parser.add_argument("--test-glob", required=True)
+    parser.add_argument("--classpath", default="")
+    parser.add_argument("--out", required=True)
+    args = parser.parse_args(argv)
+
+    main_root = Path(args.main_root)
+    test_root = Path(args.test_root)
+    main_files = sorted(str(p) for p in main_root.rglob("*.java"))
+    test_files = sorted(Path(p) for p in globmod.glob(args.test_glob, recursive=True))
+    if not test_files:
+        print(f"no test files matched {args.test_glob!r}", file=sys.stderr)
+        return 1
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    compile_cmd = ["javac", "-d", str(out_dir)]
+    if args.classpath:
+        compile_cmd += ["-cp", args.classpath]
+    compile_cmd += main_files + [str(p) for p in test_files]
+    compiled = subprocess.run(compile_cmd, capture_output=True, text=True)
+    if compiled.returncode != 0:
+        sys.stderr.write(compiled.stderr)
+        return compiled.returncode
+
+    run_classpath = str(out_dir)
+    if args.classpath:
+        run_classpath = args.classpath + os.pathsep + run_classpath
+
+    identities = []
+    overall_rc = 0
+    for test_file in test_files:
+        class_name = _class_name(test_file, test_root)
+        result = subprocess.run(
+            ["java", "-cp", run_classpath, class_name], capture_output=True, text=True
+        )
+        for line in result.stdout.splitlines():
+            print(line)
+            match = _RAN_LINE.match(line.strip())
+            if match:
+                identities.append({"class": match.group("fqcn"), "method": match.group("method")})
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        if result.returncode != 0:
+            overall_rc = 1
+
+    print(json.dumps({"level": args.level, "ran": identities}))
+    return overall_rc
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
