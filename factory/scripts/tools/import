@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Verify a governed export directory and insert its rows, or refuse and write nothing.
+
+Imports `runner` for the same reason `factory/scripts/tools/export` does:
+import is a database write governed by the same hash and path checks
+`runner.export.import_export` implements once, not a read-only summary a
+sandboxed script could safely reimplement on its own.
+"""
+import argparse
+import sys
+from pathlib import Path
+
+from runner import export
+from runner.db import connect
+from runner.paths import RUNS_DIR
+
+
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="import")
+    parser.add_argument("--db", type=Path, default=RUNS_DIR / "factory.sqlite")
+    parser.add_argument("export_dir", type=Path)
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    conn = connect(args.db)
+    try:
+        result = export.import_export(conn, args.export_dir, runs_dir=args.db.parent)
+    except export.ImportRefused as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(f"imported ticket {result['ticket_id']} from {args.export_dir}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

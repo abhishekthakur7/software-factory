@@ -259,6 +259,11 @@ TABLES: tuple[Table, ...] = (
             Column("external_revision_count", "INTEGER"),
             # Later field; reserved now so it never needs a migration.
             Column("close_survey", "TEXT"),
+            # The exporting record's content hash, set only by `factory
+            # import`; null on every native row. Marks the ticket's prose as
+            # untrusted input the same way source-ticket and repository text
+            # already is, since it now originates from another record.
+            Column("imported_from", "TEXT"),
             Column("updated_at", "TEXT", mutable=True),
         ),
     ),
@@ -387,6 +392,10 @@ TABLES: tuple[Table, ...] = (
             Column("redaction_state", "TEXT"),
             Column("retention_until", "TEXT"),
             Column("supersedes", "INTEGER", references="artefact.id"),
+            # Same governed-import marker as `ticket.imported_from`: the
+            # exporting record's content hash, null on every artefact this
+            # record itself registered.
+            Column("imported_from", "TEXT"),
         ),
     ),
     Table(

@@ -1,0 +1,10 @@
+subject: factory/scripts/tools/purge
+cases:
+  - name: expired
+    fixture: fixtures/expired/export
+    now: "2999-01-01T00:00:00+00:00"
+    expect: ok
+  - name: within_retention
+    fixture: fixtures/within_retention/export
+    now: "2000-01-01T00:00:00+00:00"
+    expect: reject

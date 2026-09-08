@@ -1,0 +1,5 @@
+subject: factory/scripts/tools/export
+cases:
+  - name: permitted_ticket
+    fixture: fixtures/permitted_ticket
+    expect: ok
