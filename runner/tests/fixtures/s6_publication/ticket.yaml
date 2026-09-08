@@ -1,0 +1,10 @@
+# The one ticket shape every publication-subject test seeds from,
+# overriding only the fields a given scenario cares about.
+base:
+  source_kind: fixture
+  title: fixture publication ticket
+  state: review
+  base_sha: base-sha-1
+  target_base_sha: base-sha-1
+  branch: feature/fixture-publication
+  head_sha: head-sha-1
