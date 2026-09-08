@@ -63,10 +63,12 @@ def _git(args, cwd, env=None):
     )
 
 
-# S1/S2 stay stub in this walk (their placeholder brief/criteria carry no
-# `## ` sections at all); S3 is real and needs a genuine brief (risk_map's
-# touched-area candidates, handoff_ready's linked sources and impact
-# evidence) to plan against and pass structurally.
+# S1 and S2 are both real here, each fed a real fixture; the brief and
+# criteria they register are then superseded by the richer, hand-written
+# `fixtures/s3/` versions before S3 runs, since S3 is real and needs a
+# genuine brief (risk_map's touched-area candidates, handoff_ready's
+# linked sources and impact evidence) to plan against and pass
+# structurally.
 def _source_repo(tmp_path):
     """A trivial one-file git repository on the real project config's target
     branch, so the freshness checks the walk now passes through (the
@@ -125,7 +127,16 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
-    run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
+    # S2's criteria half needs a real out/criteria.md; `criteria_clean`
+    # carries one formalised criterion with agreeing restatements and no
+    # open questions, so this walk's S2 call passes outright.
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
+        FACTORY_DIR / "evals" / "agents" / "S2" / "fixtures" / "criteria_clean" / "out"
+    )
+    try:
+        run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
+    finally:
+        del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
 
     brief_path = Path(__file__).parent / "fixtures" / "s3" / "brief.md"
     prior_brief = artefact_registry.latest(conn, ticket_id, "brief")
