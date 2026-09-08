@@ -1,0 +1,14 @@
+subject: factory/scripts/checks/risk_map
+owner: factory_owner
+cases:
+  - name: churn
+    fixture: fixtures/churn
+    branch: main
+    months: 12
+    min_share: 0.4
+    # The git repository this case scores is built by the test itself
+    # (a.txt: two commits from one author, thirteen bytes at HEAD; b.txt:
+    # one commit, six bytes), matching fixtures/churn/expected.json
+    # exactly -- committing a throwaway git repository under this
+    # directory would be an odd thing for the pilot repository to carry.
+    expected: fixtures/churn/expected.json

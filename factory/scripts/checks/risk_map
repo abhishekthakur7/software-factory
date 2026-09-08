@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""The risk map: per-candidate churn, ownership concentration, and size, computed from git alone.
+
+Standalone: no import of `runner`, no network. Runs before the S3 agent
+does, over the brief's touched-area candidates, so the agent receives it as
+an attached input rather than inventing its own account of who touches
+what. A candidate is a named entry -- worth a reviewer's attention -- when
+its churn-times-size score falls in the candidate set's top decile, or when
+no author holds the configured minimum share of its commits in the churn
+window; the exact scoring is this ticket's wiring, deepened by a later
+one, so it stays a simple, legible formula rather than a tuned model.
+"""
+import argparse
+import json
+import math
+import subprocess
+from collections import Counter
+from pathlib import Path
+
+
+def _commit_authors(checkout: Path, branch: str, path: str, *, since: str) -> list[str]:
+    result = subprocess.run(
+        ["git", "-C", str(checkout), "log", branch, f"--since={since}", "--pretty=format:%an", "--", path],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def _file_size(checkout: Path, path: str) -> int:
+    full = checkout / path
+    return full.stat().st_size if full.is_file() else 0
+
+
+def _candidate_stats(checkout: Path, branch: str, path: str, *, since: str) -> dict:
+    authors = _commit_authors(checkout, branch, path, since=since)
+    commits = len(authors)
+    top_share = (Counter(authors).most_common(1)[0][1] / commits) if commits else 0.0
+    size_bytes = _file_size(checkout, path)
+    return {
+        "path": path, "commits": commits, "top_author_share": round(top_share, 4),
+        "size_bytes": size_bytes, "churn_size_score": commits * size_bytes,
+    }
+
+
+def _mark_named(candidates: list[dict], *, min_share: float) -> None:
+    scores = sorted((c["churn_size_score"] for c in candidates), reverse=True)
+    # Top decile of the candidate set's own churn*size distribution; at
+    # least one candidate qualifies whenever there is a positive score to
+    # rank, so a small candidate set (the common case) still names its
+    # single riskiest file rather than naming none.
+    cutoff_rank = max(1, math.ceil(len(scores) * 0.1)) if scores else 0
+    cutoff_score = scores[cutoff_rank - 1] if cutoff_rank else None
+    for candidate in candidates:
+        no_clear_owner = candidate["commits"] == 0 or candidate["top_author_share"] < min_share
+        top_decile = cutoff_score is not None and candidate["churn_size_score"] >= cutoff_score > 0
+        candidate["named"] = bool(no_clear_owner or top_decile)
+        candidate["reason"] = "no_clear_owner" if no_clear_owner else ("top_decile_churn_size" if top_decile else None)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="risk_map")
+    parser.add_argument("--checkout", required=True, type=Path)
+    parser.add_argument("--branch", required=True)
+    parser.add_argument("--candidates", required=True, type=Path, help="one path per line")
+    parser.add_argument("--months", required=True, type=int)
+    parser.add_argument("--min-share", required=True, type=float)
+    args = parser.parse_args(argv)
+
+    paths = [line.strip() for line in args.candidates.read_text().splitlines() if line.strip()]
+    since = f"{args.months} months ago"
+    candidates = [_candidate_stats(args.checkout, args.branch, path, since=since) for path in paths]
+    _mark_named(candidates, min_share=args.min_share)
+
+    print(json.dumps({"candidates": candidates}, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

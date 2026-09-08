@@ -1,0 +1,23 @@
+subject: factory/scripts/checks/size_gate
+owner: factory_owner
+cases:
+  - name: plan_over_threshold
+    fixture: fixtures/over_threshold
+    tier: standard
+    mode: plan
+    expect: fail
+  - name: plan_justified
+    fixture: fixtures/justified
+    tier: standard
+    mode: plan
+    expect: pass
+  - name: diff_over_threshold
+    fixture: fixtures/over_threshold
+    tier: standard
+    mode: diff
+    expect: fail
+  - name: diff_justified
+    fixture: fixtures/justified
+    tier: standard
+    mode: diff
+    expect: pass
