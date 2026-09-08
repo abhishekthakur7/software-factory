@@ -1,12 +1,12 @@
 """Regression-only comparison: base and head diagnostics or test results, pure over already-collected text.
 
-R-S5-10's exception blocks a lint, compile-type, integration or
-end-to-end result only when it worsens at head; an unchanged base
-diagnostic or a test already red at base stays visible as inherited
-debt rather than a fresh block. Every function here takes plain text or
-already-parsed identities and returns data -- no filesystem, no
-subprocess, no database -- so the S5 driver decides what to do with a
-`Comparison` without this module ever running a recipe itself.
+This exception blocks a lint, compile-type, integration or end-to-end
+result only when it worsens at head; an unchanged base diagnostic or a
+test already red at base stays visible as inherited debt rather than a
+fresh block. Every function here takes plain text or already-parsed
+identities and returns data -- no filesystem, no subprocess, no database
+-- so the S5 driver decides what to do with a `Comparison` without this
+module ever running a recipe itself.
 """
 import re
 from collections import Counter
@@ -15,12 +15,12 @@ from dataclasses import dataclass
 # The only kinds this exception ever governs; every other check (freshness,
 # unit tests, security, dependency policy, size, scope, contract evidence,
 # reviewer/approval binding, blind spots) keeps its own blocking rule
-# untouched by regression-only, per R-S5-10.
+# untouched by regression-only.
 GOVERNED_KINDS: tuple[str, ...] = ("lint", "compile", "integration_test", "end_to_end_test")
 
 # check_name -> the kinds the regression-only exception governs for it.
 # Only `regression_only` itself has an entry; any other check_name governs
-# nothing, since the exception is R-S5-10's alone.
+# nothing, since this exception belongs to that one check alone.
 _EXCEPTIONS: dict[str, tuple[str, ...]] = {"regression_only": GOVERNED_KINDS}
 
 _LINE_COLUMN = re.compile(r":\d+:\d+")

@@ -3,8 +3,8 @@
 
 Standalone: no import of `runner`. This never re-derives behaviour from
 source; it only checks that a `changed`/`unchanged` `Contracts` field cell
-and every R-S3-20 verdict name a test identity `--tests-head` actually ran
-or a plan characterization task, and it runs six lax, independent
+and every recorded human verdict name a test identity `--tests-head`
+actually ran or a plan characterization task, and it runs six lax, independent
 detections over `--declarations` (the JSON `source_declaration_diff`
 already printed for these touched files) and `--generated-paths`. A
 missing verdict evidence link is the only thing that fails the check on
