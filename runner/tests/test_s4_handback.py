@@ -93,7 +93,7 @@ def _run_s4(conn, ticket_id, tmp_path, case) -> str:
         os.environ.pop("FIXTURE_ADAPTER_WORKTREE_DIR", None)
 
 
-# criterion 11: a non-empty, schema-conformant deviation set moves the ticket to `checks`
+# a non-empty, schema-conformant deviation set moves the ticket to `checks` (R-S4-2)
 
 
 def test_a_conformant_nonempty_handback_moves_the_ticket_to_checks_with_its_fields_recorded(tmp_path):
@@ -120,7 +120,7 @@ def test_a_conformant_nonempty_handback_moves_the_ticket_to_checks_with_its_fiel
         assert set(dict(row).keys()) >= {"id", "ticket_id", "stage_run_id", "plan_item", "plan_said", "agent_did", "why", "kind", "contract_change"}
 
 
-# criterion 12: an empty deviation set is written as an explicit, canonically hashed empty set
+# an empty deviation set is written as an explicit, canonically hashed empty set (R-S4-2)
 
 
 def test_a_handback_with_no_deviations_records_the_canonical_empty_set_hash(tmp_path):
@@ -145,7 +145,7 @@ def test_a_handback_with_no_deviations_records_the_canonical_empty_set_hash(tmp_
     assert summary["deviation_set_hash"] == binding.deviation_set_hash(conn, ticket_id)
 
 
-# criteria 13/14: a missing or malformed deviation set is a structural failure
+# a missing or malformed deviation set is a structural failure (R-S4-2)
 
 
 @pytest.mark.parametrize("case", HANDBACK_REJECT_CASES, ids=[c["name"] for c in HANDBACK_REJECT_CASES])
@@ -174,7 +174,7 @@ def test_a_missing_or_malformed_handback_is_a_structural_failure_that_never_reac
     assert red_checks == 0
 
 
-# criterion 15: hand-back never touches pr_url/pr_identity, and creates no external_write
+# hand-back never touches pr_url/pr_identity, and creates no external_write (R-S4-2)
 
 
 def test_handback_never_creates_a_pull_request_or_touches_pr_fields(tmp_path):
@@ -208,11 +208,12 @@ def test_a_first_cycle_handback_creates_no_pull_request(tmp_path):
 # `git_trees.commit_worktree` itself: a task that changes nothing leaves HEAD untouched
 
 
-def test_must_reject_nothing_a_commit_with_no_changes_leaves_head_unchanged(tmp_path):
+def test_a_commit_with_no_changes_leaves_head_unchanged(tmp_path):
     """Directly against `commit_worktree`: an unmodified worktree is not an error, and produces no new commit."""
     conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = record.insert(conn, "ticket", state="implementing", opened_at=record.now())
     source = _source_repo(tmp_path)
-    trees = git_trees.clone_for_ticket(conn, 1, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     before = trees.base_sha
     after = git_trees.commit_worktree(trees.worktree, "no-op hand-back")
     assert after == before

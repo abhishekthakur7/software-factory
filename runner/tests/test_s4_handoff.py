@@ -69,7 +69,7 @@ def _build(conn, tmp_path, ticket_id) -> dict:
     return json.loads(Path(handoff_artefact["path"]).read_text())
 
 
-# criterion 1: approved criteria and plan hashes
+# the approved criteria and plan hashes (R-S4-1)
 
 
 def test_handoff_carries_the_approved_criteria_and_plan_hashes(tmp_path):
@@ -80,7 +80,7 @@ def test_handoff_carries_the_approved_criteria_and_plan_hashes(tmp_path):
     assert payload["criteria_hash"] == "criteria-hash-1"
 
 
-# criterion 2: the plan tuple's id and the S3 plan-approval subject
+# the plan tuple's id and the S3 plan-approval subject it names (R-S4-1)
 
 
 def test_handoff_names_the_plan_tuple_id_that_carries_the_approval_subject(tmp_path):
@@ -92,7 +92,7 @@ def test_handoff_names_the_plan_tuple_id_that_carries_the_approval_subject(tmp_p
     assert tuple_row["content_hash"] == "plan-approval-subject-1"
 
 
-# criterion 3: the current assumption-set hash and the plan's blind spots
+# the current assumption-set hash and the plan's blind spots (R-S4-1)
 
 
 def test_handoff_carries_the_assumption_set_hash_and_derived_blind_spots(tmp_path):
@@ -130,7 +130,7 @@ def test_a_plan_with_no_blind_spot_and_no_unknown_contract_field_reports_none(tm
     assert payload["blind_spots"] == []
 
 
-# criterion 4: tier and budget
+# tier and budget (R-S4-1)
 
 
 def test_handoff_carries_the_tier_and_the_run_and_ticket_budgets(tmp_path):
@@ -142,7 +142,7 @@ def test_handoff_carries_the_tier_and_the_run_and_ticket_budgets(tmp_path):
     assert payload["budget"]["ticket"] == run_ledger.s4_per_ticket_budget(TIER)
 
 
-# criterion 5: required S5 check policies and recipe ids
+# required S5 check policies and recipe ids (R-S4-1)
 
 
 def test_handoff_carries_the_s5_check_policies_and_the_project_recipe_ids(tmp_path):
@@ -154,7 +154,7 @@ def test_handoff_carries_the_s5_check_policies_and_the_project_recipe_ids(tmp_pa
     assert payload["recipe_ids"] == project["recipes"]
 
 
-# criterion 6: every task's allowed recipe ids and typed values
+# every task's allowed recipe ids and typed values (R-S4-1)
 
 
 def test_handoff_carries_every_task_with_its_recipe_and_typed_validation_args(tmp_path):
@@ -171,7 +171,7 @@ def test_handoff_carries_every_task_with_its_recipe_and_typed_validation_args(tm
     assert tasks["T-2"]["validation_args"] == {"strict": True}
 
 
-# criterion 7: the bootstrap checklist hash and a reference to the deviation schema
+# the bootstrap checklist hash and a reference to the deviation schema (R-S4-1)
 
 
 def test_handoff_carries_the_bootstrap_checklist_hash_and_the_deviation_schema(tmp_path):
@@ -182,7 +182,7 @@ def test_handoff_carries_the_bootstrap_checklist_hash_and_the_deviation_schema(t
     assert payload["deviation_schema"] == [column.name for column in schema.table("deviation").columns]
 
 
-# criterion 8: the loop note on a revision cycle, none on the first cycle
+# the loop note on a revision cycle, none on the first cycle (R-S4-1)
 
 
 def test_a_first_cycle_handoff_carries_no_loop_note(tmp_path):
@@ -216,7 +216,7 @@ def test_only_the_latest_of_several_revision_notes_is_carried(tmp_path):
     assert payload["loop_note"] == "second round note"
 
 
-# criterion 9: no credential, no path outside runs_dir or the worktree
+# no credential, no path outside runs_dir or the worktree (R-S4-1)
 
 
 def test_handoff_carries_no_credential_and_no_path_outside_the_run_tree_or_worktree(tmp_path, monkeypatch):
@@ -237,7 +237,7 @@ def test_handoff_carries_no_credential_and_no_path_outside_the_run_tree_or_workt
     assert str(FACTORY_DIR) not in text
 
 
-# criterion 10: reconstruction from the handoff file alone, no database
+# reconstruction from the handoff file alone, no database (R-S4-1)
 
 
 def test_the_task_list_recipe_set_and_budget_reconstruct_from_the_handoff_file_alone(tmp_path):

@@ -174,7 +174,17 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         conn, ticket_id, gates.plan_review_gate(conn, ticket, runs_dir=tmp_path)
     )
 
-    run_stage(conn, ticket_id, "S4", runs_dir=tmp_path)
+    # Serves the S4 agent invocation the committed "ok" hand-back fixture
+    # so this walk's real S4 driver has a deviation set it can record and
+    # a worktree edit it can commit.
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "worktree")
+    try:
+        s4_outcome = run_stage(conn, ticket_id, "S4", runs_dir=tmp_path)
+    finally:
+        os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
+        os.environ.pop("FIXTURE_ADAPTER_WORKTREE_DIR", None)
+    assert s4_outcome == "pass", f"S4 must pass for this walk to reach later stages, got {s4_outcome!r}"
     s4_run_id = conn.execute(
         "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id DESC LIMIT 1", (ticket_id,)
     ).fetchone()["id"]
