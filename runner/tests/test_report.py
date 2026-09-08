@@ -67,26 +67,6 @@ def _git(args, cwd, env=None):
 # `## ` sections at all); S3 is real and needs a genuine brief (risk_map's
 # touched-area candidates, handoff_ready's linked sources and impact
 # evidence) to plan against and pass structurally.
-_WALK_BRIEF_TEXT = """## Touched area candidates
-
-| path | reason |
-|---|---|
-| README.md | the file this ticket's plan touches |
-
-## Linked sources
-
-| source | date |
-|---|---|
-| JIRA-123 | 2026-01-01 |
-
-## Impact evidence
-
-| direction | dependency | method | source | mapping | owner | coverage | blind_spots |
-|---|---|---|---|---|---|---|---|
-| outbound | svc-x | import_scan | pom.xml | mapping.yaml | abhishek | authoritative | none |
-"""
-
-
 def _source_repo(tmp_path):
     """A trivial one-file git repository on the real project config's target
     branch, so the freshness checks the walk now passes through (the
@@ -147,8 +127,7 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
 
-    brief_path = tmp_path / "walk_brief.md"
-    write_text(brief_path, _WALK_BRIEF_TEXT)
+    brief_path = Path(__file__).parent / "fixtures" / "s3" / "brief.md"
     prior_brief = artefact_registry.latest(conn, ticket_id, "brief")
     artefact_registry.register(
         conn, ticket_id=ticket_id, kind="brief", path=brief_path,

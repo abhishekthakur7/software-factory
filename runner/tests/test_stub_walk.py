@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from runner import cli, envelope, git_trees, governance, guard, launcher, owners, queue, record, recipes, run_ledger
+from runner import artefact_registry, cli, envelope, git_trees, governance, guard, launcher, owners, queue, recipes, record, run_ledger
 from runner.adapters import cursor_sdk
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
@@ -225,7 +225,19 @@ def _run_walk(tmp_path) -> WalkResult:
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
     _kill_and_restart(conn, ticket_id, "S2", tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "planning"
-    _kill_and_restart(conn, ticket_id, "S3", tmp_path)
+    # The real S3 plans against a brief and a criteria artefact: the
+    # fixture pair test_report's walk uses, and the committed "ok" plan.
+    for kind in ("brief", "criteria"):
+        prior = artefact_registry.latest(conn, ticket_id, kind)
+        artefact_registry.register(
+            conn, ticket_id=ticket_id, kind=kind, path=Path(__file__).parent / "fixtures" / "s3" / f"{kind}.md",
+            supersedes=prior["id"] if prior is not None else None,
+        )
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out")
+    try:
+        _kill_and_restart(conn, ticket_id, "S3", tmp_path)
+    finally:
+        del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "plan_review"
 
     record.insert(

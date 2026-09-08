@@ -21,7 +21,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, artefacts, canonical, owners, recipes, record
+from runner import artefact_registry, artefacts, canonical, owners, questions, recipes, record
 from runner.checks import artefact_structure
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
@@ -80,20 +80,6 @@ def _pending_allowed(conn: sqlite3.Connection, ticket_id: int, stage_run_id: int
         (ticket_id, stage_run_id),
     ).fetchone()
     return prior is not None and prior["outcome"] == "blocked"
-
-
-def assumption_log_hash(conn: sqlite3.Connection, ticket_id: int) -> str:
-    """The canonical hash of `ticket_id`'s non-withdrawn assumption rows, `(id, text)` only.
-
-    Local to this driver until `runner.questions` lands with the same
-    computation; a withdrawn assumption drops out since it no longer binds
-    anything the plan or a later verdict reads.
-    """
-    rows = conn.execute(
-        "SELECT id, text FROM assumption WHERE ticket_id = ? AND (withdrawn IS NULL OR withdrawn = 0) ORDER BY id",
-        (ticket_id,),
-    ).fetchall()
-    return canonical.content_hash({"assumptions": [{"id": row["id"], "text": row["text"]} for row in rows]})
 
 
 def _write_risk_map(
@@ -207,7 +193,7 @@ def run(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_d
     # unmodified -- already carries it; the readiness table's hash column
     # then binds the exact bytes every later verdict and the plan tuple read.
     front_matter = {
-        "assumption_log_hash": assumption_log_hash(conn, ticket_id),
+        "assumption_log_hash": questions.assumption_log_hash(conn, ticket_id),
         "criteria_hash": criteria_artefact["hash"],
     }
     working_path = run_dir / "plan.md"
