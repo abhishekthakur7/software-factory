@@ -18,7 +18,7 @@ import yaml
 
 from runner import (
     approvals, artefact_registry, artefacts, binding, canonical, cli, freshness, gates, git_trees, manifest, outbox,
-    owners, plan_tuple, record, refresh_base, transitions,
+    owners, plan_tuple, publication, record, refresh_base, transitions,
 )
 from runner.db import connect
 from runner.deliverers.stub import StubDeliverer
@@ -502,14 +502,31 @@ def test_before_dispatch_supersedes_a_stale_pending_intent_and_sends_nothing(con
         conn, "reviewer_set", ticket_id=ticket_id, kind="effective",
         content_hash="effective-set-1", slots=json.dumps([slot.to_json()]),
     )
-    record.insert(
+    review_tuple_id = record.insert(
         conn, "evidence_tuple", kind="review", ticket_id=ticket_id,
         content_hash="review-subject-1", effective_reviewer_set_id=reviewer_set_id,
+        effective_reviewer_set_hash="effective-set-1",
     )
+    # `publication.review_approval_subject` -- the real subject an
+    # `approval_record` for this gate now binds -- also needs one bound
+    # blocking check result and packet/`pr_body` artefacts on record; a
+    # bare review tuple is no longer enough to compute it.
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S5", attempt=1, outcome="pass")
+    record.insert(
+        conn, "check_result", stage_run_id=stage_run_id, evidence_tuple_id=review_tuple_id,
+        check_name="fixture_check", check_tier="blocking", source="runner", result="pass",
+        content_hash="check-1", canonical_serialization_version=1,
+    )
+    for kind, text in (("packet", "fixture packet\n"), ("pr_body", "fixture pr body\n")):
+        path = runs_dir / f"{kind}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
+    subject = publication.review_approval_subject(conn, ticket_id)
     approvals.record_approval(
-        conn, gate="review", subject_hash="review-subject-1", slot_id=slot.slot_id,
+        conn, gate="review", subject_hash=subject.hash, slot_id=slot.slot_id,
         actor_identity="abhishek", role=slot.role, decision="approve",
-        authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
+        authority_policy_hash=owners.authority_policy_hash(), membership_snapshot_hash="members-1",
         attestation_version="v1", attestation_hash="att-1",
     )
     intent_id = outbox.intent_for_review_quorum(conn, ticket_id, runs_dir=runs_dir)

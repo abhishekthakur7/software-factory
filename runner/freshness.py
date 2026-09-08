@@ -193,8 +193,20 @@ def check(
                     f"intent desired_remote_head_sha {intent['desired_remote_head_sha']} "
                     f"does not equal ticket head_sha {ticket['head_sha']}"
                 )
-            if review_tuple is None or intent["review_approval_subject_hash"] != review_tuple["content_hash"]:
-                reasons.append("intent review_approval_subject_hash does not equal the latest review tuple")
+            # The intent's own subject hash is the publication review-approval
+            # subject (`runner.publication.review_approval_subject`), not the
+            # bare review-tuple content hash: it folds in the bound check
+            # results, waivers, packet, `pr_body`, and publication target, any
+            # of which moving underneath a pending intent is exactly what this
+            # boundary exists to catch.
+            from runner import publication
+
+            try:
+                current_subject_hash = publication.review_approval_subject(conn, ticket_id).hash
+            except publication.PublicationSubjectIncomplete:
+                current_subject_hash = None
+            if review_tuple is None or intent["review_approval_subject_hash"] != current_subject_hash:
+                reasons.append("intent review_approval_subject_hash does not equal the current review-approval subject")
 
     fresh = not reasons
     check_result_id = None
