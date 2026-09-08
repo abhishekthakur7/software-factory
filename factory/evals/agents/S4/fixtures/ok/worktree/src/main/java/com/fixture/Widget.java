@@ -1,11 +1,12 @@
 package com.fixture;
 
-/** Rejects negative input with a typed error instead of silently returning a wrong answer. */
+import java.util.List;
+
 public class Widget {
-    public int compute(int x) {
-        if (x < 0) {
-            throw new IllegalArgumentException("x must not be negative");
+    public int compute(int n) {
+        if (n < 0) {
+            throw new IllegalArgumentException("n must not be negative");
         }
-        return x * 2;
+        return n * 2;
     }
 }

@@ -17,7 +17,7 @@ files:
   - path: factory/config/artifact-to-service.yaml
     content_hash: 0cba1d7191af7be150b9878286a250ec2f2337e6fa5981995f4d728bee71bf94
   - path: factory/config/command-recipes.yaml
-    content_hash: c86a2e1fa241bc47c8b54b3bb1133cfbd45ca446f12a209f196f7df6fe4c789b
+    content_hash: 457bb4883a5684c7376178ab581b509848c103e4ea57d1ac24d029a6e0c2e29d
   - path: factory/config/exclusions.yaml
     content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
   - path: factory/config/limits.yaml
@@ -532,7 +532,7 @@ files:
   - path: factory/rubrics/S4.md
     content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
   - path: factory/rubrics/S5.md
-    content_hash: 4f189dcd43d6ade4842c5be3fe7b01075556415e99365f39ee3c40aa0388e41f
+    content_hash: f35092223b152048aa32090251410c512c154de0442c8dc183c7aa492c1d30f9
   - path: factory/rubrics/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/rubrics/checklists/forced-categories.md
@@ -768,7 +768,7 @@ files:
   - path: factory/evals/agents/S4/fixtures/ok/out/handback.json
     content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
   - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
-    content_hash: 4d198f3b4aef350a47412f964e31ca62221f82788136fda6bd7fa1819ae4ec24
+    content_hash: 71b174c836aaac1871745b19280f7dc833578ff988a0cf09871cb816e51ac9cc
   - path: factory/evals/rubrics/S3/fixtures/checklist/brief.md
     content_hash: 64cd4add246672442f90dc25f05b2d941d1d62c9721127c81a6774fa50cd436b
   - path: factory/evals/rubrics/S3/fixtures/checklist/criteria.md

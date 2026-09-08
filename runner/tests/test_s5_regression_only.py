@@ -89,14 +89,23 @@ def test_regression_only_governs_only_lint_compile_and_integration_and_end_to_en
     contract evidence, reviewer/approval binding and blind spots keep their own
     blocking rule; only the four governed kinds are ever exempted."""
     for kind in regression_only.GOVERNED_KINDS:
-        assert regression_only.governs("regression_only", kind) is True
+        assert regression_only.governs(kind) is True
 
     ungoverned_kinds = (
         "freshness", "unit_test", "security", "dependency_policy", "size", "scope",
         "contract_evidence", "reviewer_or_approval_binding", "blind_spot",
     )
     for kind in ungoverned_kinds:
-        assert regression_only.governs("regression_only", kind) is False
+        assert regression_only.governs(kind) is False
 
-    # the exception is regression_only's alone -- no other check_name inherits it
-    assert regression_only.governs("size_gate", "lint") is False
+
+def test_recipe_governed_kind_maps_a_catalogue_recipe_to_its_governed_kind_or_none():
+    """A recipe's own `kind`/`level` (`command-recipes.yaml`'s shape) maps onto
+    `GOVERNED_KINDS` the same way `governs` reads them; a unit test recipe maps
+    to nothing, so it keeps blocking on any head red regardless of base."""
+    assert regression_only.recipe_governed_kind(kind="lint", level=None) == "lint"
+    assert regression_only.recipe_governed_kind(kind="compile", level=None) == "compile"
+    assert regression_only.recipe_governed_kind(kind="test", level="integration") == "integration_test"
+    assert regression_only.recipe_governed_kind(kind="test", level="end_to_end") == "end_to_end_test"
+    assert regression_only.recipe_governed_kind(kind="test", level="unit") is None
+    assert regression_only.recipe_governed_kind(kind="other", level=None) is None

@@ -5,6 +5,7 @@ that a context measure can never be selected as primary.
 """
 import importlib.machinery
 import importlib.util
+import json
 import os
 import re
 import sqlite3
@@ -15,10 +16,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, checklist, cli, gates, git_trees, manifest, queue, record, schema, transitions
+from runner import (
+    approvals, artefact_registry, checklist, cli, gates, git_trees, manifest, owners, queue, record, schema,
+    transitions,
+)
 from runner.db import connect
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, REPO_ROOT
+from runner.reviewer_sets import Slot
 from runner.stages import run_stage
 
 SCRIPT = FACTORY_DIR / "scripts" / "tools" / "report"
@@ -78,6 +83,9 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
+    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # base; a repository with none raises rather than defaulting.
+    (repo / "CODEOWNERS").write_text("* @abhishek\n")
     # A minimal pom so the now-real S1's impact_scan has something to
     # read, and the one file its `plain_ok` fixture's Flags row names.
     (repo / "pom.xml").write_text(
@@ -89,6 +97,19 @@ def _source_repo(tmp_path):
     src = repo / "src" / "main" / "java" / "com" / "example"
     src.mkdir(parents=True)
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
+    # A trivial always-passing unit test: `fixture_unit` is ungoverned by
+    # regression-only, so with none at all it would fail on its own once
+    # this walk's real S5 run reaches it.
+    test_src = repo / "src" / "test" / "java" / "com" / "example"
+    test_src.mkdir(parents=True)
+    (test_src / "HandlerUnitTest.java").write_text(
+        "package com.example;\n\npublic class HandlerUnitTest {\n"
+        "    public static void main(String[] args) {\n"
+        "        System.out.println(\"ran: com.example.HandlerUnitTest#testHandlerConstructs\");\n"
+        "        new Handler();\n"
+        "    }\n"
+        "}\n"
+    )
     _git(["add", "-A"], cwd=repo)
     _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
     return repo
@@ -102,6 +123,15 @@ def _grant_plan_approval(conn, ticket_id, tmp_path, *, actor="abhishek") -> None
     reach a satisfied plan subject now that `plan_review_gate` derives
     quorum and currency for real, so a hand-seeded evidence_tuple and a
     bare approval_record (the old stand-in) no longer reach `implementing`.
+
+    `queue.act`'s own "approve" resolves and records exactly one slot --
+    the first `actor` fills on the planned reviewer set -- so a plan whose
+    scope also falls under a CODEOWNERS rule naming the same person as
+    `s3_reviewer_role` gets a second, distinct slot that call never
+    touches; this pre-approves every other slot `actor` fills directly,
+    leaving only the first for `queue.act` itself, so two approval_record
+    rows are never written for the identical slot (a fork that would
+    refuse quorum outright).
     """
     item = conn.execute(
         "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'plan_approval' AND resolved_at IS NULL "
@@ -115,6 +145,29 @@ def _grant_plan_approval(conn, ticket_id, tmp_path, *, actor="abhishek") -> None
             conn, item_id=item["id"], action="verdict", actor=actor, line=instance.rubric_line_id,
             key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]], runs_dir=tmp_path,
         )
+
+    reviewer_set = record.get(conn, "reviewer_set", item["reviewer_set_id"])
+    owners_obj = owners.load_owners()
+    plan_subject_hash = conn.execute(
+        "SELECT content_hash FROM evidence_tuple WHERE ticket_id = ? AND kind = 'plan' ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()["content_hash"]
+    first_slot_seen = False
+    for slot_json in json.loads(reviewer_set["slots"] or "[]"):
+        slot = Slot.from_json(slot_json)
+        fills = (slot.role is not None and owners_obj.roles.get(slot.role, {}).get("identity") == actor) or slot.owner == actor
+        if not fills:
+            continue
+        if not first_slot_seen:
+            first_slot_seen = True
+            continue  # `queue.act`'s own "approve" call resolves this one
+        approvals.record_approval(
+            conn, gate="plan", subject_hash=plan_subject_hash, slot_id=slot.slot_id, actor_identity=actor,
+            role=slot.role or "owner", decision="approve", authority_policy_hash=owners.authority_policy_hash(),
+            membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash=f"att-{slot.slot_id}",
+            ticket_id=ticket_id,
+        )
+
     queue.act(conn, item_id=item["id"], action="approve", actor=actor, bucket="under_2m", runs_dir=tmp_path)
 
 
@@ -210,10 +263,15 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id DESC LIMIT 1", (ticket_id,)
     ).fetchone()["id"]
 
+    # S5 is a real driver now: its own scripts may well flag this walk's ad
+    # hoc repository and the shared "ok" plan/hand-back pairing with a
+    # blind spot (checks_gate's own correctness against a real S5 pass is
+    # `test_stub_stages.py`'s job, not this one's) -- this walk only needs
+    # the ticket to keep moving so every measure below has rows to report.
     run_stage(conn, ticket_id, "S5", runs_dir=tmp_path)
     run_stage(conn, ticket_id, "S6", runs_dir=tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
-    transitions.apply(conn, ticket_id, gates.checks_gate(conn, ticket))
+    transitions.apply(conn, ticket_id, gates.checks_gate(conn, ticket) or "checks_pass_to_review")
 
     record.insert(
         conn, "evidence_tuple", kind="review", ticket_id=ticket_id, content_hash="review_subject_1",

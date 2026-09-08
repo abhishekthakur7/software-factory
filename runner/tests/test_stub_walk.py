@@ -16,6 +16,7 @@ at all, so its identity is this very test process.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -25,10 +26,14 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from runner import artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, owners, queue, recipes, record, run_ledger
+from runner import (
+    approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, owners, queue,
+    recipes, record, run_ledger,
+)
 from runner.adapters import cursor_sdk
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
+from runner.reviewer_sets import Slot
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
 
 ADAPTER_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "adapter"
@@ -40,6 +45,7 @@ MANIFEST_HASH_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "manifest_hash"
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
 _DEAD_PID = os.getpid() + 999983
+HAS_JAVAC = shutil.which("javac") is not None and shutil.which("java") is not None
 
 _COMMIT_ENV = {
     "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
@@ -61,6 +67,9 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
+    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # base; a repository with none raises rather than defaulting.
+    (repo / "CODEOWNERS").write_text("* @abhishek\n")
     # A minimal pom so the now-real S1's impact_scan has something to read;
     # the dependency matches the committed artifact-to-service.yaml's one
     # authoritative entry.
@@ -73,6 +82,56 @@ def _source_repo(tmp_path):
     src = repo / "src" / "main" / "java" / "com" / "example"
     src.mkdir(parents=True)
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
+    # A trivial always-passing unit test: `fixture_unit` is ungoverned by
+    # regression-only, so with none at all it would fail on its own and
+    # block this walk's real S5 pass.
+    handler_test_src = repo / "src" / "test" / "java" / "com" / "example"
+    handler_test_src.mkdir(parents=True)
+    (handler_test_src / "HandlerUnitTest.java").write_text(
+        "package com.example;\n\npublic class HandlerUnitTest {\n"
+        "    public static void main(String[] args) {\n"
+        "        System.out.println(\"ran: com.example.HandlerUnitTest#testHandlerConstructs\");\n"
+        "        new Handler();\n"
+        "    }\n"
+        "}\n"
+    )
+    # `Widget.java` (at base, no guard clause) and its own unit test are
+    # the pair the S3 "ok" plan and the S4 hand-back fixture, both reused
+    # from this walk, are written against: S4's fixture edits `Widget.java`
+    # to add the guard clause, and this test's identity is the evidence
+    # the plan's `Contracts` row and R-S3-20 checklist point to, so a real
+    # S5 pass has resolvable evidence instead of a blind spot. The test
+    # itself never changes between base and head, so it never enters the
+    # diff `source_declaration_diff` walks -- only `Widget.java` does.
+    widget_src = repo / "src" / "main" / "java" / "com" / "fixture"
+    widget_src.mkdir(parents=True)
+    (widget_src / "Widget.java").write_text(
+        "package com.fixture;\n\npublic class Widget {\n    public int compute(int n) {\n        return n * 2;\n    }\n}\n"
+    )
+    widget_test_src = repo / "src" / "test" / "java" / "com" / "fixture"
+    widget_test_src.mkdir(parents=True)
+    (widget_test_src / "WidgetUnitTest.java").write_text(
+        "package com.fixture;\n\npublic class WidgetUnitTest {\n"
+        "    private static boolean failed = false;\n\n"
+        "    public static void main(String[] args) {\n"
+        "        run(\"testComputeRejectsNegative\", WidgetUnitTest::testComputeRejectsNegative);\n"
+        "        if (failed) {\n            System.exit(1);\n        }\n"
+        "    }\n\n"
+        "    private static void run(String method, Runnable test) {\n"
+        "        System.out.println(\"ran: com.fixture.WidgetUnitTest#\" + method);\n"
+        "        try {\n            test.run();\n"
+        "        } catch (Throwable t) {\n            failed = true;\n"
+        "            System.out.println(\"FAILED: \" + method + \": \" + t);\n        }\n"
+        "    }\n\n"
+        "    private static void testComputeRejectsNegative() {\n"
+        "        try {\n            new Widget().compute(-1);\n"
+        "            throw new AssertionError(\"expected an IllegalArgumentException\");\n"
+        "        } catch (IllegalArgumentException expected) {\n"
+        "            // expected: negative input is invalid, once Widget.compute guards it\n"
+        "        }\n"
+        "    }\n"
+        "}\n"
+    )
     _git(["add", "-A"], cwd=repo)
     _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
     return repo
@@ -136,7 +195,17 @@ def _kill_and_restart(conn, ticket_id, stage, tmp_path):
 def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
     """Read the `plan_approval` item S3 opened, record a `pass` verdict for every expected
     checklist instance citing the plan artefact, then approve -- the real path to `implementing`
-    now that the bootstrap checklist and the plan tuple are real rather than hand-seeded."""
+    now that the bootstrap checklist and the plan tuple are real rather than hand-seeded.
+
+    `queue.act`'s own "approve" resolves and records exactly one slot -- the
+    first ABHISHEK fills on the planned reviewer set -- so a plan whose
+    scope also falls under this walk's own CODEOWNERS rule (needed for a
+    real S5 pass) gets a second, distinct slot naming the same person that
+    call never touches; this pre-approves every other slot ABHISHEK fills
+    directly first, leaving only the first for `queue.act` itself, so two
+    approval_record rows are never written for the identical slot (a fork
+    that would refuse quorum outright).
+    """
     item = conn.execute(
         "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'plan_approval' AND resolved_at IS NULL "
         "ORDER BY id DESC LIMIT 1",
@@ -149,6 +218,29 @@ def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
             conn, item_id=item["id"], action="verdict", actor=ABHISHEK, line=instance.rubric_line_id,
             key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]], runs_dir=tmp_path,
         )
+
+    reviewer_set = record.get(conn, "reviewer_set", item["reviewer_set_id"])
+    owners_obj = owners.load_owners()
+    plan_subject_hash = conn.execute(
+        "SELECT content_hash FROM evidence_tuple WHERE ticket_id = ? AND kind = 'plan' ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()["content_hash"]
+    first_slot_seen = False
+    for slot_json in json.loads(reviewer_set["slots"] or "[]"):
+        slot = Slot.from_json(slot_json)
+        fills = (slot.role is not None and owners_obj.roles.get(slot.role, {}).get("identity") == ABHISHEK) or slot.owner == ABHISHEK
+        if not fills:
+            continue
+        if not first_slot_seen:
+            first_slot_seen = True
+            continue  # `queue.act`'s own "approve" call resolves this one
+        approvals.record_approval(
+            conn, gate="plan", subject_hash=plan_subject_hash, slot_id=slot.slot_id, actor_identity=ABHISHEK,
+            role=slot.role or "owner", decision="approve", authority_policy_hash=owners.authority_policy_hash(),
+            membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash=f"att-{slot.slot_id}",
+            ticket_id=ticket_id,
+        )
+
     queue.act(conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
 
 
@@ -241,14 +333,21 @@ def _run_walk(tmp_path) -> WalkResult:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "planning"
     # The real S3 plans against a brief and a criteria artefact: the
-    # fixture pair test_report's walk uses, and the committed "ok" plan.
+    # fixture pair test_report's walk uses, and a local copy of the
+    # committed "ok" plan whose `Contracts` row evidence points at this
+    # walk's own `WidgetUnitTest` identity (the shared fixture's own
+    # "Widget.java:42" text resolves nowhere real, which S5's now-real
+    # `behavior_contract_evidence` would otherwise -- correctly -- call a
+    # blind spot; see `test_s3_rubric.py`'s own exact-text assertions
+    # against the shared fixture for why it is copied here rather than
+    # edited in place).
     for kind in ("brief", "criteria"):
         prior = artefact_registry.latest(conn, ticket_id, kind)
         artefact_registry.register(
             conn, ticket_id=ticket_id, kind=kind, path=Path(__file__).parent / "fixtures" / "s3" / f"{kind}.md",
             supersedes=prior["id"] if prior is not None else None,
         )
-    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FIXTURES_DIR / "s3_ok" / "out")
     try:
         _kill_and_restart(conn, ticket_id, "S3", tmp_path)
     finally:
@@ -296,6 +395,16 @@ def _run_walk(tmp_path) -> WalkResult:
     assert len(manual_pause_items) == 1
     assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = 'S5'", (ticket_id,)).fetchone()[0] == 0
     cli.resume(conn, ticket_id, actor=ABHISHEK)
+
+    # S5 is a real driver now: it runs the pilot project's own Java
+    # recipes over real base/head checkouts, so without a JDK it cannot
+    # produce the clean pass this walk's later criteria (S6, checks_gate,
+    # review, pr_opened) all build on. Skipping loudly here, before any of
+    # those run, is the honest outcome -- silently limping past S5 on a
+    # missing toolchain would make every criterion downstream of it an
+    # unearned pass.
+    if not HAS_JAVAC:
+        pytest.skip("javac/java not available: the walk cannot run S5's real recipes past this point")
 
     _kill_and_restart(conn, ticket_id, "S5", tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"

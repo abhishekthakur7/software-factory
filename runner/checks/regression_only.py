@@ -18,10 +18,12 @@ from dataclasses import dataclass
 # untouched by regression-only.
 GOVERNED_KINDS: tuple[str, ...] = ("lint", "compile", "integration_test", "end_to_end_test")
 
-# check_name -> the kinds the regression-only exception governs for it.
-# Only `regression_only` itself has an entry; any other check_name governs
-# nothing, since this exception belongs to that one check alone.
-_EXCEPTIONS: dict[str, tuple[str, ...]] = {"regression_only": GOVERNED_KINDS}
+# A catalogue recipe's own `kind` ("lint", "compile", "test", "other") plus,
+# for a test recipe, its `level` ("unit", "integration", "end_to_end") name
+# the governed kind the driver compares against `GOVERNED_KINDS`; a unit
+# test has no entry here and so is never governed, matching R-S5-10's own
+# text that unit tests keep their own blocking rule.
+_TEST_LEVEL_KINDS: dict[str, str] = {"integration": "integration_test", "end_to_end": "end_to_end_test"}
 
 _LINE_COLUMN = re.compile(r":\d+:\d+")
 _TRAILING_LINE_NUMBER = re.compile(r":\d+\b")
@@ -78,8 +80,20 @@ def compare_tests(base_ran: list[dict], head_ran: list[dict], base_failed: list[
     return Comparison(new_or_worse=new_or_worse, inherited=inherited)
 
 
-def governs(check_name: str, recipe_kind: str) -> bool:
-    """True only when `check_name` is `regression_only` and `recipe_kind` is one of
-    `GOVERNED_KINDS`; every other check_name (there being no other exception
-    registered) governs nothing, so its own blocking rule always applies."""
-    return recipe_kind in _EXCEPTIONS.get(check_name, ())
+def governs(recipe_kind: str) -> bool:
+    """True when `recipe_kind` (one of `GOVERNED_KINDS`) is exempted by the regression-only rule."""
+    return recipe_kind in GOVERNED_KINDS
+
+
+def recipe_governed_kind(*, kind: str, level: str | None) -> str | None:
+    """The `GOVERNED_KINDS` member `kind`/`level` maps to, or `None` when nothing governs this recipe.
+
+    `lint` and `compile` map straight through; a `test` recipe maps by its
+    `level` (`unit` has no entry, so it is never governed); every other
+    `kind` (`other`) maps to nothing.
+    """
+    if kind in ("lint", "compile"):
+        return kind
+    if kind == "test":
+        return _TEST_LEVEL_KINDS.get(level or "")
+    return None

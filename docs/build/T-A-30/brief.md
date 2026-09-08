@@ -162,3 +162,106 @@ that needs a live run over the fixture project's own recipes
 describes beyond the four detections. The waiver mechanism a blind spot
 advances through. Security recipes, dependency verification, and
 copy-on-write copies (AB milestone).
+
+# T-A-30 brief, part two: the S5 driver
+
+## What this delivers
+
+`runner/stages/S5.py`'s real body: the preflight (`freshness.check` at
+`S5_PREFLIGHT`, then `binding.preflight_review_tuple`) that either builds
+one review tuple or writes exactly one `review_tuple_preflight` refusal;
+plain base and head checkouts of the ticket's own clone plus one
+throwaway copy of each for the pilot project's own recipes; every
+recipe's own `check_result` and `check_evidence` artefact; the four
+scripts part one built plus `regression_only`'s own aggregate verdict,
+`size_gate`, and an approval-binding recheck, in `CHECK_ORDER` order,
+every result bound to the one review tuple; the public-compatibility
+blind-spot route into pilot exclusion (criterion 9); and the red/fix-round
+aggregation that either applies `checks_fix_round` or opens one
+`red_check` item. `factory/rubrics/S5.md`'s script-only lines for the
+checks this driver runs.
+
+Two collateral fixes ride along, both flagged since neither is in this
+ticket's own ownership list: `runner/checks/regression_only.py`'s
+`governs` simplifies to the one-argument shape part one's own brief
+called for (`recipe_governed_kind` maps a catalogue recipe's `kind`/
+`level` onto it), and `factory/config/command-recipes.yaml`'s
+`fixture_lint`/`fixture_compile` entries switch `output_retention` from
+`discard` to `keep` -- without a kept console output neither recipe has
+any diagnostic text left for `regression_only` to compare at base and
+head, a need nothing before this ticket had.
+
+## Rows covered
+
+R-S5-4, R-S5-5, R-S5-10 (`docs/prd/04-S5-cleanup-pass.md`), for the parts
+part one left to a live driver: the preflight and review tuple, the
+ordered pass over base and head, and the public-compatibility exclusion
+route.
+
+## Owner decisions this ticket follows
+
+The driver never invents a result for a check that did not run; a
+governed recipe's own raw pass/fail never blocks on its own --
+`regression_only`'s aggregate verdict is what blocks for lint, compile,
+integration, and end-to-end kinds, while an ungoverned unit-test recipe's
+head result blocks directly, exactly like every other `CHECK_ORDER`
+entry; one review tuple per S5 attempt; no security recipe, dependency
+verification, or copy-on-write copy at this milestone.
+
+## Decisions this brief did not already settle
+
+- **`runner.checks.red_route` (T-A-29's own module) does not exist yet.**
+  The driver's aggregation step imports `classify`, `RecipeOutcome`, and
+  `CheckOutcome` from it at the one call site that needs them, locally,
+  so the rest of the file imports cleanly regardless of whether that
+  ticket has merged. `results` is passed to `classify` as one flat list
+  mixing `RecipeOutcome` and `CheckOutcome` instances -- the brief names
+  both as "inputs" without saying whether they share one list or two;
+  a flat list is the simplest reading and is what this driver's tests
+  exercise. A session-wide test stand-in lives in
+  `runner/tests/conftest.py` (installed into `sys.modules` only while
+  the real module is absent) so any seeded red S5 result across the
+  whole suite still has something importable to route through; it always
+  routes to `red_check`, the conservative default, since it carries none
+  of T-A-29's real eligibility rules.
+- **The membership snapshot for S5's own `actual` and `effective`
+  reviewer-set derivation reuses the `s3_reviewer` identity**, the same
+  convention S3's `derive_planned` call already established for a
+  driver-initiated (not human-initiated) derivation; there is no natural
+  "acting identity" for a machine-run derivation the way there is for a
+  human's `queue.act`.
+- **Criterion 9's routing reuses `exclusion.decide_at_checks` rather than
+  inventing a second exclusion path.** A `behavior_contract_evidence`
+  blind spot reasoned `"binary compatibility"` names a file
+  (`<path>:<declaration>`); that path is handed to `decide_at_checks` as
+  the sole `diff_paths` entry against the plan's own `Scope and
+  discretion` paths. Only `checks_sensitive_path_required` (every
+  excluded path already plan-declared) triggers `exclusion.
+  apply_recorded_exclusion`; `checks_removal_return` (an accidental,
+  undeclared touch) and "no excluded surface matches this path at all"
+  (`decide_at_checks` raises `ValueError`) both leave the blind spot to
+  ride into the ordinary `red_check` aggregation instead, since this
+  driver should never guess a route the shared decision function itself
+  does not confirm.
+- **A blocked reviewer-set derivation during preflight** (an unresolved
+  owner, or a sensitive path outside the plan's own scope) ends the run
+  `fail`/`structural` with no transition of its own for the unresolved
+  case -- `checks_gate` already reads the same `reviewer_set` row's
+  unresolved slot the next time the ticket is advanced -- and applies
+  `exclusion.apply_recorded_exclusion` only for the plan-declared
+  sensitive-path case, mirroring criterion 9's own routing.
+- **The vendor classpath is read off disk, never (re)materialised.**
+  `runner.setup.materialise` is a one-time pilot bootstrap step outside
+  this stage's scope; the driver globs whatever jars already exist under
+  `project.yaml`'s configured vendor path and passes `""` when none have
+  been built yet, lax rather than refusing.
+
+## Out of scope
+
+Everything part one already listed as out of scope, still out of scope:
+R-S4-10's base-test-protection `deviation` row and evidence-table
+listing (T-A-31); the waiver mechanism a blind spot advances through
+(T-A-32); security recipes, dependency verification, and copy-on-write
+copies (AB milestone). T-A-29's own fix-round eligibility rules
+(`runner.checks.red_route.classify`'s real body) and the S4 task loop
+that opens a `fix_round` run.

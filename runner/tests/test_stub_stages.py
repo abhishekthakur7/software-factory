@@ -6,6 +6,7 @@ Every stub run here is given `tmp_path` as its runs root, so the artefact
 each driver writes and registers lands there rather than under the real
 repository's `runs/`, which no test touches.
 """
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -13,11 +14,15 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, gates, git_trees, governance, manifest, record, transitions
+from runner import (
+    approvals, artefact_registry, artefacts, gates, git_trees, governance, manifest, owners, plan_tuple, record,
+    transitions,
+)
 from runner.db import connect
 from runner.definitions import DefinitionError, load_definition
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR
+from runner.reviewer_sets import Slot
 from runner.stages import run_stage
 
 ABHISHEK = "abhishek"
@@ -58,6 +63,9 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
+    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # base; a repository with none raises rather than defaulting.
+    (repo / "CODEOWNERS").write_text("* @abhishek\n")
     # A minimal pom so a real S1 run's impact_scan has something to read;
     # the dependency itself matches the committed artifact-to-service.yaml's
     # one authoritative entry, so a real S1 run needs no fixture override.
@@ -70,6 +78,19 @@ def _source_repo(tmp_path):
     src = repo / "src" / "main" / "java" / "com" / "example"
     src.mkdir(parents=True)
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
+    # A trivial always-passing unit test: `fixture_unit` is ungoverned by
+    # regression-only, so with none at all it would fail on its own and
+    # block every ticket that reaches a real S5 through this fixture.
+    test_src = repo / "src" / "test" / "java" / "com" / "example"
+    test_src.mkdir(parents=True)
+    (test_src / "HandlerUnitTest.java").write_text(
+        "package com.example;\n\npublic class HandlerUnitTest {\n"
+        "    public static void main(String[] args) {\n"
+        "        System.out.println(\"ran: com.example.HandlerUnitTest#testHandlerConstructs\");\n"
+        "        new Handler();\n"
+        "    }\n"
+        "}\n"
+    )
     _git(["add", "-A"], cwd=repo)
     _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
     return repo
@@ -103,18 +124,39 @@ def _s1_ready_ticket(conn, tmp_path):
 
 
 def _checks_ticket_with_fresh_base(conn, tmp_path):
-    """A ticket cloned from a real repository, sitting in `checks` with a
-    plan tuple that matches its base -- S5's preflight now fetches the
-    real target branch, so a ticket with no git trees at all can no longer
-    stand in for one running S5."""
+    """A ticket cloned from a real repository, sitting in `checks` with a real,
+    currently-current plan tuple and a satisfying `plan` approval -- S5 is a
+    real driver now, not a stub: its preflight fetches the real target
+    branch and only then builds a review tuple, `binding.preflight_review_tuple`
+    checks plan quorum against the ticket's own bound reviewer set, and its
+    checks run the pilot project's own recipes, so a ticket needs all of that
+    (not only git trees) to stand in for one running S5.
+    """
     source = _source_repo(tmp_path)
-    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now(), **_governed_ticket_fields(conn))
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
-    record.update(conn, "ticket", ticket_id, state="checks")
+    record.update(conn, "ticket", ticket_id, state="checks", factory_manifest_hash=manifest.current_hash())
+
+    for kind in ("brief", "criteria", "plan"):
+        path = tmp_path / f"{kind}.md"
+        write_text(path, f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
+
+    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
+    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
     record.insert(
-        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
-        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-checks",
+        conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-checks",
+        slots=json.dumps([slot.to_json()]),
+    )
+    ticket = record.get(conn, "ticket", ticket_id)
+    tuple_id = plan_tuple.ensure_current(conn, ticket)
+    subject_hash = record.get(conn, "evidence_tuple", tuple_id)["content_hash"]
+    approvals.record_approval(
+        conn, gate="plan", subject_hash=subject_hash, slot_id=slot.slot_id, actor_identity=identity,
+        role="s3_reviewer", decision="approve", authority_policy_hash="authority-1",
+        membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash="att-1",
+        ticket_id=ticket_id,
     )
     return ticket_id
 

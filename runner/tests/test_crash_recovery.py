@@ -11,6 +11,7 @@ restart path expects to find one: an open `stage_run`/`utility_run` row
 undoing the patch immediately so every later liveness check in the same
 test runs the real function.
 """
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -18,9 +19,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, cli, git_trees, governance, manifest, outbox, owners, record, run_ledger
+from runner import (
+    approvals, artefact_registry, artefacts, cli, git_trees, governance, manifest, outbox, owners, plan_tuple, record,
+    run_ledger,
+)
 from runner.db import connect
 from runner.paths import FACTORY_DIR
+from runner.reviewer_sets import Slot
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
 
 S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
@@ -80,6 +85,11 @@ def _give_real_base(conn, runs_dir, ticket_id):
     for args in (["init", "-q"], ["checkout", "-q", "-b", "main"]):
         subprocess.run(["git", *args], cwd=source, check=True, capture_output=True)
     (source / "README.md").write_text("seed\n")
+    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # base; a repository with none raises rather than defaulting, since an
+    # actual diff's derivation has no plan-scope fallback the way a
+    # planned one does.
+    (source / "CODEOWNERS").write_text("* @abhishek\n")
     # A minimal pom so the now-real S1's impact_scan has something to
     # read, and the one file its `plain_ok` fixture's Flags row names.
     (source / "pom.xml").write_text(
@@ -91,6 +101,19 @@ def _give_real_base(conn, runs_dir, ticket_id):
     src = source / "src" / "main" / "java" / "com" / "example"
     src.mkdir(parents=True)
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
+    # A trivial always-passing unit test: `fixture_unit` is ungoverned by
+    # regression-only, so with none at all it would fail on its own and
+    # block every ticket that reaches S5 through this fixture.
+    test_src = source / "src" / "test" / "java" / "com" / "example"
+    test_src.mkdir(parents=True)
+    (test_src / "HandlerUnitTest.java").write_text(
+        "package com.example;\n\npublic class HandlerUnitTest {\n"
+        "    public static void main(String[] args) {\n"
+        "        System.out.println(\"ran: com.example.HandlerUnitTest#testHandlerConstructs\");\n"
+        "        new Handler();\n"
+        "    }\n"
+        "}\n"
+    )
     subprocess.run(["git", "add", "-A"], cwd=source, check=True, capture_output=True)
     subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init"],
@@ -101,6 +124,35 @@ def _give_real_base(conn, runs_dir, ticket_id):
     record.insert(
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
         base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash=f"plan-subject-{ticket_id}",
+    )
+
+
+def _give_s5_ready_preflight(conn, tmp_path, ticket_id):
+    """Extend `_give_real_base`'s ticket with a real, currently-current plan tuple and a
+    satisfying `plan` approval, so a fresh S5 attempt clears the preflight far enough to
+    run its checks and register `check_evidence` -- mirrors `test_freshness.py`'s
+    `_real_plan_quorum`, needed now that S5 is a real driver rather than a stub.
+    """
+    record.update(conn, "ticket", ticket_id, factory_manifest_hash=manifest.current_hash())
+    for kind in ("brief", "criteria", "plan"):
+        path = tmp_path / f"{kind}-{ticket_id}.md"
+        path.write_text(f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
+
+    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
+    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    record.insert(
+        conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash=f"planned-{ticket_id}",
+        slots=json.dumps([slot.to_json()]),
+    )
+    ticket = record.get(conn, "ticket", ticket_id)
+    tuple_id = plan_tuple.ensure_current(conn, ticket)
+    subject_hash = record.get(conn, "evidence_tuple", tuple_id)["content_hash"]
+    approvals.record_approval(
+        conn, gate="plan", subject_hash=subject_hash, slot_id=slot.slot_id, actor_identity=identity,
+        role="s3_reviewer", decision="approve", authority_policy_hash="authority-1",
+        membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash="att-1",
+        ticket_id=ticket_id,
     )
 
 
@@ -212,8 +264,11 @@ def test_outbox_reconciles_before_a_fresh_attempt_opens(conn, tmp_path, monkeypa
     """R-O-1: restart reconciles pending external_write rows before expiring a
     dead lease or opening the fresh attempt it leads to."""
     _activate_default_profile(conn)
-    ticket_id = _ticket_in(conn, **OUTBOX_FIRST["ticket"])
+    ticket_id = _ticket_in(
+        conn, trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1", **OUTBOX_FIRST["ticket"]
+    )
     _give_real_base(conn, tmp_path, ticket_id)
+    _give_s5_ready_preflight(conn, tmp_path, ticket_id)
     outbox.create_intent(
         conn, ticket_id=ticket_id, operation="digest",
         payload={"ticket_id": str(ticket_id), **OUTBOX_FIRST["digest_payload"]},
