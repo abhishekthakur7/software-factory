@@ -1,0 +1,24 @@
+subject: factory/scripts/checks/base_test_diff
+owner: abhishek
+cases:
+  - name: base_test_edited_and_unplanned
+    fixture: fixtures/edited_unplanned
+    globs: "src/test/java/**/*Test.java"
+    expect: fail
+  - name: base_test_deleted_and_unplanned
+    fixture: fixtures/deleted_unplanned
+    globs: "src/test/java/**/*Test.java"
+    expect: fail
+  - name: base_test_renamed_and_unplanned
+    fixture: fixtures/renamed_unplanned
+    globs: "src/test/java/**/*Test.java"
+    expect: fail
+  - name: base_test_excluded_through_narrower_head_globs
+    fixture: fixtures/excluded_unplanned
+    globs: "src/test/java/**/*NewSuffixTest.java"
+    globs_base: "src/test/java/**/*UnitTest.java"
+    expect: fail
+  - name: base_test_change_named_in_test_strategy
+    fixture: fixtures/planned_change
+    globs: "src/test/java/**/*Test.java"
+    expect: pass
