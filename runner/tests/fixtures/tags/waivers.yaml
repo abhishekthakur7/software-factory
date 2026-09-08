@@ -1,0 +1,12 @@
+# A ticket carrying one expired, policy-less waiver: the one shape a
+# `policy_exception` tag must refuse. `$name` resolves the same way
+# `decision_records.yaml` does.
+expired_only:
+  ticket:
+    - as: ticket1
+      state: checks
+      opened_at: "2024-01-01T00:00:00+00:00"
+  waiver:
+    - as: expired_waiver
+      ticket_id: $ticket1
+      expires_at: "2000-01-01T00:00:00+00:00"

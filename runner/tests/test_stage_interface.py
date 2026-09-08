@@ -87,6 +87,8 @@ def test_stop_terminates_the_running_stage_records_aborted_human_and_escalates(c
     ticket_id = _ticket_in(conn, "implementing")
     run_id = _open_live_run(conn, ticket_id, stage="S4")
 
+    # `escalation` is tagged mechanically regardless of which human typed `factory stop`:
+    # the tag's own provenance is the runner's, not the caller's own identity.
     result = cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="stopped for a manual check")
 
     assert "stopped" in result
@@ -320,7 +322,10 @@ def test_send_back_from_any_open_item_moves_the_ticket_and_adds_no_approval(conn
     ticket_id, item_id = _seed_send_back_item(conn, kind)
     before_approvals = conn.execute("SELECT COUNT(*) FROM approval_record").fetchone()[0]
 
-    queue.act(conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07")
+    queue.act(
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        note="duplicates_existing_work: already covered elsewhere",
+    )
 
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None

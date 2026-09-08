@@ -126,7 +126,10 @@ def stop(
         launcher.terminate_child(run_dir)
         run_ledger.finish(conn, row["id"], "aborted_human")
     transitions.apply(conn, ticket_id, "escalate")
-    tags.tag(conn, target=f"ticket:{ticket_id}", kind="escalation", fm_id=fm_id, actor=actor, note=note)
+    # The escalation is the factory's own tag on the interrupted run; the
+    # human who stopped it is named in the note, never as `tagged_by`.
+    stop_note = f"stopped by {actor}" + (f": {note}" if note else "")
+    tags.tag(conn, target=f"ticket:{ticket_id}", kind="escalation", fm_id=fm_id, actor=tags.MECHANICAL_ACTOR, note=stop_note)
     queue.open_item(conn, ticket_id=ticket_id, kind="escalation", ref=f"stage_run:{open_runs[-1]['id']}")
     return f"ticket {ticket_id}: stopped and escalated"
 

@@ -183,16 +183,19 @@ def test_an_authorized_base_test_change_passes_and_is_recorded_as_a_deviation(tm
     run = _last_s4_run(conn, ticket_id)
     assert run["outcome"] == "pass"
     deviation = conn.execute(
-        "SELECT * FROM deviation WHERE ticket_id = ? AND stage_run_id = ?", (ticket_id, run["id"])
+        "SELECT * FROM deviation WHERE ticket_id = ? AND stage_run_id = ? AND agent_did LIKE '%WidgetUnitTest.java%'",
+        (ticket_id, run["id"]),
     ).fetchone()
     assert deviation is not None
-    assert "WidgetUnitTest.java" in deviation["agent_did"]
-    assert "AC-1" in deviation["why"]
+    assert deviation["plan_item"] == "AC-1"
+    assert deviation["kind"] == "judgment"
 
 
 def test_an_unauthorized_base_test_change_is_refused(tmp_path):
-    """The same worktree edit, against a plan whose Test strategy
-    table lists no authorizing row, is refused -- the round fails and queues one `red_check`."""
+    """The same worktree edit, against a plan whose Test strategy table lists no authorizing
+    row, is refused -- the round fails and queues one `red_check` -- but the runner still
+    records the change as an `unplanned` `deviation` row at hand-back, before the refusal
+    is even decided."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, plan_text=PLAN_TEXT_NO_TEST_STRATEGY)
     _route_via_s5(conn, ticket_id)
@@ -203,7 +206,11 @@ def test_an_unauthorized_base_test_change_is_refused(tmp_path):
     run = _last_s4_run(conn, ticket_id)
     assert run["outcome"] == "fail"
     assert run["failure_kind"] == "verification"
-    assert conn.execute("SELECT COUNT(*) FROM deviation WHERE stage_run_id = ?", (run["id"],)).fetchone()[0] == 0
+    deviation = conn.execute(
+        "SELECT * FROM deviation WHERE stage_run_id = ? AND agent_did LIKE '%WidgetUnitTest.java%'", (run["id"],)
+    ).fetchone()
+    assert deviation is not None
+    assert deviation["plan_item"] == "unplanned"
     assert conn.execute(
         "SELECT COUNT(*) FROM queue_item WHERE ticket_id = ? AND kind = 'red_check' AND resolved_at IS NULL",
         (ticket_id,),

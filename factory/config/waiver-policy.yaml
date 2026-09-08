@@ -1,0 +1,50 @@
+# The waiver policy: which epistemic blind spots a role may waive, and for
+# how long. `never_waivable` is refused before any policy entry is even
+# consulted -- no policy, present or future, may cover one of these check
+# names. `policies` is deliberately small for the pilot: two entries are
+# enough to exercise both waiver subjects (a plan-candidate verdict, an S5
+# review-tuple check result) without inventing conditions the record never
+# produces yet.
+
+version: 1
+
+never_waivable:            # check names no policy may ever cover
+  - restricted_pattern     # secret or restricted-pattern hit
+  - classification         # unknown classification
+  - trust_approval         # unknown or missing trust approval
+  - sandbox_integrity      # sandbox-integrity failure
+  - freshness              # stale base or head
+  - refresh_base           # stale base after a refresh attempt
+  - review_tuple_preflight # stale plan tuple or missing candidate component
+  - race_guard             # a sensitive-path match found by the pre-dispatch recheck
+  - reviewer_set           # reviewer-set or quorum mismatch
+  - approval_binding       # approval mismatch
+  - artefact_structure     # a required artefact is missing or malformed
+  - exclusion              # Initial-scope exclusion
+
+policies:
+  # A grader checklist line's blind spot -- the plan-candidate subject S1
+  # through S3's bootstrap checklist stands in for until calibrated graders
+  # exist. Any grader line may surface one; the pilot's single reviewer
+  # role and the factory owner are the only identities who may accept it.
+  - id: impact-blind-spot
+    version: 1
+    subject_kinds: [plan_candidate]
+    conditions: ["*:grader"]
+    roles: [s3_reviewer, factory_owner]
+    max_days: 14
+    severity: sev3
+
+  # An S5 blocking check's own named gap: the behavioural-contract-evidence
+  # check's declared blind spots (missing grammar/unit, inheritance,
+  # reflection, generated API, binary compatibility, or an unchecked
+  # behavioural change) and a base-test-diff both-views run that proves
+  # nothing. Both are review-tuple subjects the S6 reviewer or the factory
+  # owner may accept.
+  - id: contract-evidence-gap
+    version: 1
+    subject_kinds: [review_tuple]
+    conditions: [behavior_contract_evidence, base_test_diff]
+    roles: [s6_reviewer, factory_owner]
+    max_days: 7
+    severity: sev2

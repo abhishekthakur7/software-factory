@@ -21,6 +21,7 @@ result checks whether it is confined to a set a machine can retry on its own
 ticket back to `implementing` for a fix round or opens one `red_check` item naming
 every red and blind-spot result together.
 """
+import fnmatch
 import json
 import os
 import re
@@ -35,8 +36,13 @@ from runner import (
     queue, record, recipes, reviewer_sets, transitions,
 )
 from runner.checks import exclusion, regression_only
-from runner.fs import write_text
+from runner.fs import write_bytes, write_text
 from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
+
+# `Test strategy.criteria`'s `AC-n` shape -- the only criteria cell the
+# both-views rerun treats as a real behaviour claim; a `no_behaviour_change`
+# task id names anything else and is exempt from the rerun.
+_AC_ID_RE = re.compile(r"^AC-\d+$")
 
 ARTEFACT_KIND = "check_evidence"
 PASS_EVENT = None
@@ -97,10 +103,10 @@ def _scope_paths(plan_text: str) -> list[str]:
 
 def _record_check_result(
     conn: sqlite3.Connection, stage_run_id: int, *, check_name: str, result: str, summary: str,
-    evidence_tuple_id: int | None = None, evidence_artefact: int | None = None,
+    evidence_tuple_id: int | None = None, evidence_artefact: int | None = None, check_tier: str = "blocking",
 ) -> int:
     row = {
-        "stage_run_id": stage_run_id, "check_name": check_name, "check_tier": "blocking", "source": "runner",
+        "stage_run_id": stage_run_id, "check_name": check_name, "check_tier": check_tier, "source": "runner",
         "result": result, "summary": summary, "evidence_tuple_id": evidence_tuple_id,
         "evidence_artefact": evidence_artefact, "canonical_serialization_version": canonical.SERIALIZATION_VERSION,
     }
@@ -268,12 +274,20 @@ def _run_recipes(
                 prior_evidence = record.get(conn, "artefact", evidence_id)
 
             outcome = "pass" if result.outcome == "pass" else "fail"
+            governed_kind = regression_only.recipe_governed_kind(kind=recipe.kind, level=recipe.level)
+            is_blocking = side == "head" and governed_kind is None
             cr_id = _record_check_result(
                 conn, stage_run_id, check_name=f"recipe:{recipe_id}@{side}", result=outcome,
                 summary=json.dumps({"outcome": result.outcome, "exit_code": result.exit_code}, sort_keys=True),
                 evidence_tuple_id=review_tuple_id, evidence_artefact=evidence_id,
+                # Only an ungoverned recipe's own head result ever blocks the run on its
+                # own -- a governed recipe's raw pass/fail is folded through
+                # `regression_only` instead, and a base-side result of any kind is
+                # comparison evidence, never itself a gate -- so every other raw recipe
+                # result carries no weight of its own against `waivers.cleared` either.
+                check_tier="blocking" if is_blocking else "advisory",
             )
-            if side == "head" and regression_only.recipe_governed_kind(kind=recipe.kind, level=recipe.level) is None:
+            if is_blocking:
                 blocking.append((f"recipe:{recipe_id}@head", outcome, cr_id))
 
     return recipe_results, blocking, results_dir
@@ -302,6 +316,70 @@ def _failed_test_identities(text: str) -> list[dict]:
         if bad and bad.group("method") in ran_class_by_method:
             failed.append({"class": ran_class_by_method[bad.group("method")], "method": bad.group("method")})
     return failed
+
+
+def _changed_test_rerun_paths(plan_text: str, diff_paths: list[str], test_globs: list[str]) -> list[str]:
+    """Diff test paths a `Test strategy` row with `action = change` names and that names an
+    `AC-n` criterion -- the set the both-views rerun copies from head into a base checkout.
+
+    A row naming a `no_behaviour_change` task instead contributes nothing here: it is exempt
+    from the rerun, matching what `base_test_diff` itself does with the same row.
+    """
+    section = artefacts.parse(plan_text).section("Test strategy")
+    rows = section.table() if section is not None else None
+    matched: list[str] = []
+    for path in diff_paths:
+        if not any(fnmatch.fnmatch(path, pattern) for pattern in test_globs):
+            continue
+        name, stem = Path(path).name, Path(path).stem
+        for row in (rows or []):
+            if (row.get("action") or "").strip() != "change":
+                continue
+            criteria = [c.strip() for c in (row.get("criteria") or "").split(",") if c.strip()]
+            if not any(_AC_ID_RE.match(c) for c in criteria):
+                continue
+            test_cell = (row.get("test") or "").strip()
+            if test_cell and test_cell in (path, name, stem):
+                matched.append(path)
+                break
+    return matched
+
+
+def _both_views_rerun(
+    *, catalogue, project_recipes: list[str], base_checkout: Path, head_checkout: Path, run_dir: Path,
+    plan_text: str, diff_paths: list[str], test_globs: list[str], vendor_classpath: str,
+) -> Path | None:
+    """Copy every matched head test file into a fresh throwaway copy of base, run the
+    project's test recipes there once, and write the ran/failed identities `base_test_diff`
+    needs to tell a proven regression from a blind spot. `None` when no row's test file
+    changed at head -- the check then runs its ordinary detections alone.
+    """
+    matched_paths = _changed_test_rerun_paths(plan_text, diff_paths, test_globs)
+    if not matched_paths:
+        return None
+
+    rerun_copy = git_trees.throwaway_copy(base_checkout, run_dir / "checkouts" / "base-both-views")
+    for rel_path in matched_paths:
+        head_file = head_checkout / rel_path
+        if head_file.is_file():
+            write_bytes(rerun_copy / rel_path, head_file.read_bytes())
+
+    ran: list[dict] = []
+    failed: list[dict] = []
+    for recipe_id in project_recipes:
+        if catalogue[recipe_id].kind != "test":
+            continue
+        result = recipes.run(
+            recipe_id, {"vendor_classpath": vendor_classpath}, catalogue=catalogue,
+            cwd_roles={"checkout": rerun_copy}, results_dir=run_dir / "recipes" / "both-views",
+            env_source=os.environ,
+        )
+        ran += [dict(entry) for entry in (result.tests_ran or ())]
+        failed += _failed_test_identities(_recipe_output_text(result))
+
+    payload_path = run_dir / "tests_head_in_base.json"
+    write_text(payload_path, json.dumps({"ran": ran, "failed": failed}))
+    return payload_path
 
 
 def _tests_payload(catalogue, project_recipes: list[str], recipe_results: dict, side: str) -> dict:
@@ -551,10 +629,20 @@ def run(
         glob for recipe_id in project_recipes if catalogue[recipe_id].kind == "test"
         for glob in (catalogue[recipe_id].test_globs or ())
     })
+    rerun_payload_path = _both_views_rerun(
+        catalogue=catalogue, project_recipes=project_recipes, base_checkout=base_checkout, head_checkout=head_checkout,
+        run_dir=run_dir, plan_text=plan_text, diff_paths=diff_paths, test_globs=test_globs,
+        vendor_classpath=vendor_classpath,
+    )
+    base_test_args = [
+        "--base", str(base_checkout), "--head", str(head_checkout), "--globs", ",".join(test_globs),
+        "--plan", str(plan_artefact["path"]), "--tests-base", str(tests_base_path), "--tests-head", str(tests_head_path),
+    ]
+    if rerun_payload_path is not None:
+        base_test_args += ["--tests-head-in-base", str(rerun_payload_path)]
     base_test_payload, base_test_cr_id = _run_check_script(
         conn, stage_run_id, check_name="base_test_diff", script=BASE_TEST_DIFF_SCRIPT, review_tuple_id=review_tuple_id,
-        args=["--base", str(base_checkout), "--head", str(head_checkout), "--globs", ",".join(test_globs),
-              "--plan", str(plan_artefact["path"]), "--tests-base", str(tests_base_path), "--tests-head", str(tests_head_path)],
+        args=base_test_args,
     )
     blocking_results.append(("base_test_diff", base_test_payload.get("result", "blind_spot"), base_test_cr_id))
 

@@ -1,0 +1,15 @@
+subject: factory/scripts/tools/packet_assemble
+owner: abhishek
+cases:
+  - name: full_ordered_packet
+    fixture: fixtures/full
+    expect: ok
+  - name: impact_entry_relabelled_blind_spot
+    fixture: fixtures/impact_blind_spot
+    expect: ok
+  - name: unplanned_test_file
+    fixture: fixtures/unplanned_test
+    expect: ok
+  - name: malformed_inputs_missing_keys
+    fixture: fixtures/malformed
+    expect: error
