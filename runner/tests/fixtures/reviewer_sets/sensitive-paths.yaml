@@ -1,0 +1,4 @@
+# glob to owner handle; CODEOWNERS wins, so src/legacy/** here is only
+# reached for a path CODEOWNERS does not already cover
+infra/**: "@bob"
+src/legacy/**: "@carol"

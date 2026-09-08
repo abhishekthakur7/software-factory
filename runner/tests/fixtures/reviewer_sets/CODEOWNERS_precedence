@@ -1,0 +1,6 @@
+# a bare pattern matches at any depth; the trailing-slash and interior-slash
+# rules below only match rooted at the repository root
+*.md @alice
+/src/**/*.py @bob
+/src/legacy/ @alice @bob
+src/legacy/special.py @org/team

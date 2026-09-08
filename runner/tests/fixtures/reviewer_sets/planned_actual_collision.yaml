@@ -1,0 +1,12 @@
+# a planned slot sharing a canonical key with a slot the actual diff derives
+# from CODEOWNERS_precedence's "*.md @alice" rule (source_rule CODEOWNERS:3,
+# owner alice), plus one planned-only slot the actual diff never touches
+planned_slots:
+  - source_rule: "CODEOWNERS:3"
+    owner: alice
+    min_count: 2
+    distinct_from: ["security_approver||trust-profile"]
+  - source_rule: "CODEOWNERS:planned-only"
+    owner: dana
+    matched_path: "README-planned.md"
+    min_count: 1

@@ -1,0 +1,6 @@
+# committed on top of CODEOWNERS_precedence to prove a derivation pinned to
+# the earlier commit never reads this version
+*.md @bob
+/src/**/*.py @alice
+/src/legacy/ @bob
+src/legacy/special.py @alice

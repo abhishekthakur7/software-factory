@@ -9,7 +9,8 @@ import pytest
 
 from runner import approvals, canonical
 from runner.db import connect
-from runner.reviewer_sets import Slot
+from runner.reviewer_sets import Slot, derive_actual
+from runner.tests.test_reviewer_sets import OWNERS, _commit_codeowners, _init_repo, _ticket
 
 SUBJECT = "subject-1"
 ATTESTATION = {"attestation_version": "v1", "attestation_hash": "att-1"}
@@ -136,3 +137,26 @@ def test_approval_set_hash_is_order_independent_over_the_qualifying_rows(conn):
     rows = approvals.current_heads(conn, "plan", SUBJECT)
     assert approvals.approval_set_hash(rows) == approvals.approval_set_hash(list(reversed(rows)))
     assert approvals.approval_set_hash(rows) != approvals.approval_set_hash(rows[:1])
+
+
+def test_a_recorded_approvals_slot_id_and_scope_trace_back_to_a_derived_reviewer_sets_slot(conn, tmp_path):
+    """the slot id and scope stored on an approval are the exact `slot_id`
+    and matched path a real CODEOWNERS derivation produced, not a
+    hand-typed string that merely happens to look like one (R-S6-6)."""
+    repo = _init_repo(tmp_path)
+    sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
+    derivation = derive_actual(
+        conn, ticket_id=_ticket(conn), repo_path=repo, target_base_sha=sha,
+        changed_paths=["README.md"], owners=OWNERS, sensitive_paths={},
+        authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
+    )
+    [slot] = derivation.slots
+
+    row_id = approvals.record_approval(
+        conn, gate="review", subject_hash="subject-review-1",
+        slot_id=slot.slot_id, scope=slot.matched_path, actor_identity=slot.owner,
+        role="owner", decision="approve", **AUTHORITY, **ATTESTATION,
+    )
+    row = conn.execute("SELECT * FROM approval_record WHERE id = ?", (row_id,)).fetchone()
+    assert row["slot_id"] == slot.slot_id == "|alice|CODEOWNERS:3"
+    assert row["scope"] == slot.matched_path == "README.md"
