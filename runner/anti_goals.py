@@ -1,6 +1,6 @@
-"""The anti-goals of charter section 3, the other half of the R-F-11 fence.
+"""The charter's anti-goals, the other half of the fence beside `state_table.py`.
 
-Kept as code, not markdown, so criterion 11's manifest walk can name this
+Kept as code, not markdown, so the fence test's manifest walk can name this
 module directly. See `state_table.py` for why both stay outside `factory/`.
 """
 

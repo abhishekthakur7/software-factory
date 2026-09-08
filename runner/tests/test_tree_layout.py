@@ -1,4 +1,4 @@
-"""T-A-01 criterion 1, R-F-1: the committed factory/ tree matches PRD 7's layout."""
+"""The committed factory/ tree matches the fixed layout."""
 import subprocess
 
 from runner.paths import FACTORY_DIR, REPO_ROOT
@@ -20,7 +20,7 @@ REQUIRED_DIRS = (
 )
 
 
-def test_every_prd_7_directory_exists_under_factory():
+def test_every_layout_directory_exists_under_factory():
     for rel in REQUIRED_DIRS:
         assert (FACTORY_DIR / rel).is_dir(), f"missing factory/{rel}"
 

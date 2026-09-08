@@ -1,7 +1,7 @@
-"""The record's schema, as data (R-T-1, docs/prd/02-2-entities.md).
+"""The record's schema, as data.
 
-`TABLES` is the single source of truth: T-A-03 derives the mutable-field
-allowlist from it and later migrations extend it, instead of a second copy
+`TABLES` is the single source of truth: the append-only enforcement
+derives its mutable-field allowlist from it and later migrations extend it, instead of a second copy
 of the field lists living beside a hand-written `CREATE TABLE` string. No
 ORM: a table is just a name and a tuple of columns, and `ddl()` is a pure
 function from that data to SQL text.
@@ -10,12 +10,12 @@ Column types follow the field's evident meaning: INTEGER for counts,
 sequence numbers, booleans and version numbers; REAL for measured
 quantities (`cost`, wall-clock durations, the free-form measurement in
 `baseline_measure.value`); TEXT for everything else, with lists and
-structured values stored as JSON text (the PRD 2.2 preamble; canonical
-encoding lives in `runner/canonical.py`). `nullable=False` is used only
+structured values stored as JSON text (canonical encoding lives in
+`runner/canonical.py`). `nullable=False` is used only
 where the PRD states a field is required, non-null, or mandatory; every
 other field defaults to nullable because most of the record is filled in
 as work proceeds rather than at insert time. Only the five Later tables
-named by R-T-1 (`score`, `human_signal`, `proposal`, `benchmark`,
+(`score`, `human_signal`, `proposal`, `benchmark`,
 `fixture_candidate`) are withheld — they arrive with the migration that
 lands the row that first writes each one.
 """
@@ -61,7 +61,7 @@ TABLES: tuple[Table, ...] = (
             Column("tier_override_at", "TEXT"),
             Column("tier_override_reason", "TEXT"),
             Column("scrutiny_requested", "TEXT"),
-            # Display summary, not an approval gate input (02-2-entities.md).
+            # Display summary, not an approval gate input.
             Column("required_approvers", "TEXT"),
             Column("state", "TEXT"),
             # Null except while blocked; the single queue_item for the current wait.
@@ -77,7 +77,7 @@ TABLES: tuple[Table, ...] = (
             Column("pr_identity", "TEXT"),
             Column("last_remote_head_sha", "TEXT"),
             Column("last_pr_body_hash", "TEXT"),
-            # True only for the pre-factory provenance rows of R-O-6.
+            # True only for the pre-factory baseline provenance rows.
             Column("baseline", "INTEGER"),
             Column("opened_at", "TEXT"),
             Column("factory_completed_at", "TEXT"),
@@ -90,7 +90,7 @@ TABLES: tuple[Table, ...] = (
             Column("required_checks_disposition", "TEXT"),
             Column("approval_disposition", "TEXT"),
             Column("external_revision_count", "INTEGER"),
-            # Later field (FM-09); reserved now so it never needs a migration.
+            # Later field; reserved now so it never needs a migration.
             Column("close_survey", "TEXT"),
         ),
     ),
@@ -151,7 +151,7 @@ TABLES: tuple[Table, ...] = (
             Column("outputs", "TEXT"),
             Column("manifest_hash", "TEXT"),
             # Same runtime/model identity fields as stage_run, filled only
-            # when the utility run uses an agent (02-2-entities.md).
+            # when the utility run uses an agent.
             Column("runtime", "TEXT"),
             Column("runtime_version", "TEXT"),
             Column("adapter_version", "TEXT"),
@@ -295,7 +295,7 @@ TABLES: tuple[Table, ...] = (
         "generated_test",
         (
             _id(),
-            # 'identity' or 'decision' (02-2-entities.md prose); the two
+            # 'identity' or 'decision'; the two
             # kinds share this table and populate disjoint column groups.
             Column("record_kind", "TEXT"),
             Column("ticket_id", "INTEGER", references="ticket.id"),
@@ -405,7 +405,7 @@ TABLES: tuple[Table, ...] = (
             Column("content_hash", "TEXT"),
             # The canonical requirement slots, one JSON list (each slot:
             # key, matched path, source rule/pattern, precedence, role or
-            # owner, minimum count, distinct_from) — 02-2-entities.md.
+            # owner, minimum count, distinct_from).
             Column("slots", "TEXT"),
         ),
     ),
@@ -463,8 +463,8 @@ TABLES: tuple[Table, ...] = (
             Column("evidence_ids", "TEXT"),
             Column("evidence_hashes", "TEXT"),
             Column("issued_at", "TEXT"),
-            # "mandatory expiry" (02-2-entities.md) — the one unconditional
-            # NOT NULL this ticket adds beyond the owner's named examples.
+            # "mandatory expiry": the one NOT NULL the entity definitions state
+            # in prose rather than as a field-level rule.
             Column("expires_at", "TEXT", nullable=False),
             Column("canonical_serialization_version", "INTEGER"),
             Column("content_hash", "TEXT"),
@@ -629,7 +629,7 @@ TABLES: tuple[Table, ...] = (
     ),
 )
 
-# The Later tables of R-T-1: created only by the migration that lands the
+# The Later tables: created only by the migration that lands the
 # row that first writes each one, never by this schema.
 LATER_TABLES: frozenset[str] = frozenset(
     {"score", "human_signal", "proposal", "benchmark", "fixture_candidate"}

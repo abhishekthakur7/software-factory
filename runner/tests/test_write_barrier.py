@@ -1,4 +1,4 @@
-"""T-A-01 criteria 7 and 8 (R-F-5): nothing at runtime writes into factory/.
+"""Write barrier: nothing at runtime writes into factory/.
 
 The scanner parses source with `ast` rather than grepping, so it isn't
 fooled by a write call split across lines or wrapped in a comment. It looks
@@ -29,7 +29,7 @@ UNSAFE_OPEN_MODE_CHARS = set("wax+")
 FIXTURES_DIR = REPO_ROOT / "runner" / "tests" / "fixtures" / "write_barrier"
 
 # One synthetic write target per event-kind fixture, matching what that
-# fixture's function writes to, backing the write_text half of criterion 8.
+# fixture's function writes to, so the funnel is tested on the same target.
 FIXTURE_TARGETS = {
     "tag.py": FACTORY_DIR / "catalogue" / "tags.md",
     "stale_index_entry.py": FACTORY_DIR / "index" / "example.md",
@@ -81,7 +81,7 @@ def _runner_modules_excluding_fs_and_tests():
 
 
 def test_no_runner_module_writes_into_factory_at_runtime():
-    """T-A-01 criterion 7, R-F-5: no runner/ module (besides fs.py) opens a
+    """no runner/ module (besides fs.py) opens a
     write path, so the only route to a factory/ change is the engineer's own
     working-tree edit."""
     violations = []
@@ -92,12 +92,12 @@ def test_no_runner_module_writes_into_factory_at_runtime():
 
 @pytest.mark.parametrize("fixture_name", sorted(FIXTURE_TARGETS))
 def test_must_reject_synthetic_event_write_into_factory(fixture_name):
-    """T-A-01 criterion 8, R-F-5.
+    """a runtime write under factory/ is refused whatever event drives it.
 
     Each fixture stands in for one event kind (tag, stale context-index
     entry, repeated grader failure, the engineer's own reading) attempting a
-    runtime write under factory/. The same scanner that proves criterion 7
-    must flag it, and runner.fs.write_text must independently refuse the
+    runtime write under factory/. The same scanner that guards the runner
+    modules must flag it, and runner.fs.write_text must independently refuse the
     same target -- together these are how "lands only as a git diff for the
     engineer to review" is enforced: the runtime has no write route into
     factory/, so a change there can exist only as the engineer's own

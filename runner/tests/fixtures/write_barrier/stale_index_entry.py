@@ -1,6 +1,6 @@
 """Stand-in for a `stale_index_entry` event trying to write into factory/ at runtime.
 
-Fixture for T-A-01 criterion 8 (R-F-5): the scanner in test_write_barrier.py
+Write-barrier fixture: the scanner in test_write_barrier.py
 must flag this raw write the same way it flags real runner/ modules.
 """
 from pathlib import Path

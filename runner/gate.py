@@ -1,4 +1,4 @@
-"""The adoption-gate entry point: `python3 -m runner.gate` (PRD decision 39)."""
+"""The adoption-gate entry point: `python3 -m runner.gate`."""
 import pytest
 
 from runner.paths import REPO_ROOT

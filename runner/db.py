@@ -1,9 +1,9 @@
-"""Open the record: one SQLite database, WAL mode, `foreign_keys` on (R-T-1).
+"""Open the record: one SQLite database, WAL mode, `foreign_keys` on.
 
 `connect` is the entire module. There is no ORM, no repository layer, and
 no module-level connection: every caller opens its own connection and is
 responsible for closing it. SQLite's own WAL locking plus a busy timeout
-is the ticket's "single writer" — a second lock file would just be another
+is the record's single writer — a second lock file would just be another
 thing that can go stale.
 """
 import sqlite3

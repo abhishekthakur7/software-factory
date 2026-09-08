@@ -1,4 +1,4 @@
-"""The only module in `runner/` allowed to open a path for writing (R-F-5).
+"""The only module in `runner/` allowed to open a path for writing.
 
 Every other module must go through `write_text`/`write_bytes` here, which
 refuse a target resolving inside `FACTORY_DIR`. `test_write_barrier.py`

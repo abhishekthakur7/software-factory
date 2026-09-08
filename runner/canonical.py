@@ -1,4 +1,4 @@
-"""Canonical JSON and content hashing (PRD 2.2 preamble).
+"""Canonical JSON and content hashing.
 
 Every content hash and subject hash in the record — check results, guard
 decisions, reviewer sets, approval records, waivers, evidence tuples, human
@@ -17,7 +17,7 @@ SERIALIZATION_VERSION = 1
 # Database ids are storage detail, not the subject; the hash field itself
 # would be self-referential; creation timestamps are audit-only and would
 # make identical records hash differently depending on when they were
-# written (PRD 2.2 preamble).
+# written.
 DEFAULT_EXCLUDED = frozenset({"id", "content_hash", "created_at"})
 
 

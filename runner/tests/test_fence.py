@@ -1,4 +1,4 @@
-"""T-A-01 criteria 9, 10, 11 (R-F-11): the fence lives in runner/, not factory/."""
+"""The fence: the fence lives in runner/, not factory/."""
 import yaml
 
 from runner import anti_goals, state_table
@@ -6,7 +6,7 @@ from runner.paths import FACTORY_DIR, REPO_ROOT
 
 
 def test_state_table_lives_outside_factory_with_plausible_states():
-    """T-A-01 criterion 9, R-F-11."""
+    """the state table is runner code outside factory/."""
     module_path = REPO_ROOT / "runner" / "state_table.py"
     assert module_path.is_file()
     assert FACTORY_DIR not in module_path.parents
@@ -21,7 +21,7 @@ def test_state_table_lives_outside_factory_with_plausible_states():
 
 
 def test_anti_goals_lives_outside_factory_with_eleven_entries():
-    """T-A-01 criterion 10, R-F-11."""
+    """the anti-goals are runner code outside factory/."""
     module_path = REPO_ROOT / "runner" / "anti_goals.py"
     assert module_path.is_file()
     assert FACTORY_DIR not in module_path.parents
@@ -31,7 +31,7 @@ def test_anti_goals_lives_outside_factory_with_eleven_entries():
 
 
 def test_must_reject_manifest_naming_the_fence_modules():
-    """T-A-01 criterion 11, R-F-11: the manifest never references the fence,
+    """the manifest never references the fence,
     so no proposal path can reach it through a governed change."""
     manifest = yaml.safe_load((FACTORY_DIR / "manifest.yaml").read_text())
     paths = {entry["path"] for entry in manifest["files"]}

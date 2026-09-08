@@ -1,7 +1,7 @@
 """Filesystem roots shared by every runner module.
 
-`factory/` is versioned and read-only at run time (R-F-5); `runs/` is the
-unversioned run state. Both are fixed relative to this repository (PRD 7).
+`factory/` is versioned and read-only at run time; `runs/` is the
+unversioned run state. Both are fixed relative to this repository.
 """
 from pathlib import Path
 

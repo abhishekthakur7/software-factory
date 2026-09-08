@@ -1,8 +1,8 @@
-"""T-A-01 criteria 2, 3, 4, 5, 6, R-F-1.
+"""The manifest hash.
 
 Drives factory/scripts/tools/manifest_hash through the conformance fixtures
-named in its eval.yaml, plus the uncommitted-edit and repeat-run behaviours
-the ticket asks this file (not a fixture) to exercise.
+named in its eval.yaml, plus the uncommitted-edit and repeat-run behaviours,
+which need a git history and so live here rather than in a fixture.
 """
 import hashlib
 import shutil
@@ -42,7 +42,7 @@ assert OK_CASES and REJECT_CASES, "eval.yaml must define both an ok and a reject
 
 @pytest.mark.parametrize("case", OK_CASES, ids=[c["name"] for c in OK_CASES])
 def test_manifest_hash_accepts_conformance_case(tmp_path, case):
-    """T-A-01 criterion 4, R-F-1."""
+    """a valid committed manifest yields the SHA-256 of its committed bytes."""
     repo = _build_repo(tmp_path, case["fixture"])
     result = _run(repo)
     assert result.returncode == 0, result.stderr
@@ -55,7 +55,7 @@ def test_manifest_hash_accepts_conformance_case(tmp_path, case):
 
 @pytest.mark.parametrize("case", REJECT_CASES, ids=[c["name"] for c in REJECT_CASES])
 def test_must_reject_manifest_hash_conformance_case(tmp_path, case):
-    """T-A-01 criterion 3, R-F-1."""
+    """an entry outside factory/, a traversal, or a missing hash is rejected."""
     repo = _build_repo(tmp_path, case["fixture"])
     result = _run(repo)
     assert result.returncode == 1
@@ -64,7 +64,7 @@ def test_must_reject_manifest_hash_conformance_case(tmp_path, case):
 
 
 def test_repeated_runs_over_an_unchanged_tree_agree(tmp_path):
-    """T-A-01 criterion 6, R-F-1."""
+    """two runs over an unchanged tree print the same hash."""
     repo = _build_repo(tmp_path, "fixtures/valid")
     first = _run(repo)
     second = _run(repo)
@@ -73,7 +73,7 @@ def test_repeated_runs_over_an_unchanged_tree_agree(tmp_path):
 
 
 def test_must_reject_uncommitted_manifest_edit(tmp_path):
-    """T-A-01 criterion 5, R-F-1."""
+    """an uncommitted edit to the manifest fails validation."""
     repo = _build_repo(tmp_path, "fixtures/valid")
     manifest = repo / "factory" / "manifest.yaml"
     manifest.write_text(manifest.read_text() + "\n# uncommitted local edit\n")
@@ -83,7 +83,7 @@ def test_must_reject_uncommitted_manifest_edit(tmp_path):
 
 
 def test_every_real_manifest_entry_has_path_and_content_hash():
-    """T-A-01 criterion 2, R-F-1."""
+    """every entry of the committed manifest carries path and content_hash."""
     manifest = yaml.safe_load((FACTORY_DIR / "manifest.yaml").read_text())
     assert manifest["files"], "manifest lists no files"
     for entry in manifest["files"]:
@@ -101,10 +101,10 @@ def _real_manifest_head_bytes():
 
 @pytest.mark.skipif(
     _real_manifest_head_bytes() is None,
-    reason="factory/manifest.yaml is not committed at HEAD yet; T-A-01 adds it in this commit",
+    reason="factory/manifest.yaml is not committed at HEAD",
 )
 def test_manifest_hash_over_real_repo_matches_committed_manifest():
-    """T-A-01 criteria 4, 6, R-F-1: run against the real repo, not a fixture."""
+    """run against the real repo, not a fixture."""
     committed = _real_manifest_head_bytes()
     result = _run(REPO_ROOT)
     assert result.returncode == 0, result.stderr

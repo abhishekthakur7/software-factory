@@ -1,6 +1,6 @@
-"""T-A-02 schema tests (R-T-1, docs/prd/02-1-ticket-record.md line 13).
+"""Record schema.
 
-Field lists below are hand-transcribed from docs/prd/02-2-entities.md, not
+Field lists below are hand-transcribed from the PRD's entity definitions, not
 imported from runner/schema.py: importing them would make a typo or a
 missing column in the schema module invisible, since the test would just
 be checking the module against itself.
@@ -9,7 +9,7 @@ import pytest
 
 from runner.db import connect
 
-# The 12 entities 02-2-entities.md describes as field tables: every named
+# The 12 entities the PRD describes as field tables: every named
 # field is checked.
 EXPECTED_FIELDS = {
     "ticket": {
@@ -88,7 +88,7 @@ EXPECTED_FIELDS = {
         "id", "stage_run_id", "entry_path", "entry_last_verified", "stale",
     },
     # The remaining tables are described in prose. This is a representative
-    # subset: the datums 02-2-entities.md names explicitly by word for each,
+    # subset: the datums the PRD names explicitly by word for each,
     # not every derived column.
     "generated_test": {
         "id", "record_kind", "ticket_id", "initial_path", "initial_hash",
@@ -166,21 +166,21 @@ def _table_columns(connection, table_name):
 
 
 def test_wal_mode(tmp_path):
-    """T-A-02 criterion 1, R-T-1: the database opens in WAL mode."""
+    """the database opens in WAL mode."""
     connection = connect(tmp_path / "factory.sqlite")
     mode = connection.execute("PRAGMA journal_mode").fetchone()[0]
     assert mode.lower() == "wal"
 
 
 def test_foreign_keys_enabled(tmp_path):
-    """T-A-02 criterion 1, R-T-1: foreign key enforcement is on per connection."""
+    """foreign key enforcement is on per connection."""
     connection = connect(tmp_path / "factory.sqlite")
     assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 1
 
 
 @pytest.mark.parametrize("table_name,expected", sorted(EXPECTED_FIELDS.items()))
 def test_table_has_every_named_field(tmp_path, table_name, expected):
-    """T-A-02 criterion 2, R-T-1: every field 02-2-entities.md names exists."""
+    """Every field the PRD names for the table exists."""
     connection = connect(tmp_path / "factory.sqlite")
     columns = _table_columns(connection, table_name)
     missing = expected - columns
@@ -189,7 +189,7 @@ def test_table_has_every_named_field(tmp_path, table_name, expected):
 
 @pytest.mark.parametrize("table_name", LATER_TABLES)
 def test_later_table_absent(tmp_path, table_name):
-    """T-A-02 criterion 3, R-T-1, must-reject: no Later table exists early."""
+    """must-reject: no Later table exists early."""
     connection = connect(tmp_path / "factory.sqlite")
     row = connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -199,7 +199,7 @@ def test_later_table_absent(tmp_path, table_name):
 
 
 def test_reconnect_is_idempotent(tmp_path):
-    """T-A-02, R-T-1: connecting twice to the same file changes nothing."""
+    """connecting twice to the same file changes nothing."""
     path = tmp_path / "factory.sqlite"
     first = connect(path)
     count_first = first.execute(

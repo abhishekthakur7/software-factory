@@ -1,9 +1,9 @@
-"""The ticket-state fence of R-F-11 (PRD 2.3): who a state may be entered from.
+"""The ticket-state table: which states each state may be entered from.
 
 This table -- and `anti_goals.py` beside it -- must stay outside `factory/`
-and outside `factory/manifest.yaml`, so no proposal path (R-F-10, Later) can
-ever reach the gates it enforces. This module holds data only; T-A-04 adds
-the functions that read `TRANSITIONS` to actually gate a move.
+and outside `factory/manifest.yaml`, so no proposal path can
+ever reach the gates it enforces. This module holds data only; the transition
+enforcement that reads `TRANSITIONS` to gate a move lives beside it.
 """
 
 STATES = (
@@ -23,7 +23,7 @@ STATES = (
     "escalated",
 )
 
-# Read off the "Entered from" column of PRD 2.3, literally. A named state in
+# Read off the "Entered from" column of the PRD's ticket-state table, literally. A named state in
 # that column (e.g. `plan_review`, `checks`) is transcribed as-is; a stage
 # name (S0-S7) is resolved to the state that runs it (S0=intake, S1=context,
 # S2=clarifying, S3=planning, S4=implementing, S5=checks, S6=review,

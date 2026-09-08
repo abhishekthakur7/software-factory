@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recompute the manifest hash from the committed factory/manifest.yaml (R-F-1).
+"""Recompute the manifest hash from the committed factory/manifest.yaml.
 
 Standalone by design: no import of `runner`, so the trusted control plane
 never has to load agent-reachable code to check its own manifest. Validates
