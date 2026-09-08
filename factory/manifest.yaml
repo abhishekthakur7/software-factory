@@ -137,7 +137,7 @@ files:
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/trust-profile.yaml
-    content_hash: ec29090a843d393d1198a1199d3ce2b23ca7e80d1393c1c476b4c01fbe59fd85
+    content_hash: 914d8937b9fc10c0b5f09126fa5dbfaaa47ad970b246ade246a62f8336022917
 stages:
   S0:
     agent: null

@@ -21,6 +21,7 @@ from runner.owners import (
     load_owners,
 )
 from runner.paths import FACTORY_DIR
+from runner.trust_profile import load_trust_profile
 
 OWNERS_PATH = FACTORY_DIR / "config" / "owners.yaml"
 TRUST_PROFILE_PATH = FACTORY_DIR / "config" / "trust-profile.yaml"
@@ -79,12 +80,14 @@ def test_committed_shared_identities_records_the_pilot_note():
     assert entry["note"]
 
 
-def test_committed_trust_profile_carries_only_the_one_key():
-    """trust-profile.yaml, as built by this ticket, carries only
-    both_trust_roles_identity and nothing else."""
-    doc = yaml.safe_load(TRUST_PROFILE_PATH.read_text())
-    assert set(doc.keys()) == {"both_trust_roles_identity"}
-    assert doc["both_trust_roles_identity"] == "abhishek"
+def test_committed_trust_profile_still_names_both_trust_roles_identity():
+    """trust-profile.yaml has grown its full governance content since this
+    field was its only one, but `both_trust_roles_identity: abhishek` is
+    still in there, and still loads through the real validator rather than
+    a raw YAML read -- the invariant this test exists to pin is that the
+    field survives, not that it stays alone."""
+    profile = load_trust_profile(TRUST_PROFILE_PATH)
+    assert profile.both_trust_roles_identity == "abhishek"
 
 
 def test_must_reject_role_with_empty_responsibilities_list(tmp_path):
