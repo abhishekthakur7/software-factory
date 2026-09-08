@@ -13,9 +13,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, gates, git_trees, record, transitions
+from runner import artefact_registry, gates, git_trees, manifest, record, transitions
 from runner.db import connect
 from runner.definitions import DefinitionError, load_definition
+from runner.fs import write_text
 from runner.paths import FACTORY_DIR
 from runner.stages import run_stage
 
@@ -75,6 +76,50 @@ def _checks_ticket_with_fresh_base(conn, tmp_path):
     return ticket_id
 
 
+# S3 is real, not a stub: it needs a worktree (for `risk_map`), the real
+# manifest pin, and a brief/criteria to plan against. `_WALK_BRIEF_TEXT`
+# gives risk_map a real candidate path and handoff_ready's brief-derived
+# conditions something to read; the criteria fixture is the one
+# `runner/tests/test_s3_structure.py` also drives directly.
+_S3_BRIEF_TEXT = """## Touched area candidates
+
+| path | reason |
+|---|---|
+| README.md | the file this ticket's plan touches |
+
+## Linked sources
+
+| source | date |
+|---|---|
+| JIRA-123 | 2026-01-01 |
+
+## Impact evidence
+
+| direction | dependency | method | source | mapping | owner | coverage | blind_spots |
+|---|---|---|---|---|---|---|---|
+| outbound | svc-x | import_scan | pom.xml | mapping.yaml | abhishek | authoritative | none |
+"""
+
+
+def _planning_ticket_with_plan_inputs(conn, tmp_path):
+    """A ticket sitting in `planning` with a real worktree, manifest pin, and brief/criteria for S3 to plan against."""
+    source = _source_repo(tmp_path)
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
+        tier_final="light",
+    )
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    record.update(conn, "ticket", ticket_id, state="planning")
+
+    brief_path = tmp_path / "s3_brief.md"
+    write_text(brief_path, _S3_BRIEF_TEXT)
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief_path)
+    criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
+    return ticket_id
+
+
 def test_s0_stub_runs_and_the_eligibility_gate_moves_intake_to_context(conn, tmp_path):
     """the real S0 driver runs (writing and registering a
     `ticket_source` artefact), then a granted eligibility item moves the
@@ -114,14 +159,22 @@ def test_s2_stub_writes_criteria_and_passes_to_planning(conn, tmp_path):
     assert artefact_registry.latest(conn, ticket_id, "criteria") is not None
 
 
-def test_s3_stub_writes_a_plan_and_passes_to_plan_review(conn, tmp_path):
-    """the real S3 stub driver writes and registers a `plan`
-    artefact and its pass moves planning -> plan_review."""
-    ticket_id = _ticket_in(conn, "planning")
-    outcome = run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+def test_s3_runs_for_real_and_passes_to_plan_review(conn, tmp_path):
+    """the real S3 driver plans against a real brief/criteria, writes and
+    registers a `plan` artefact carrying the derived readiness table, and
+    its pass moves planning -> plan_review; `test_s3_structure.py` covers
+    the driver's checks in depth, this is the stage-walk smoke test."""
+    ticket_id = _planning_ticket_with_plan_inputs(conn, tmp_path)
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out")
+    try:
+        outcome = run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+    finally:
+        os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
     assert outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "plan_review"
-    assert artefact_registry.latest(conn, ticket_id, "plan") is not None
+    plan = artefact_registry.latest(conn, ticket_id, "plan")
+    assert plan is not None
+    assert "| reviewer_set | pass |" in Path(plan["path"]).read_text()
 
 
 def test_s4_stub_writes_a_handoff_and_passes_to_checks(conn, tmp_path):
