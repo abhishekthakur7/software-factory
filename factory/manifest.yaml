@@ -55,7 +55,7 @@ files:
 - path: factory/evals/agents/S2/fixtures/ok/S2.md
   content_hash: 526f2e57ae0aefec2d527bf9a2614fbbd8236e632f7758ff2cf570b66ecfbfee
 - path: factory/evals/agents/S3/eval.yaml
-  content_hash: 6b7bba8364ffbc53b7d2c2c0daa032f1df9bf91870301546a861a32748f55206
+  content_hash: 83dea80f0f52d49ea012c903bb5a001233e9e0b4bb85b32ff04cc9f281aa0169
 - path: factory/evals/agents/S3/fixtures/missing_front_matter/S3.md
   content_hash: b9676847c33c7f408a5c1ac9ad84bab7944f06ef52e81c563fa2578058a26159
 - path: factory/evals/agents/S3/fixtures/ok/S3.md
@@ -139,7 +139,7 @@ files:
 - path: factory/config/trust-profile.yaml
   content_hash: f7087e2418fe862598a0197b62716799862474a8a723048c7b5b1da57cfe9443
 - path: factory/config/project.yaml
-  content_hash: a9fa07932c8870506efb3b8accbc3fdfa8d7b124bd55294367cfbd64810f41f8
+  content_hash: 6f5b4dc04354ff64653227ada29290e691b417fca97fea209cd9d25a8a6b2d40
 - path: factory/config/service-tiers.yaml
   content_hash: d807d77e152a5af34391de17bc01262b37b5ba521e3d243d5ba8ac60d200c1af
 - path: factory/config/ticket-types.yaml

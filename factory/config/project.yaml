@@ -16,9 +16,9 @@ impact_methods:
   - import_scan
 toolchain:
   jdk: "17"
-# Excluded from the size gate's changed-line count (R-S3-12): paths a
-# build generates rather than a human writes, and the handful of lockfile
-# names churn constantly without representing reviewable change.
+# Excluded from the size gate's changed-line count: paths a build
+# generates rather than a human writes, and the handful of lockfile names
+# that churn constantly without representing reviewable change.
 generated_paths:
   - target/**
 lockfiles:

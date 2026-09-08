@@ -7,11 +7,11 @@ cases:
     fixture: fixtures/missing_front_matter
     expect: reject
   # The cases below exercise the plan the agent leaves in this same
-  # fixture's out/plan.md through the structure check (R-I-12/R-S3-18/
-  # R-S3-19/R-S3-14), not `load_definition` -- `expect` deliberately
-  # never reads "ok"/"reject" so the generic agent-definition walk above
-  # leaves them alone; `runner/tests/test_s3_structure.py` walks them
-  # instead, checking `out/plan.md` against `runner.checks.artefact_structure`
+  # fixture's out/plan.md through the general artefact structure check,
+  # not `load_definition` -- `expect` deliberately never reads "ok"/
+  # "reject" so the generic agent-definition walk above leaves them
+  # alone; `runner/tests/test_s3_structure.py` walks them instead,
+  # checking `out/plan.md` against `runner.checks.artefact_structure`
   # and asserting the named rule fires.
   - name: plan_ok
     fixture: fixtures/ok
