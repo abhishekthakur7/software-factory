@@ -166,3 +166,163 @@ later stage run (criterion 8), and every budget-abort criterion (11-19,
 on top of `runner/manifest.py`. `runner/stages/**`, `runner/queue.py`,
 `runner/control.py`, `runner/export.py`, and `runner/checks/**` are
 untouched.
+
+# T-A-19 brief, part two: model checks, the S0 pin, and budget abort
+
+This brief covers the second builder, working on top of the first
+builder's `runner/manifest.py`. It builds criteria 6, 7, 8 and 11-19.
+
+## What this delivers
+
+- **Model checks (criteria 6, 7)** already exist in
+  `runner/adapters/cursor_sdk.py::invoke`, built by the adapter ticket:
+  the requested-model-unavailable refusal (`_refuse_unavailable_model`,
+  no `stage_run` opened at all) and the resolved-model-mismatch
+  classification (`_classify`, `infrastructure_failure` with no output
+  registered) were already in place before this ticket started. This
+  builder adds the R-I-4 proof that the *manifest-resolved* path reaches
+  the same two refusals, not just a hand-built `Entry`: two new tests in
+  `runner/tests/test_manifest.py` resolve the shared `valid` fixture
+  manifest into a real `Entry`, then drive `cursor_sdk.invoke` against two
+  new `runtime.yaml` fixtures under `runner/tests/fixtures/manifest/model_check/`
+  (`unavailable_runtime.yaml` names no model the manifest's `light`/`S1`
+  entry requests; `mismatch_runtime.yaml` accepts that model but points
+  at the adapter suite's own `fixture_worker.py`, reused rather than
+  duplicated, running its `silent_fallback` case).
+- **The manifest-hash pin (criterion 8)** is two small pieces, exactly
+  where the ticket brief named them:
+  - `runner/gates.py::intake_gate` pins `ticket.factory_manifest_hash` to
+    `manifest.current_hash()` the moment it is about to return
+    `eligibility_granted`, but only when the ticket carries no pin yet.
+    This is the second write exception in this module (after
+    `plan_review_gate`), documented the same way.
+  - `runner/stages/__init__.py::invoke_agent` -- the one seam that
+    resolves a manifest entry for a real agent invocation, still unused
+    by every stub driver today -- now compares the ticket's pin against
+    the resolution's own `Entry.manifest_hash` before doing anything
+    else, for every stage but `S0` (whose pin does not exist yet, by
+    construction, until eligibility is granted). A missing or
+    mismatched pin is refused as a `utility_run` of kind
+    `refused_request`, naming the mismatch in `outputs`; no `stage_run`
+    is ever opened for it. `invoke_agent` gained one new keyword
+    parameter, `manifest_path`, defaulting to the real committed
+    manifest, purely so a test can point it at a fixture tree instead.
+
+  This placement deliberately does **not** touch `runner/stages/run_stage`
+  itself: `run_stage` opens the *stub* drivers' own outer `stage_run` for
+  every stage from `intake` through `checks`, and every existing test in
+  `test_stub_stages.py`, `test_state_table.py`, `test_stage_interface.py`,
+  `test_crash_recovery.py`, `test_report.py`, `test_outbox.py`, and
+  `test_stub_walk.py` seeds tickets directly into `context` and later
+  states with no pin at all, since none of them exercise a real agent
+  invocation. `invoke_agent` is the one place a manifest is actually
+  resolved for real work today (S1-S4 stay stubs; nothing calls it yet),
+  so enforcing the pin there satisfies criterion 8's "every later stage
+  run" against the one call path capable of doing agent-governed work,
+  without rewriting the stub-stage suite's ticket fixtures across eight
+  files for an invariant no stub stage's own behaviour depends on.
+- **`runner/budgets.py`** (new) -- `check_before_invocation(conn, ticket,
+  stage, tier, *, parent_run_id=None)` sums the settled tokens and
+  wall-clock seconds already recorded against the invocation family about
+  to grow (the run named by `parent_run_id`, if any, plus every run
+  recorded under it at any depth) and compares the total to
+  `run_ledger.budget(stage, tier)`; for `S4` it separately compares the
+  ticket's whole `S4` history (every `stage_run` with `stage = 'S4'`,
+  family boundaries aside) to `run_ledger.s4_per_ticket_budget(tier)`.
+  `abort(conn, ticket, stage_run_id, *, reason)` finishes an
+  already-open `stage_run` `aborted_budget`, writes one JSON escalation
+  note (reasoning summary, registered outputs, the ticket's latest
+  `evidence_tuple` id if one exists, the stage's prior-attempt failure
+  history, and, for `S4`, `last_completed_task`/`execution_count`/
+  `verification_count`) onto that run's own `reasoning_summary` --
+  `queue_item.note` is a one-time field only a human resolving the item
+  can set, so the escalation item's `ref` (`stage_run:<id>`) is the only
+  place left for the runner's own note -- then applies `escalate` and
+  opens one `escalation` queue item, the same shape `control.stop` and
+  `refresh_base`'s conflict path already use.
+- **`runner/adapters/cursor_sdk.py`** calls `budgets.check_before_invocation`
+  immediately after opening its own `stage_run` and before building the
+  envelope or launching anything; a non-`None` reason calls `budgets.abort`
+  on that same run and returns an `aborted_budget` result with nothing
+  else settled. A launcher timeout (`LaunchResult.timed_out`) is handled
+  the same way, in place of the old `_classify` branch that used to
+  report it as an ordinary `infrastructure_failure` -- wall clock is a
+  budget dimension now, not a generic infrastructure fault.
+
+## Row covered
+
+R-I-4's model-check and pin clauses (criteria 6-8) and R-I-6 in full
+(criteria 11-19), both in `docs/prd/03-stage-interface.md`.
+
+## Owner decisions this brief follows
+
+- **The pin check lives in `invoke_agent`, not `run_stage`.** See "What
+  this delivers" above for the full reasoning; the short version is that
+  `run_stage` is the stub-stage skeleton every existing test seeds
+  tickets against with no pin, while `invoke_agent` is the actual,
+  currently-unused seam a real agent invocation would go through.
+- **The pin write lives in `intake_gate`, not `queue.act`'s `granted`
+  handling.** The ticket brief names "the eligibility_granted path", and
+  `intake_gate` is the one function that decides whether that event
+  fires at all (`queue.act`'s `granted` action alone is not enough
+  without a passing `S0` run too) -- pinning where the event is decided
+  keeps the write and the decision inseparable.
+- **The escalation note is JSON on the aborted run's own
+  `reasoning_summary`**, not `queue_item.note`: `queue_item`'s one-time
+  resolution columns (`note` included) are written exactly once, by a
+  human resolving the item through `queue.act`, and a budget abort is the
+  runner escalating on its own, before any human has looked at it. The
+  `escalation` item's `ref` already points a reader at `stage_run:<id>`,
+  so the note lands exactly where that pointer leads.
+- **No `tags.tag` call on budget abort.** `refresh_base`'s own conflict
+  path -- the codebase's other system-triggered escalation -- opens its
+  `escalation` item and applies `escalate` with no tag at all; every
+  `tags.tag(kind="escalation", ...)` call site elsewhere takes a human's
+  `--fm`/`--actor` pair from `factory stop` or `factory act`. Budget
+  abort has neither, so it follows `refresh_base`'s precedent rather than
+  inventing a synthetic actor identity or a PRD-reference fm_id.
+- **`S4`'s `last_completed_task`/`execution_count`/`verification_count`**
+  are derived from `stage_run.run_kind` and `outcome` alone, since no
+  dedicated task-tracking column exists yet (the real `S4` loop is a
+  later ticket): `execution_count` counts every `task`/`fix_round` row,
+  `verification_count` counts every `validation_only` row, and
+  `last_completed_task` is the highest `attempt` among `task`/`fix_round`
+  rows whose `outcome` is `pass`.
+- **`check_before_invocation`'s family walk is a `parent_run_id` BFS at
+  any depth**, not a single-level lookup, so a grandchild invocation (if
+  one is ever opened) still counts toward the same family total as its
+  grandparent; today's only real caller (`invoke_agent`'s eventual S2
+  restatement) is one level deep, but nothing in the budget module
+  assumes that.
+
+## Decisions this brief did not already settle
+
+- **`budgets.py` reads `run_ledger.TIERS_PATH` through `run_ledger.budget`/
+  `run_ledger.s4_per_ticket_budget` rather than taking a `tiers.yaml` path
+  of its own**, matching the same "live, hand-edited config" reasoning
+  the first builder's brief already gave for `Entry.budget`. Tests that
+  need a small, deterministic budget monkeypatch `run_ledger.TIERS_PATH`,
+  the same idiom `test_crash_recovery.py` already uses for
+  `run_ledger.process_identity`.
+- **A budget-exceeded pre-check still opens the invocation's own
+  `stage_run` before aborting it**, unlike the unavailable-model refusal,
+  which opens none at all. The escalation item's `ref` names
+  `stage_run:<id>`, and `control.stop`'s own end-a-run pattern always
+  operates on a real, already-open row -- an abort with nowhere to point
+  the escalation item would leave criterion 16's "the current binding...
+  and failure history" with no row to hang off of.
+- **`>` (strictly exceeds), not `>=`, decides a budget refusal.** A
+  family sitting exactly at its budget with zero usage yet from the
+  invocation about to start is not yet over it; the next boundary check,
+  after that invocation's own usage settles, is what would catch it if it
+  pushes the family over.
+
+## Out of scope
+
+The real `S4` execution loop and its task/fix-round/validation-only
+lifecycle (a later ticket); a second, post-invocation budget check inside
+one already-running invocation (tokens are only knowable once an
+invocation's JSON comes back, so enforcement is necessarily at the
+boundary between invocations, per R-I-6's own text); wiring
+`check_before_invocation`/`abort` into any stub `S1`-`S4` driver, since
+none of them call `invoke_agent` yet.

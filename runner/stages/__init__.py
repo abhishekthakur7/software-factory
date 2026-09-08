@@ -75,6 +75,7 @@ def run_stage(
 
 def invoke_agent(
     conn: sqlite3.Connection, ticket: sqlite3.Row, stage: str, *, tier: str | None = None, runs_dir: Path = RUNS_DIR,
+    manifest_path: Path = manifest.MANIFEST_PATH,
 ) -> str:
     """The seam a real stage driver calls once it has agent content: resolve the manifest entry, invoke if agent-bearing.
 
@@ -85,9 +86,28 @@ def invoke_agent(
     two compose for a real agent stage is that later ticket's decision to
     make. A stage whose resolved manifest entry names no agent (a
     script-only stage) returns "pass" without invoking anything.
+
+    Every stage but `S0` first compares the ticket's `factory_manifest_hash`
+    pin against this resolution's own manifest hash: a missing pin, or one
+    that no longer matches, is refused as a `utility_run` of kind
+    `refused_request` before anything else runs, so no `stage_run` is ever
+    opened for it. `S0` is exempt since the pin is not written until
+    eligibility is granted (see `gates.intake_gate`), by which point the
+    ticket has already left `intake`.
     """
     tier = tier or ticket["tier_final"] or ticket["tier_provisional"] or "standard"
-    entry = manifest.resolve(manifest.load(), stage, tier)
+    entry = manifest.resolve(manifest.load(manifest_path), stage, tier)
+    if stage != "S0":
+        pinned = ticket["factory_manifest_hash"]
+        if pinned is None or pinned != entry.manifest_hash:
+            reason = (
+                f"ticket {ticket['id']} carries no manifest pin for stage {stage}" if pinned is None
+                else f"ticket {ticket['id']} manifest pin {pinned!r} no longer matches the resolved "
+                     f"manifest hash {entry.manifest_hash!r} for stage {stage}"
+            )
+            run_id = run_ledger.open_utility_run(conn, kind="refused_request", ticket_id=ticket["id"], outputs=reason)
+            run_ledger.finish(conn, run_id, "refused_request", table="utility_run")
+            return "refused_request"
     if entry.agent is None:
         return "pass"
     result = cursor_sdk.invoke(conn, ticket=ticket, stage=stage, tier=tier, entry=entry, runs_dir=runs_dir)

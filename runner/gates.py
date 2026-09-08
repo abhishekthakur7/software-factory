@@ -8,19 +8,26 @@ reviewer-set derivation, plan and review tuple construction, and freshness
 checks that fetch a real branch head all read the same rows this module
 reads, with the actual computation in place of a stored equality check.
 
-Every function here but `plan_review_gate` writes nothing; the caller
-applies the returned event through `transitions.apply`. `plan_review_gate`
-is the plan-approval commit boundary, so its freshness check may itself
-write one invalidating `check_result` row before withholding its event --
-the same recorded-invalidation contract `runner/freshness.py` documents,
-not a second write path of this module's own.
+Every function here but `plan_review_gate` and `intake_gate` writes
+nothing; the caller applies the returned event through
+`transitions.apply`. `plan_review_gate` is the plan-approval commit
+boundary, so its freshness check may itself write one invalidating
+`check_result` row before withholding its event -- the same
+recorded-invalidation contract `runner/freshness.py` documents, not a
+second write path of this module's own. `intake_gate` pins
+`ticket.factory_manifest_hash` to the manifest's current hash the first
+time it is about to admit a ticket to `context`, since that pin has to
+exist before this function's own returned event ever reaches
+`transitions.apply` -- every later stage run checks its own resolved
+manifest hash against exactly this pin (see
+`runner.stages.invoke_agent`).
 """
 import json
 import sqlite3
 from pathlib import Path
 from typing import Callable
 
-from runner import approvals, freshness
+from runner import approvals, freshness, manifest, record
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
@@ -57,13 +64,15 @@ def _quorum(conn: sqlite3.Connection, ticket_id: int, gate: str, subject_hash: s
 
 
 def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
-    """A declined eligibility item rejects; a granted one admits once S0 has passed."""
+    """A declined eligibility item rejects; a granted one admits once S0 has passed, pinning the manifest hash first."""
     item = _latest(conn, "queue_item", ticket["id"], kind="eligibility")
     if item is None:
         return None
     if item["action"] == "declined":
         return "eligibility_declined"
     if item["action"] == "granted" and _latest_passed(conn, ticket["id"], "S0"):
+        if ticket["factory_manifest_hash"] is None:
+            record.update(conn, "ticket", ticket["id"], factory_manifest_hash=manifest.current_hash())
         return "eligibility_granted"
     return None
 

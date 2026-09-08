@@ -1,0 +1,36 @@
+# A tiny budget matrix, monkeypatched in over run_ledger.TIERS_PATH so
+# tests can push usage over budget with a handful of tokens instead of
+# hundreds of thousands.
+tiers: [light, standard, heavy]
+
+budgets:
+  by_tier:
+    light:
+      tokens: 100
+      wall_clock_seconds: 5
+    standard:
+      tokens: 200
+      wall_clock_seconds: 10
+    heavy:
+      tokens: 400
+      wall_clock_seconds: 20
+  overrides:
+    S5:
+      wall_clock_seconds: null
+
+s4_per_ticket:
+  light:
+    tokens: 500
+    wall_clock_seconds: 30
+  standard:
+    tokens: 1000
+    wall_clock_seconds: 60
+  heavy:
+    tokens: 2000
+    wall_clock_seconds: 120
+
+leases:
+  seconds: 300
+
+reasoning_summary:
+  max_words: 200

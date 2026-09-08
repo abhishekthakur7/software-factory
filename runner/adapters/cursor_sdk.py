@@ -21,7 +21,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, canonical, envelope as envelope_mod, launcher, record, run_ledger
+from runner import artefact_registry, budgets, canonical, envelope as envelope_mod, launcher, record, run_ledger
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, RUNS_DIR
 
@@ -172,13 +172,32 @@ def _replayability(*, model_resolved: str | None, retention_blind_spot: str | No
     return "exact", None
 
 
+def _aborted_budget_result(
+    *, stage_run_id: int, model_requested: str | None, wall_clock_seconds: float | None, envelope_hash: str,
+    blind_spot: str,
+) -> InvocationResult:
+    """The result `abort` leaves behind: a real, now-finished run with nothing else settled."""
+    return InvocationResult(
+        stage_run_id=stage_run_id, outcome="aborted_budget", failure_kind=None,
+        model_requested=model_requested, model_resolved=None, provider_request_id=None,
+        tokens_in=None, tokens_out=None, wall_clock_seconds=wall_clock_seconds, cost=None, currency=None,
+        cost_basis="unavailable", pricing_table_hash=None, reasoning_summary=None, tool_call_ids=(),
+        replayability="best_effort", replayability_blind_spot=blind_spot, envelope_hash=envelope_hash,
+    )
+
+
 def _classify(
     *, launch_result: launcher.LaunchResult, model_requested: str | None, model_resolved: str | None,
 ) -> tuple[str, str | None]:
+    """The run's outcome and failure_kind, given its launch result and any model mismatch.
+
+    Never called on a timed-out launch: wall clock is a budget dimension,
+    so a launcher timeout is handled by `budgets.abort` before this
+    function ever runs, not classified as an ordinary infrastructure
+    failure.
+    """
     if not launch_result.integrity.ok:
         return "sandbox_violation", "sandbox_integrity"
-    if launch_result.timed_out:
-        return "infrastructure_failure", "infrastructure"
     if model_resolved is not None and model_requested is not None and model_resolved != model_requested:
         return "infrastructure_failure", "infrastructure"
     payload = launch_result.stdout_json or {}
@@ -262,6 +281,19 @@ def invoke(
         inputs=canonical.canonical_json([item.artefact_id for item in env.inputs]).decode(),
         envelope_hash=env_hash,
     )
+
+    # Tokens are checked at each invocation boundary: settled usage from
+    # every earlier sibling in this family (and, for S4, the ticket's
+    # whole S4 history) is compared to budget before this invocation does
+    # any real work at all.
+    budget_reason = budgets.check_before_invocation(conn, ticket, stage, tier, parent_run_id=parent_run_id)
+    if budget_reason is not None:
+        budgets.abort(conn, ticket, stage_run_id, reason=budget_reason)
+        return _aborted_budget_result(
+            stage_run_id=stage_run_id, model_requested=entry.model_requested,
+            wall_clock_seconds=None, envelope_hash=env_hash, blind_spot="budget exceeded before invocation started",
+        )
+
     run_dir = _run_dir(runs_dir, ticket["id"], stage_run_id)
     envelope_path = run_dir / "envelope.json"
     write_text(envelope_path, canonical.canonical_json(envelope_mod.to_dict(env)).decode())
@@ -272,6 +304,16 @@ def invoke(
         wall_clock_seconds=entry.budget.get("wall_clock_seconds"), env_source=env_source,
         runtime_key_value=runtime_key_value, envelope_path=envelope_path, sandbox_path=sandbox_path,
     )
+    if launch_result.timed_out:
+        # Wall clock is enforced live by the launcher's own timeout, not by
+        # a post-hoc token comparison: a timed-out child is a budget abort
+        # outright, never classified as an ordinary infrastructure failure.
+        budgets.abort(conn, ticket, stage_run_id, reason=f"wall clock budget of {entry.budget.get('wall_clock_seconds')}s exceeded")
+        return _aborted_budget_result(
+            stage_run_id=stage_run_id, model_requested=entry.model_requested,
+            wall_clock_seconds=entry.budget.get("wall_clock_seconds"), envelope_hash=env_hash,
+            blind_spot="wall clock budget exceeded",
+        )
     payload = launch_result.stdout_json or {}
     model_resolved = payload.get("model_resolved")
     outcome, failure_kind = _classify(

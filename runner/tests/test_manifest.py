@@ -12,15 +12,19 @@ convention `test_manifest_hash.py` uses.
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
-from runner import artefact_registry, manifest, record, tickets
+from runner import artefact_registry, gates, manifest, record, stages, tickets
+from runner.adapters import cursor_sdk
 from runner.db import connect
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "manifest"
 OWNERS_PATH = FIXTURES_DIR / "owners.yaml"
+ADAPTER_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "adapter"
 
 _COMMIT_ENV = {
     "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
@@ -228,3 +232,143 @@ def test_migration_leaves_a_terminal_ticket_untouched(tmp_path):
     assert ticket["state"] == "abandoned"
     assert ticket["factory_manifest_hash"] == "stale-hash"
     conn.close()
+
+
+# ---- fail-closed model checks over a manifest-resolved entry (criteria 6, 7) ----
+
+
+def _model_check_runtime(tmp_path: Path, fixture_name: str) -> Path:
+    """A copy of `model_check/<fixture_name>` with its worker command resolved to the running interpreter."""
+    doc = yaml.safe_load((FIXTURES_DIR / "model_check" / fixture_name).read_text())
+    doc["adapters"]["cursor_sdk"]["command"] = [sys.executable, str(ADAPTER_FIXTURES_DIR / "fixture_worker.py")]
+    path = tmp_path / "runtime.yaml"
+    path.write_text(yaml.safe_dump(doc))
+    return path
+
+
+def _resolved_entry(tmp_path: Path, stage: str = "S1", tier: str = "light") -> manifest.Entry:
+    repo = _committed_copy(tmp_path, "valid")
+    m = manifest.load(repo / "factory" / "manifest.yaml")
+    return manifest.resolve(m, stage, tier)
+
+
+def test_must_reject_a_model_requested_absent_from_runtime_yaml(tmp_path):
+    """criterion 6: an invocation whose requested model is absent from runtime.yaml's list is refused before it starts, no output registered."""
+    entry = _resolved_entry(tmp_path)
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    result = cursor_sdk.invoke(
+        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        runtime_path=_model_check_runtime(tmp_path, "unavailable_runtime.yaml"),
+        sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
+    )
+
+    assert result.outcome == "infrastructure_failure"
+    assert result.stage_run_id == -1
+    assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
+
+
+def test_must_reject_a_resolved_model_that_differs_from_the_one_requested(tmp_path):
+    """criterion 7: an invocation whose resolved model differs from the requested one is recorded infrastructure_failure with no output registered."""
+    entry = _resolved_entry(tmp_path)
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    result = cursor_sdk.invoke(
+        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        runtime_path=_model_check_runtime(tmp_path, "mismatch_runtime.yaml"),
+        sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
+        env_source={"PATH": os.environ.get("PATH", ""), "FIXTURE_ADAPTER_CASE": "silent_fallback"},
+    )
+
+    assert result.outcome == "infrastructure_failure"
+    assert result.failure_kind == "infrastructure"
+    assert result.model_resolved == "claude-haiku-5-20260115"
+    assert conn.execute(
+        "SELECT COUNT(*) FROM artefact WHERE stage_run_id = ?", (result.stage_run_id,)
+    ).fetchone()[0] == 0
+
+
+# ---- the manifest-hash pin at S0 eligibility, enforced on every later stage run (criterion 8) ----
+
+
+def test_must_reject_a_stage_run_on_a_ticket_with_no_manifest_pin(tmp_path):
+    """criterion 8: a ticket with no `factory_manifest_hash` pin is refused before any stage_run opens."""
+    repo = _committed_copy(tmp_path, "valid")
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)
+    record.update(conn, "ticket", ticket_id, state="checks")
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    outcome = stages.invoke_agent(
+        conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+    )
+
+    assert outcome == "refused_request"
+    assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
+    refusal = conn.execute("SELECT outputs FROM utility_run WHERE kind = 'refused_request'").fetchone()
+    assert "no manifest pin" in refusal["outputs"]
+
+
+def test_must_reject_a_stage_run_whose_pin_no_longer_matches_the_resolved_manifest_hash(tmp_path):
+    """criterion 8: a stale `factory_manifest_hash` pin refuses every later stage run, no stage_run opened."""
+    repo = _committed_copy(tmp_path, "valid")
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn, factory_manifest_hash="stale-pin")
+    record.update(conn, "ticket", ticket_id, state="checks")
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    outcome = stages.invoke_agent(
+        conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+    )
+
+    assert outcome == "refused_request"
+    assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
+
+
+def test_a_matching_pin_lets_a_later_stage_run_through(tmp_path):
+    """criterion 8: a ticket pinned to the resolved manifest's own hash runs normally."""
+    repo = _committed_copy(tmp_path, "valid")
+    current = manifest.current_hash(repo)
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn, factory_manifest_hash=current)
+    record.update(conn, "ticket", ticket_id, state="checks")
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    outcome = stages.invoke_agent(
+        conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+    )
+
+    assert outcome == "pass"
+    assert conn.execute("SELECT COUNT(*) FROM utility_run WHERE kind = 'refused_request'").fetchone()[0] == 0
+
+
+def test_s0_is_exempt_from_the_pin_check(tmp_path):
+    """criterion 8: S0 needs no pin yet, since the pin is not written until eligibility is granted."""
+    repo = _committed_copy(tmp_path, "valid")
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)  # state=intake, no pin
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    outcome = stages.invoke_agent(
+        conn, ticket, "S0", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+    )
+
+    assert outcome == "pass"
+
+
+def test_eligibility_granted_pins_the_manifest_hash_when_the_ticket_has_none(tmp_path):
+    """criterion 8: the eligibility_granted path pins ticket.factory_manifest_hash the first time, from the real committed manifest."""
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)
+    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S0", attempt=1, outcome="pass")
+    record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    event = gates.intake_gate(conn, ticket)
+
+    assert event == "eligibility_granted"
+    assert record.get(conn, "ticket", ticket_id)["factory_manifest_hash"] == manifest.current_hash()

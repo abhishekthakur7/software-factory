@@ -1,0 +1,11 @@
+# A `runtime.yaml` fixture that accepts the fixture manifest's requested
+# model but runs a worker that always reports a different resolved one
+# (the `adapter` test suite's own `silent_fallback` case), proving R-I-4's
+# resolved-model-mismatch refusal registers no output.
+adapters:
+  cursor_sdk:
+    package: cursor-sdk
+    version: "1.0.31"
+    command: [PYTHON_EXECUTABLE, WORKER_PATH]
+    models: [fixture-model]
+    key_role: CURSOR_API_KEY
