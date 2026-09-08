@@ -299,7 +299,8 @@ def test_a_fail_verdict_sends_the_ticket_back_to_the_lines_own_stage(tmp_path, r
 
     queue.act(
         conn, item_id=item_id, action="verdict", actor=identity, line=instance.rubric_line_id,
-        key=instance.subject_item_key, verdict="fail", fm_id="FM-15", note="does not hold", runs_dir=tmp_path,
+        key=instance.subject_item_key, verdict="fail", fm_id="FM-15",
+        note="technically_unsound: does not hold", runs_dir=tmp_path,
     )
 
     assert record.get(conn, "ticket", ticket_id)["state"] == expected_state

@@ -253,6 +253,8 @@ def main(argv: list[str] | None = None) -> int:
     tag_parser.add_argument("--actor", required=True)
     tag_parser.add_argument("--note")
     tag_parser.add_argument("--severity")
+    tag_parser.add_argument("--resolves", type=int)
+    tag_parser.add_argument("--resolution-evidence")
 
     report_parser = subparsers.add_parser("report")
     report_parser.add_argument("--manifest-hash", default=None)
@@ -312,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
             print(tags.tag(
                 conn, target=args.target, kind=args.kind, fm_id=args.fm,
                 actor=args.actor, note=args.note, severity=args.severity,
+                resolves_tag_id=args.resolves, resolution_evidence_ref=args.resolution_evidence,
             ))
         elif args.verb == "report":
             print(

@@ -14,7 +14,7 @@ import subprocess
 
 import pytest
 
-from runner import cli, git_trees, manifest, queue, record, run_ledger
+from runner import cli, git_trees, manifest, queue, record, run_ledger, tags
 from runner.db import connect
 from runner.paths import FACTORY_DIR
 
@@ -87,7 +87,9 @@ def test_stop_terminates_the_running_stage_records_aborted_human_and_escalates(c
     ticket_id = _ticket_in(conn, "implementing")
     run_id = _open_live_run(conn, ticket_id, stage="S4")
 
-    result = cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="stopped for a manual check")
+    # `escalation` is tagged mechanically regardless of which human typed `factory stop`:
+    # the tag's own provenance is the runner's, not the caller's own identity.
+    result = cli.stop(conn, ticket_id, actor=tags.MECHANICAL_ACTOR, fm_id="FM-07", note="stopped for a manual check")
 
     assert "stopped" in result
     run = record.get(conn, "stage_run", run_id)
@@ -109,7 +111,7 @@ def test_stop_keeps_a_run_s_own_reasoning_summary_over_the_stop_note(conn):
     run_id = _open_live_run(conn, ticket_id, stage="S4")
     run_ledger.record_reasoning_summary(conn, run_id, "the agent's own report")
 
-    cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="a stop note")
+    cli.stop(conn, ticket_id, actor=tags.MECHANICAL_ACTOR, fm_id="FM-07", note="a stop note")
 
     assert record.get(conn, "stage_run", run_id)["reasoning_summary"] == "the agent's own report"
 
@@ -139,7 +141,7 @@ def test_must_reject_every_command_but_stop_while_a_run_is_live(conn, tmp_path):
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
 
-    result = cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
+    result = cli.stop(conn, ticket_id, actor=tags.MECHANICAL_ACTOR, fm_id="FM-07")
     assert "stopped" in result
     assert record.get(conn, "stage_run", run_id)["outcome"] == "aborted_human"
 
@@ -172,7 +174,7 @@ def test_pause_and_stop_leave_the_running_stage_s_registered_artefacts_untouched
     assert dict(record.get(conn, "artefact", artefact_id)) == before_row
     assert conn.execute("SELECT COUNT(*) FROM artefact").fetchone()[0] == before_count
 
-    cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
+    cli.stop(conn, ticket_id, actor=tags.MECHANICAL_ACTOR, fm_id="FM-07")
 
     assert record.get(conn, "stage_run", run_id)["inputs"] == before_run_inputs
     assert artefact_path.read_bytes() == before_bytes
@@ -320,7 +322,10 @@ def test_send_back_from_any_open_item_moves_the_ticket_and_adds_no_approval(conn
     ticket_id, item_id = _seed_send_back_item(conn, kind)
     before_approvals = conn.execute("SELECT COUNT(*) FROM approval_record").fetchone()[0]
 
-    queue.act(conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07")
+    queue.act(
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        note="duplicates_existing_work: already covered elsewhere",
+    )
 
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None

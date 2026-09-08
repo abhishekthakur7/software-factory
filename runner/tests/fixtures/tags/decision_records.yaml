@@ -1,0 +1,24 @@
+# A ticket carrying one seeded `approval_record` ("decision record") and
+# one seeded `question`, for the write-path tests that target a decision
+# record directly rather than through a live queue route. `$name` resolves
+# to a previously inserted row's id, the same convention `test_queue.py`'s
+# own `load_scenario` uses.
+packet_defect_target:
+  ticket:
+    - as: ticket1
+      state: plan_review
+      opened_at: "2024-01-01T00:00:00+00:00"
+  approval_record:
+    - as: decision1
+      ticket_id: $ticket1
+      gate: review
+      decision: approve
+  question:
+    - as: question1
+      ticket_id: $ticket1
+      stage: S2
+      round: 1
+      rank: 1
+      options: '[{"label": "A", "consequence": "does A"}]'
+      default_option: 0
+      state: answered

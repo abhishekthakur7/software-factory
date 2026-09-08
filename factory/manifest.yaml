@@ -10,8 +10,10 @@ files:
     content_hash: f8995b3fffc890e43e2f98278f7605260785e70427c985e37846dccfc15b7d1f
   - path: factory/benchmarks/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  - path: factory/catalogue/.gitkeep
-    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/catalogue/decisions.md
+    content_hash: 2b8c5bec866c8c2ec792571f6f91c960e8360d04f9623e3407f0e3a26f3d2a38
+  - path: factory/catalogue/failure-modes.md
+    content_hash: 375da04b29b01b746c3d144ff53e49b84e7d09f3a32f41e664e064d36013bf23
   - path: factory/config/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/config/artifact-to-service.yaml
@@ -746,6 +748,8 @@ files:
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/rubrics/checklists/forced-categories.md
     content_hash: 4accdb41457dca8abf940017c5e2b8a518d2884bdadfc756c1e55a971ead802f
+  - path: factory/rubrics/checklists/send-back-grounds.md
+    content_hash: d85afc45a6665ccd9bcae2a5288819ba2db215a846ee9e4d98b1ca7a92ad8682
   - path: factory/rubrics/checklists/split-patterns.md
     content_hash: 1749b53eae8ff703a88ac0656147d930e2fa65f5f1111a4814aa15419d99c3d1
   - path: factory/scripts/checks/base_test_diff

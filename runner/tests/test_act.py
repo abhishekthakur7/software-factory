@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from runner import artefact_registry, artefacts, checklist, cli, governance, manifest, owners, queue, record, tickets
+from runner import artefact_registry, artefacts, checklist, cli, governance, manifest, owners, queue, record, tags, tickets
 from runner.db import connect
 from runner.reviewer_sets import Slot
 
@@ -188,6 +188,7 @@ def test_each_valid_kind_action_pairing_from_the_day_one_mapping_is_accepted(con
         kwargs["bucket"] = "under_2m"
     if action in ("redirect", "send_back"):
         kwargs["to"] = "context"
+        kwargs["note"] = "duplicates_existing_work: already built on another ticket"
     if action in ("redirect", "send_back", "abandon", "override", "request_changes"):
         kwargs["fm_id"] = "FM-07"
     queue.act(conn, **kwargs)
@@ -202,7 +203,10 @@ def test_escalation_send_back_uses_the_generic_send_back_transition(conn, tmp_pa
     ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
     stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail")
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="escalation", ref=f"stage_run:{stage_run_id}")
-    queue.act(conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07", runs_dir=tmp_path)
+    queue.act(
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        note="technically_unsound: the approach does not hold", runs_dir=tmp_path,
+    )
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
 
@@ -256,7 +260,10 @@ def test_queue_latency_is_none_while_the_item_is_still_open(conn):
 
 def test_send_back_abandon_and_override_each_write_one_tag_naming_the_transition(conn, tmp_path):
     ticket_id, item_id = _seed_item(conn, "red_check")
-    queue.act(conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07", runs_dir=tmp_path)
+    queue.act(
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        note="duplicates_existing_work: already covered elsewhere", runs_dir=tmp_path,
+    )
     send_back_tags = conn.execute("SELECT * FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchall()
     assert [row["event_kind"] for row in send_back_tags] == ["send_back"]
 
@@ -274,12 +281,16 @@ def test_send_back_abandon_and_override_each_write_one_tag_naming_the_transition
 
 
 def test_control_event_records_an_incident_observation_and_leaves_the_item_open(conn, tmp_path):
+    """The observation itself is recorded from whoever reports it, but the `control_defect`
+    tag it also writes is mechanical-only: a human `--actor` records the event and is refused
+    the tag, since `tagged_by` for this kind is always the runner (never a human), never both."""
     ticket_id, item_id = _seed_item(conn, "red_check")
-    queue.act(
-        conn, item_id=item_id, action="control_event", actor=ABHISHEK,
-        category="execution_boundary", severity="sev2", fm_id="FM-09", note="observed drift",
-        runs_dir=tmp_path,
-    )
+    with pytest.raises(tags.TagRefused):
+        queue.act(
+            conn, item_id=item_id, action="control_event", actor=ABHISHEK,
+            category="execution_boundary", severity="sev2", fm_id="FM-09", note="observed drift",
+            runs_dir=tmp_path,
+        )
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
     incidents = conn.execute(
         "SELECT * FROM incident_observation WHERE ticket_id = ? AND record_kind = 'control_defect_event'",
@@ -288,9 +299,7 @@ def test_control_event_records_an_incident_observation_and_leaves_the_item_open(
     assert len(incidents) == 1
     assert incidents[0]["recorder_identity"] == ABHISHEK
     assert incidents[0]["severity"] == "sev2"
-    control_tags = conn.execute("SELECT * FROM tag WHERE event_kind = 'control_defect'").fetchall()
-    assert len(control_tags) == 1
-    assert control_tags[0]["severity"] == "sev2"
+    assert conn.execute("SELECT * FROM tag WHERE event_kind = 'control_defect'").fetchall() == []
 
 
 
@@ -320,7 +329,10 @@ def test_factory_act_resolves_the_item_and_resumes_only_when_the_action_permits_
     conn.commit()
     conn.close()
 
-    cli.main(["--db", str(db_path), "act", str(item_id2), "send_back", "--actor", ABHISHEK, "--to", "context", "--fm", "FM-07"])
+    cli.main([
+        "--db", str(db_path), "act", str(item_id2), "send_back", "--actor", ABHISHEK, "--to", "context",
+        "--fm", "FM-07", "--note", "duplicates_existing_work: already handled",
+    ])
 
     conn = connect(db_path)
     try:
@@ -375,11 +387,12 @@ def test_factory_abandon_records_a_tag_and_coverage_without_a_queued_item(db_pat
 def test_factory_tag_records_one_human_tag_on_the_named_target(db_path):
     conn = connect(db_path)
     ticket_id = tickets.open_ticket(conn, title="t")
+    waiver_id = record.insert(conn, "waiver", ticket_id=ticket_id, expires_at="2999-01-01T00:00:00+00:00")
     conn.commit()
     conn.close()
 
     cli.main([
-        "--db", str(db_path), "tag", f"ticket:{ticket_id}", "policy_exception",
+        "--db", str(db_path), "tag", f"waiver:{waiver_id}", "policy_exception",
         "--fm", "FM-10", "--actor", ABHISHEK, "--severity", "sev3",
     ])
 
