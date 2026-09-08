@@ -1,0 +1,8 @@
+{
+  "candidates": [
+    {"path": "big.txt", "commits": 3, "top_author_share": 1.0, "size_bytes": 151, "churn_size_score": 453, "named": true, "reason": "top_decile_churn_size"},
+    {"path": "shared.txt", "commits": 3, "top_author_share": 0.3333, "size_bytes": 23, "churn_size_score": 69, "named": true, "reason": "no_clear_owner"},
+    {"path": "old.txt", "commits": 0, "top_author_share": 0.0, "size_bytes": 31, "churn_size_score": 0, "named": true, "reason": "no_clear_owner"},
+    {"path": "quiet.txt", "commits": 1, "top_author_share": 1.0, "size_bytes": 2, "churn_size_score": 2, "named": false, "reason": null}
+  ]
+}

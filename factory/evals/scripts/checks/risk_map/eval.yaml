@@ -12,3 +12,18 @@ cases:
     # exactly -- committing a throwaway git repository under this
     # directory would be an odd thing for the pilot repository to carry.
     expected: fixtures/churn/expected.json
+
+# A second, deliberately separate case list: runner/tests/test_s3_structure.py
+# parametrizes only over `cases` above, against the one small repo it builds
+# for that pinned expectation; adding a case here with a different repo shape
+# would silently break that walk. `runner/tests/test_risk_map.py` reads this
+# key instead, against the four-file repo it builds for the churn-window
+# scenarios the ticket names: top-decile churn-times-size, no clear owner,
+# and a commit outside the window.
+churn_window_cases:
+  - name: churn_window
+    fixture: fixtures/churn_window
+    branch: main
+    months: 12
+    min_share: 0.4
+    expected: fixtures/churn_window/expected.json

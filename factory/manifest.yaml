@@ -333,7 +333,7 @@ files:
   - path: factory/evals/scripts/checks/impact_scan/fixtures/unknown/vendor/com/fixtureeval/mystery/1.0.0/mystery-1.0.0.pom
     content_hash: 5a7b7a54b702cffbecb5e221b4753562aac7051f207d43ab01598da67993aa71
   - path: factory/evals/scripts/checks/risk_map/eval.yaml
-    content_hash: 6bde706cf230f43cba777154243f65ae74b2ead630bf05176b9ec75b4c3bd967
+    content_hash: ffa2f04c82c7d02d847712b55c8303e7b5726ae4816de753622795261e14a3fe
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn/candidates.txt
     content_hash: ff6c40f3a036e8b89f0d3731a719f669f9972eab564868c657bf638d7c927b3b
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn/expected.json
@@ -547,7 +547,7 @@ files:
   - path: factory/scripts/checks/java_test
     content_hash: a1c576f138ed754961c63d0049c4a31c1db0a351e586b483c119440b115210bb
   - path: factory/scripts/checks/risk_map
-    content_hash: 089277ff9061b5262db5a2478a3cc826ae68b195e88ee6115f29b324c9013ed8
+    content_hash: 2a093e2a792758e0b8a8ca6f8a8d3904fed85fd5e3e15e71df8e35195bb0aaf9
   - path: factory/scripts/checks/size_gate
     content_hash: 7a807f7c77fa45b9ea4a272793d381b5ce608a547b968fc16078ab851747b569
   - path: factory/scripts/tools/export
@@ -624,6 +624,10 @@ files:
     content_hash: bccb02efb602c3b9ea10576db117acbf699d8e014f01c090664fe7a2d58941c3
   - path: factory/evals/scripts/checks/risk_map/fixtures/human_verdict/R-S3-11.yaml
     content_hash: 4ea5efc6231832f8092d3971e0a58d6265e3412681dc8ecdd9c633d33de6e180
+  - path: factory/evals/scripts/checks/risk_map/fixtures/churn_window/candidates.txt
+    content_hash: 90528878485da50484005d82dae0f898f4619e3fb02ef1945f65d348a4338502
+  - path: factory/evals/scripts/checks/risk_map/fixtures/churn_window/expected.json
+    content_hash: aeb5e6faec2ba3306e5b3cbf26bf55a120d12af804f05d15b375839f429f612e
 stages:
   S0:
     default:
