@@ -27,7 +27,7 @@ import sqlite3
 from pathlib import Path
 from typing import Callable
 
-from runner import approvals, freshness, manifest, record
+from runner import approvals, freshness, manifest, questions, record
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
@@ -83,7 +83,12 @@ def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir:
     A stale base withholds this event rather than firing a redirect of its
     own (see `state_table`); `refresh_base` and the send-backs are applied
     by the caller that records the human's decision, never derived here.
+    An open blocking question also withholds it: approval can proceed
+    once every remaining question is answered or its assumption is
+    explicitly accepted, never while one still owes a human a decision.
     """
+    if questions.open_blocking(conn, ticket["id"]):
+        return None
     plan_tuple = _latest(conn, "evidence_tuple", ticket["id"], kind="plan")
     if plan_tuple is None or not _quorum(conn, ticket["id"], "plan", plan_tuple["content_hash"]):
         return None

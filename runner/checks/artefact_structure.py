@@ -1,16 +1,22 @@
-"""The general artefact structure check: fixed sections, fixed table columns, ceilings, and plan-specific rules.
+"""The general artefact structure check: fixed sections, fixed table columns, ceilings, and kind-specific rules.
 
 One check function covers every artefact kind `runner.artefacts.SECTIONS`
 names: it walks the fixed section list, the fixed table columns for
 whichever of `BRIEF_TABLES`/`CRITERIA_TABLES`/`PLAN_TABLES` applies, and,
-for the `plan` kind only, the extra rules a plan carries on top -- length
-ceilings, first-page placement, typed validation recipes instead of
-free-form shell, and two-way `AC-n` traceability against the criteria
-artefact. A `Finding` names the rule that failed and enough detail to find
-it in the text; an empty list is a pass. Nothing here writes to the
-database or the filesystem -- a caller turns findings into a `check_result`
-row and an outcome.
+for the `criteria` kind, the EARS-form, example-concreteness, and
+forced-category rules a criteria version carries on top; for the `plan`
+kind, the extra rules a plan carries on top -- length ceilings, first-page
+placement, typed validation recipes instead of free-form shell, and
+two-way `AC-n` traceability against the criteria artefact. A `Finding`
+names the rule that failed and enough detail to find it in the text; an
+empty list is a pass. Nothing here writes to the database or the
+filesystem -- a caller turns findings into a `check_result` row and an
+outcome. `AC-n` id continuity across versions and the split-threshold rule
+both need more than one version's text or another artefact's content, so
+they stay with the driver that already holds that context rather than
+living here.
 """
+import re
 from typing import NamedTuple
 
 from runner import artefacts
@@ -41,6 +47,21 @@ _FIRST_PAGE_SECTIONS: tuple[str, ...] = ("Intent and scrutiny", "Readiness", "Ri
 _SHELL_TOKENS: tuple[str, ...] = (";", "|", "&&", "$(", "`", ">")
 
 _TRUE_STRINGS = frozenset({"yes", "true", "1"})
+
+# `AC-n`, the only id shape the acceptance-criteria table accepts.
+_AC_ID_RE = re.compile(r"^AC-\d+$")
+
+# The three literal forms a forced category's resolution cell may take: a
+# covering criterion, an explicit not-applicable reason, or left open for
+# a question. Anything else is a silent or malformed category, which the
+# check refuses rather than guesses at.
+_CATEGORY_RESOLUTION_RE = re.compile(r"^(covered by criterion \S.*|not applicable because \S.*|open)$", re.IGNORECASE)
+
+# A Given/When/Then example must use all three words and carry no
+# placeholder in place of a real value.
+_GWT_WORDS: tuple[str, ...] = ("given", "when", "then")
+_PLACEHOLDER_TOKENS: tuple[str, ...] = ("TODO", "X", "foo", "bar", "placeholder")
+_PLACEHOLDER_BRACKET_RE = re.compile(r"<[^<>]+>")
 
 
 class Finding(NamedTuple):
@@ -196,6 +217,48 @@ def _check_tasks_and_traceability(
     return findings
 
 
+def _example_is_concrete(example: str) -> bool:
+    """A Given/When/Then example naming every clause, with no bracketed or listed placeholder in place of a real value."""
+    lowered = example.lower()
+    if not all(word in lowered for word in _GWT_WORDS):
+        return False
+    if _PLACEHOLDER_BRACKET_RE.search(example):
+        return False
+    return not any(re.search(rf"(?<![\w-]){re.escape(token)}(?![\w-])", example) for token in _PLACEHOLDER_TOKENS)
+
+
+def _check_criteria(artefact: artefacts.Artefact) -> list[Finding]:
+    findings: list[Finding] = []
+    ac_section = artefact.section("Acceptance criteria")
+    if ac_section is not None and not ac_section.is_pending():
+        for row in ac_section.table() or []:
+            ac_id, state = row.get("id") or "", row.get("state")
+            if not _AC_ID_RE.match(ac_id):
+                findings.append(Finding("bad_ac_id", ac_id))
+            if state not in artefacts.CRITERION_STATES:
+                findings.append(Finding("bad_criterion_state", f"{ac_id}: {state!r}"))
+                continue
+            if state == "unformalisable":
+                continue  # no EARS form or example is expected: the row becomes a question instead
+            if not (row.get("system") or "").strip() or not (row.get("response") or "").strip():
+                findings.append(Finding("incomplete_ears_form", ac_id))
+            if not _example_is_concrete(row.get("example") or ""):
+                findings.append(Finding("example_not_concrete", ac_id))
+
+    fc_section = artefact.section("Forced categories")
+    if fc_section is not None and not fc_section.is_pending():
+        by_category = {row.get("category"): row for row in (fc_section.table() or [])}
+        for category in artefacts.FORCED_CATEGORIES:
+            row = by_category.get(category)
+            if row is None:
+                findings.append(Finding("missing_forced_category", category))
+                continue
+            resolution = (row.get("resolution") or "").strip()
+            if not _CATEGORY_RESOLUTION_RE.match(resolution):
+                findings.append(Finding("bad_category_resolution", f"{category}: {resolution!r}"))
+    return findings
+
+
 def _check_readiness(artefact: artefacts.Artefact) -> list[Finding]:
     findings: list[Finding] = []
     section = artefact.section("Readiness")
@@ -245,6 +308,9 @@ def check(
 
     findings = _check_sections(kind, artefact, pending_allowed=pending_allowed)
     findings += _check_tables(kind, artefact)
+
+    if kind == "criteria":
+        findings += _check_criteria(artefact)
 
     if kind == "plan":
         if tier is not None and limits is not None:

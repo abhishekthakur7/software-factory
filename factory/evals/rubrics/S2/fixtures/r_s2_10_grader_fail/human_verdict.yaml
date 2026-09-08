@@ -1,0 +1,12 @@
+# A seeded human_verdict document for the R-S2-10 grader line: the
+# criteria bundle two unrelated outcomes into one set with no split
+# proposed, so the judgment fails.
+rubric_line_id: "R-S2-10:grader"
+subject_item_key: "criteria_set:export-and-billing-retry"
+verdict: fail
+note: >-
+  The set covers both the export's header row and an unrelated billing
+  retry policy; the reviewer found no single observable outcome the
+  whole set serves, and no split question proposed to separate them.
+reviewer_identity: abhishek
+reviewer_role: factory_owner

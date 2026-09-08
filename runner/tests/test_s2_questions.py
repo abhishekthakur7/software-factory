@@ -415,15 +415,24 @@ def test_the_rubric_marks_r_s2_14s_grader_half_as_a_bootstrap_checklist_line():
     )
 
 
-def _clarifying_ticket(conn) -> int:
-    return _ticket(conn, tier_provisional="standard", factory_manifest_hash=manifest.current_hash())
+def _clarifying_ticket(conn, tmp_path) -> int:
+    """A `clarifying` ticket carrying the `ticket_source` and `brief` artefacts the criteria half's
+    restatement children read as their fixed input set, alongside each restatement subject."""
+    ticket_id = _ticket(conn, tier_provisional="standard", factory_manifest_hash=manifest.current_hash())
+    source_path = tmp_path / "ticket_source.md"
+    source_path.write_text("The order service must confirm a submitted order within 5 seconds.\n")
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="ticket_source", path=source_path)
+    brief_path = tmp_path / "brief.md"
+    brief_path.write_text("A brief for the order-confirmation ticket.\n")
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief_path)
+    return ticket_id
 
 
 def test_s2_walk_raises_ranks_and_answers_one_round_then_passes(conn, tmp_path, monkeypatch):
     """R-S2-6, R-S2-11: one round is raised and ranked, the blocking question is answered, the
-    non-blocking one's default is accepted into the assumption log, and a second, empty-questions
-    run then passes -- clarifying -> planning."""
-    ticket_id = _clarifying_ticket(conn)
+    non-blocking one's default is accepted into the assumption log, and a second, quiet round
+    then passes -- clarifying -> planning."""
+    ticket_id = _clarifying_ticket(conn, tmp_path)
 
     monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(FIXTURES_DIR / "question_round" / "out"))
     outcome = run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
@@ -457,7 +466,10 @@ def test_s2_walk_raises_ranks_and_answers_one_round_then_passes(conn, tmp_path, 
     assert assumption is not None
     assert record.get(conn, "ticket", ticket_id)["blocked_on"] is None
 
-    monkeypatch.delenv("FIXTURE_ADAPTER_OUT_DIR", raising=False)
+    # A fresh, unchanged criteria version and no new candidates: the
+    # criteria half re-validates cleanly and the question half raises
+    # nothing, so this second attempt passes outright.
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(FIXTURES_DIR / "criteria_clean" / "out"))
     second_outcome = run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
 
     assert second_outcome == "pass"
@@ -465,7 +477,7 @@ def test_s2_walk_raises_ranks_and_answers_one_round_then_passes(conn, tmp_path, 
 
 
 def test_s2_driver_records_a_check_result_and_fails_over_a_rejected_candidate(conn, tmp_path, monkeypatch):
-    ticket_id = _clarifying_ticket(conn)
+    ticket_id = _clarifying_ticket(conn, tmp_path)
     monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(FIXTURES_DIR / "gate_rejected" / "out"))
 
     outcome = run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
