@@ -28,7 +28,7 @@ import yaml
 
 from runner import (
     approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, owners, queue,
-    recipes, record, run_ledger, tags,
+    recipes, record, run_ledger,
 )
 from runner.adapters import cursor_sdk
 from runner.db import connect
@@ -362,7 +362,7 @@ def _run_walk(tmp_path) -> WalkResult:
     # and escalates; resuming the escalation returns the ticket to `implementing`.
     stopped_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
     # `escalation` is tagged mechanically regardless of which human typed `factory stop`.
-    cli.stop(conn, ticket_id, actor=tags.MECHANICAL_ACTOR, fm_id="FM-07", note="paused for a manual look")
+    cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="paused for a manual look")
     assert record.get(conn, "stage_run", stopped_run_id)["outcome"] == "aborted_human"
     assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
     escalation_item = conn.execute(

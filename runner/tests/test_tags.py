@@ -13,6 +13,7 @@ import sqlite3
 import yaml
 
 from runner import governance, queue, record, tags, waivers
+from runner.tests.test_s5_waivers import issue_review_waiver
 from runner.db import connect
 
 ABHISHEK = "abhishek"
@@ -74,9 +75,6 @@ def _seed_item(conn, kind: str, *, state: str = "checks", **ticket_fields) -> tu
     return ticket_id, item_id
 
 
-# --- criterion 1: override, send_back, abandoned commit only with a tagged human tag (R-T-6) ---
-
-
 def test_override_commits_only_with_a_human_tagged_tag(conn, tmp_path):
     ticket_id, item_id = _seed_item(conn, "eligibility", state="intake", **_governed_ticket_fields(conn))
 
@@ -130,9 +128,6 @@ def test_must_reject_send_back_abandon_or_override_with_no_failure_mode_id(conn,
     assert conn.execute("SELECT COUNT(*) FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
 
 
-# --- criterion 2: revision_after_approval and packet_defect via the write path on a decision record (R-T-6) ---
-
-
 def test_revision_after_approval_targets_a_seeded_approval_record(conn):
     refs = load_scenario(conn, "decision_records", "packet_defect_target")
 
@@ -171,9 +166,6 @@ def test_must_reject_a_packet_defect_tag_with_a_failure_mode_id_other_than_fm_10
             conn, target=f"approval_record:{refs['decision1']}", kind="packet_defect",
             fm_id="FM-06", actor=ABHISHEK, note="wrong fm id",
         )
-
-
-# --- criterion 3: each send-back ground accepted, a bare note refused (R-T-6) ---
 
 
 @pytest.mark.parametrize(
@@ -230,9 +222,6 @@ def test_must_reject_a_send_back_note_grounded_wrong_brief_or_criteria_with_no_s
         )
 
 
-# --- criterion 4: a mechanical pilot exclusion writes no human tag (R-T-6) ---
-
-
 def test_a_ticket_closed_pilot_excluded_carries_the_recorded_rule_and_writes_no_human_tag(conn):
     from runner.checks import exclusion
 
@@ -254,26 +243,28 @@ def test_a_ticket_closed_pilot_excluded_carries_the_recorded_rule_and_writes_no_
     assert conn.execute("SELECT COUNT(*) FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
 
 
-# --- criterion 5: stale_index, escalation, control_defect are mechanical only; an incident
-# reviewer supplies attribution and disposition on control_defect and incident tags (R-T-6) ---
-
-
-@pytest.mark.parametrize(
-    "kind, fm_id",
-    [("stale_index", "FM-17"), ("escalation", "FM-19"), ("control_defect", "FM-23")],
-)
+@pytest.mark.parametrize("kind, fm_id", [("stale_index", "FM-17"), ("escalation", "FM-19")])
 def test_mechanical_kinds_refuse_a_human_actor_and_accept_the_runner(conn, kind, fm_id):
     ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
     stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1)
-    severity = "sev2" if kind == "control_defect" else None
 
     with pytest.raises(tags.TagRefused):
-        tags.tag(conn, target=f"stage_run:{stage_run_id}", kind=kind, fm_id=fm_id, actor=ABHISHEK, severity=severity)
+        tags.tag(conn, target=f"stage_run:{stage_run_id}", kind=kind, fm_id=fm_id, actor=ABHISHEK)
 
-    tag_id = tags.tag(
-        conn, target=f"stage_run:{stage_run_id}", kind=kind, fm_id=fm_id, actor=tags.MECHANICAL_ACTOR, severity=severity,
-    )
+    tag_id = tags.tag(conn, target=f"stage_run:{stage_run_id}", kind=kind, fm_id=fm_id, actor=tags.MECHANICAL_ACTOR)
     assert record.get(conn, "tag", tag_id)["tagged_by"] == tags.MECHANICAL_ACTOR
+
+
+@pytest.mark.parametrize("actor", [ABHISHEK, tags.MECHANICAL_ACTOR])
+def test_a_control_defect_tag_is_written_by_the_runner_when_detected_and_by_a_reviewer_when_observed(conn, actor):
+    """R-T-6: only a mechanically detected control defect is a mechanical tag; an incident
+    reviewer's own observation carries their identity."""
+    ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1)
+
+    tag_id = tags.tag(conn, target=f"stage_run:{stage_run_id}", kind="control_defect", fm_id="FM-23", actor=actor, severity="sev2")
+
+    assert record.get(conn, "tag", tag_id)["tagged_by"] == actor
 
 
 def test_must_reject_a_human_kind_tagged_by_the_mechanical_actor(conn):
@@ -296,33 +287,28 @@ def test_an_incident_reviewer_writes_an_incident_tag_with_attribution_and_a_seve
     assert row["severity"] == "sev1"
 
 
-def test_must_reject_an_incident_reviewer_recording_a_control_defect_tag_through_the_queue(conn, tmp_path):
-    """The queue's `control_event` action always writes a `control_defect` tag for whoever
-    called it; since that tag is mechanical-only, a human incident reviewer's call is
-    refused -- attribution for their observation lives on the `incident_observation` row
-    the same call already wrote, not on a second human-authored tag."""
+def test_an_incident_reviewer_supplies_attribution_and_disposition_on_a_control_defect_through_the_queue(conn, tmp_path):
+    """R-T-6: the queue's `control_event` records the reviewer's observation with its
+    category and severity and tags the item under the reviewer's own identity."""
     ticket_id, item_id = _seed_item(conn, "red_check")
 
-    with pytest.raises(tags.TagRefused):
-        queue.act(
-            conn, item_id=item_id, action="control_event", actor=ABHISHEK,
-            category="execution_boundary", severity="sev2", fm_id="FM-09", note="observed drift",
-            runs_dir=tmp_path,
-        )
+    queue.act(
+        conn, item_id=item_id, action="control_event", actor=ABHISHEK,
+        category="execution_boundary", severity="sev2", fm_id="FM-23", note="observed drift",
+        runs_dir=tmp_path,
+    )
 
     incident = conn.execute(
         "SELECT * FROM incident_observation WHERE ticket_id = ? AND record_kind = 'control_defect_event'",
         (ticket_id,),
     ).fetchone()
-    assert incident["recorder_identity"] == ABHISHEK
-    assert conn.execute("SELECT COUNT(*) FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
-
-
-# --- criterion 6: policy_exception classifies a valid waiver and grants nothing (R-T-6) ---
+    assert (incident["recorder_identity"], incident["control_category"], incident["severity"]) == (ABHISHEK, "execution_boundary", "sev2")
+    tag_row = conn.execute("SELECT * FROM tag WHERE ticket_id = ? AND event_kind = 'control_defect'", (ticket_id,)).fetchone()
+    assert (tag_row["tagged_by"], tag_row["severity"]) == (ABHISHEK, "sev2")
 
 
 def test_must_reject_a_policy_exception_tag_with_no_valid_waiver(conn):
-    refs = load_scenario(conn, "waivers", "valid_and_expired")
+    refs = load_scenario(conn, "waivers", "expired_only")
 
     with pytest.raises(tags.TagRefused):
         tags.tag(
@@ -331,24 +317,23 @@ def test_must_reject_a_policy_exception_tag_with_no_valid_waiver(conn):
         )
 
 
-def test_a_policy_exception_tag_on_a_valid_waiver_classifies_it_and_grants_nothing(conn):
-    refs = load_scenario(conn, "waivers", "valid_and_expired")
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=refs["ticket1"], stage="S5", attempt=1)
-    check_result_id = record.insert(
-        conn, "check_result", stage_run_id=stage_run_id, check_name="dep_verify",
+def test_a_policy_exception_tag_on_a_valid_waiver_classifies_it_and_grants_nothing(conn, tmp_path):
+    refs = issue_review_waiver(conn, tmp_path)
+    other_check_result_id = record.insert(
+        conn, "check_result", stage_run_id=refs["stage_run_id"], check_name="dep_verify",
         check_tier="blocking", result="blind_spot",
     )
 
     tag_id = tags.tag(
-        conn, target=f"waiver:{refs['valid_waiver']}", kind="policy_exception",
+        conn, target=f"waiver:{refs['waiver_id']}", kind="policy_exception",
         fm_id="FM-25", actor=ABHISHEK, severity="sev3",
     )
 
     assert record.get(conn, "tag", tag_id)["event_kind"] == "policy_exception"
-    # the tag classifies the waiver; it never substitutes for one. The check
-    # result stays `blind_spot`, not `waived`, since no waiver names it.
-    entries = waivers.blocking_status(conn, stage_run_id)
-    entry = next(entry for entry in entries if entry["id"] == check_result_id)
+    # the tag classifies the waiver; it never substitutes for one. A check
+    # result the waiver does not name stays `blind_spot`, not `waived`.
+    entries = waivers.blocking_status(conn, refs["stage_run_id"])
+    entry = next(entry for entry in entries if entry["id"] == other_check_result_id)
     assert entry["status"] == "blind_spot"
 
 
@@ -357,9 +342,6 @@ def test_must_reject_a_policy_exception_tag_that_does_not_target_a_waiver(conn):
 
     with pytest.raises(tags.TagRefused):
         tags.tag(conn, target=f"ticket:{ticket_id}", kind="policy_exception", fm_id="FM-25", actor=ABHISHEK, severity="sev3")
-
-
-# --- criterion 7: an act with no accompanying tag row is refused (R-T-6) ---
 
 
 @pytest.mark.parametrize("action, kwargs", [("send_back", {"to": "context"}), ("abandon", {})])
@@ -371,9 +353,6 @@ def test_must_reject_send_back_or_abandon_leaves_no_tag_and_no_resolution(conn, 
 
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
     assert conn.execute("SELECT COUNT(*) FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
-
-
-# --- criterion 8: a resolution tag appends and never touches the original row (R-T-6) ---
 
 
 def test_a_resolution_tag_points_at_the_original_packet_defect_row_which_stays_untouched(conn):

@@ -36,12 +36,14 @@ _TARGET_TABLES: frozenset[str] = frozenset(
 # never matches this string (see `MECHANICAL_KINDS` below).
 MECHANICAL_ACTOR = "runner"
 
-# Event kinds the factory detects and tags on its own -- the entity
-# definition's exception to "tagged_by is a human". Every other kind is a
-# decision a human made against the factory's output, and refuses this
-# actor precisely because that provenance must never be spoofed by a
-# mechanical caller (or vice versa).
-MECHANICAL_KINDS: frozenset[str] = frozenset({"stale_index", "escalation", "control_defect"})
+# Event kinds only the factory writes -- the entity definition's exception
+# to "tagged_by is a human". A `control_defect` is in neither set: the
+# factory writes one it detects mechanically and an incident reviewer
+# writes one they observe, so that kind accepts either actor. Every other
+# kind is a decision a human made against the factory's output and refuses
+# the mechanical actor, so provenance can never be spoofed either way.
+MECHANICAL_KINDS: frozenset[str] = frozenset({"stale_index", "escalation"})
+EITHER_ACTOR_KINDS: frozenset[str] = frozenset({"control_defect"})
 
 # `packet_defect` names one fixed failure mode: the review-narrative gap
 # the entity definition and catalogue both call FM-10.
@@ -93,7 +95,7 @@ def _validate_actor(kind: str, actor: str) -> None:
     if kind in MECHANICAL_KINDS:
         if actor != MECHANICAL_ACTOR:
             raise TagRefused(f"a {kind!r} tag is written mechanically; actor must be {MECHANICAL_ACTOR!r}, got {actor!r}")
-    elif actor == MECHANICAL_ACTOR:
+    elif actor == MECHANICAL_ACTOR and kind not in EITHER_ACTOR_KINDS:
         raise TagRefused(f"a {kind!r} tag is a human decision; actor may not be {MECHANICAL_ACTOR!r}")
 
 

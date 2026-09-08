@@ -1,15 +1,12 @@
-# A ticket carrying one valid (far-future expiry) and one expired waiver,
-# for the `policy_exception` tests. `$name` resolves the same way
+# A ticket carrying one expired, policy-less waiver: the one shape a
+# `policy_exception` tag must refuse. `$name` resolves the same way
 # `decision_records.yaml` does.
-valid_and_expired:
+expired_only:
   ticket:
     - as: ticket1
       state: checks
       opened_at: "2024-01-01T00:00:00+00:00"
   waiver:
-    - as: valid_waiver
-      ticket_id: $ticket1
-      expires_at: "2999-01-01T00:00:00+00:00"
     - as: expired_waiver
       ticket_id: $ticket1
       expires_at: "2000-01-01T00:00:00+00:00"

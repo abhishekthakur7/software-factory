@@ -34,6 +34,7 @@ import pytest
 from runner import artefact_registry, artefacts, checklist, cli, governance, manifest, owners, queue, record, tags, tickets
 from runner.db import connect
 from runner.reviewer_sets import Slot
+from runner.tests.test_s5_waivers import issue_review_waiver
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
@@ -281,16 +282,16 @@ def test_send_back_abandon_and_override_each_write_one_tag_naming_the_transition
 
 
 def test_control_event_records_an_incident_observation_and_leaves_the_item_open(conn, tmp_path):
-    """The observation itself is recorded from whoever reports it, but the `control_defect`
-    tag it also writes is mechanical-only: a human `--actor` records the event and is refused
-    the tag, since `tagged_by` for this kind is always the runner (never a human), never both."""
+    """A control event a human observes records the observation and a `control_defect`
+    tag under that human, without resolving the item: an incident reviewer's own tag is
+    the one control-defect tag the factory does not write mechanically."""
     ticket_id, item_id = _seed_item(conn, "red_check")
-    with pytest.raises(tags.TagRefused):
-        queue.act(
-            conn, item_id=item_id, action="control_event", actor=ABHISHEK,
-            category="execution_boundary", severity="sev2", fm_id="FM-09", note="observed drift",
-            runs_dir=tmp_path,
-        )
+    result = queue.act(
+        conn, item_id=item_id, action="control_event", actor=ABHISHEK,
+        category="execution_boundary", severity="sev2", fm_id="FM-09", note="observed drift",
+        runs_dir=tmp_path,
+    )
+    assert "control event recorded" in result
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
     incidents = conn.execute(
         "SELECT * FROM incident_observation WHERE ticket_id = ? AND record_kind = 'control_defect_event'",
@@ -299,7 +300,8 @@ def test_control_event_records_an_incident_observation_and_leaves_the_item_open(
     assert len(incidents) == 1
     assert incidents[0]["recorder_identity"] == ABHISHEK
     assert incidents[0]["severity"] == "sev2"
-    assert conn.execute("SELECT * FROM tag WHERE event_kind = 'control_defect'").fetchall() == []
+    tag_rows = conn.execute("SELECT * FROM tag WHERE event_kind = 'control_defect'").fetchall()
+    assert [(row["tagged_by"], row["ref"]) for row in tag_rows] == [(ABHISHEK, f"queue_item:{item_id}")]
 
 
 
@@ -386,21 +388,20 @@ def test_factory_abandon_records_a_tag_and_coverage_without_a_queued_item(db_pat
 
 def test_factory_tag_records_one_human_tag_on_the_named_target(db_path):
     conn = connect(db_path)
-    ticket_id = tickets.open_ticket(conn, title="t")
-    waiver_id = record.insert(conn, "waiver", ticket_id=ticket_id, expires_at="2999-01-01T00:00:00+00:00")
+    refs = issue_review_waiver(conn, db_path.parent)
     conn.commit()
+    before = conn.execute("SELECT COUNT(*) FROM tag WHERE ticket_id = ?", (refs["ticket_id"],)).fetchone()[0]
     conn.close()
 
     cli.main([
-        "--db", str(db_path), "tag", f"waiver:{waiver_id}", "policy_exception",
+        "--db", str(db_path), "tag", f"waiver:{refs['waiver_id']}", "policy_exception",
         "--fm", "FM-10", "--actor", ABHISHEK, "--severity", "sev3",
     ])
 
     conn = connect(db_path)
     try:
-        rows = conn.execute("SELECT * FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchall()
-        assert len(rows) == 1
-        assert rows[0]["event_kind"] == "policy_exception"
-        assert rows[0]["severity"] == "sev3"
+        rows = conn.execute("SELECT * FROM tag WHERE ticket_id = ? ORDER BY id", (refs["ticket_id"],)).fetchall()
+        assert len(rows) == before + 1
+        assert (rows[-1]["event_kind"], rows[-1]["severity"], rows[-1]["tagged_by"]) == ("policy_exception", "sev3", ABHISHEK)
     finally:
         conn.close()

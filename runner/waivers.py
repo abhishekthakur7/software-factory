@@ -321,12 +321,9 @@ def issue(
     row["content_hash"] = canonical.content_hash(row)
     waiver_id = record.insert(conn, "waiver", **row)
 
-    # `tags._TARGET_TABLES` has no `waiver` entry yet, so this reports
-    # against the ticket and names the waiver in the note; see the report
-    # for the merge that should retarget it once that table is added.
     tags.tag(
-        conn, target=f"ticket:{ticket_id}", kind="policy_exception", fm_id=POLICY_EXCEPTION_FM_ID,
-        actor=actor, note=f"waiver:{waiver_id}", severity=entry.severity,
+        conn, target=f"waiver:{waiver_id}", kind="policy_exception", fm_id=POLICY_EXCEPTION_FM_ID,
+        actor=actor, note=reason, severity=entry.severity,
     )
 
     if subject_kind == "review_tuple":

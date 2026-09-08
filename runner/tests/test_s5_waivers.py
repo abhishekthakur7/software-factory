@@ -111,6 +111,27 @@ def _review_tuple_setup(conn, tmp_path, *, extra_results=()):
     return ticket_id, stage_run_id, check_result_id, item_id
 
 
+def issue_review_waiver(conn, tmp_path, *, expires_at: str | None = None) -> dict[str, int]:
+    """A ticket whose S5 run's one blind spot is covered by a freshly issued review-tuple waiver.
+
+    Shared with the tag tests: a waiver only `waivers.issue` wrote is the one
+    kind `waivers.validity` accepts, so no test seeds a bare `waiver` row and
+    calls it valid.
+    """
+    ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
+    evidence_id = _register_evidence(conn, ticket_id, tmp_path)
+    waiver_id = waivers.issue(
+        conn, ticket_id=ticket_id, policy_id=REVIEW_POLICY_ID, check_result_id=check_result_id,
+        actor=ABHISHEK, reason="known generated-API gap, reviewed by hand",
+        scope=f"ticket {ticket_id}: behavior_contract_evidence", compensating_controls="manual diff review",
+        evidence_ids=[evidence_id], expires_at=expires_at or _soon(),
+    )
+    return {
+        "ticket_id": ticket_id, "stage_run_id": stage_run_id, "check_result_id": check_result_id,
+        "item_id": item_id, "waiver_id": waiver_id,
+    }
+
+
 def _owners_yaml(tmp_path: Path, *, identity: str, role: str) -> Path:
     """A copy of the default `owners.yaml` roles with one `role` reassigned to `identity`."""
     default = owners.load_owners()
@@ -121,10 +142,8 @@ def _owners_yaml(tmp_path: Path, *, identity: str, role: str) -> Path:
     return path
 
 
-# --- Criterion 1: a plan-candidate waiver -----------------------------------
-
 def test_a_plan_candidate_waiver_permits_the_verdict_and_enters_the_plan_tuple(tmp_path):
-    """R-S5-13 criterion 1: an authorised plan-candidate waiver over a `blind_spot` verdict lets the
+    """R-S5-13: an authorised plan-candidate waiver over a `blind_spot` verdict lets the
     checklist count it complete, and enters the plan tuple's own `plan_waiver_set_hash`."""
     conn = _conn(tmp_path)
     ticket_id, instance, verdict_id = _plan_candidate_blind_spot(conn, tmp_path)
@@ -172,10 +191,8 @@ def test_a_fail_verdict_is_never_waivable(tmp_path):
         )
 
 
-# --- Criterion 2: a review-tuple waiver -------------------------------------
-
 def test_a_review_tuple_waiver_clears_the_run_and_resolves_the_shared_red_check_item(tmp_path):
-    """R-S5-13 criterion 2: waiving the run's only blind spot turns its `blocking_status` entry
+    """R-S5-13: waiving the run's only blind spot turns its `blocking_status` entry
     `waived`, clears the run, and resolves the `red_check` item S5's own failures opened."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
@@ -200,7 +217,7 @@ def test_a_review_tuple_waiver_clears_the_run_and_resolves_the_shared_red_check_
 
 
 def test_a_review_tuple_waiver_leaves_the_shared_red_check_item_open_while_a_fail_remains(tmp_path):
-    """R-S5-13 criterion 2: a `fail` alongside the waived blind spot keeps the run uncleared and the item open."""
+    """R-S5-13: a `fail` alongside the waived blind spot keeps the run uncleared and the item open."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(
         conn, tmp_path, extra_results=[("size_gate", "fail")],
@@ -227,10 +244,8 @@ def test_a_human_action_cannot_resolve_a_red_check_item_as_waived(tmp_path):
         queue.act(conn, item_id=item_id, action="waived", actor=ABHISHEK)
 
 
-# --- Criterion 3: role not permitted ----------------------------------------
-
 def test_an_actor_whose_role_the_policy_does_not_authorise_is_refused(tmp_path):
-    """R-S5-13 criterion 3: an actor holding no role the policy lists is refused."""
+    """R-S5-13: an actor holding no role the policy lists is refused."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
     evidence_id = _register_evidence(conn, ticket_id, tmp_path)
@@ -246,10 +261,8 @@ def test_an_actor_whose_role_the_policy_does_not_authorise_is_refused(tmp_path):
         )
 
 
-# --- Criterion 4: policy id/version/hash recorded ---------------------------
-
 def test_a_waiver_records_the_exact_policy_id_version_and_hash(tmp_path):
-    """R-S5-13 criterion 4."""
+    """R-S5-13."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
     evidence_id = _register_evidence(conn, ticket_id, tmp_path)
@@ -268,10 +281,8 @@ def test_a_waiver_records_the_exact_policy_id_version_and_hash(tmp_path):
     assert row["policy_hash"] == policy.policy_hash
 
 
-# --- Criterion 5: an expired waiver blocks ----------------------------------
-
 def test_an_expired_waiver_no_longer_permits_advancement(tmp_path):
-    """R-S5-13 criterion 5: a waiver past its mandatory expiry no longer covers its result.
+    """R-S5-13: a waiver past its mandatory expiry no longer covers its result.
 
     `issue` itself refuses an expiry that is not after the issuing time, so
     this seeds the row directly the way the record would hold one that has
@@ -293,10 +304,8 @@ def test_an_expired_waiver_no_longer_permits_advancement(tmp_path):
     assert not waivers.cleared(conn, stage_run_id)
 
 
-# --- Criterion 6: missing controls or evidence refused ----------------------
-
 def test_a_waiver_with_no_compensating_controls_is_refused(tmp_path):
-    """must-reject: R-S5-13 criterion 6."""
+    """must-reject: R-S5-13."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
     evidence_id = _register_evidence(conn, ticket_id, tmp_path)
@@ -309,7 +318,7 @@ def test_a_waiver_with_no_compensating_controls_is_refused(tmp_path):
 
 
 def test_a_waiver_with_no_evidence_is_refused(tmp_path):
-    """must-reject: R-S5-13 criterion 6."""
+    """must-reject: R-S5-13."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
     with pytest.raises(waivers.WaiverRefused, match="evidence"):
@@ -320,11 +329,9 @@ def test_a_waiver_with_no_evidence_is_refused(tmp_path):
         )
 
 
-# --- Criterion 7: the packet's evidence table -------------------------------
-
 @pytest.mark.skipif(not PACKET_ASSEMBLE.exists(), reason="packet_assemble is built by a parallel ticket")
 def test_a_review_tuple_waiver_appears_in_the_packets_evidence_table(tmp_path):
-    """R-S5-13 criterion 7: the packet's evidence table names the waiver's id, exact scope, and expiry."""
+    """R-S5-13: the packet's evidence table names the waiver's id, exact scope, and expiry."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
     evidence_id = _register_evidence(conn, ticket_id, tmp_path)
@@ -388,10 +395,8 @@ def test_a_review_tuple_waiver_appears_in_the_packets_evidence_table(tmp_path):
     assert f"expires: {expires_at}" in text
 
 
-# --- Criterion 8: recheck --------------------------------------------------
-
 def test_a_review_tuple_waiver_blocks_once_a_fresh_review_tuple_supersedes_it(tmp_path):
-    """R-S5-13 criterion 8: a fresh review tuple (a later fix round's preflight) changes the
+    """R-S5-13: a fresh review tuple (a later fix round's preflight) changes the
     subject an S5 waiver bound; its own recomputed subject hash no longer matches the one it
     was issued against, and it blocks."""
     conn = _conn(tmp_path)
@@ -415,7 +420,7 @@ def test_a_review_tuple_waiver_blocks_once_a_fresh_review_tuple_supersedes_it(tm
 
 
 def test_recheck_finds_every_currently_bound_plan_and_review_waiver(tmp_path):
-    """R-S5-13 criterion 8: `recheck` enumerates the plan-candidate waiver bound through the
+    """R-S5-13: `recheck` enumerates the plan-candidate waiver bound through the
     checklist and the review-tuple waiver bound through the S5 run's check results, in one call."""
     conn = _conn(tmp_path)
     plan_ticket_id, instance, verdict_id = _plan_candidate_blind_spot(conn, tmp_path)
@@ -441,7 +446,7 @@ def test_recheck_finds_every_currently_bound_plan_and_review_waiver(tmp_path):
 
 
 def test_recheck_blocks_on_changed_evidence(tmp_path):
-    """R-S5-13 criterion 8: an evidence artefact whose recorded hash no longer matches blocks."""
+    """R-S5-13: an evidence artefact whose recorded hash no longer matches blocks."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
     evidence_id = _register_evidence(conn, ticket_id, tmp_path)
@@ -461,7 +466,7 @@ def test_recheck_blocks_on_changed_evidence(tmp_path):
 
 
 def test_recheck_blocks_on_lost_authority(tmp_path):
-    """R-S5-13 criterion 8: an actor who no longer holds the authorising role blocks at recheck,
+    """R-S5-13: an actor who no longer holds the authorising role blocks at recheck,
     even though the waiver was validly issued while they held it."""
     conn = _conn(tmp_path)
     ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
@@ -479,26 +484,26 @@ def test_recheck_blocks_on_lost_authority(tmp_path):
     assert "lost_authority" in result.reasons
 
 
-# --- Criterion 9: a bare tag grants nothing ---------------------------------
-
 def test_a_policy_exception_tag_alone_grants_no_authority(tmp_path):
-    """R-S5-13 criterion 9: `cleared` does not become true from a `policy_exception` tag with no waiver behind it."""
+    """R-S5-13: the `policy_exception` tag issued with a waiver outlives the waiver's own
+    validity, and `cleared` follows the waiver, never the tag."""
     conn = _conn(tmp_path)
-    ticket_id, stage_run_id, check_result_id, item_id = _review_tuple_setup(conn, tmp_path)
-    tags.tag(
-        conn, target=f"ticket:{ticket_id}", kind="policy_exception", fm_id=waivers.POLICY_EXCEPTION_FM_ID,
-        actor=ABHISHEK, note="waiver:999999", severity="sev3",
-    )
-    assert not waivers.cleared(conn, stage_run_id)
-    entry = next(e for e in waivers.blocking_status(conn, stage_run_id) if e["id"] == check_result_id)
+    refs = issue_review_waiver(conn, tmp_path)
+    after_expiry = (datetime.now(UTC) + timedelta(days=2)).isoformat(timespec="seconds")
+
+    tag_rows = conn.execute(
+        "SELECT * FROM tag WHERE event_kind = 'policy_exception' AND ref = ?", (f"waiver:{refs['waiver_id']}",)
+    ).fetchall()
+    assert len(tag_rows) == 1
+    assert waivers.cleared(conn, refs["stage_run_id"])
+    assert not waivers.cleared(conn, refs["stage_run_id"], now=after_expiry)
+    entry = next(e for e in waivers.blocking_status(conn, refs["stage_run_id"], now=after_expiry) if e["id"] == refs["check_result_id"])
     assert entry["status"] == "blind_spot"
 
 
-# --- Criterion 10: every non-waivable condition -----------------------------
-
 @pytest.mark.parametrize("fixture_path", NEVER_WAIVABLE_FIXTURES, ids=lambda p: p.stem)
 def test_a_never_waivable_condition_is_refused_regardless_of_policy(tmp_path, fixture_path):
-    """must-reject: R-S5-13 criterion 10 -- every check name `waiver-policy.yaml` names as
+    """must-reject: R-S5-13 -- every check name `waiver-policy.yaml` names as
     never-waivable is refused by name, before any policy is even consulted."""
     check_name = yaml.safe_load(fixture_path.read_text())["check_name"]
     conn = _conn(tmp_path)
