@@ -1,0 +1,20 @@
+subject: factory/scripts/tools/import
+cases:
+  - name: good
+    fixture: fixtures/good/export
+    expect: ok
+  - name: hash_mismatch
+    fixture: fixtures/hash_mismatch/export
+    expect: reject
+  - name: absolute_path
+    fixture: fixtures/absolute_path/export
+    expect: reject
+  - name: path_traversal
+    fixture: fixtures/path_traversal/export
+    expect: reject
+  - name: symlink_escape
+    fixture: fixtures/symlink_escape/export
+    expect: reject
+  - name: undeclared_file
+    fixture: fixtures/undeclared_file/export
+    expect: reject

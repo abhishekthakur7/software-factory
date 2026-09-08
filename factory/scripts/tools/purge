@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""Delete a governed export directory once its retention has passed, or refuse.
+
+Imports `runner` for the same reason `factory/scripts/tools/export` does:
+purge opens a `utility_run` and deletes through `runner.fs.remove_tree`,
+both of which are the trusted control plane's own write paths, not
+something a sandboxed script could safely reimplement standalone.
+"""
+import argparse
+import sys
+from pathlib import Path
+
+from runner import export
+from runner.db import connect
+from runner.paths import RUNS_DIR
+
+
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="purge")
+    parser.add_argument("--db", type=Path, default=RUNS_DIR / "factory.sqlite")
+    parser.add_argument("export_dir", type=Path)
+    parser.add_argument("--now", default=None)
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    conn = connect(args.db)
+    try:
+        message = export.purge_export(conn, args.export_dir, now=args.now)
+        conn.commit()
+    except export.PurgeRefused as exc:
+        conn.commit()
+        print(str(exc), file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(message)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

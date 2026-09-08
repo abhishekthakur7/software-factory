@@ -138,7 +138,6 @@ files:
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/trust-profile.yaml
     content_hash: f7087e2418fe862598a0197b62716799862474a8a723048c7b5b1da57cfe9443
-    content_hash: ec29090a843d393d1198a1199d3ce2b23ca7e80d1393c1c476b4c01fbe59fd85
   - path: factory/config/project.yaml
     content_hash: 694736458ee748af4d52bbc6908b2d063c03656087812c6258eef4dcdae8bf1e
   - path: factory/config/service-tiers.yaml
@@ -201,6 +200,66 @@ files:
     content_hash: 8006e4eabce95972b6f56f8880f44f0e0e20983e9de5fbdd02cbf670ae323ae0
   - path: factory/evals/scripts/tools/report/fixtures/unavailable_measure/seed.yaml
     content_hash: 7675b0cee397c1ce72209883f4dcb551783c25ceeb0ea3de680219d75e31493c
+  - path: factory/scripts/tools/export
+    content_hash: e3b238ffa0f8c1ca1b82c3f16c665da86b931bd6daec94a5e94b9363ab960b5f
+  - path: factory/scripts/tools/import
+    content_hash: 2dcab55c228cfdb9b5c58b535f5748d1142e3c10c3ddf9ede4ae1650a497c139
+  - path: factory/scripts/tools/purge
+    content_hash: 93378255d683cb066539447e54c221949adec4b40aaedae50db04187fe83fe25
+  - path: factory/evals/scripts/tools/export/eval.yaml
+    content_hash: 79927afa87908f7224bf2883a80e1b9a7bf5365cfb4bcd9041311c80aac0853e
+  - path: factory/evals/scripts/tools/export/fixtures/permitted_ticket/README.md
+    content_hash: db403e5f635dac1d724a060186cbd53a6ffd34e060720afed83bbde0cfd70860
+  - path: factory/evals/scripts/tools/import/eval.yaml
+    content_hash: fe688a51213f7280c2b6d07331a3aec54412e971e6352a68d59baa17f6fba4b5
+  - path: factory/evals/scripts/tools/import/fixtures/absolute_path/export/branch.patch
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/scripts/tools/import/fixtures/absolute_path/export/manifest.json
+    content_hash: 4b6d986ec0a90aff9ede71685020cfa2e955619a6dd6efb746fd77b8399928f0
+  - path: factory/evals/scripts/tools/import/fixtures/absolute_path/export/rows/ticket.json
+    content_hash: ca8ac3b43a37a58d235dbbba3f6c6d8c6a74531af6ed1d160c2420ef86e7d374
+  - path: factory/evals/scripts/tools/import/fixtures/good/export/branch.patch
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/scripts/tools/import/fixtures/good/export/manifest.json
+    content_hash: ca94ba4652fe866e984c17f39d6c82d565ff29efc759698cd707cbc32a62d7d0
+  - path: factory/evals/scripts/tools/import/fixtures/good/export/rows/ticket.json
+    content_hash: ca8ac3b43a37a58d235dbbba3f6c6d8c6a74531af6ed1d160c2420ef86e7d374
+  - path: factory/evals/scripts/tools/import/fixtures/hash_mismatch/export/branch.patch
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/scripts/tools/import/fixtures/hash_mismatch/export/manifest.json
+    content_hash: a7d69cdef61f83c3f2a2bbd157d86414158268277c0ca11808c65804521ea512
+  - path: factory/evals/scripts/tools/import/fixtures/hash_mismatch/export/rows/ticket.json
+    content_hash: ca8ac3b43a37a58d235dbbba3f6c6d8c6a74531af6ed1d160c2420ef86e7d374
+  - path: factory/evals/scripts/tools/import/fixtures/path_traversal/export/branch.patch
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/scripts/tools/import/fixtures/path_traversal/export/manifest.json
+    content_hash: f6ed1cae6c436778585a2c80383e4386d4a1d4cd50dcfcf5d85b15adf6584ada
+  - path: factory/evals/scripts/tools/import/fixtures/path_traversal/export/rows/ticket.json
+    content_hash: ca8ac3b43a37a58d235dbbba3f6c6d8c6a74531af6ed1d160c2420ef86e7d374
+  - path: factory/evals/scripts/tools/import/fixtures/symlink_escape/export/branch.patch
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/scripts/tools/import/fixtures/symlink_escape/export/evil.json
+    content_hash: 7ee68efdf912341de643fc2257fd77c5dec3f20f19d3b4e1af45ea34168083f1
+  - path: factory/evals/scripts/tools/import/fixtures/symlink_escape/export/manifest.json
+    content_hash: 2def175fac8e0427a13169c5e5caedaf6da1a41f907602c372fb0ab5ac7343a1
+  - path: factory/evals/scripts/tools/import/fixtures/symlink_escape/export/rows/ticket.json
+    content_hash: ca8ac3b43a37a58d235dbbba3f6c6d8c6a74531af6ed1d160c2420ef86e7d374
+  - path: factory/evals/scripts/tools/import/fixtures/symlink_escape/outside_secret.txt
+    content_hash: 7ee68efdf912341de643fc2257fd77c5dec3f20f19d3b4e1af45ea34168083f1
+  - path: factory/evals/scripts/tools/import/fixtures/undeclared_file/export/branch.patch
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/scripts/tools/import/fixtures/undeclared_file/export/manifest.json
+    content_hash: ca94ba4652fe866e984c17f39d6c82d565ff29efc759698cd707cbc32a62d7d0
+  - path: factory/evals/scripts/tools/import/fixtures/undeclared_file/export/rows/extra.json
+    content_hash: 37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570
+  - path: factory/evals/scripts/tools/import/fixtures/undeclared_file/export/rows/ticket.json
+    content_hash: ca8ac3b43a37a58d235dbbba3f6c6d8c6a74531af6ed1d160c2420ef86e7d374
+  - path: factory/evals/scripts/tools/purge/eval.yaml
+    content_hash: 402286c510caa25ee59581e8f74525af1bd95d56cca1bfa8ca263892de4fb4a3
+  - path: factory/evals/scripts/tools/purge/fixtures/expired/export/manifest.json
+    content_hash: 04a1830601458e98d670ddf74f858bcf9a70f2b6667f1ba556fc0da2f5ce6e54
+  - path: factory/evals/scripts/tools/purge/fixtures/within_retention/export/manifest.json
+    content_hash: 478de3a9aa19ceaaa88777fcba4fd23eca07c7d5d7355081c8c41c815894db88
 stages:
   S0:
     agent: null

@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Write one ticket's governed export directory and print its path.
+
+Imports `runner`, unlike `report` or `manifest_hash`: those scripts stay
+standalone because they verify or summarise the trusted control plane's
+own artefacts without depending on agent-reachable code. Export is not
+that -- it is the guard's own `governed_export_display` route, decided
+through `runner.guard` exactly like every other content-bearing crossing,
+so re-implementing that decision here standalone would mean a second,
+divergent copy of the guard rather than one governed path.
+"""
+import argparse
+import sys
+from pathlib import Path
+
+from runner import export
+from runner.db import connect
+from runner.paths import RUNS_DIR
+
+
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="export")
+    parser.add_argument("--db", type=Path, default=RUNS_DIR / "factory.sqlite")
+    parser.add_argument("ticket_id", type=int)
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    conn = connect(args.db)
+    try:
+        result = export.export_ticket(conn, args.ticket_id, runs_dir=args.db.parent)
+        conn.commit()
+    except export.ExportRefused as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(result["export_dir"])
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

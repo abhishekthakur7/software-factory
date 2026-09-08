@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import freshness, gates, outbox, queue, record, refresh_base, run_ledger, tags, transitions
+from runner import export, freshness, gates, outbox, queue, record, refresh_base, run_ledger, tags, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -189,6 +189,15 @@ def main(argv: list[str] | None = None) -> int:
     report_parser.add_argument("--window-days", type=int, default=30)
     report_parser.add_argument("--until", default=None)
 
+    export_parser = subparsers.add_parser("export")
+    export_parser.add_argument("ticket_id", type=int)
+
+    import_parser = subparsers.add_parser("import")
+    import_parser.add_argument("export_dir", type=Path)
+
+    purge_parser = subparsers.add_parser("purge")
+    purge_parser.add_argument("export_dir", type=Path)
+
     args = parser.parse_args(argv)
     # The run tree lives beside the database: one root holds every piece of
     # run state, so pointing `--db` elsewhere moves the artefacts with it.
@@ -234,6 +243,14 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 end="",
             )
+        elif args.verb == "export":
+            result = export.export_ticket(conn, args.ticket_id, runs_dir=runs_dir)
+            print(f"ticket {args.ticket_id}: exported to {result['export_dir']}")
+        elif args.verb == "import":
+            result = export.import_export(conn, args.export_dir, runs_dir=runs_dir)
+            print(f"imported ticket {result['ticket_id']} from {args.export_dir}")
+        elif args.verb == "purge":
+            print(export.purge_export(conn, args.export_dir))
         conn.commit()
     finally:
         conn.close()
