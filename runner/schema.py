@@ -18,6 +18,15 @@ as work proceeds rather than at insert time. Only the five Later tables
 (`score`, `human_signal`, `proposal`, `benchmark`,
 `fixture_candidate`) are withheld — they arrive with the migration that
 lands the row that first writes each one.
+
+Every column is immutable in place unless its declaration says otherwise:
+a column is either plain immutable (the default — the row is append-only,
+so a change is always a new row), `mutable=True` (updatable in place, any
+number of times), or `once=<sentinel>` (updatable in place exactly once,
+together with every other column naming the same sentinel). `ddl()` turns those declarations into the
+triggers that enforce them, so the allowlist has exactly one home: this
+module. A later ticket that needs a new field mutable marks it here rather
+than adding a second enforcement path.
 """
 from dataclasses import dataclass, field
 
@@ -28,6 +37,12 @@ class Column:
     type: str  # "INTEGER" | "REAL" | "TEXT"
     nullable: bool = True
     references: str | None = None  # "table.column"
+    mutable: bool = False  # updatable in place, any number of times
+    # Names the sentinel column of a group that settles together exactly
+    # once (a run's cost fields, a queue item's resolution fields): every
+    # column naming the same sentinel is in the group, the sentinel names
+    # itself, and a non-null sentinel means the group is already settled.
+    once: str | None = None
 
 
 @dataclass(frozen=True)
@@ -57,32 +72,32 @@ TABLES: tuple[Table, ...] = (
             Column("factory_manifest_hash", "TEXT"),
             Column("tier_provisional", "TEXT"),
             Column("tier_final", "TEXT"),
-            Column("tier_override_by", "TEXT"),
-            Column("tier_override_at", "TEXT"),
-            Column("tier_override_reason", "TEXT"),
+            Column("tier_override_by", "TEXT", mutable=True),
+            Column("tier_override_at", "TEXT", mutable=True),
+            Column("tier_override_reason", "TEXT", mutable=True),
             Column("scrutiny_requested", "TEXT"),
             # Display summary, not an approval gate input.
             Column("required_approvers", "TEXT"),
-            Column("state", "TEXT"),
+            Column("state", "TEXT", mutable=True),
             # Null except while blocked; the single queue_item for the current wait.
-            Column("blocked_on", "INTEGER", references="queue_item.id"),
-            Column("pause_requested", "INTEGER"),
-            Column("paused_at", "TEXT"),
+            Column("blocked_on", "INTEGER", references="queue_item.id", mutable=True),
+            Column("pause_requested", "INTEGER", mutable=True),
+            Column("paused_at", "TEXT", mutable=True),
             Column("base_sha", "TEXT"),
             Column("target_base_sha", "TEXT"),
             Column("branch", "TEXT"),
             Column("worktree_path", "TEXT"),
             Column("head_sha", "TEXT"),
-            Column("pr_url", "TEXT"),
-            Column("pr_identity", "TEXT"),
-            Column("last_remote_head_sha", "TEXT"),
-            Column("last_pr_body_hash", "TEXT"),
+            Column("pr_url", "TEXT", mutable=True),
+            Column("pr_identity", "TEXT", mutable=True),
+            Column("last_remote_head_sha", "TEXT", mutable=True),
+            Column("last_pr_body_hash", "TEXT", mutable=True),
             # True only for the pre-factory baseline provenance rows.
             Column("baseline", "INTEGER"),
-            Column("opened_at", "TEXT"),
-            Column("factory_completed_at", "TEXT"),
-            Column("closed_at", "TEXT"),
-            Column("close_reason", "TEXT"),
+            Column("opened_at", "TEXT", mutable=True),
+            Column("factory_completed_at", "TEXT", mutable=True),
+            Column("closed_at", "TEXT", mutable=True),
+            Column("close_reason", "TEXT", mutable=True),
             Column("final_head_sha", "TEXT"),
             Column("final_target_base_sha", "TEXT"),
             Column("final_pr_body_hash", "TEXT"),
@@ -92,6 +107,7 @@ TABLES: tuple[Table, ...] = (
             Column("external_revision_count", "INTEGER"),
             # Later field; reserved now so it never needs a migration.
             Column("close_survey", "TEXT"),
+            Column("updated_at", "TEXT", mutable=True),
         ),
     ),
     Table(
@@ -127,18 +143,19 @@ TABLES: tuple[Table, ...] = (
             Column("reasoning_summary", "TEXT"),
             Column("tokens_in", "INTEGER"),
             Column("tokens_out", "INTEGER"),
-            Column("cost", "REAL"),
-            Column("currency", "TEXT"),
-            Column("cost_basis", "TEXT"),
-            Column("pricing_table_hash", "TEXT"),
-            Column("cost_settled_at", "TEXT"),
+            Column("cost", "REAL", once="cost_settled_at"),
+            Column("currency", "TEXT", once="cost_settled_at"),
+            Column("cost_basis", "TEXT", once="cost_settled_at"),
+            Column("pricing_table_hash", "TEXT", once="cost_settled_at"),
+            Column("cost_settled_at", "TEXT", once="cost_settled_at"),
             Column("wall_clock_seconds", "REAL"),
-            Column("outcome", "TEXT"),
-            Column("failure_kind", "TEXT"),
-            Column("started_at", "TEXT"),
-            Column("heartbeat_at", "TEXT"),
-            Column("lease_expires_at", "TEXT"),
-            Column("ended_at", "TEXT"),
+            Column("outcome", "TEXT", mutable=True),
+            Column("failure_kind", "TEXT", mutable=True),
+            Column("started_at", "TEXT", mutable=True),
+            Column("heartbeat_at", "TEXT", mutable=True),
+            Column("lease_expires_at", "TEXT", mutable=True),
+            Column("ended_at", "TEXT", mutable=True),
+            Column("updated_at", "TEXT", mutable=True),
         ),
     ),
     Table(
@@ -219,13 +236,14 @@ TABLES: tuple[Table, ...] = (
             # or stage_run id depending on `kind` — not a single-table FK.
             Column("ref", "TEXT"),
             Column("queued_at", "TEXT"),
-            Column("resolved_at", "TEXT"),
-            Column("resolved_by", "TEXT"),
-            Column("action", "TEXT"),
-            Column("note", "TEXT"),
+            Column("resolved_at", "TEXT", once="resolved_at"),
+            Column("resolved_by", "TEXT", once="resolved_at"),
+            Column("action", "TEXT", once="resolved_at"),
+            Column("note", "TEXT", once="resolved_at"),
             Column("approval_subject_hash", "TEXT"),
             Column("reviewer_set_id", "INTEGER", references="reviewer_set.id"),
-            Column("active_attention_bucket", "TEXT"),
+            Column("active_attention_bucket", "TEXT", once="resolved_at"),
+            Column("updated_at", "TEXT", mutable=True),
         ),
     ),
     Table(
@@ -245,7 +263,8 @@ TABLES: tuple[Table, ...] = (
             Column("blocking", "INTEGER"),
             Column("rank_inputs", "TEXT"),
             Column("raised_by_answer", "INTEGER", references="answer.id"),
-            Column("state", "TEXT"),
+            Column("state", "TEXT", mutable=True),
+            Column("updated_at", "TEXT", mutable=True),
         ),
     ),
     Table(
@@ -533,14 +552,14 @@ TABLES: tuple[Table, ...] = (
             Column("expected_prior_remote_head_sha", "TEXT"),
             Column("pr_body_hash", "TEXT"),
             Column("revision", "INTEGER"),
-            Column("remote_pr_identity", "TEXT"),
-            Column("state", "TEXT"),
-            Column("attempt_count", "INTEGER"),
-            Column("remote_identity", "TEXT"),
-            Column("receipt_artefact_id", "INTEGER", references="artefact.id"),
-            Column("last_error", "TEXT"),
+            Column("remote_pr_identity", "TEXT", mutable=True),
+            Column("state", "TEXT", mutable=True),
+            Column("attempt_count", "INTEGER", mutable=True),
+            Column("remote_identity", "TEXT", mutable=True),
+            Column("receipt_artefact_id", "INTEGER", references="artefact.id", mutable=True),
+            Column("last_error", "TEXT", mutable=True),
             Column("created_at", "TEXT"),
-            Column("updated_at", "TEXT"),
+            Column("updated_at", "TEXT", mutable=True),
         ),
     ),
     Table(
@@ -636,8 +655,44 @@ LATER_TABLES: frozenset[str] = frozenset(
 )
 
 
+def _mutability_triggers(table: Table) -> list[str]:
+    """The append-only and once-settlement triggers for one table.
+
+    Every column neither `mutable` nor in a `once` group shares one
+    `BEFORE UPDATE OF <those columns>` trigger that always aborts: naming
+    any of them in an UPDATE is the violation, whether or not the value
+    changes (SQLite fires `UPDATE OF` on a named column even when its value
+    is unchanged). Each `once` group gets a trigger that aborts only when
+    its sentinel already holds a value, so the first settlement succeeds
+    and every later one is rejected. Deletion is not addressed here:
+    governed purge is a separate, later rule.
+    """
+    triggers = []
+    immutable = [c.name for c in table.columns if not c.mutable and c.once is None]
+    if immutable:
+        triggers.append(
+            f"CREATE TRIGGER IF NOT EXISTS {table.name}_immutable_columns "
+            f"BEFORE UPDATE OF {', '.join(immutable)} ON {table.name} "
+            f"BEGIN SELECT RAISE(ABORT, "
+            f"'{table.name}: this column is append-only and cannot be edited in place'); END"
+        )
+    sentinels = {c.once for c in table.columns if c.once is not None}
+    for sentinel in sorted(sentinels):
+        group = [c.name for c in table.columns if c.once == sentinel]
+        assert sentinel in group, f"{table.name}.{sentinel} must name itself as its own sentinel"
+        triggers.append(
+            f"CREATE TRIGGER IF NOT EXISTS {table.name}_{sentinel}_settle_once "
+            f"BEFORE UPDATE OF {', '.join(group)} ON {table.name} "
+            f"WHEN OLD.{sentinel} IS NOT NULL "
+            f"BEGIN SELECT RAISE(ABORT, '{table.name}: already settled once'); END"
+        )
+    return triggers
+
+
 def ddl() -> list[str]:
-    """Return one `CREATE TABLE IF NOT EXISTS` statement per table in `TABLES`."""
+    """Return one `CREATE TABLE IF NOT EXISTS` statement per table, followed by
+    that table's mutability-enforcing triggers, in `TABLES` order.
+    """
     statements = []
     for table in TABLES:
         lines = []
@@ -657,4 +712,5 @@ def ddl() -> list[str]:
                 )
         body = ",\n    ".join(lines)
         statements.append(f"CREATE TABLE IF NOT EXISTS {table.name} (\n    {body}\n)")
+        statements.extend(_mutability_triggers(table))
     return statements

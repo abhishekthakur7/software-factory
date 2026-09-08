@@ -25,7 +25,7 @@ EXPECTED_FIELDS = {
         "opened_at", "factory_completed_at", "closed_at", "close_reason",
         "final_head_sha", "final_target_base_sha", "final_pr_body_hash",
         "merge_sha", "required_checks_disposition", "approval_disposition",
-        "external_revision_count",
+        "external_revision_count", "updated_at",
     },
     "stage_run": {
         "id", "ticket_id", "stage", "plan_item", "plan_tuple_id", "attempt",
@@ -38,7 +38,7 @@ EXPECTED_FIELDS = {
         "tokens_in", "tokens_out", "cost", "currency", "cost_basis",
         "pricing_table_hash", "cost_settled_at", "wall_clock_seconds",
         "outcome", "failure_kind", "started_at", "heartbeat_at",
-        "lease_expires_at", "ended_at",
+        "lease_expires_at", "ended_at", "updated_at",
     },
     "tool_call": {
         "id", "stage_run_id", "seq", "guard_decision_id", "tool",
@@ -54,11 +54,12 @@ EXPECTED_FIELDS = {
         "id", "ticket_id", "stage", "tier", "kind", "ref", "queued_at",
         "resolved_at", "resolved_by", "action", "note",
         "approval_subject_hash", "reviewer_set_id", "active_attention_bucket",
+        "updated_at",
     },
     "question": {
         "id", "ticket_id", "stage", "round", "rank", "affects", "reasoning",
         "options", "default_option", "consequential", "hard_to_reverse",
-        "blocking", "rank_inputs", "raised_by_answer", "state",
+        "blocking", "rank_inputs", "raised_by_answer", "state", "updated_at",
     },
     "answer": {
         "id", "question_id", "question_version_hash", "resolution_kind",
