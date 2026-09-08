@@ -269,7 +269,16 @@ def _run_walk(tmp_path) -> WalkResult:
     queue.act(conn, item_id=escalation_item["id"], action="resume", actor=ABHISHEK, runs_dir=tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
 
-    _kill_and_restart(conn, ticket_id, "S4", tmp_path)
+    # The real S4 hands off, invokes the fixture worker, and records a real
+    # hand-back: `ok`'s `out/handback.json` and `worktree/` stand in for
+    # the agent's own deviation report and edits.
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "worktree")
+    try:
+        _kill_and_restart(conn, ticket_id, "S4", tmp_path)
+    finally:
+        del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
+        del os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
 
     # criterion 16 (pause half), 6, 8, 12: a pending pause takes effect at

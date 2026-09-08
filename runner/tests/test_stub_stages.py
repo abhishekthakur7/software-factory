@@ -219,14 +219,44 @@ def test_s3_runs_for_real_and_passes_to_plan_review(conn, tmp_path):
     assert "| reviewer_set | pass |" in Path(plan["path"]).read_text()
 
 
-def test_s4_stub_writes_a_handoff_and_passes_to_checks(conn, tmp_path):
-    """the real S4 stub driver writes and registers a
-    `handoff` artefact and its pass moves implementing -> checks."""
-    ticket_id = _ticket_in(conn, "implementing")
-    outcome = run_stage(conn, ticket_id, "S4", runs_dir=tmp_path)
+def _implementing_ticket_with_plan_inputs(conn, tmp_path):
+    """A ticket sitting in `implementing` with a real worktree, manifest pin, and a bound plan tuple for S4 to hand off."""
+    source = _source_repo(tmp_path)
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
+        tier_final="standard",
+    )
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    record.update(conn, "ticket", ticket_id, state="implementing")
+    record.insert(
+        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
+        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-implementing",
+    )
+    plan_path = Path(__file__).parent / "fixtures" / "s4_handoff" / "plan.md"
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="plan", path=plan_path)
+    criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
+    return ticket_id
+
+
+def test_s4_runs_for_real_and_passes_to_checks(conn, tmp_path):
+    """the real S4 driver hands off, invokes the fixture worker, records the
+    hand-back's branch/head/deviation rows, and its pass moves
+    implementing -> checks; `test_s4_handoff.py`/`test_s4_handback.py`
+    cover the driver in depth, this is the stage-walk smoke test."""
+    ticket_id = _implementing_ticket_with_plan_inputs(conn, tmp_path)
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "worktree")
+    try:
+        outcome = run_stage(conn, ticket_id, "S4", runs_dir=tmp_path)
+    finally:
+        os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
+        os.environ.pop("FIXTURE_ADAPTER_WORKTREE_DIR", None)
     assert outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
     assert artefact_registry.latest(conn, ticket_id, "handoff") is not None
+    assert conn.execute("SELECT COUNT(*) FROM deviation WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 2
 
 
 def test_s5_and_s6_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tmp_path):

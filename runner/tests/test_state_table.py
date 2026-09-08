@@ -16,13 +16,16 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import gates, git_trees, record, tickets, transitions
+from runner import artefact_registry, gates, git_trees, manifest, record, tickets, transitions
 from runner.db import connect
+from runner.paths import FACTORY_DIR
 from runner.stages import run_stage
 from runner.state_table import TERMINAL_STATES
 from runner.transitions import TransitionRefused
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "state_table"
+S3_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "s3"
+S4_HANDOFF_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "s4_handoff"
 
 _COMMIT_ENV = {
     "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
@@ -70,6 +73,29 @@ def _plan_review_ticket(conn, tmp_path):
         conn, "approval_record", ticket_id=ticket_id, gate="plan", decision="approve", subject_hash="plan-subject-1",
     )
     return ticket_id, source, runs_dir
+
+
+def _implementing_ticket_with_plan_inputs(conn, tmp_path):
+    """A ticket in `implementing` with a real worktree, manifest pin, and a bound plan tuple for a real S4 run."""
+    source = _source_repo(tmp_path)
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
+        tier_final="standard",
+    )
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    record.update(conn, "ticket", ticket_id, state="implementing")
+    record.insert(
+        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
+        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-implementing",
+    )
+    artefact_registry.register(
+        conn, ticket_id=ticket_id, kind="plan", path=S4_HANDOFF_FIXTURES_DIR / "plan.md",
+    )
+    artefact_registry.register(
+        conn, ticket_id=ticket_id, kind="criteria", path=S3_FIXTURES_DIR / "criteria.md",
+    )
+    return ticket_id
 
 
 @pytest.fixture
@@ -541,8 +567,14 @@ def test_validation_only_s4_run_records_no_state_change(conn, tmp_path):
     """a `validation_only` run is recorded as an S4 run from `implementing`
     with no transition, even though an ordinary S4 pass would move the
     ticket to `checks`."""
-    ticket_id = _ticket_in(conn, "implementing")
-    outcome = run_stage(conn, ticket_id, "S4", validation_only=True, runs_dir=tmp_path)
+    ticket_id = _implementing_ticket_with_plan_inputs(conn, tmp_path)
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "worktree")
+    try:
+        outcome = run_stage(conn, ticket_id, "S4", validation_only=True, runs_dir=tmp_path)
+    finally:
+        os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
+        os.environ.pop("FIXTURE_ADAPTER_WORKTREE_DIR", None)
     assert outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
     stage_run = conn.execute(

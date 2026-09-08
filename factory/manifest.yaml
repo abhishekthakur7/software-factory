@@ -7,7 +7,7 @@ files:
   - path: factory/agents/S3.md
     content_hash: c55ba0cf2ade2b485a72d8b3fbb98579ac9b18c47b02a74a5a7e67e4b9eee762
   - path: factory/agents/S4.md
-    content_hash: 032f03596fea0c0612fa4f38fac1dfc7eae381aec44edc1d3d535858d3858697
+    content_hash: 280a3419a9598bb0a9f76c7f60ee7e726168006d7a50dad4736a999eb3d9db1b
   - path: factory/benchmarks/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/catalogue/.gitkeep
@@ -207,11 +207,11 @@ files:
   - path: factory/evals/agents/S3/fixtures/unserved_criterion/out/plan.md
     content_hash: f10907bc5ac4b9392be0bebdca2e46db1b8ace6b3e82a227c76cdb8b5bb8fe69
   - path: factory/evals/agents/S4/eval.yaml
-    content_hash: a39a1afa0e244670cf48c1de39c32f0a04a6fea4ad51ff158944de3da251c9e9
+    content_hash: 76d4575fbff0e2b6405d9c578c597a00837c0eedf44c101033387d2784301a35
   - path: factory/evals/agents/S4/fixtures/missing_front_matter/S4.md
     content_hash: e67482fb1f02ed7f2e06199e55eb45e08a755010caeb509aa4848fc5c7788951
   - path: factory/evals/agents/S4/fixtures/ok/S4.md
-    content_hash: 032f03596fea0c0612fa4f38fac1dfc7eae381aec44edc1d3d535858d3858697
+    content_hash: b425c771321e65b12b5b85bb107e8f2aa16c1570524f515a8ad26a4c27f732f8
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml
@@ -756,6 +756,18 @@ files:
     content_hash: 524e65a701a92932b7eefe5b697f73a6950a80f1e1152f9081517d15a58a7bf7
   - path: factory/scripts/checks/base_test_diff
     content_hash: 3972a133e3ec4e403c1f9c29c62cdc787322352d178b3f9f0ef02f79ae915c81
+  - path: factory/evals/agents/S4/fixtures/empty_deviations/out/handback.json
+    content_hash: 41be7de2e70ed891fd8e260dd893fa39bd3570e608d7a91f4677e965bad32ace
+  - path: factory/evals/agents/S4/fixtures/malformed_deviations/out/handback.json
+    content_hash: d5bc322567f655f64eaf222fe5690d3cf69c0d11b10a30eb1d922d6c3b9e75eb
+  - path: factory/evals/agents/S4/fixtures/missing_deviations/out/handback.json
+    content_hash: ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356
+  - path: factory/evals/agents/S4/fixtures/no_handback/out/.gitkeep
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/agents/S4/fixtures/ok/out/handback.json
+    content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
+  - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
+    content_hash: 4d198f3b4aef350a47412f964e31ca62221f82788136fda6bd7fa1819ae4ec24
 stages:
   S0:
     default:

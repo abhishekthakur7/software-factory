@@ -46,6 +46,23 @@ def set_hash(items: Iterable[Mapping]) -> str:
     return canonical.content_hash({"members": member_hashes})
 
 
+def deviation_set_hash(conn: sqlite3.Connection, ticket_id: int) -> str:
+    """`set_hash` over `ticket_id`'s `deviation` rows, `id` and `stage_run_id` excluded.
+
+    `id` drops out through `content_hash`'s own default exclusion;
+    `stage_run_id` is dropped here because it names which attempt wrote
+    the row, not what the row means -- an S5 review tuple binds this hash
+    to compare deviation sets across attempts, so two otherwise-identical
+    rows written by different attempts must hash as the same member. The
+    empty set (no deviation rows) hashes just like any other set, which is
+    exactly the explicit, canonical hash a deviation-free hand-back
+    records.
+    """
+    rows = conn.execute("SELECT * FROM deviation WHERE ticket_id = ? ORDER BY id", (ticket_id,)).fetchall()
+    items = [{k: v for k, v in dict(row).items() if k != "stage_run_id"} for row in rows]
+    return set_hash(items)
+
+
 # One-to-one onto the plan `evidence_tuple` columns (common columns plus
 # the plan-only columns); order matches the ticket-record's field list.
 PLAN_COMPONENT_FIELDS: tuple[str, ...] = (

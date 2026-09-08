@@ -12,3 +12,4 @@ tables:
   - external_write
   - guard_decision
   - tag
+  - deviation

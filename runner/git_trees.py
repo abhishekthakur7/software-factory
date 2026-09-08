@@ -12,6 +12,7 @@ ticket worktree must have no way to push, even if it somehow obtained
 network access, so the refusal is baked into the git remote configuration
 itself rather than relying only on the OS network policy.
 """
+import os
 import sqlite3
 import subprocess
 from dataclasses import dataclass
@@ -24,11 +25,19 @@ from runner.paths import RUNS_DIR
 # sandbox's network policy does or doesn't allow.
 DISABLED_PUSH_URL = "no-push://ticket-clone-disabled"
 
+# The hand-back commit's fixed identity: the trusted runner made this
+# commit, not any individual agent invocation or human, so it never
+# carries an actor's own name.
+_COMMIT_AUTHOR_NAME = "soft-factory runner"
+_COMMIT_AUTHOR_EMAIL = "runner@soft-factory.invalid"
 
-def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
+
+def _git(args: list[str], cwd: Path, env: dict | None = None) -> subprocess.CompletedProcess:
+    full_env = {**os.environ, **env} if env else None
     return subprocess.run(
         ["git", "-c", "commit.gpgsign=false", *args],
         cwd=cwd,
+        env=full_env,
         capture_output=True,
         text=True,
         check=True,
@@ -92,6 +101,29 @@ def record_head(conn: sqlite3.Connection, ticket_id: int, worktree: Path) -> str
     head_sha = _rev_parse(Path(worktree))
     record.update(conn, "ticket", ticket_id, head_sha=head_sha)
     return head_sha
+
+
+def commit_worktree(worktree: Path, message: str) -> str:
+    """Commit every change in `worktree` under the runner's fixed identity; return the resulting HEAD.
+
+    The agent that ran inside the ticket worktree never runs git itself --
+    the hand-off contract leaves committing to the trusted runner, under
+    an identity that names the runner rather than whichever invocation or
+    human produced the edits. A task may legitimately change nothing (its
+    deviation set says so), so an empty status is not an error: `HEAD`
+    stays exactly where it was and is returned unchanged.
+    """
+    worktree = Path(worktree)
+    _git(["add", "-A"], cwd=worktree)
+    status = _git(["status", "--porcelain"], cwd=worktree)
+    if not status.stdout.strip():
+        return _rev_parse(worktree)
+    commit_env = {
+        "GIT_AUTHOR_NAME": _COMMIT_AUTHOR_NAME, "GIT_AUTHOR_EMAIL": _COMMIT_AUTHOR_EMAIL,
+        "GIT_COMMITTER_NAME": _COMMIT_AUTHOR_NAME, "GIT_COMMITTER_EMAIL": _COMMIT_AUTHOR_EMAIL,
+    }
+    _git(["commit", "-q", "-m", message], cwd=worktree, env=commit_env)
+    return _rev_parse(worktree)
 
 
 def plain_checkout(source_checkout: Path, sha: str, dest: Path) -> Path:
