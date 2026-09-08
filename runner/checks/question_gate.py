@@ -84,8 +84,8 @@ def validate(candidate: dict, *, allowed_names: frozenset = frozenset()) -> list
     default_option = candidate.get("default_option")
     sensitive = bool(candidate.get("sensitive"))
     # A sensitive decision is consequential regardless of what the agent
-    # itself reported (R-S2-8 criterion 9): the effective flag, not the
-    # raw field, drives every rule below.
+    # itself reported: the effective flag, not the raw field, drives every
+    # rule below.
     consequential = bool(candidate.get("consequential")) or sensitive
     hard_to_reverse = bool(candidate.get("hard_to_reverse"))
 

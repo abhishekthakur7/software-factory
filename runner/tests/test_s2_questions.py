@@ -1,9 +1,9 @@
 """S2's question and assumption half: the pre-queue gate, ranking, rounds, flags, and the assumption log.
 
 `_candidate` is a baseline valid `questions.yaml` item; every gate test
-overrides only the field its own criterion is about, so a failing
-assertion names the one rule that actually changed rather than an
-incidental difference between fixtures.
+overrides only the field its own rule is about, so a failing assertion
+names the one rule that actually changed rather than an incidental
+difference between fixtures.
 """
 import json
 
@@ -63,9 +63,6 @@ def _candidate(**overrides) -> dict:
     return base
 
 
-# --- criterion 1 (R-S2-5 script): reasoning and affects are required ---
-
-
 def test_gate_requires_reasoning_naming_sources_tried():
     assert any("reasoning" in reason for reason in question_gate.validate(_candidate(reasoning="")))
 
@@ -78,9 +75,6 @@ def test_a_fully_valid_candidate_passes_the_gate():
     assert question_gate.validate(_candidate()) == []
 
 
-# --- criterion 2 (R-S2-5 grader): the bootstrap-checklist judgment text ---
-
-
 def test_the_rubric_marks_r_s2_5s_grader_half_as_a_bootstrap_checklist_line():
     lines = rubrics.load(RUBRIC_PATH)
     grader = rubrics.line(lines, "R-S2-5", "grader")
@@ -89,9 +83,6 @@ def test_the_rubric_marks_r_s2_5s_grader_half_as_a_bootstrap_checklist_line():
     assert grader.judgment == (
         "fail when a question's reasoning names a source that never mentions the fact the question asks about"
     )
-
-
-# --- criteria 3, 4 (R-S2-6): rank_inputs stored, even with no default ---
 
 
 def test_rank_inputs_are_stored_alongside_the_computed_rank(conn):
@@ -113,9 +104,6 @@ def test_a_question_with_no_default_still_gets_a_rank_and_rank_inputs(conn):
     assert row["default_option"] is None
     assert row["rank"] is not None
     assert json.loads(row["rank_inputs"]) == {"impact": 0.5, "uncertainty": 0.4}
-
-
-# --- criteria 5, 6 (R-S2-7): default_option required/null, option shape ---
 
 
 @pytest.mark.parametrize(
@@ -162,9 +150,6 @@ def test_must_reject_a_candidate_whose_last_option_is_not_none_of_these():
     assert any("none of these" in reason for reason in question_gate.validate(candidate))
 
 
-# --- criteria 7, 8, 9 (R-S2-8): keyword-forced flags ---
-
-
 def test_affects_naming_a_contract_forces_consequential_true(conn):
     ticket_id = _ticket(conn)
     candidate = _candidate(
@@ -207,9 +192,6 @@ def test_a_sensitive_decision_sets_consequential_true_regardless_of_hard_to_reve
     assert row["consequential_reason"].startswith("sensitive decision:")
 
 
-# --- criterion 10 (R-S2-8): a human correction records a reason ---
-
-
 def test_correcting_a_flag_records_the_reason_as_a_tag(conn):
     ticket_id = _ticket(conn)
     ids = questions.raise_round(conn, ticket_id=ticket_id, stage="S2", candidates=[_candidate()], tier="standard")
@@ -233,9 +215,6 @@ def test_must_reject_correct_flag_with_neither_flag_named(conn):
     ids = questions.raise_round(conn, ticket_id=ticket_id, stage="S2", candidates=[_candidate()], tier="standard")
     with pytest.raises(ValueError):
         questions.correct_flag(conn, ids[0], reason="no flag named", actor=ABHISHEK, fm_id="FM-07")
-
-
-# --- criteria 11, 12 (R-S2-9): raised_by_answer, round gating ---
 
 
 def test_a_follow_up_question_names_its_raising_answer(conn):
@@ -284,9 +263,6 @@ def test_an_empty_candidate_list_raises_no_round_and_touches_nothing(conn):
     assert conn.execute("SELECT COUNT(*) FROM question").fetchone()[0] == 0
 
 
-# --- criteria 13, 14 (R-S2-11): the assumption log's two writers ---
-
-
 def test_a_default_accepted_answer_writes_an_assumption_row_naming_its_question(conn):
     ticket_id = _ticket(conn)
     ids = questions.raise_round(conn, ticket_id=ticket_id, stage="S2", candidates=[_candidate()], tier="standard")
@@ -321,9 +297,6 @@ def test_an_s3_reviewer_accepting_an_assumption_sets_state_and_writes_the_row(co
     row = record.get(conn, "assumption", assumption_id)
     assert row["origin"] == str(question_id)
     assert row["text"] == "Assume the flag stays off until told otherwise."
-
-
-# --- criterion 15 (R-S2-11): supersession, the log hash, and invalidation ---
 
 
 def test_superseding_an_assumption_changes_the_log_hash_and_lists_every_stale_dependent(conn, tmp_path):
@@ -389,9 +362,6 @@ def test_must_reject_a_supersession_with_no_text_and_no_withdrawal(conn):
         questions.supersede_assumption(conn, assumption_id, reason="no text given", actor=ABHISHEK)
 
 
-# --- criteria 16, 17 (R-S2-14): identifier ban, per-option consequence ---
-
-
 @pytest.mark.parametrize("text", [
     "Should we follow R-S2-9 exactly?",
     "Does this affect P3 at all?",
@@ -435,9 +405,6 @@ def test_must_reject_an_option_with_no_consequence_at_all():
     assert any("consequence" in reason for reason in question_gate.validate(candidate))
 
 
-# --- criterion 18 (R-S2-14 grader) ---
-
-
 def test_the_rubric_marks_r_s2_14s_grader_half_as_a_bootstrap_checklist_line():
     lines = rubrics.load(RUBRIC_PATH)
     grader = rubrics.line(lines, "R-S2-14", "grader")
@@ -446,9 +413,6 @@ def test_the_rubric_marks_r_s2_14s_grader_half_as_a_bootstrap_checklist_line():
     assert grader.judgment == (
         "fail when a reader with no access to the referenced artefact cannot give the right answer to the question"
     )
-
-
-# --- criterion 19: the S2 walk, driven through the real driver and queue ---
 
 
 def _clarifying_ticket(conn) -> int:
@@ -513,9 +477,6 @@ def test_s2_driver_records_a_check_result_and_fails_over_a_rejected_candidate(co
     ).fetchone()
     assert check is not None
     assert conn.execute("SELECT COUNT(*) FROM question WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
-
-
-# --- eval-directory fixtures parse as this module expects ---
 
 
 def test_the_fixture_eval_yaml_names_a_readable_questions_yaml_for_each_new_case():
