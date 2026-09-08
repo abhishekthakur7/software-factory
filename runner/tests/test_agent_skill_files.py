@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 from runner import manifest
+from runner.evals import EvalDirectoryError, check as _check_eval_dir
 from runner.paths import FACTORY_DIR
 
 TIERS_PATH = FACTORY_DIR / "config" / "tiers.yaml"
@@ -28,23 +29,6 @@ EVAL_DIRS = (
 
 def _instruction_file_line_limit() -> int:
     return int(yaml.safe_load(TIERS_PATH.read_text())["length_limits"]["instruction_file_lines"])
-
-
-class EvalDirectoryError(ValueError):
-    """An eval directory carries no owner, or none of its cases names a fixture directory
-    that exists and is non-empty."""
-
-
-def _check_eval_dir(eval_dir: Path) -> None:
-    spec = yaml.safe_load((eval_dir / "eval.yaml").read_text())
-    owner = spec.get("owner")
-    if not owner or not str(owner).strip():
-        raise EvalDirectoryError(f"{eval_dir}: eval.yaml carries no owner")
-    for case in spec["cases"]:
-        fixture_dir = eval_dir / case["fixture"]
-        if fixture_dir.is_dir() and any(fixture_dir.rglob("*")):
-            return
-    raise EvalDirectoryError(f"{eval_dir}: no case names a fixture directory that exists and is non-empty")
 
 
 # the section 8 line limit

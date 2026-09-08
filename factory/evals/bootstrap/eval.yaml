@@ -1,0 +1,92 @@
+owner: abhishek
+subject: docs/build
+tickets:
+  T-A-01:
+  - scripts/tools/manifest_hash
+  T-A-02: []
+  T-A-03: []
+  T-A-04:
+  - scripts/tools/manifest_hash
+  T-A-05: []
+  T-A-06: []
+  T-A-07: []
+  T-A-08:
+  - scripts/checks/impact_scan
+  T-A-09: []
+  T-A-10: []
+  T-A-11:
+  - scripts/tools/report
+  T-A-12: []
+  T-A-13: []
+  T-A-14: []
+  T-A-15: []
+  T-A-16:
+  - scripts/tools/export
+  - scripts/tools/import
+  - scripts/tools/purge
+  T-A-17: []
+  T-A-18:
+  - adapters/cursor_sdk
+  T-A-19: []
+  T-A-20: []
+  T-A-21:
+  - agents/S1
+  - agents/S2
+  - agents/S3
+  - agents/S4
+  - skills/S1
+  - skills/S2
+  - skills/S3
+  - skills/S4
+  - skills/shared/codegraph-lookup
+  T-A-22:
+  - agents/S1
+  - rubrics/S1
+  - scripts/tools/reindex
+  T-A-23:
+  - agents/S2
+  - rubrics/S2
+  T-A-24:
+  - agents/S2
+  - rubrics/S2
+  - skills/S2
+  T-A-25:
+  - agents/S3
+  - scripts/checks/risk_map
+  - scripts/checks/size_gate
+  - scripts/tools/handoff_ready
+  T-A-26:
+  - agents/S3
+  - rubrics/S3
+  - scripts/checks/risk_map
+  - scripts/checks/size_gate
+  - scripts/tools/handoff_ready
+  - skills/S3
+  T-A-27:
+  - rubrics/S3
+  T-A-28:
+  - agents/S4
+  T-A-29:
+  - agents/S4
+  T-A-30:
+  - agents/S3
+  - rubrics/S5
+  - scripts/checks/base_test_diff
+  - scripts/checks/behavior_contract_evidence
+  - scripts/checks/scope_diff
+  - scripts/checks/source_declaration_diff
+  T-A-31:
+  - scripts/checks/base_test_diff
+  - scripts/tools/packet_assemble
+  T-A-32:
+  - rubrics/S3
+  - scripts/tools/packet_assemble
+  T-A-33: []
+  T-A-35:
+  - adapters/cursor_sdk
+  - rubrics/S0
+  - scripts/checks/impact_scan
+  - scripts/checks/java_compile
+  - scripts/checks/java_lint
+  - scripts/checks/java_test
+  - scripts/tools/export

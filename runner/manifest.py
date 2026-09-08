@@ -5,7 +5,13 @@
 null/non-null split between script-only stages (`S0`, `S5`, `S6`) and
 agent-driven ones, and the budget-key shape of whichever `tiers.yaml` the
 manifest's `budget` field names -- so a malformed manifest never reaches
-`resolve`. `resolve` merges a stage's `default` entry with its tier
+`resolve`. Loading the real project manifest also refuses a stage entry
+whose agent, skill, shared skill, rubric, or runtime adapter names an eval
+directory that is missing, unowned, or carries an empty case list: an
+empty fixture list never enters the manifest (`runner.evals.check`). A
+synthetic test manifest loaded from outside the project's own `factory/`
+root skips that check -- its stand-in files have no eval directory of
+their own to fail. `resolve` merges a stage's `default` entry with its tier
 override (if any), then re-verifies every file it names still hashes to
 what the manifest declares before returning anything: an unresolved or
 unavailable entry, or a file whose bytes have moved since the manifest was
@@ -30,7 +36,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import approvals, canonical, owners, record, run_ledger, transitions
+from runner import approvals, canonical, evals, owners, record, run_ledger, transitions
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.reviewer_sets import Slot
 from runner.state_table import TERMINAL_STATES
@@ -196,6 +202,37 @@ def _check_referenced_files(stage: str, name: str, entry: dict, files: dict[str,
             )
 
 
+def _check_entry_eval_dirs(stage: str, name: str, entry: dict, root: Path, path: Path) -> None:
+    # Only the real project manifest is checked here -- a synthetic test
+    # manifest under a fixture root names tiny stand-in agent/skill/rubric
+    # files with no eval directory of their own, and would fail this check
+    # for a reason that has nothing to do with what that fixture is
+    # actually testing.
+    factory_root = root / "factory"
+    for field_name in ("agent", "skill", "rubric"):
+        value = entry.get(field_name)
+        if value is not None:
+            eval_dir = evals.eval_dir_for_file(value, root=factory_root)
+            _check_referenced_eval_dir(stage, name, field_name, eval_dir, path)
+    for value in entry.get("shared_skills", []):
+        eval_dir = evals.eval_dir_for_file(value, root=factory_root)
+        _check_referenced_eval_dir(stage, name, "shared_skills", eval_dir, path)
+    adapter = entry.get("runtime_adapter")
+    if adapter is not None:
+        eval_dir = evals.eval_dir_for_adapter(adapter, root=factory_root)
+        _check_referenced_eval_dir(stage, name, "runtime_adapter", eval_dir, path)
+
+
+def _check_referenced_eval_dir(stage: str, name: str, field_name: str, eval_dir: Path, path: Path) -> None:
+    try:
+        evals.check(eval_dir)
+    except evals.EvalDirectoryError as exc:
+        raise ManifestError(
+            f"{path}: stage {stage!r} entry {name!r} field {field_name!r} references an incomplete eval "
+            f"directory: {exc}"
+        ) from exc
+
+
 def _check_null_invariant(stage: str, entry: dict, description: str) -> None:
     must_be_null = stage in NULL_MODEL_STAGES
     for field_name in ("agent", "skill", "model_requested", "grader_model"):
@@ -257,6 +294,8 @@ def _load_stages(stages_raw: object, files: dict[str, str], root: Path, path: Pa
             _check_known_keys(stage, variant_name, variant_raw, path)
             _validate_field_types(stage, variant_name, variant_raw, path)
             _check_referenced_files(stage, variant_name, variant_raw, files, path)
+            if root == REPO_ROOT:
+                _check_entry_eval_dirs(stage, variant_name, variant_raw, root, path)
             if variant_name == "default":
                 _check_required_keys(stage, variant_raw, path)
                 _check_null_invariant(stage, variant_raw, f"{path}")

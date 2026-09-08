@@ -1,4 +1,5 @@
 subject: runner/adapters/cursor_sdk.py
+owner: abhishek
 cases:
   - name: settled
     fixture: fixtures/settled.json

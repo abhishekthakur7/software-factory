@@ -1,0 +1,6 @@
+subject: factory/scripts/checks/java_test
+owner: abhishek
+cases:
+  - name: ok
+    fixture: fixtures/ok
+    expect: pass

@@ -47,7 +47,7 @@ files:
   - path: factory/config/waiver-policy.yaml
     content_hash: 5946acc82e75dcd4686e797cdfed0a465940ab66897dbd8c817f00e8619ef59c
   - path: factory/evals/adapters/cursor_sdk/eval.yaml
-    content_hash: 85c0ea32bbe8de73b0d7165583bf09224653340bd3ce371008306b818948818d
+    content_hash: 75de1f296c47321983c29c57ef1b6fd2d282bd71bd7bace9e2d221b26127a4fb
   - path: factory/evals/adapters/cursor_sdk/fixtures/null_cost.json
     content_hash: bcef81dcedca3e4fb0f555136516190b0b2f4f70728d6027f81ca99760df5e72
   - path: factory/evals/adapters/cursor_sdk/fixtures/price_table.json
@@ -238,6 +238,144 @@ files:
     content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
   - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
     content_hash: 71b174c836aaac1871745b19280f7dc833578ff988a0cf09871cb816e51ac9cc
+  - path: factory/evals/bootstrap/T-A-01/brief.md
+    content_hash: 878bd07152dced1f3d0c8a6c316d7a8fdd511f94f63174644cf57848c688afcd
+  - path: factory/evals/bootstrap/T-A-01/plan.md
+    content_hash: d4bd48758db7647f02e479190f3c8bef580e9d5244ee4d9107aea3a639bf59d0
+  - path: factory/evals/bootstrap/T-A-02/brief.md
+    content_hash: b2764685347c04fd0c48ff81b6ae4a5bb294cf4d9084ed2b6eda37a065251976
+  - path: factory/evals/bootstrap/T-A-02/plan.md
+    content_hash: 6eb2bd3433084167c48b39f9c98fd0eefa8f60595bd04dee8fa79f185d8b97fa
+  - path: factory/evals/bootstrap/T-A-03/brief.md
+    content_hash: eb6ba7b0526143fd409f77ebf54fe6adccb1585b3936919ac12b70ae4ae1d111
+  - path: factory/evals/bootstrap/T-A-03/plan.md
+    content_hash: a02c1c33b534c16117605d4fae3b0600f49a2f5ddcbbcbe15710dbe6170f7ee2
+  - path: factory/evals/bootstrap/T-A-04/brief.md
+    content_hash: 2c77ad45ce0f14f9c322964878b48cabbbdeb57d0729e88ea467f5c8f6f6a8a3
+  - path: factory/evals/bootstrap/T-A-04/plan.md
+    content_hash: 18e9fd8e6f03d89d67f3d6b5f351dfdc2975d07ef7daeab840487084310308b4
+  - path: factory/evals/bootstrap/T-A-05/brief.md
+    content_hash: b0f8174cefb675aad60702d9a03f8d3307851cb2ac57c1db81fd685079dfd31a
+  - path: factory/evals/bootstrap/T-A-05/plan.md
+    content_hash: 094cb8cb98a006d43c800f098b1bba83f754e7bb77f7eca5256fc670aec5f516
+  - path: factory/evals/bootstrap/T-A-06/brief.md
+    content_hash: 9ead0f9f6130370d4a35df69fb8c31457ac8b9348765d89ac4b1eee04097a875
+  - path: factory/evals/bootstrap/T-A-06/plan.md
+    content_hash: 14768deba2eddd35abf4a3d715a09f294fae02e1650fd10c4f719feef745ec39
+  - path: factory/evals/bootstrap/T-A-07/brief.md
+    content_hash: e428e093ec3b7475537555ba1d81c0cc00e5e784f2a810a08a63ede6845f0410
+  - path: factory/evals/bootstrap/T-A-07/plan.md
+    content_hash: 3fc4374abc0dced90c31fb01070d9b36c5f9207d06a40e1a70d57a941369f10e
+  - path: factory/evals/bootstrap/T-A-08/brief.md
+    content_hash: e4f6076a88e0dcdb0481b6f64f509e53a537a50b1818059734a7d0d40d87b07a
+  - path: factory/evals/bootstrap/T-A-08/plan.md
+    content_hash: 842fd1ebcde44f5d63d73bd2f71be1759956e9be29c3616d6f83ab4cd2435eab
+  - path: factory/evals/bootstrap/T-A-09/brief.md
+    content_hash: 60e0473c005704e7d0527624e3fb94ef091b18283b1ea871b9e4fe5761dd1f4b
+  - path: factory/evals/bootstrap/T-A-09/plan.md
+    content_hash: dba7117e08a2b156356f2529b02002266edbd77f0ffcec1f203a3c518c6bb5e6
+  - path: factory/evals/bootstrap/T-A-10/brief.md
+    content_hash: a37357cc8d77ab487a96ca62578d735d70695b4357d07d17ee8724ec9d2e9b03
+  - path: factory/evals/bootstrap/T-A-10/plan.md
+    content_hash: 7ee34fd57850ac55eb621cd5c44601191305bafe3ac8b40e697611cb7a54990c
+  - path: factory/evals/bootstrap/T-A-11/brief.md
+    content_hash: 8baeaa768a007c44a12dfa234f763c98dbaf627f7ef63af40c2d9ad1976bf869
+  - path: factory/evals/bootstrap/T-A-11/plan.md
+    content_hash: 41507c1769b6f700eaef4adcff8fd3505739bd129075ead6f7280aa53f6cd57b
+  - path: factory/evals/bootstrap/T-A-12/brief.md
+    content_hash: feee4954a5de8c39e430224a338beff3b1a42ea4f8e033ac40a0f72f34745176
+  - path: factory/evals/bootstrap/T-A-12/plan.md
+    content_hash: 0766a828b22245c88ed8ac2966b393f72688c016072e7d15407e4243c9277456
+  - path: factory/evals/bootstrap/T-A-13/brief.md
+    content_hash: 74f1af748e605977129e5c8cc6df965a3815c3a2fc1577381eabac7bbb45affa
+  - path: factory/evals/bootstrap/T-A-13/plan.md
+    content_hash: 4556b38764ebe3310a439e12203ebace1e58c41ae739006d4cc7187f2b26f131
+  - path: factory/evals/bootstrap/T-A-14/brief.md
+    content_hash: 81bb99c1825c970f63f5aecf44364fd0b75ddc5c1434bce53334c5d97142cf0e
+  - path: factory/evals/bootstrap/T-A-14/plan.md
+    content_hash: 77efcab9ba94a968818ecd53a96111b81d0422e16cea24b74c7973bde01bb3b4
+  - path: factory/evals/bootstrap/T-A-15/brief.md
+    content_hash: 4c2a4b475185204756b250e3e7ceec173ad31bc08615db4ffd21b320af646939
+  - path: factory/evals/bootstrap/T-A-15/plan.md
+    content_hash: d4c482b5aa2ef063229eb0a8fa9b2176da265356679a0ac2073777e6d1d88465
+  - path: factory/evals/bootstrap/T-A-16/brief.md
+    content_hash: 848a0b3f5fb6aa756535910d279e166086e0c8d42579f4ec66ec6d14161b2c4f
+  - path: factory/evals/bootstrap/T-A-16/plan.md
+    content_hash: d6063ee9310d5f27832dd9e3d6771ff5815bf8654c3d228d979995e49a264ea7
+  - path: factory/evals/bootstrap/T-A-17/brief.md
+    content_hash: 8ba68edb634a72d8a38bdc01236882ba391359ab538197db0e119a778398c45d
+  - path: factory/evals/bootstrap/T-A-17/plan.md
+    content_hash: 43407f7142139c7ba9b2a3fdbf05355cc16da000d8dda6f60314e284798bf25b
+  - path: factory/evals/bootstrap/T-A-18/brief.md
+    content_hash: 423adf144368332ee138132fb376fc75fd8c0139ebdcaff9395e5cfafbaec0af
+  - path: factory/evals/bootstrap/T-A-18/plan.md
+    content_hash: aedec9b91d527bc4c010dae78171ae2aaa0b06395bdcedc90d3764eda61b8609
+  - path: factory/evals/bootstrap/T-A-19/brief.md
+    content_hash: 1da9885e31f181c758cfafa4820bb2079550abc56069feb8a43c6687022b7aba
+  - path: factory/evals/bootstrap/T-A-19/plan.md
+    content_hash: bde528440b83f135036fcfbe3885c09af5c8868bc4b4eb4127e42104d5566eee
+  - path: factory/evals/bootstrap/T-A-20/brief.md
+    content_hash: 80f0b29898aec888a940f22cb01a4972abb1f310e7bb57dda0db0da0208ff9c5
+  - path: factory/evals/bootstrap/T-A-20/plan.md
+    content_hash: 3492710188a04436fa12621351f117be4e8706ce6d221d0545bcd3d3eb7cdf88
+  - path: factory/evals/bootstrap/T-A-21/brief.md
+    content_hash: be747d960af1de26c7863a9d8ceb3e9802b9260f29ec8df37b7db061c5391951
+  - path: factory/evals/bootstrap/T-A-21/plan.md
+    content_hash: 24db4ca283df23fffd5b673b73cf8e4518be2ef5429f328d9015a919b35c17f6
+  - path: factory/evals/bootstrap/T-A-22/brief.md
+    content_hash: 1a04a1351edda0203e51c755f80a39330e693997a4b8f07e63f6b5c3ca4439b1
+  - path: factory/evals/bootstrap/T-A-22/plan.md
+    content_hash: 8ec8255a12b90ada6d916be86d758fd22fa489f53ae42af7673bf6ddd2b58a61
+  - path: factory/evals/bootstrap/T-A-23/brief.md
+    content_hash: fe3339121f373026cc30a7d9de6312c45b2865209d09f4cdf592a85225a3ade2
+  - path: factory/evals/bootstrap/T-A-23/plan.md
+    content_hash: 2bc06a854eb43351bf71d424e1f9a951ccff121fca717791c81867bad3ff47e5
+  - path: factory/evals/bootstrap/T-A-24/brief.md
+    content_hash: 171c25e83052a402d1a528c96aa274204ad168a562ff68054acf807ec918ce12
+  - path: factory/evals/bootstrap/T-A-24/plan.md
+    content_hash: 6c91c86d45f63f6812227a426e98a0175b697ba37d6168dc2f72c10ab28a47e2
+  - path: factory/evals/bootstrap/T-A-25/brief.md
+    content_hash: 71fec9ce6f30d530c5a11a61a530ed05f1bf425dd0a1d541efc3ec8c68059e93
+  - path: factory/evals/bootstrap/T-A-25/plan.md
+    content_hash: aadab91d1e8fa20550f9c28753e9bfdf8d3ae8b3a011935f716d512605d96e0c
+  - path: factory/evals/bootstrap/T-A-26/brief.md
+    content_hash: 04793db0c39697c92ae76e3f9be85e38a11ae873d718f5922e56bd8775b6609b
+  - path: factory/evals/bootstrap/T-A-26/plan.md
+    content_hash: cd4b275bfafc91516de57f01eb54098abd9ecf1c73de23f2d07b66504fd439ed
+  - path: factory/evals/bootstrap/T-A-27/brief.md
+    content_hash: 17531ae3748cce12766c16fe43b90f0adf7a6e8badc316963f674c4174f89872
+  - path: factory/evals/bootstrap/T-A-27/plan.md
+    content_hash: 9ddbc3dff44fc032652653e7b2a0184878fbf6dea498df95e0b9f8952d0d1b4d
+  - path: factory/evals/bootstrap/T-A-28/brief.md
+    content_hash: 464ded5d4c2138fbcfd77f40da4806af2b66f3edf0e40a3452debc5017f69dce
+  - path: factory/evals/bootstrap/T-A-28/plan.md
+    content_hash: e1ca1e7e8179cdbb43571a73f8819088764229449f1c109cdb206918e786774a
+  - path: factory/evals/bootstrap/T-A-29/brief.md
+    content_hash: 6531e4fc5b5b72ed5496b36ceeca4e56cf8a3c9e84b65f9e67f68a39c6a44d41
+  - path: factory/evals/bootstrap/T-A-29/plan.md
+    content_hash: 93cf75d3095e77b8ebceb42d4b5bcd6e17f725aa7cfae1964219f9eb1ab61683
+  - path: factory/evals/bootstrap/T-A-30/brief.md
+    content_hash: 2eda4334b2b0f3af9f1b5975005ab22d1fc5d5114d9c8a84436c0502a17f4d3b
+  - path: factory/evals/bootstrap/T-A-30/plan.md
+    content_hash: 14c66fc4d8ebf3fcbdea11ac63587444ab4f7136deb33254101717c16c599c63
+  - path: factory/evals/bootstrap/T-A-31/brief.md
+    content_hash: 01dd2ba542c9c08867b5741bc49b953a34d8c91f3664f6be7d3286da1dff8d2a
+  - path: factory/evals/bootstrap/T-A-31/plan.md
+    content_hash: ad277e756997c76dd79c9df72f24b99e8c49c8a10969bd904d892b42697d5d3c
+  - path: factory/evals/bootstrap/T-A-32/brief.md
+    content_hash: 31d3b949b216573972d3ddbbfe27d2359dcb1710d131852b14cef32a279ab806
+  - path: factory/evals/bootstrap/T-A-32/plan.md
+    content_hash: 2da23fbaea5448bb761f90a2192fd5ee7da5cd607955ee00172a26d63f71bcf8
+  - path: factory/evals/bootstrap/T-A-33/brief.md
+    content_hash: a86c91022e92f12dbdeec57fdef97ba699d335bfa2b4e9e813c61da30efcb667
+  - path: factory/evals/bootstrap/T-A-33/plan.md
+    content_hash: fce742d7c1e32d0651006da4a61f82f4569def157f12b071a73f17499f2991a2
+  - path: factory/evals/bootstrap/T-A-35/brief.md
+    content_hash: d3386b69b1732881f4208c02b3790d0fd292cbe18851f7429c498aaacfe633d3
+  - path: factory/evals/bootstrap/T-A-35/plan.md
+    content_hash: 8b05b814ae92fc2f64456204eb0c75fefd688be568cc33f0adf93c8e1b7f4d62
+  - path: factory/evals/bootstrap/eval.yaml
+    content_hash: d193a737ae57b950a6a97aebb33ab3a34e80b5327056c927b1932fc4ec091f07
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml
@@ -263,7 +401,7 @@ files:
   - path: factory/evals/fixture-project/vendor/com/fixturevendor/util/1.0.0/util-1.0.0.pom
     content_hash: d3e87ff988dca4b9b13e212cbf474abd7e03e786e016f156c134edadf90ae07e
   - path: factory/evals/rubrics/S0/eval.yaml
-    content_hash: 31be1bfce9ec7c895de19ae8222a81bde0432064783424789e0cb620d1577021
+    content_hash: 43da7a2ebb6392c4967a21b3b6267322f07c26504b227a4c2fb42dc2e01005f2
   - path: factory/evals/rubrics/S0/fixtures/missing_front_matter/S0.md
     content_hash: bc0756c86edad30ed7eea846b43057ad1d81d2105823e31c6d0f5246aec0e50c
   - path: factory/evals/rubrics/S0/fixtures/ok/S0.md
@@ -383,19 +521,19 @@ files:
   - path: factory/evals/rubrics/S3/fixtures/test_strategy_reject/plan.md
     content_hash: bccb02efb602c3b9ea10576db117acbf699d8e014f01c090664fe7a2d58941c3
   - path: factory/evals/rubrics/S4/eval.yaml
-    content_hash: 507e6398768d7d41b97416d002be97d50686f701371449f24139d1966aac51d0
+    content_hash: 01494ea7a698561abfe923d843bb49b1eb452e20d06c9d2cf64988f9daa92a69
   - path: factory/evals/rubrics/S4/fixtures/missing_front_matter/S4.md
     content_hash: 78fc7633b15a9ba817ef94035e28ce5a4e41e1675cc89bd914b4382db73d840e
   - path: factory/evals/rubrics/S4/fixtures/ok/S4.md
     content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
   - path: factory/evals/rubrics/S5/eval.yaml
-    content_hash: 3aa6ea81c03f6a92e06744276d7ee8b7ea312deb34e9807be9c7a0ef059e9aef
+    content_hash: 3467fc48b5300d365afd9b676b0d09748f26df2dba43df5d245e5838a53ac9ba
   - path: factory/evals/rubrics/S5/fixtures/missing_front_matter/S5.md
     content_hash: 406d59ec074168a082737c8234a8122d2336b4fec319fefef26deac651c000bf
   - path: factory/evals/rubrics/S5/fixtures/ok/S5.md
     content_hash: 4f189dcd43d6ade4842c5be3fe7b01075556415e99365f39ee3c40aa0388e41f
   - path: factory/evals/rubrics/S6/eval.yaml
-    content_hash: f9eac70badf55c28cf7e16a286ea02b6b2ca3fb7e3ba9f53be7ac8cb888cb13b
+    content_hash: 397a36471bc765b9a894a935f5912c88137b665254330a9fab4daa0bfe7a1cd9
   - path: factory/evals/rubrics/S6/fixtures/missing_front_matter/S6.md
     content_hash: d074772c30e456cd1ef3d2c808555a264971a92d525bf8b342d77b30bdcfc88f
   - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
@@ -509,7 +647,7 @@ files:
   - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/verdicts.json
     content_hash: 0b0257c32130a630632e38b874a241c5ae6b8d5cd99c6e76eac8c6a0f7ed67ce
   - path: factory/evals/scripts/checks/impact_scan/eval.yaml
-    content_hash: fbddca0aab3f51c089a0314e41c6ede84c0c22691fc4698bef861bd19a8d701d
+    content_hash: 945ada1c786194452121776609ffd26a2dbdf9baee42812193485f9266ea9ae8
   - path: factory/evals/scripts/checks/impact_scan/fixtures/authoritative/checkout/pom.xml
     content_hash: 074e037270a6f22b4cd1384b32877512fa0e0b5d501ce9e20ea2aaeac15b7bff
   - path: factory/evals/scripts/checks/impact_scan/fixtures/authoritative/mapping.yaml
@@ -528,6 +666,24 @@ files:
     content_hash: 14bff6fd89c4f822c21fbaef9e4cec7d5b46f3b19d806d3f34cf53882df5d8f3
   - path: factory/evals/scripts/checks/impact_scan/fixtures/unknown/vendor/com/fixtureeval/mystery/1.0.0/mystery-1.0.0.pom
     content_hash: 5a7b7a54b702cffbecb5e221b4753562aac7051f207d43ab01598da67993aa71
+  - path: factory/evals/scripts/checks/java_compile/eval.yaml
+    content_hash: f02824561e505ba28d0386ca6a8b1135b10d8e59fc7c50b716a82d006dd9a839
+  - path: factory/evals/scripts/checks/java_compile/fixtures/ok/src/com/example/Adder.java
+    content_hash: 9292221565973923d7f6e56d72b67b6ff0270fa71791bb182f512fb7c05f567e
+  - path: factory/evals/scripts/checks/java_compile/fixtures/ok/src/com/example/Main.java
+    content_hash: 2db13fa4fb9641585e535e8b05f4ddc197c0183c6b2aa9b99930f5e075962c6c
+  - path: factory/evals/scripts/checks/java_lint/eval.yaml
+    content_hash: 7935703e49a83289152565d2ef7453b068ed772c78e4412390bcaac0b797d6b7
+  - path: factory/evals/scripts/checks/java_lint/fixtures/ok/src/com/example/Greeter.java
+    content_hash: ca68c0baabb1a6c659291166b25da60daecb432f6947cd930681913d60737217
+  - path: factory/evals/scripts/checks/java_lint/fixtures/ok/src/com/example/GreeterMain.java
+    content_hash: 862a4174697cad1e16c6e062bf1949e71b571f088984f59892b2264f9b6168a8
+  - path: factory/evals/scripts/checks/java_test/eval.yaml
+    content_hash: 273eda1e3c722be8c64b5c545e69b504f2a2b8a261fe0479571a55de76d6bfd1
+  - path: factory/evals/scripts/checks/java_test/fixtures/ok/main/com/example/Calculator.java
+    content_hash: b29404b4e5ff8ebb8571c5a7fe1a1127d1f9d18aeb3cd72010ef2a6d8d3eb2a6
+  - path: factory/evals/scripts/checks/java_test/fixtures/ok/test/com/example/CalculatorUnitTest.java
+    content_hash: 2c20ec32920f23f0ff1271c9694b935116acdfb3ebe934b46f3966cbf78e46ef
   - path: factory/evals/scripts/checks/risk_map/eval.yaml
     content_hash: f009f9c0634d32ce9d0e8df53b692e4b792918a0375b4ae869d03b9a5977bbb7
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn/candidates.txt
@@ -599,7 +755,7 @@ files:
   - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/plan.md
     content_hash: dc6481bd70d4ff9c94fec95a9f1c5e95adf3960bbf7dac4beff3de217e056e59
   - path: factory/evals/scripts/tools/export/eval.yaml
-    content_hash: 79927afa87908f7224bf2883a80e1b9a7bf5365cfb4bcd9041311c80aac0853e
+    content_hash: 06ca00c2b4116dd8e6a6320c00cf7e3763a54fd3e44dc256883b6bbcf32808ca
   - path: factory/evals/scripts/tools/export/fixtures/permitted_ticket/README.md
     content_hash: db403e5f635dac1d724a060186cbd53a6ffd34e060720afed83bbde0cfd70860
   - path: factory/evals/scripts/tools/handoff_ready/eval.yaml
@@ -647,7 +803,7 @@ files:
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/mixed_pending/risk_map.json
     content_hash: a77e1eaf92b4c5fa69d80c5ffadac8cf28f5d0724d83bbf86ec1fa7793aa4638
   - path: factory/evals/scripts/tools/import/eval.yaml
-    content_hash: fe688a51213f7280c2b6d07331a3aec54412e971e6352a68d59baa17f6fba4b5
+    content_hash: 243bbb4102cc891c1522aaeb200a7c2ba3441d84aa550c7d881cbbe3ee72b3e3
   - path: factory/evals/scripts/tools/import/fixtures/absolute_path/export/branch.patch
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/evals/scripts/tools/import/fixtures/absolute_path/export/manifest.json
@@ -691,7 +847,7 @@ files:
   - path: factory/evals/scripts/tools/import/fixtures/undeclared_file/export/rows/ticket.json
     content_hash: ca8ac3b43a37a58d235dbbba3f6c6d8c6a74531af6ed1d160c2420ef86e7d374
   - path: factory/evals/scripts/tools/manifest_hash/eval.yaml
-    content_hash: d149d66527b732a22019e178ce8629c85450632732ed0931295a71b9b1bed7d0
+    content_hash: 9e4eacd227e2baf3a67ce7928eb7938e79922dc05fb374c10f9a587f8dfb0ac8
   - path: factory/evals/scripts/tools/manifest_hash/fixtures/missing_content_hash/factory/manifest.yaml
     content_hash: e4b4ad2a679cd1d6c43a224ba7cf0ad8cd9fe544a22dd5a319d18d703d18385b
   - path: factory/evals/scripts/tools/manifest_hash/fixtures/parent_traversal/factory/manifest.yaml
@@ -725,7 +881,7 @@ files:
   - path: factory/evals/scripts/tools/pr_body_assemble/fixtures/malformed/packet_inputs.json
     content_hash: 13dacbe30bd3e86e45e9fde9105772d20b68725b59f4dee1d5add8fa006ccaa5
   - path: factory/evals/scripts/tools/purge/eval.yaml
-    content_hash: 402286c510caa25ee59581e8f74525af1bd95d56cca1bfa8ca263892de4fb4a3
+    content_hash: a522f81de2c1bcc8bca07e966a04f73e545f970fb8f22ff8d181a5989571dd52
   - path: factory/evals/scripts/tools/purge/fixtures/expired/export/manifest.json
     content_hash: 04a1830601458e98d670ddf74f858bcf9a70f2b6667f1ba556fc0da2f5ce6e54
   - path: factory/evals/scripts/tools/purge/fixtures/within_retention/export/manifest.json
@@ -737,7 +893,7 @@ files:
   - path: factory/evals/scripts/tools/reindex/fixtures/indexed/worktree/README.md
     content_hash: 4a6689419b00b11700c9b6246bcfa8936c8f5e1e824db3a7e57030e2d1c1a684
   - path: factory/evals/scripts/tools/report/eval.yaml
-    content_hash: 78258e8c91bcc18257db4e12cf7d592bad60368fb8d548388ef4ddf7982a408c
+    content_hash: 97d5f69500a48e4b28b78119397242fa3a7a0233e534bc3f50dc084ae0b688cb
   - path: factory/evals/scripts/tools/report/fixtures/baseline_excluded/expect.txt
     content_hash: 86097f4ae53b4723c6bd1c800f5b71011476ea0d8be1a9111b422d94cf160eb4
   - path: factory/evals/scripts/tools/report/fixtures/baseline_excluded/seed.yaml

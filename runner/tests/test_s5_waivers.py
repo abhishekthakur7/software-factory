@@ -72,7 +72,7 @@ def _plan_candidate_blind_spot(conn, tmp_path):
     `approve_current_plan`), then an `R-S1-3:grader` `blind_spot` verdict recorded over it, with
     no waiver yet."""
     ticket_id = _ticket(conn, tmp_path)
-    approve_current_plan(conn, ticket_id)
+    approve_current_plan(conn, ticket_id, tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
     instances = checklist.expected_instances(conn, ticket, rubric_paths=OK_RUBRIC_PATHS)
     instance = next(i for i in instances if i.rubric_line_id == "R-S1-3:grader")

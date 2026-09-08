@@ -68,7 +68,7 @@ def _ready_ticket(conn, tmp_path, *, widget_source: str = _WIDGET_OK, plan_text:
     criteria_path = tmp_path / f"criteria-{ticket_id}.md"
     criteria_path.write_text(CRITERIA_TEXT)
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
-    support.approve_current_plan(conn, ticket_id)
+    support.approve_current_plan(conn, ticket_id, tmp_path)
     return ticket_id
 
 
