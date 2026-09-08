@@ -177,6 +177,9 @@ def decide(
         "canonical_serialization_version": canonical.SERIALIZATION_VERSION,
     }
     row["content_hash"] = canonical.content_hash(row)
+    # Committed here, unlike every other record write, because a decision is
+    # audit evidence of the attempt itself: it must survive even when the
+    # operation that asked for it later rolls back.
     try:
         row_id = record.insert(conn, "guard_decision", **row)
         conn.commit()

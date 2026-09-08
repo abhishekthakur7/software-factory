@@ -20,9 +20,10 @@ This ticket adds the derivation half beside them, and nothing else:
 - `resolve_owner(owners, handle)` — an `@identity` handle resolves when that
   identity holds some role in `owners.yaml`; a team handle, an email, or an
   identity absent from the policy are all unresolved.
-- `derive_actual(conn, ...)` — for every changed path, matches CODEOWNERS
-  first; a path it doesn't cover falls through to `sensitive_paths` (never
-  the reverse); a path neither source claims at all blocks the same way an
+- `derive_actual(conn, ...)` — for every changed path, decides sensitivity
+  from the sensitive-paths mapping and ownership from CODEOWNERS first,
+  falling back to the mapping's owner only for a path CODEOWNERS does not
+  cover; a path neither source claims at all blocks the same way an
   unresolved owner does. Writes one `reviewer_set` row of kind `actual`
   carrying every hash and provenance field the schema already declares, and
   returns a `Derivation` (the row id, the slots, whether it's blocked, the
@@ -33,8 +34,8 @@ This ticket adds the derivation half beside them, and nothing else:
   actual row's identifying hashes.
 - `is_current(conn, reviewer_set_id, ...)` — whether a stored `actual` row's
   path-set hash and base sha still match a given diff and base.
-- `recompute_before_dispatch(...)` — the S6 race guard; calls `derive_actual`
-  again under its own name so a dispatch path reads as "the guard fires."
+- `recompute_before_dispatch` — the S6 race guard; `derive_actual` under
+  its own name so a dispatch path reads as "the guard fires."
 
 Nothing here changes `Slot`, `merge_slots`, `runner/approvals.py`,
 `runner/schema.py`, or any other module named as off-limits; `derive_actual`
@@ -86,10 +87,14 @@ derivation before dispatch as a race guard.
   this ticket builds" section states the two route cases in parallel — "for
   a non-sensitive unresolved mismatch ... for a sensitive-path match at
   this milestone" — without qualifying the second case as unresolved. This
-  build takes that literally: any path a changed diff routes through
-  `sensitive_paths.yaml` (i.e., one CODEOWNERS does not already cover)
-  forces `sensitive=True` and the S4-removal/`pilot_excluded` routes,
-  whether or not the named owner resolves. `test_initial_sensitive_path_
+  build takes that literally: any changed path the sensitive-paths mapping
+  matches forces `sensitive=True` and the S4-removal/`pilot_excluded`
+  routes, whether or not the owner resolves and whoever owns it. The
+  reviewer of the merged branch corrected an earlier reading in which a
+  path CODEOWNERS covered was never checked against the mapping: with a
+  repository-wide `*` rule that would have hidden every sensitive path.
+  Ownership precedence (CODEOWNERS wins) and sensitivity are two
+  separate questions. `test_initial_sensitive_path_
   match_only_offers_removal_or_pilot_excluded_routes` seeds a *resolved*
   sensitive owner precisely to pin this reading down.
 - **Precedence between the sensitive and non-sensitive-unresolved route
