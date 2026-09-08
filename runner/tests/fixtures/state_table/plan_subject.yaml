@@ -1,27 +1,11 @@
 # A plan tuple whose recorded base no longer equals the ticket's target
-# branch head. In both scenarios the state table permits only a human-recorded
-# refresh_base or send-back to move the ticket -- the gate itself
-# withholds its advancing event rather than firing a redirect (see
-# runner/state_table.py's module docstring).
-stale_at_plan_review:
-  ticket:
-    - as: ticket
-      state: plan_review
-      target_base_sha: base-head-2
-      branch: feature/two
-  evidence_tuple:
-    - as: plan_tuple
-      kind: plan
-      ticket_id: $ticket
-      base_sha: base-head-old
-      target_base_sha: base-head-old
-      content_hash: plan-subject-2
-  approval_record:
-    - ticket_id: $ticket
-      gate: plan
-      decision: approve
-      subject_hash: plan-subject-2
-
+# branch head. The state table permits only a human-recorded refresh_base
+# or send-back to move the ticket -- implementing has no gate of its own,
+# so nothing here needs to withhold an advancing event the way
+# plan_review's real freshness check does (see
+# test_plan_review_stale_base_withholds_the_gate_and_permits_only_human_action,
+# which exercises that gate directly against a real git repository instead
+# of this fixture family, since the gate now fetches a real branch head).
 stale_at_implementing:
   ticket:
     - as: ticket

@@ -159,11 +159,15 @@ TABLE: dict[tuple[str, str], str] = {
     ("escalated", "escalation_resume_review"): "review",
     # escalate: the single second-failure, exhaustion, violation or stop
     # event. The specific cause (verification exhaustion, budget abort,
-    # sandbox violation, ...) is recorded on the stage_run and its tag, not
-    # in the transition event: the state machine only cares that the
-    # ticket is now escalated.
+    # sandbox violation, an unresolved refresh_base conflict, ...) is
+    # recorded on the stage_run or check_result and its tag, not in the
+    # transition event: the state machine only cares that the ticket is
+    # now escalated. `plan_review` carries this event because a human's
+    # refresh_base may be called from there (see `("plan_review",
+    # "refresh_base")` above) and its own conflict path escalates the
+    # same way every other refresh_base call site does.
     **{(state, "escalate"): "escalated" for state in
-       ("context", "clarifying", "planning", "implementing", "checks", "review")},
+       ("context", "clarifying", "planning", "plan_review", "implementing", "checks", "review")},
     # abandon
     **{(state, "abandon"): "abandoned" for state in _ABANDONABLE},
     # migrate_manifest, expressed as data rather than a special case:

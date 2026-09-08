@@ -12,6 +12,12 @@ automatic stage pass) -- a `pass` outcome applies that event. Every
 `stage_run`/`utility_run` write goes through `run_ledger`, never a direct
 `record.insert`/`record.update`, so attempt numbering and lease bookkeeping
 live in exactly one place.
+
+A driver's `run` ordinarily returns a plain outcome string. A driver may
+instead return `(outcome, failure_kind)` when the outcome itself needs a
+`failure_kind` on the `stage_run` -- S5's stale-binding preflight refusal
+is the one case today -- so `run_ledger.finish` records it; every other
+driver keeps returning a bare string, which carries no `failure_kind`.
 """
 import sqlite3
 from pathlib import Path
@@ -58,8 +64,9 @@ def run_stage(
 
     stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=stage, run_kind=run_kind)
     driver = DRIVERS[stage]
-    outcome = driver.run(conn, ticket, stage_run_id, runs_dir)
-    run_ledger.finish(conn, stage_run_id, outcome)
+    result = driver.run(conn, ticket, stage_run_id, runs_dir)
+    outcome, failure_kind = result if isinstance(result, tuple) else (result, None)
+    run_ledger.finish(conn, stage_run_id, outcome, failure_kind=failure_kind)
     if outcome == "pass" and not validation_only and driver.PASS_EVENT is not None:
         transitions.apply(conn, ticket_id, driver.PASS_EVENT)
     return outcome

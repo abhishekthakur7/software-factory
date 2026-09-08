@@ -1,0 +1,9 @@
+# A source repository whose target branch moves once after a ticket has
+# already cloned it: the plain case every freshness boundary must detect
+# against the plan tuple's recorded base and the ticket's target_base_sha.
+seed:
+  greeting.txt: "hello\n"
+target_commit:
+  message: "target branch moves on"
+  files:
+    greeting.txt: "hello, world\n"

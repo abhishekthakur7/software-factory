@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import gates, outbox, queue, record, tags, transitions
+from runner import freshness, gates, outbox, queue, record, refresh_base, tags, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -46,17 +46,42 @@ def _due_stage(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
     return None
 
 
+def _open_stale_base_item(conn: sqlite3.Connection, ticket_id: int, fresh: freshness.Freshness) -> None:
+    """Queue one `red_check` for a stale base, unless the ticket already has an open one."""
+    existing = conn.execute(
+        "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'red_check' AND resolved_at IS NULL",
+        (ticket_id,),
+    ).fetchone()
+    if existing is None:
+        queue.open_item(conn, ticket_id=ticket_id, kind="red_check", ref=f"check_result:{fresh.check_result_id}")
+
+
 def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR) -> str:
-    """Run the stage due in the ticket's state, else evaluate its gate, else report the wait."""
+    """Run the stage due in the ticket's state, else evaluate its gate, else report the wait.
+
+    Before ever starting S4, the runner fetches the configured target
+    branch and refuses to start it on a stale result: no stage runs, one
+    `red_check` item is queued (unless the ticket already has one open),
+    and the ticket stays where it is. The same freshness check backs
+    `plan_review`'s own gate, so a moved target withholds
+    `plan_quorum_fresh` too.
+    """
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
         return f"no such ticket: {ticket_id}"
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
     stage = _due_stage(conn, ticket)
+    if stage == "S4":
+        fresh = freshness.check(
+            conn, ticket_id, boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,
+        )
+        if not fresh.fresh:
+            _open_stale_base_item(conn, ticket_id, fresh)
+            return f"ticket {ticket_id}: base is stale ({'; '.join(fresh.reasons)})"
     if stage is not None:
         return f"ticket {ticket_id}: {stage} {run_stage(conn, ticket_id, stage, runs_dir=runs_dir)}"
     gate = gates.GATES.get(ticket["state"])
-    event = gate(conn, ticket) if gate is not None else None
+    event = gate(conn, ticket, runs_dir=runs_dir) if gate is not None else None
     if event is None:
         return f"ticket {ticket_id} is waiting on a human at {ticket['state']}"
     transitions.apply(conn, ticket_id, event)
@@ -142,6 +167,11 @@ def main(argv: list[str] | None = None) -> int:
     abandon_parser.add_argument("--fm", required=True)
     abandon_parser.add_argument("--note")
 
+    refresh_base_parser = subparsers.add_parser("refresh-base")
+    refresh_base_parser.add_argument("ticket_id", type=int)
+    refresh_base_parser.add_argument("--actor", required=True)
+    refresh_base_parser.add_argument("--note")
+
     tag_parser = subparsers.add_parser("tag")
     tag_parser.add_argument("target")
     tag_parser.add_argument("kind")
@@ -179,6 +209,11 @@ def main(argv: list[str] | None = None) -> int:
         elif args.verb == "abandon":
             print(queue.abandon(
                 conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note, runs_dir=runs_dir,
+            ))
+        elif args.verb == "refresh-base":
+            print(refresh_base.refresh_base(
+                conn, args.ticket_id, actor=args.actor, note=args.note,
+                target_branch=freshness.target_branch(), runs_dir=runs_dir,
             ))
         elif args.verb == "tag":
             print(tags.tag(

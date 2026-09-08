@@ -8,13 +8,15 @@ lives under a tmp `runs_dir`, one JSON document per route, so two tests
 never see each other's fake remote.
 """
 import json
+import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
 
-from runner import approvals, cli, governance, outbox, owners, queue, record, transitions
+from runner import approvals, cli, git_trees, governance, outbox, owners, queue, record, transitions
 from runner.db import connect
 from runner.deliverers.stub import Receipt, StubDeliverer
 from runner.reviewer_sets import Slot
@@ -106,6 +108,51 @@ def pr_create_intent(conn, ticket_id, runs_dir, *, content_hash="review-subject-
     intent_id = outbox.intent_for_review_quorum(conn, ticket_id, runs_dir=runs_dir)
     conn.commit()
     return intent_id
+
+
+_COMMIT_ENV = {
+    "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+    "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+}
+
+
+def _git(args, cwd, env=None):
+    full_env = {**os.environ, **env} if env else None
+    return subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", *args], cwd=cwd, env=full_env,
+        capture_output=True, text=True, check=True,
+    )
+
+
+def give_real_base(conn, runs_dir, ticket_id) -> None:
+    """Give `ticket_id` a real, fetchable git base and a matching plan tuple.
+
+    `_dispatch_pending`'s `BEFORE_DISPATCH` freshness check fetches the
+    real configured target branch from `runs_dir/tickets/<id>/repo`, so a
+    ticket seeded from the fixture's fake SHA strings alone can no longer
+    reach `dispatch` on its own. `clone_for_ticket` renames the ticket's
+    own branch to its own convention; every test that reads `ticket.branch`
+    back expects the fixture's own name, so it is restored immediately
+    after -- freshness itself never checks out that branch, only ever
+    comparing the recorded name as a plain string.
+    """
+    source = runs_dir.parent / f"source-repo-{ticket_id}"
+    source.mkdir(parents=True)
+    _git(["init", "-q"], cwd=source)
+    _git(["checkout", "-q", "-b", "main"], cwd=source)
+    (source / "README.md").write_text("seed\n")
+    _git(["add", "-A"], cwd=source)
+    _git(["commit", "-q", "-m", "init"], cwd=source, env=_COMMIT_ENV)
+
+    trees = git_trees.clone_for_ticket(
+        conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=runs_dir,
+    )
+    record.update(conn, "ticket", ticket_id, branch=TICKET_FIXTURE["branch"])
+    record.insert(
+        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
+        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash=f"plan-subject-real-base-{ticket_id}",
+    )
+    conn.commit()
 
 
 
@@ -248,6 +295,7 @@ def test_pending_pr_update_requires_the_previously_reconciled_head_and_updates_t
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
     create_id = pr_create_intent(conn, ticket_id, runs_dir, content_hash="review-subject-create")
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
     assert record.get(conn, "external_write", create_id)["state"] == "reconciled"
@@ -274,6 +322,7 @@ def test_must_reject_pr_update_race_on_unexpected_remote_head(conn, runs_dir, pr
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
     create_id = pr_create_intent(conn, ticket_id, runs_dir, content_hash="review-subject-create")
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
     assert record.get(conn, "external_write", create_id)["state"] == "reconciled"
@@ -298,6 +347,7 @@ def test_pr_update_against_a_pull_request_from_a_driven_create_reconciles_withou
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
 
     profile = load_trust_profile(profile_path)
     deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
@@ -402,6 +452,7 @@ def test_stub_driven_to_a_duplicate_key_returns_the_stored_receipt_not_a_second_
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
     intent_id = pr_create_intent(conn, ticket_id, runs_dir)
     key = record.get(conn, "external_write", intent_id)["idempotency_key"]
 
@@ -427,6 +478,7 @@ def test_crash_before_send_leaves_the_row_pending_and_retry_produces_one_object(
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
     intent_id = pr_create_intent(conn, ticket_id, runs_dir)
 
     with pytest.raises(outbox.InjectedCrash):
@@ -598,6 +650,7 @@ def test_review_to_pr_opened_advances_only_from_a_matching_reconciled_receipt(co
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
     pr_create_intent(conn, ticket_id, runs_dir)
     ticket = record.get(conn, "ticket", ticket_id)
     assert gates.review_gate(conn, ticket) is None, "quorum satisfied, but nothing reconciled yet"
@@ -622,6 +675,7 @@ def test_every_dispatched_intent_guards_its_payload_and_its_receipt(conn, runs_d
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
     intent_id = pr_create_intent(conn, ticket_id, runs_dir)
 
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
@@ -645,6 +699,7 @@ def test_full_quorum_produces_one_pr_create_then_a_revision_produces_one_pr_upda
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
+    give_real_base(conn, runs_dir, ticket_id)
 
     create_id = pr_create_intent(conn, ticket_id, runs_dir, content_hash="review-subject-r1")
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)

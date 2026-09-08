@@ -8,15 +8,20 @@ reviewer-set derivation, plan and review tuple construction, and freshness
 checks that fetch a real branch head all read the same rows this module
 reads, with the actual computation in place of a stored equality check.
 
-None of these functions writes anything; the caller applies the returned
-event through `transitions.apply`.
+Every function here but `plan_review_gate` writes nothing; the caller
+applies the returned event through `transitions.apply`. `plan_review_gate`
+is the plan-approval commit boundary, so its freshness check may itself
+write one invalidating `check_result` row before withholding its event --
+the same recorded-invalidation contract `runner/freshness.py` documents,
+not a second write path of this module's own.
 """
 import json
 import sqlite3
 from pathlib import Path
 from typing import Callable
 
-from runner import approvals
+from runner import approvals, freshness
+from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
 
@@ -51,7 +56,7 @@ def _quorum(conn: sqlite3.Connection, ticket_id: int, gate: str, subject_hash: s
     return row is not None
 
 
-def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
     """A declined eligibility item rejects; a granted one admits once S0 has passed."""
     item = _latest(conn, "queue_item", ticket["id"], kind="eligibility")
     if item is None:
@@ -63,8 +68,8 @@ def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
     return None
 
 
-def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
-    """Full plan quorum plus base and target-head equality admits to implementing.
+def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
+    """Full plan quorum plus the real `BEFORE_S4` freshness check admits to implementing.
 
     A stale base withholds this event rather than firing a redirect of its
     own (see `state_table`); `refresh_base` and the send-backs are applied
@@ -73,11 +78,10 @@ def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | Non
     plan_tuple = _latest(conn, "evidence_tuple", ticket["id"], kind="plan")
     if plan_tuple is None or not _quorum(conn, ticket["id"], "plan", plan_tuple["content_hash"]):
         return None
-    fresh = (
-        plan_tuple["base_sha"] == ticket["target_base_sha"]
-        and plan_tuple["target_base_sha"] == ticket["target_base_sha"]
+    fresh = freshness.check(
+        conn, ticket["id"], boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,
     )
-    return "plan_quorum_fresh" if fresh else None
+    return "plan_quorum_fresh" if fresh.fresh else None
 
 
 def _reviewer_set_has_unresolved_slot(reviewer_set: sqlite3.Row) -> bool:
@@ -85,7 +89,7 @@ def _reviewer_set_has_unresolved_slot(reviewer_set: sqlite3.Row) -> bool:
     return any(not slot.get("resolved", True) for slot in slots)
 
 
-def checks_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+def checks_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
     """A new or unresolved reviewer slot returns to planning; otherwise S5 and S6 both passed admits to review.
 
     A stale review base, like plan_review's stale base, withholds this
@@ -131,7 +135,7 @@ def _receipt_matches_desired(conn: sqlite3.Connection, write: sqlite3.Row) -> bo
     )
 
 
-def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
     """Full review quorum plus a reconciled, matching receipt opens the pull request; a superseded intent routes back to checks.
 
     "Reconciled" alone is not enough: the latest `external_write` row must
@@ -160,7 +164,10 @@ def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
     return None
 
 
-GATES: dict[str, Callable[[sqlite3.Connection, sqlite3.Row], str | None]] = {
+# Every gate takes the run tree root, since the plan-review gate's freshness
+# check needs the ticket clone under it; the others accept and ignore it so
+# `advance` calls each the same way.
+GATES: dict[str, Callable[..., str | None]] = {
     "intake": intake_gate,
     "plan_review": plan_review_gate,
     "checks": checks_gate,
