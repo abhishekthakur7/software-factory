@@ -1,0 +1,36 @@
+# One complete plan-component set and the variants a test swaps a single
+# field from, to prove a changed set hash produces a new tuple content
+# hash (criterion 2) without restating every other field per scenario.
+base:
+  ticket_source_hash: ticket-source-1
+  brief_hash: brief-1
+  criteria_hash: criteria-1
+  plan_hash: plan-1
+  question_resolution_set_hash: question-resolution-set-1
+  current_assumption_set_hash: current-assumption-set-1
+  base_sha: base-sha-1
+  target_base_sha: base-sha-1
+  manifest_hash: manifest-1
+  project_config_hash: project-config-1
+  trust_profile_hash: trust-profile-1
+  trust_approval_set_hash: trust-approval-set-1
+  recipe_hash: recipe-1
+  sandbox_digest: sandbox-placeholder-1
+  toolchain_digest: toolchain-placeholder-1
+  planned_reviewer_set_hash: planned-reviewer-set-1
+  semantic_checklist_hash: semantic-checklist-1
+  human_verdict_set_hash: human-verdict-set-1
+  plan_waiver_set_hash: plan-waiver-set-1
+
+# A seeded new answer: only the question-resolution set hash moves.
+new_answer:
+  question_resolution_set_hash: question-resolution-set-2
+
+# A seeded superseding assumption: only the current-assumption set hash moves.
+superseding_assumption:
+  current_assumption_set_hash: current-assumption-set-2
+
+# The target head moved: base_sha (and the matching target_base_sha) change.
+rebased:
+  base_sha: base-sha-2
+  target_base_sha: base-sha-2

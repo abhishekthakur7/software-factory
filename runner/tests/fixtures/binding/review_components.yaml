@@ -1,0 +1,22 @@
+# One complete review-component set (minus the row ids a test fills in
+# once it has created the plan tuple and reviewer_set rows it references)
+# and the variant a test swaps in to move only the effective reviewer-set
+# hash (criterion 5).
+base:
+  plan_approval_set_hash: plan-approval-set-1
+  head_sha: head-sha-1
+  diff_hash: diff-hash-1
+  deviation_set_hash: deviation-set-1
+  target_base_sha: base-sha-1
+  actual_reviewer_set_hash: actual-reviewer-set-1
+  effective_reviewer_set_hash: effective-reviewer-set-1
+  manifest_hash: manifest-1
+  project_config_hash: project-config-1
+  trust_profile_hash: trust-profile-1
+  trust_approval_set_hash: trust-approval-set-1
+  recipe_hash: recipe-1
+  sandbox_digest: sandbox-placeholder-1
+  toolchain_digest: toolchain-placeholder-1
+
+moved_effective_set:
+  effective_reviewer_set_hash: effective-reviewer-set-2
