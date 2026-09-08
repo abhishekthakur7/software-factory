@@ -1,0 +1,12 @@
+subject: factory/scripts/checks/scope_diff
+owner: abhishek
+cases:
+  - name: every_file_in_scope_table
+    fixture: fixtures/in_scope
+    expect: pass
+  - name: file_outside_scope_and_discretion
+    fixture: fixtures/out_of_scope
+    expect: fail
+  - name: file_matches_discretion_glob
+    fixture: fixtures/discretion_glob
+    expect: pass

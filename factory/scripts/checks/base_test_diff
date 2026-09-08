@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Base-test protection: a test that exists at base changed, removed, or excluded without a plan entry blocks.
+
+Standalone: no import of `runner`. Compares the base and head checkouts
+over the test-file globs `command-recipes.yaml` declares, plus the set of
+test identities each side's test recipe reported, so an edited file, a
+deleted file, a renamed test class (its old identity simply stops
+appearing at head) and a glob narrowed at head (the file survives
+untouched but a recipe no longer covers it) all surface -- the last of
+those needs `--globs-base` when the head recipe's globs differ from the
+base recipe's, since `--globs` alone cannot tell "never covered" from
+"used to be covered". Every changed file or missing identity is unplanned
+unless the approved plan's `Test strategy` table names it with action
+`change` or `remove` and a non-empty `criteria` cell; any unplanned entry
+is a blocking failure. The both-views rerun this row also drives, and the
+`deviation` row it feeds, belong to a later check.
+"""
+import argparse
+import json
+import re
+from pathlib import Path
+
+
+def _matched_relpaths(root: Path, globs: list[str]) -> set[str]:
+    matched: set[str] = set()
+    for pattern in globs:
+        for path in root.glob(pattern):
+            if path.is_file():
+                matched.add(str(path.relative_to(root)))
+    return matched
+
+
+def _extract_section(text: str, title: str) -> str:
+    match = re.search(rf"^## {re.escape(title)}[ \t]*$", text, re.MULTILINE)
+    if not match:
+        return ""
+    rest = text[match.end():]
+    next_heading = re.search(r"^## ", rest, re.MULTILINE)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
+def _parse_pipe_table(section_text: str) -> list[dict[str, str]]:
+    lines = [line for line in section_text.splitlines() if line.lstrip().startswith("|")]
+    if len(lines) < 2:
+        return []
+    header = [cell.strip() for cell in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[2:]:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        cells += [""] * (len(header) - len(cells))
+        rows.append(dict(zip(header, cells)))
+    return rows
+
+
+def _test_strategy_rows(plan_path: Path) -> list[dict[str, str]]:
+    return _parse_pipe_table(_extract_section(plan_path.read_text(), "Test strategy"))
+
+
+def _planned_match(candidate: str, stem: str, cls: str, rows: list[dict[str, str]]) -> dict[str, list[str]] | None:
+    for row in rows:
+        if row.get("action") not in ("change", "remove"):
+            continue
+        criteria = [c.strip() for c in (row.get("criteria") or "").split(",") if c.strip()]
+        if not criteria:
+            continue
+        test_cell = (row.get("test") or "").strip()
+        if test_cell and (test_cell == stem or test_cell == cls or test_cell in candidate):
+            return {"test": candidate, "action": row["action"], "names": criteria}
+    return None
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="base_test_diff")
+    parser.add_argument("--base", required=True, type=Path)
+    parser.add_argument("--head", required=True, type=Path)
+    parser.add_argument("--globs", required=True)
+    parser.add_argument("--globs-base", default=None)
+    parser.add_argument("--plan", required=True, type=Path)
+    parser.add_argument("--tests-base", required=True, type=Path)
+    parser.add_argument("--tests-head", required=True, type=Path)
+    args = parser.parse_args(argv)
+
+    globs = [g.strip() for g in args.globs.split(",") if g.strip()]
+    globs_base = [g.strip() for g in args.globs_base.split(",") if g.strip()] if args.globs_base else globs
+
+    base_matched = _matched_relpaths(args.base, globs_base)
+    head_matched = _matched_relpaths(args.head, globs)
+
+    changed_files: list[dict[str, str]] = []
+    for rel in sorted(base_matched):
+        if rel not in head_matched:
+            reason = "excluded" if (args.head / rel).is_file() else "deleted"
+            changed_files.append({"path": rel, "reason": reason})
+        elif (args.base / rel).read_text() != (args.head / rel).read_text():
+            changed_files.append({"path": rel, "reason": "edited"})
+
+    tests_base = json.loads(args.tests_base.read_text())
+    tests_head = json.loads(args.tests_head.read_text())
+    base_identities = {f"{e['class']}#{e['method']}" for e in tests_base.get("ran", [])}
+    head_identities = {f"{e['class']}#{e['method']}" for e in tests_head.get("ran", [])}
+    missing_identities = sorted(base_identities - head_identities)
+
+    rows = _test_strategy_rows(args.plan)
+    planned: list[dict[str, list[str]]] = []
+    unplanned: list[str] = []
+
+    for entry in changed_files:
+        stem = Path(entry["path"]).stem
+        match = _planned_match(entry["path"], stem, stem, rows)
+        (planned if match else unplanned).append(match or entry["path"])
+
+    for identity in missing_identities:
+        cls = identity.split("#", 1)[0]
+        simple = cls.rsplit(".", 1)[-1]
+        match = _planned_match(identity, simple, cls, rows)
+        (planned if match else unplanned).append(match or identity)
+
+    result = "fail" if unplanned else "pass"
+    print(json.dumps({
+        "result": result, "changed_files": changed_files, "missing_identities": missing_identities,
+        "planned": planned, "unplanned": unplanned,
+    }, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,11 @@
+subject: factory/scripts/checks/behavior_contract_evidence
+owner: abhishek
+cases:
+  - name: every_field_and_verdict_has_evidence
+    fixture: fixtures/every_field_and_verdict_has_evidence
+    generated_paths: ""
+    expect: pass
+  - name: six_named_blind_spots
+    fixture: fixtures/six_named_blind_spots
+    generated_paths: "src/generated/**"
+    expect: blind_spot

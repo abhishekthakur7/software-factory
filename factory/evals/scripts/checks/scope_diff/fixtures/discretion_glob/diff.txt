@@ -1,0 +1,14 @@
+diff --git a/src/main/java/com/fixture/Widget.java b/src/main/java/com/fixture/Widget.java
+index 111..222 100644
+--- a/src/main/java/com/fixture/Widget.java
++++ b/src/main/java/com/fixture/Widget.java
+@@ -1,1 +1,1 @@
+-old
++new
+diff --git a/src/test/java/com/fixture/inner/WidgetTest.java b/src/test/java/com/fixture/inner/WidgetTest.java
+new file mode 100644
+index 000..222 100644
+--- /dev/null
++++ b/src/test/java/com/fixture/inner/WidgetTest.java
+@@ -0,0 +1,1 @@
++new

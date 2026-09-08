@@ -1,0 +1,40 @@
+{
+  "result": "fail",
+  "added": [],
+  "removed": [],
+  "changed": [
+    {
+      "kind": "class", "owner": "", "base_name": "Widget", "name": "Widget", "visibility": "public",
+      "signature": "public class Widget extends BaseWidget",
+      "extends": ["BaseWidget"], "implements": [],
+      "file": "src/main/java/com/fixture/Widget.java"
+    },
+    {
+      "kind": "method", "owner": "Widget", "base_name": "compute", "name": "compute(int,int)", "visibility": "public",
+      "signature": "public int compute(int,int)",
+      "extends": [], "implements": [],
+      "file": "src/main/java/com/fixture/Widget.java"
+    }
+  ],
+  "unplanned": [],
+  "unchanged_but_changed": [],
+  "limitations": [
+    "source-text extractor, not a compiler",
+    "unparsable: src/main/java/com/fixture/Weird.java",
+    "reflection: src/main/java/com/fixture/Widget.java"
+  ],
+  "touched": [
+    "src/main/java/com/fixture/Widget.java",
+    "src/main/java/com/fixture/Weird.java",
+    "src/generated/com/fixture/Generated.java"
+  ],
+  "all_declarations": {
+    "base": [
+      {"kind": "method", "owner": "Widget", "base_name": "compute", "name": "compute(int)", "visibility": "public", "signature": "public int compute(int)", "extends": [], "implements": [], "file": "src/main/java/com/fixture/Widget.java"}
+    ],
+    "head": [
+      {"kind": "class", "owner": "", "base_name": "Widget", "name": "Widget", "visibility": "public", "signature": "public class Widget extends BaseWidget", "extends": ["BaseWidget"], "implements": [], "file": "src/main/java/com/fixture/Widget.java"},
+      {"kind": "method", "owner": "Widget", "base_name": "compute", "name": "compute(int,int)", "visibility": "public", "signature": "public int compute(int,int)", "extends": [], "implements": [], "file": "src/main/java/com/fixture/Widget.java"}
+    ]
+  }
+}

@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""Behaviour-contract evidence: every contract field and verdict points somewhere, never a semantic proof.
+
+Standalone: no import of `runner`. This never re-derives behaviour from
+source; it only checks that a `changed`/`unchanged` `Contracts` field cell
+and every recorded human verdict name a test identity `--tests-head`
+actually ran or a plan characterization task, and it runs six lax, independent
+detections over `--declarations` (the JSON `source_declaration_diff`
+already printed for these touched files) and `--generated-paths`. A
+missing verdict evidence link is the only thing that fails the check on
+its own; every other gap -- including a `changed` cell with no evidence,
+named "unchecked behavioural change" -- is recorded as a blind spot for a
+human or a waiver to resolve, never a fail by itself.
+"""
+import argparse
+import fnmatch
+import json
+import re
+from pathlib import Path
+
+_CONTRACT_FIELDS = (
+    "source_declaration", "input", "output", "errors", "side_effects", "invariants", "authorization",
+    "ordering_concurrency", "transaction_persistence", "compatibility",
+)
+_EVIDENCE_STATES = ("changed", "unchanged")
+
+
+def _extract_section(text: str, title: str) -> str:
+    match = re.search(rf"^## {re.escape(title)}[ \t]*$", text, re.MULTILINE)
+    if not match:
+        return ""
+    rest = text[match.end():]
+    next_heading = re.search(r"^## ", rest, re.MULTILINE)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
+def _parse_pipe_table(section_text: str) -> list[dict[str, str]]:
+    lines = [line for line in section_text.splitlines() if line.lstrip().startswith("|")]
+    if len(lines) < 2:
+        return []
+    header = [cell.strip() for cell in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[2:]:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        cells += [""] * (len(header) - len(cells))
+        rows.append(dict(zip(header, cells)))
+    return rows
+
+
+def _cell_state_and_evidence(cell: str) -> tuple[str, str]:
+    state, _, evidence = cell.partition(":")
+    return state.strip(), evidence.strip()
+
+
+def _decl_candidates(decl: dict) -> list[str]:
+    owner = decl.get("owner") or ""
+    base_name = decl.get("base_name") or decl.get("name") or ""
+    return [base_name, f"{owner}.{base_name}"] if owner else [base_name]
+
+
+def _unit_known(unit: str, all_decls: list[dict]) -> bool:
+    if not unit:
+        return True  # nothing named, nothing to check
+    for decl in all_decls:
+        for candidate in _decl_candidates(decl):
+            if candidate and (candidate in unit or unit in candidate):
+                return True
+    return False
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="behavior_contract_evidence")
+    parser.add_argument("--plan", required=True, type=Path)
+    parser.add_argument("--verdicts", required=True, type=Path)
+    parser.add_argument("--tests-base", required=True, type=Path)  # accepted for CLI symmetry with the other S5 scripts; only tests-head resolves evidence
+    parser.add_argument("--tests-head", required=True, type=Path)
+    parser.add_argument("--declarations", required=True, type=Path)
+    parser.add_argument("--generated-paths", default="")
+    args = parser.parse_args(argv)
+
+    plan_text = args.plan.read_text()
+    contract_rows = _parse_pipe_table(_extract_section(plan_text, "Contracts"))
+    archaeology_rows = _parse_pipe_table(_extract_section(plan_text, "Archaeology and characterization tests"))
+    characterization_task_ids = {
+        row["characterization_task"].strip() for row in archaeology_rows if row.get("characterization_task", "").strip()
+    }
+
+    verdicts = json.loads(args.verdicts.read_text())
+    tests_head = json.loads(args.tests_head.read_text())
+    declarations = json.loads(args.declarations.read_text())
+    generated_globs = [g.strip() for g in args.generated_paths.split(",") if g.strip()]
+
+    test_identities = {f"{e['class']}#{e['method']}" for e in tests_head.get("ran", [])}
+
+    def _evidence_resolves(evidence: str) -> bool:
+        if not evidence:
+            return False
+        if any(identity in evidence for identity in test_identities):
+            return True
+        return any(task_id in evidence for task_id in characterization_task_ids)
+
+    blind_spots: list[dict[str, str]] = []
+    missing_required_evidence = False
+
+    for row in contract_rows:
+        unit = row.get("unit", "")
+        for field in _CONTRACT_FIELDS:
+            state, evidence = _cell_state_and_evidence(row.get(field, ""))
+            if state not in _EVIDENCE_STATES:
+                continue
+            if _evidence_resolves(evidence):
+                continue
+            item = f"{unit}.{field}" if unit else field
+            reason = "unchecked behavioural change" if state == "changed" else "unchanged claim carries no resolvable evidence"
+            blind_spots.append({"item": item, "reason": reason})
+
+    for verdict in verdicts:
+        item = f"{verdict.get('rubric_line_id', '')}:{verdict.get('subject_item_key', '')}"
+        if not verdict.get("evidence_ids"):
+            missing_required_evidence = True
+            blind_spots.append({"item": item, "reason": "missing verdict evidence"})
+
+    all_decls = declarations.get("all_declarations", {}).get("base", []) + declarations.get("all_declarations", {}).get("head", [])
+    for entry in declarations.get("limitations", []):
+        if entry.startswith("unparsable: "):
+            blind_spots.append({"item": entry[len("unparsable: "):], "reason": "missing grammar or unit: unparsable file"})
+        elif entry.startswith("reflection: "):
+            blind_spots.append({"item": entry[len("reflection: "):], "reason": "reflection"})
+
+    for row in contract_rows:
+        unit = row.get("unit", "")
+        if unit and not _unit_known(unit, all_decls):
+            blind_spots.append({"item": unit, "reason": "missing grammar or unit: absent from both checkouts"})
+
+    for decl in declarations.get("changed", []):
+        targets = (decl.get("extends") or []) + (decl.get("implements") or [])
+        if not targets:
+            continue
+        known_names = {c for d in all_decls for c in _decl_candidates(d)}
+        outside = [t for t in targets if t not in known_names]
+        if outside:
+            blind_spots.append({
+                "item": f"{decl.get('file', '')}:{decl.get('name', '')}",
+                "reason": f"inheritance: extends/implements outside touched files ({', '.join(outside)})",
+            })
+
+    for path in declarations.get("touched", []):
+        if any(fnmatch.fnmatch(path, pattern) for pattern in generated_globs):
+            blind_spots.append({"item": path, "reason": "generated API"})
+
+    for decl in declarations.get("changed", []):
+        if decl.get("visibility") == "public":
+            blind_spots.append({
+                "item": f"{decl.get('file', '')}:{decl.get('name', '')}", "reason": "binary compatibility",
+            })
+
+    if missing_required_evidence:
+        result = "fail"
+    elif blind_spots:
+        result = "blind_spot"
+    else:
+        result = "pass"
+
+    print(json.dumps({
+        "result": result, "blind_spots": blind_spots, "claims": "evidence links only, no semantic proof",
+    }, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

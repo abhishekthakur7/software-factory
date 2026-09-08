@@ -1,0 +1,15 @@
+subject: factory/scripts/checks/source_declaration_diff
+owner: abhishek
+cases:
+  - name: declaration_added_and_unnamed_in_contracts
+    fixture: fixtures/added_unplanned
+    expect: fail
+  - name: declaration_removed_and_unnamed_in_contracts
+    fixture: fixtures/removed_unplanned
+    expect: fail
+  - name: declaration_marked_unchanged_but_signature_differs
+    fixture: fixtures/unchanged_but_changed
+    expect: fail
+  - name: every_declaration_named_in_contracts
+    fixture: fixtures/matches_plan
+    expect: pass
