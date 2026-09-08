@@ -18,9 +18,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, cli, git_trees, governance, outbox, owners, record, run_ledger
+from runner import artefact_registry, cli, git_trees, governance, manifest, outbox, owners, record, run_ledger
 from runner.db import connect
+from runner.paths import FACTORY_DIR
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
+
+S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "crash_recovery"
 PER_STAGE = yaml.safe_load((FIXTURES_DIR / "per_stage.yaml").read_text())["stages"]
@@ -77,6 +80,17 @@ def _give_real_base(conn, runs_dir, ticket_id):
     for args in (["init", "-q"], ["checkout", "-q", "-b", "main"]):
         subprocess.run(["git", *args], cwd=source, check=True, capture_output=True)
     (source / "README.md").write_text("seed\n")
+    # A minimal pom so the now-real S1's impact_scan has something to
+    # read, and the one file its `plain_ok` fixture's Flags row names.
+    (source / "pom.xml").write_text(
+        "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
+        "  <dependencies>\n    <dependency>\n      <groupId>com.fixturevendor</groupId>\n"
+        "      <artifactId>strings</artifactId>\n      <version>1.0.0</version>\n    </dependency>\n  </dependencies>\n"
+        "</project>\n"
+    )
+    src = source / "src" / "main" / "java" / "com" / "example"
+    src.mkdir(parents=True)
+    (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     subprocess.run(["git", "add", "-A"], cwd=source, check=True, capture_output=True)
     subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init"],
@@ -106,18 +120,24 @@ def test_killed_stage_run_restarted_produces_no_duplicate_row_for_the_attempt(co
     """R-O-1: a stage_run killed mid-execution restarts through `factory advance`
     as `infrastructure_failure`/`expired_lease`, with a fresh attempt + 1 and
     no second row for the killed attempt."""
-    ticket_id = _ticket_in(conn, "context")
+    ticket_id = _ticket_in(conn, "context", service="fixture-project", factory_manifest_hash=manifest.current_hash())
+    _give_real_base(conn, tmp_path, ticket_id)
     dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="S1", lease_seconds=-1)
     conn.commit()
 
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
     cli.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
     assert dead_row["failure_kind"] == "expired_lease"
 
+    # `parent_run_id IS NULL`: S1's own agent invocation opens a second,
+    # child `stage_run` under the same stage name once it passes, which
+    # is not a second driver attempt.
     rows = conn.execute(
-        "SELECT id, attempt FROM stage_run WHERE ticket_id = ? AND stage = 'S1' ORDER BY attempt", (ticket_id,)
+        "SELECT id, attempt FROM stage_run WHERE ticket_id = ? AND stage = 'S1' AND parent_run_id IS NULL ORDER BY attempt",
+        (ticket_id,),
     ).fetchall()
     assert [row["attempt"] for row in rows] == [1, 2]
     fresh = rows[1]
@@ -250,7 +270,11 @@ def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monk
     """R-O-1: for every stage S0 to S6, killing its run and rerunning `factory
     advance` completes with no duplicate stage_run row for the killed attempt."""
     spec = PER_STAGE[stage]
-    ticket_id = _ticket_in(conn, spec["state"])
+    # S1 is now a real, agent-invoking driver: it refuses to invoke
+    # without a manifest pin, which every other stage under test here
+    # (still stubs or script-only) does not need.
+    extra_fields = {"service": "fixture-project", "factory_manifest_hash": manifest.current_hash()} if stage == "S1" else {}
+    ticket_id = _ticket_in(conn, spec["state"], **extra_fields)
     for prior_stage in spec.get("prior_passes", []):
         prior_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=prior_stage)
         run_ledger.finish(conn, prior_id, "pass")
@@ -261,13 +285,19 @@ def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monk
     dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage=stage, lease_seconds=-1)
     conn.commit()
 
+    if stage == "S1":
+        monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
     cli.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
     assert dead_row["failure_kind"] == "expired_lease"
 
+    # `parent_run_id IS NULL`: S1's own agent invocation opens a second,
+    # child `stage_run` under the same stage name once it passes, which
+    # is not a second driver attempt.
     rows = conn.execute(
-        "SELECT attempt FROM stage_run WHERE ticket_id = ? AND stage = ? ORDER BY attempt", (ticket_id, stage)
+        "SELECT attempt FROM stage_run WHERE ticket_id = ? AND stage = ? AND parent_run_id IS NULL ORDER BY attempt",
+        (ticket_id, stage),
     ).fetchall()
     assert [row["attempt"] for row in rows] == [1, 2]

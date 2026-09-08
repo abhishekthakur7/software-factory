@@ -59,7 +59,7 @@ def _run_reindex(conn: sqlite3.Connection, ticket_id: int, worktree: Path) -> No
     run_id = run_ledger.open_utility_run(
         conn, kind="reindex", ticket_id=ticket_id, inputs=str(worktree), outputs=result.stdout.strip(),
     )
-    run_ledger.finish(conn, run_id, "pass" if result.returncode == 0 else "fail")
+    run_ledger.finish(conn, run_id, "pass" if result.returncode == 0 else "fail", table="utility_run")
 
 
 def _run_impact_scan(pom: Path, vendor_repo: Path, mapping: Path) -> dict | None:

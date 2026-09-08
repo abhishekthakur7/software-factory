@@ -71,6 +71,17 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
+    # A minimal pom so the now-real S1's impact_scan has something to
+    # read, and the one file its `plain_ok` fixture's Flags row names.
+    (repo / "pom.xml").write_text(
+        "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
+        "  <dependencies>\n    <dependency>\n      <groupId>com.fixturevendor</groupId>\n"
+        "      <artifactId>strings</artifactId>\n      <version>1.0.0</version>\n    </dependency>\n  </dependencies>\n"
+        "</project>\n"
+    )
+    src = repo / "src" / "main" / "java" / "com" / "example"
+    src.mkdir(parents=True)
+    (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     _git(["add", "-A"], cwd=repo)
     _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
     return repo
@@ -83,7 +94,7 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     """
     conn = connect(db_path)
     ticket_id = record.insert(
-        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash="m1", tier_final="light",
+        conn, "ticket", state="intake", opened_at=record.now(), tier_final="light",
         # A real pilot-eligible pair, since S0's lookups now reject rather
         # than stub-pass an unresolvable service or ticket type.
         service="fixture-project", ticket_type="small_feature",
@@ -91,14 +102,21 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
     transitions.apply(conn, ticket_id, gates.intake_gate(conn, record.get(conn, "ticket", ticket_id)))
-
-    run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
-    run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
-    run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
-
+    # `intake_gate` pins the real manifest hash above; the now-real S1
+    # also needs a real worktree to run its impact scan over.
     source = _source_repo(tmp_path)
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
+
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
+        FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+    )
+    try:
+        run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
+    finally:
+        del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
+    run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
+    run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
 
     record.insert(
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,

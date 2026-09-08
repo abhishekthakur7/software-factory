@@ -9,12 +9,21 @@ same convention `test_crash_recovery.py` uses for its own alive-process
 negative case, just exercised here as the positive one `control.live_run`
 must detect.
 """
+import os
+import subprocess
+
 import pytest
 
-from runner import cli, queue, record, run_ledger
+from runner import cli, git_trees, manifest, queue, record, run_ledger
 from runner.db import connect
+from runner.paths import FACTORY_DIR
 
 ABHISHEK = "abhishek"
+S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+_COMMIT_ENV = {
+    "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+    "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+}
 
 
 @pytest.fixture
@@ -26,6 +35,42 @@ def conn(tmp_path):
 
 def _ticket_in(conn, state, **fields):
     return record.insert(conn, "ticket", state=state, opened_at=record.now(), **fields)
+
+
+def _source_repo_with_pom(tmp_path):
+    """A trivial one-commit git repository carrying the pom and the one Java file the
+    `plain_ok` S1 fixture's Flags row references -- the now-real S1 needs a real worktree."""
+    repo = tmp_path / "source-repo"
+    repo.mkdir()
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "checkout", "-q", "-b", "main"], cwd=repo, check=True)
+    (repo / "pom.xml").write_text(
+        "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
+        "  <dependencies>\n    <dependency>\n      <groupId>com.fixturevendor</groupId>\n"
+        "      <artifactId>strings</artifactId>\n      <version>1.0.0</version>\n    </dependency>\n  </dependencies>\n"
+        "</project>\n"
+    )
+    src = repo / "src" / "main" / "java" / "com" / "example"
+    src.mkdir(parents=True)
+    (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init"], cwd=repo,
+        env={**os.environ, **_COMMIT_ENV}, check=True,
+    )
+    return repo
+
+
+def _s1_ready_ticket(conn, tmp_path, state="context"):
+    """A ticket at `state`, cloned from a real worktree and pinned, eligible to invoke a real S1."""
+    ticket_id = _ticket_in(
+        conn, state, service="fixture-project", tier_provisional="standard",
+        factory_manifest_hash=manifest.current_hash(),
+    )
+    source = _source_repo_with_pom(tmp_path)
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    return ticket_id
 
 
 def _open_live_run(conn, ticket_id, stage="S4") -> int:
@@ -176,11 +221,11 @@ def test_a_pause_request_at_a_boundary_never_opens_a_second_manual_pause_item(co
     assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
 
 
-def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_path):
+def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_path, monkeypatch):
     """R-H-13, criterion 11: `factory resume` resolves the open `manual_pause`
     item and clears the pause flag, and the next `advance` runs the stage the
     pause had held."""
-    ticket_id = _ticket_in(conn, "context")
+    ticket_id = _s1_ready_ticket(conn, tmp_path)
     cli.pause(conn, ticket_id)
     cli.advance(conn, ticket_id, tmp_path)
 
@@ -194,9 +239,12 @@ def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_pat
     ).fetchone()
     assert item["resolved_at"] is not None
 
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
     cli.advance(conn, ticket_id, tmp_path)
 
-    assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 1
+    # S1's own agent invocation opens a second, child `stage_run` under
+    # the same stage name once it passes, so one stage running is two rows.
+    assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 2
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
 
 
@@ -225,12 +273,13 @@ def test_show_reports_stage_attempt_elapsed_budget_and_pause_state(conn, tmp_pat
     assert "pause pending: False" in output
 
 
-def test_show_lists_a_paused_ticket_s_registered_output_artefact(conn, tmp_path):
+def test_show_lists_a_paused_ticket_s_registered_output_artefact(conn, tmp_path, monkeypatch):
     """R-H-13, criterion 9: given a ticket paused mid-pipeline with one
     registered output artefact from its latest completed run, `factory
     show` lists that artefact's path among the run's currently registered
     outputs, and reports the pause as pending."""
-    ticket_id = _ticket_in(conn, "context")
+    ticket_id = _s1_ready_ticket(conn, tmp_path)
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
     cli.advance(conn, ticket_id, tmp_path)  # S1 runs for real and passes, registering `brief`
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
     cli.pause(conn, ticket_id)

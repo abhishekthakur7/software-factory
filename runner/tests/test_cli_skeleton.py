@@ -3,10 +3,44 @@ stage, a stage invoked from the wrong state), `advance`'s walk through a
 stage state and a gate state, and `show`, each exercised through
 `runner.cli.main` in-process against a tmp_path database.
 """
+import os
+import subprocess
+
 import pytest
 
-from runner import cli, record, tickets
+from runner import cli, git_trees, record, tickets
 from runner.db import connect
+from runner.paths import FACTORY_DIR
+
+S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+_COMMIT_ENV = {
+    "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+    "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+}
+
+
+def _source_repo_with_pom(tmp_path):
+    """A trivial one-commit git repository carrying the pom and the one Java file the
+    `plain_ok` S1 fixture's Flags row references -- the now-real S1 needs a real worktree."""
+    repo = tmp_path / "source-repo"
+    repo.mkdir()
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "checkout", "-q", "-b", "main"], cwd=repo, check=True)
+    (repo / "pom.xml").write_text(
+        "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
+        "  <dependencies>\n    <dependency>\n      <groupId>com.fixturevendor</groupId>\n"
+        "      <artifactId>strings</artifactId>\n      <version>1.0.0</version>\n    </dependency>\n  </dependencies>\n"
+        "</project>\n"
+    )
+    src = repo / "src" / "main" / "java" / "com" / "example"
+    src.mkdir(parents=True)
+    (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init"], cwd=repo,
+        env={**os.environ, **_COMMIT_ENV}, check=True,
+    )
+    return repo
 
 
 @pytest.fixture
@@ -89,7 +123,7 @@ def test_show_prints_ticket_state_and_its_stage_runs(db_path, capsys):
     assert f"ticket {ticket_id}: intake" in out
 
 
-def test_advance_runs_the_due_stage_then_waits_at_the_gate_then_applies_it(db_path, tmp_path, capsys):
+def test_advance_runs_the_due_stage_then_waits_at_the_gate_then_applies_it(db_path, tmp_path, capsys, monkeypatch):
     """`factory advance` runs S0 in intake, then waits on the eligibility
     item, then admits the ticket once it is granted, then runs S1."""
     conn = connect(db_path)
@@ -108,7 +142,14 @@ def test_advance_runs_the_due_stage_then_waits_at_the_gate_then_applies_it(db_pa
     conn = connect(db_path)
     record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
     conn.commit()
+    # S0 already stamped `factory_manifest_hash` at eligibility; the
+    # now-real S1 also needs a real worktree to run its impact scan over.
+    source = _source_repo_with_pom(tmp_path)
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    conn.commit()
     conn.close()
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
     cli.main(["--db", str(db_path), "advance", str(ticket_id)])
     cli.main(["--db", str(db_path), "advance", str(ticket_id)])
 
@@ -116,7 +157,9 @@ def test_advance_runs_the_due_stage_then_waits_at_the_gate_then_applies_it(db_pa
     try:
         assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
         stages = [row["stage"] for row in conn.execute("SELECT stage FROM stage_run ORDER BY id")]
-        assert stages == ["S0", "S1"]
+        # S1's own agent invocation opens a second, child `stage_run` under
+        # the same stage name once it passes.
+        assert stages == ["S0", "S1", "S1"]
         assert (tmp_path / "tickets" / str(ticket_id)).is_dir()
     finally:
         conn.close()

@@ -13,11 +13,15 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, gates, git_trees, record, transitions
+from runner import artefact_registry, gates, git_trees, governance, manifest, record, transitions
 from runner.db import connect
 from runner.definitions import DefinitionError, load_definition
 from runner.paths import FACTORY_DIR
 from runner.stages import run_stage
+
+ABHISHEK = "abhishek"
+FAR_FUTURE = "2999-01-01T00:00:00+00:00"
+S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
 
 EVAL_ROOTS = (FACTORY_DIR / "evals" / "agents", FACTORY_DIR / "evals" / "skills", FACTORY_DIR / "evals" / "rubrics")
 
@@ -53,9 +57,48 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
+    # A minimal pom so a real S1 run's impact_scan has something to read;
+    # the dependency itself matches the committed artifact-to-service.yaml's
+    # one authoritative entry, so a real S1 run needs no fixture override.
+    (repo / "pom.xml").write_text(
+        "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
+        "  <dependencies>\n    <dependency>\n      <groupId>com.fixturevendor</groupId>\n"
+        "      <artifactId>strings</artifactId>\n      <version>1.0.0</version>\n    </dependency>\n  </dependencies>\n"
+        "</project>\n"
+    )
+    src = repo / "src" / "main" / "java" / "com" / "example"
+    src.mkdir(parents=True)
+    (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     _git(["add", "-A"], cwd=repo)
     _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
     return repo
+
+
+def _governed_ticket_fields(conn) -> dict:
+    """Ticket fields that satisfy the committed trust profile's default-path activation."""
+    proposal = governance.propose()
+    for role in ("security_approver", "legal_data_governance_approver"):
+        governance.decide(
+            conn, proposal, actor_identity=ABHISHEK, role=role, decision="approve",
+            expires_at=FAR_FUTURE, attestation_version="v1", attestation_hash=f"att-{role}",
+        )
+    activated = governance.activation(conn, proposal)
+    return {
+        "trust_profile_hash": proposal.profile_hash, "trust_approval_set_hash": activated.trust_approval_set_hash,
+        "service": "fixture-project", "source_kind": "jira", "source_ref": "FIX-1",
+    }
+
+
+def _s1_ready_ticket(conn, tmp_path):
+    """A ticket in `context`, cloned from a real worktree, pinned and eligible to invoke a real S1."""
+    source = _source_repo(tmp_path)
+    ticket_id = _ticket_in(
+        conn, "context", ticket_type="small_feature", service_tier="T2", tier_provisional="standard",
+        factory_manifest_hash=manifest.current_hash(), **_governed_ticket_fields(conn),
+    )
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    return ticket_id
 
 
 def _checks_ticket_with_fresh_base(conn, tmp_path):
@@ -94,10 +137,13 @@ def test_s0_stub_runs_and_the_eligibility_gate_moves_intake_to_context(conn, tmp
     assert transitions.apply(conn, ticket_id, event) == "context"
 
 
-def test_s1_stub_writes_a_brief_and_passes_to_clarifying(conn, tmp_path):
-    """the real S1 stub driver writes and registers a `brief`
-    artefact and its pass moves context -> clarifying."""
-    ticket_id = _ticket_in(conn, "context")
+def test_s1_stub_writes_a_brief_and_passes_to_clarifying(conn, tmp_path, monkeypatch):
+    """the real S1 driver writes and registers a checked `brief`
+    artefact and its pass moves context -> clarifying; the full driver's
+    own behaviour is `test_s1.py`'s, this is the conformance-suite's own
+    smoke test that the wiring in `run_stage`/`DRIVERS` still holds."""
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
+    ticket_id = _s1_ready_ticket(conn, tmp_path)
     outcome = run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
     assert outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
@@ -154,11 +200,12 @@ def test_s5_and_s6_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tm
     assert transitions.apply(conn, ticket_id, event) == "review"
 
 
-def test_a_second_stub_run_supersedes_the_first_artefact(conn, tmp_path):
+def test_a_second_stub_run_supersedes_the_first_artefact(conn, tmp_path, monkeypatch):
     """running a stage twice for the same ticket chains `supersedes` to the
     prior version rather than losing it, so a superseded version stays
     readable."""
-    ticket_id = _ticket_in(conn, "context")
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
+    ticket_id = _s1_ready_ticket(conn, tmp_path)
     run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
     first = artefact_registry.latest(conn, ticket_id, "brief")
 
