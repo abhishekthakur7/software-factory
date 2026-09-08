@@ -1,10 +1,10 @@
-"""The fix-round route classifier and S4's own bounded machine repair loop (R-S4-9, criteria 14 to 24).
+"""The fix-round route classifier and S4's own bounded machine repair loop (R-S4-9).
 
-`red_route.classify` is pure -- criteria 14 to 17 and 20 exercise it
-directly, no database. Criteria 18, 19, 21 to 24 drive the real S4 driver
-through a ticket already routed back by a seeded S5 attempt, the same
-shape T-A-30's real S5 driver leaves behind (a `check_result`
-`fix_round_route` with `result = 'pass'` on the ticket's latest S5 run).
+`red_route.classify` is pure -- its own tests below exercise it directly,
+no database. The rest drive the real S4 driver through a ticket already
+routed back by a seeded S5 attempt, the same shape the real S5 driver
+(built alongside this one, elsewhere) leaves behind: a `check_result`
+`fix_round_route` with `result = 'pass'` on the ticket's latest S5 run.
 """
 import json
 import os
@@ -38,11 +38,8 @@ def _git(args, cwd, env=None):
     )
 
 
-# --- criteria 14, 15, 16, 17, 20: `red_route.classify` is pure -------------
-
-
 def test_lint_and_compile_reds_alone_route_to_a_fix_round():
-    """Criterion 14: every red result a lint or compile-type recipe -- always machine-only-eligible,
+    """Every red result a lint or compile-type recipe -- always machine-only-eligible,
     whatever their base/head history."""
     results = [
         RecipeOutcome("fixture_lint", "lint", None, base=None, head="fail"),
@@ -52,26 +49,26 @@ def test_lint_and_compile_reds_alone_route_to_a_fix_round():
 
 
 def test_a_unit_test_green_at_base_and_red_at_head_routes_to_a_fix_round():
-    """Criterion 14: a unit/integration test that regressed at head, having been green at base."""
+    """A unit/integration test that regressed at head, having been green at base."""
     results = [RecipeOutcome("fixture_unit", "test", "unit", base="pass", head="fail")]
     assert red_route.classify(results, rounds_run=1, cap=2) == Route("fix_round")
 
 
 def test_a_test_already_red_at_base_refuses_the_machine_only_route():
-    """Criterion 15: a unit/integration test red at base too is inherited debt, not this ticket's
+    """A unit/integration test red at base too is inherited debt, not this ticket's
     regression -- refused, reason `base_red`."""
     results = [RecipeOutcome("fixture_unit", "test", "unit", base="fail", head="fail")]
     assert red_route.classify(results, rounds_run=0, cap=2) == Route("red_check", "base_red")
 
 
 def test_an_end_to_end_red_refuses_the_machine_only_route_regardless_of_base():
-    """Criterion 16: an end-to-end result never routes through a fix round, whatever its base state."""
+    """An end-to-end result never routes through a fix round, whatever its base state."""
     results = [RecipeOutcome("fixture_e2e", "test", "end_to_end", base="pass", head="fail")]
     assert red_route.classify(results, rounds_run=0, cap=2) == Route("red_check", "end_to_end")
 
 
 def test_a_red_outside_the_eligible_kinds_alongside_an_eligible_one_refuses_the_route():
-    """Criterion 17: mixing a red result outside {lint, compile, unit test, integration test} with
+    """Mixing a red result outside {lint, compile, unit test, integration test} with
     an otherwise-eligible one refuses the whole route -- reason `mixed`."""
     results = [
         RecipeOutcome("fixture_compile", "compile", None, base=None, head="fail"),
@@ -81,13 +78,10 @@ def test_a_red_outside_the_eligible_kinds_alongside_an_eligible_one_refuses_the_
 
 
 def test_the_cap_refuses_the_route_before_the_red_results_are_even_examined():
-    """Criterion 20: a ticket at or past the fix-round cap is refused a further round regardless of
+    """A ticket at or past the fix-round cap is refused a further round regardless of
     how confined its red results look."""
     results = [RecipeOutcome("fixture_lint", "lint", None, base=None, head="fail")]
     assert red_route.classify(results, rounds_run=2, cap=2) == Route("red_check", "cap_reached")
-
-
-# --- the real S4 driver's own fix-round execution ---------------------------
 
 
 _WIDGET_BASE = "package com.fixture;\n\npublic class Widget {\n    public int compute(int x) {\n        return x * 2;\n    }\n}\n"
@@ -145,7 +139,7 @@ def _ready_ticket(conn, tmp_path, *, plan_text: str = PLAN_TEXT) -> int:
 
 
 def _route_via_s5(conn, ticket_id: int) -> int:
-    """Seed the marker T-A-30's real S5 driver leaves on a ticket it is routing to a fix round."""
+    """Seed the marker the real S5 driver leaves on a ticket it is routing to a fix round."""
     s5_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S5")
     run_ledger.finish(conn, s5_run_id, "blocked")
     record.insert(
@@ -177,11 +171,8 @@ def _last_s4_run(conn, ticket_id):
     ).fetchone()
 
 
-# --- criteria 18 and 24: an authorized base-test change is allowed and deviated ---
-
-
 def test_an_authorized_base_test_change_passes_and_is_recorded_as_a_deviation(tmp_path):
-    """Criteria 18/24: a base test the plan's Test strategy table lists with `action = 'change'` may
+    """A base test the plan's Test strategy table lists with `action = 'change'` may
     change; the fix round records that change as its own `deviation` row naming the authorizing
     criterion, on top of whatever the agent's own hand-back reported."""
     conn = connect(tmp_path / "factory.sqlite")
@@ -202,7 +193,7 @@ def test_an_authorized_base_test_change_passes_and_is_recorded_as_a_deviation(tm
 
 
 def test_an_unauthorized_base_test_change_is_refused(tmp_path):
-    """Criterion 18 (must-reject): the same worktree edit, against a plan whose Test strategy
+    """The same worktree edit, against a plan whose Test strategy
     table lists no authorizing row, is refused -- the round fails and queues one `red_check`."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, plan_text=PLAN_TEXT_NO_TEST_STRATEGY)
@@ -221,11 +212,8 @@ def test_an_unauthorized_base_test_change_is_refused(tmp_path):
     ).fetchone()[0] == 1
 
 
-# --- criterion 19: a diff touching only test files is refused --------------
-
-
 def test_must_reject_a_diff_touching_only_test_files(tmp_path):
-    """Criterion 19 (must-reject): a fix round is meant to repair the production change, not just
+    """A fix round is meant to repair the production change, not just
     its tests -- a diff naming no production file at all is refused outright."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -244,11 +232,8 @@ def test_must_reject_a_diff_touching_only_test_files(tmp_path):
     assert "test" in check["summary"]
 
 
-# --- criterion 22: scope_diff blocks a fix round's hand-back too -----------
-
-
 def test_must_reject_a_fix_round_diff_that_touches_a_path_outside_the_plan_scope(tmp_path):
-    """Criterion 22 (must-reject): an out-of-scope file in the round's diff fails `scope_diff` the
+    """An out-of-scope file in the round's diff fails `scope_diff` the
     same way it would for an ordinary task's hand-back."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -267,11 +252,8 @@ def test_must_reject_a_fix_round_diff_that_touches_a_path_outside_the_plan_scope
     assert "Unrelated.java" in check["summary"]
 
 
-# --- criterion 23: a red validation-only step fails the round --------------
-
-
 def test_must_reject_a_fix_round_whose_post_handback_validation_is_red(tmp_path):
-    """Criterion 23 (must-reject): after a passing hand-back, the runner validates every task once
+    """After a passing hand-back, the runner validates every task once
     with no agent; a red validation fails the round even though the hand-back itself was clean."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -290,11 +272,8 @@ def test_must_reject_a_fix_round_whose_post_handback_validation_is_red(tmp_path)
     assert validation_only["outcome"] == "fail"
 
 
-# --- criterion 21: a fix round that busts the per-ticket S4 budget aborts --
-
-
 def test_a_fix_round_that_exceeds_the_per_ticket_budget_aborts_and_consumes_no_verification_attempt(tmp_path):
-    """Criterion 21: a `fix_round` `stage_run` that exceeds the per-ticket S4 budget aborts with
+    """A `fix_round` `stage_run` that exceeds the per-ticket S4 budget aborts with
     `outcome = 'aborted_budget'` and never carries a `verification_attempt`."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -310,8 +289,8 @@ def test_a_fix_round_that_exceeds_the_per_ticket_budget_aborts_and_consumes_no_v
     assert first == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
     # The one task's own pass already moved the ticket to `checks`; stand
-    # in for T-A-30's own `checks_fix_round` transition (a later, parallel
-    # ticket) routing it back before this round starts.
+    # in for the `checks_fix_round` transition routing it back before this
+    # round starts.
     record.update(conn, "ticket", ticket_id, state="implementing")
 
     _route_via_s5(conn, ticket_id)
@@ -324,11 +303,8 @@ def test_a_fix_round_that_exceeds_the_per_ticket_budget_aborts_and_consumes_no_v
     assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
 
 
-# --- criterion 20 (S4-level): a ticket at the cap gets no further round ----
-
-
 def test_a_ticket_at_the_fix_round_cap_is_refused_a_further_round(tmp_path):
-    """Criterion 20: once `limits.yaml`'s `fix_rounds.max_per_ticket` rounds have already run, the
+    """Once `limits.yaml`'s `fix_rounds.max_per_ticket` rounds have already run, the
     next one is refused before starting and a `red_check` item is queued."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)

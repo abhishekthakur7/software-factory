@@ -1,9 +1,9 @@
 """S4: one fresh top-level `stage_run` per plan task, in dependency order, plus bounded fix rounds.
 
 `build_handoff`, `record_handback` and `run` stay the self-contained
-hand-off/invocation/hand-back trio T-A-28 built -- `run` now takes an
-optional `task` so the same three functions serve one plan task at a time
-instead of the whole plan in a single invocation. `run_next` is the
+hand-off/invocation/hand-back trio this module already had -- `run` now
+takes an optional `task` so the same three functions serve one plan task
+at a time instead of the whole plan in a single invocation. `run_next` is the
 per-attempt driver `stages.run_stage` delegates to: it revalidates the
 target base before every attempt (plan-tuple currency, quorum, and trust
 activation are already enforced once, authoritatively, at
@@ -421,9 +421,6 @@ def run(
     return _validate_task(conn, ticket, stage_run_id, task, runs_dir=runs_dir)
 
 
-# --- the target-base revalidation every attempt makes ---------------------
-
-
 def _revalidate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path) -> freshness.Freshness | None:
     """The one condition worth re-deriving on every attempt: is the target base still what the plan was bound to.
 
@@ -456,9 +453,6 @@ def _record_stale_binding(conn: sqlite3.Connection, ticket: sqlite3.Row, stale: 
     run_ledger.finish(conn, stage_run_id, "fail", failure_kind="stale_binding")
     _open_red_check_if_none_open(conn, ticket["id"], ref=f"check_result:{stale.check_result_id}")
     return "fail"
-
-
-# --- the ordinary per-task loop --------------------------------------------
 
 
 def _task_passed(conn: sqlite3.Connection, ticket_id: int, plan_tuple_id: int, task_id: str) -> bool:
@@ -747,9 +741,6 @@ def _run_task(
     return outcome
 
 
-# --- fix rounds -------------------------------------------------------------
-
-
 def _latest_s5_run(conn: sqlite3.Connection, ticket_id: int) -> sqlite3.Row | None:
     return conn.execute(
         "SELECT * FROM stage_run WHERE ticket_id = ? AND stage = 'S5' ORDER BY id DESC LIMIT 1", (ticket_id,)
@@ -968,9 +959,6 @@ def _run_fix_round(conn: sqlite3.Connection, ticket: sqlite3.Row, runs_dir: Path
         if current["state"] != "escalated":
             _open_red_check_if_none_open(conn, ticket_id, ref=f"stage_run:{stage_run_id}")
     return outcome
-
-
-# --- the driver's entry point -----------------------------------------------
 
 
 def run_next(

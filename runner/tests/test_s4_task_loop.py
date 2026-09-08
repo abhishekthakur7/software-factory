@@ -1,6 +1,6 @@
-"""S4's per-task loop: one fresh top-level `stage_run` per plan task, in dependency order,
-the pre-invocation revalidation against the target base, and `verification_attempt`
-numbering (R-S4-5, criteria 1 to 8).
+"""S4's per-task loop (R-S4-5): one fresh top-level `stage_run` per plan task, in dependency
+order, the pre-invocation revalidation against the target base, and `verification_attempt`
+numbering.
 """
 import os
 import subprocess
@@ -95,11 +95,8 @@ def _last_s4_run(conn, ticket_id):
     ).fetchone()
 
 
-# --- criterion 1: a stale target base starts no agent ----------------------
-
-
 def test_a_stale_target_base_starts_no_agent_and_leaves_the_ticket_in_implementing(tmp_path):
-    """R-S4-5 criterion 1: the plan tuple's `base_sha` and the ticket's `target_base_sha` no longer
+    """R-S4-5: the plan tuple's `base_sha` and the ticket's `target_base_sha` no longer
     equal the fetched target head -- no invocation, a `fail`/`stale_binding` run with a null
     `verification_attempt`, one `red_check` item, and the ticket stays `implementing`."""
     conn = connect(tmp_path / "factory.sqlite")
@@ -141,11 +138,8 @@ def test_a_second_stale_attempt_opens_no_second_red_check_item(tmp_path):
     ).fetchone()[0] == 1
 
 
-# --- criteria 2 and 9 (verification numbering; escalation is test_s4_escalation.py) --
-
-
 def test_three_consecutive_verification_failures_number_one_two_three(tmp_path):
-    """Criterion 2: three red validations against the same plan-item version consume
+    """Three red validations against the same plan-item version consume
     `verification_attempt` 1, then 2, then 3, in order."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, widget_source=_WIDGET_BROKEN)
@@ -161,11 +155,8 @@ def test_three_consecutive_verification_failures_number_one_two_three(tmp_path):
     assert attempts == [1, 2, 3]
 
 
-# --- criterion 3: infrastructure failure retries without incrementing ------
-
-
 def test_an_infrastructure_failure_retries_without_consuming_a_verification_attempt(tmp_path):
-    """Criterion 3: an unavailable-runtime `stage_run` gets one ordinary retry, and neither it nor
+    """An unavailable-runtime `stage_run` gets one ordinary retry, and neither it nor
     its retry has advanced past the verification slot the first genuine attempt will occupy."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -187,7 +178,7 @@ def test_an_infrastructure_failure_retries_without_consuming_a_verification_atte
 
 
 def test_a_second_consecutive_infrastructure_failure_escalates(tmp_path):
-    """Criterion 3/10: a repeat infrastructure failure escalates with `outcome = 'infrastructure_failure'`,
+    """A repeat infrastructure failure escalates with `outcome = 'infrastructure_failure'`,
     never consuming a `verification_attempt`."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -211,9 +202,6 @@ def test_a_second_consecutive_infrastructure_failure_escalates(tmp_path):
     ).fetchone()[0] == 1
 
 
-# --- criterion 4: an unapproved recipe binding is a control defect ---------
-
-
 _UNDECLARED_RECIPE_PLAN = """## Scope and discretion
 
 | path | action | reason |
@@ -229,7 +217,7 @@ _UNDECLARED_RECIPE_PLAN = """## Scope and discretion
 
 
 def test_an_unapproved_recipe_id_ends_the_run_as_a_control_defect_and_escalates(tmp_path):
-    """Criterion 4/11: a task naming a recipe id outside `project.yaml`'s approved list ends its
+    """A task naming a recipe id outside `project.yaml`'s approved list ends its
     `stage_run` as a control defect (`fail`/`recipe_binding`), consumes no verification quota,
     tags `control_defect` (`FM-23`), opens a `control_defect_event`, and escalates immediately."""
     conn = connect(tmp_path / "factory.sqlite")
@@ -259,11 +247,8 @@ def test_an_unapproved_recipe_id_ends_the_run_as_a_control_defect_and_escalates(
     ).fetchone()[0] == 1
 
 
-# --- criterion 5: a retried task is a fresh invocation ----------------------
-
-
 def test_a_retried_task_registers_a_fresh_handoff_version_not_a_continuation(tmp_path):
-    """Criterion 5: each attempt registers its own `handoff` artefact version -- a retry never
+    """Each attempt registers its own `handoff` artefact version -- a retry never
     reuses the failed run's own registered inputs."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, widget_source=_WIDGET_BROKEN)
@@ -279,11 +264,8 @@ def test_a_retried_task_registers_a_fresh_handoff_version_not_a_continuation(tmp
     assert handoffs[0]["stage_run_id"] != handoffs[1]["stage_run_id"]
 
 
-# --- criterion 6: a successful invocation validates once, green passes -----
-
-
 def test_a_successful_invocation_runs_the_approved_recipe_once_and_passes(tmp_path):
-    """Criterion 6: a green task run leaves `stage_run.outcome = 'pass'`, with exactly one
+    """A green task run leaves `stage_run.outcome = 'pass'`, with exactly one
     `task_validation` check result recorded against it."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -301,11 +283,8 @@ def test_a_successful_invocation_runs_the_approved_recipe_once_and_passes(tmp_pa
     assert checks[0]["result"] == "pass"
 
 
-# --- criterion 7: verification_attempt is per plan-tuple version -----------
-
-
 def test_a_new_plan_tuple_starts_a_fresh_verification_count(tmp_path):
-    """Criterion 7: a superseding plan-item version (a new `plan` `evidence_tuple` row) starts
+    """A superseding plan-item version (a new `plan` `evidence_tuple` row) starts
     `verification_attempt` back at 1 for the same task id -- no migration of the old count."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, widget_source=_WIDGET_BROKEN)
@@ -327,11 +306,8 @@ def test_a_new_plan_tuple_starts_a_fresh_verification_count(tmp_path):
     assert third_run["plan_tuple_id"] != second_run["plan_tuple_id"]
 
 
-# --- criterion 8: a retained task is skipped, not rerun ---------------------
-
-
 def test_a_task_with_a_retained_passing_result_is_skipped(tmp_path):
-    """Criterion 8: a task whose plan-bound inputs are unchanged and already carries a passing
+    """A task whose plan-bound inputs are unchanged and already carries a passing
     `task` run under the current plan tuple keeps that result -- `run_next` moves straight to
     the next due task instead of rerunning it."""
     conn = connect(tmp_path / "factory.sqlite")

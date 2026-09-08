@@ -1,5 +1,5 @@
-"""S4's escalation causes: verification exhaustion, a repeat infrastructure failure, a control
-defect, and the routed resumption each cause permits (R-S4-6, criteria 9 to 13).
+"""S4's escalation causes (R-S4-6): verification exhaustion, a repeat infrastructure failure, a
+control defect, and the routed resumption each cause permits.
 """
 import os
 import subprocess
@@ -97,11 +97,8 @@ def _open_escalation_item(conn, ticket_id):
     ).fetchone()
 
 
-# --- criterion 9: the third verification failure escalates, same transaction --
-
-
 def test_the_third_verification_failure_escalates_in_the_same_write_as_the_fail_outcome(tmp_path):
-    """Criterion 9: the third red validation for one plan-item version leaves the run `fail` and
+    """The third red validation for one plan-item version leaves the run `fail` and
     moves the ticket to `escalated` -- both visible immediately, from the one call that made them."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, widget_source=_WIDGET_BROKEN)
@@ -127,7 +124,7 @@ def test_the_third_verification_failure_escalates_in_the_same_write_as_the_fail_
 
 
 def test_verification_exhaustion_registers_a_failure_history_artefact_on_the_escalating_run(tmp_path):
-    """Criterion 13: the escalation carries complete per-attempt failure history -- here, the
+    """The escalation carries complete per-attempt failure history -- here, the
     JSON artefact the third verification failure itself registers."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, widget_source=_WIDGET_BROKEN)
@@ -149,12 +146,9 @@ def test_verification_exhaustion_registers_a_failure_history_artefact_on_the_esc
     assert context["failure_history_artefact_id"] == history["id"]
 
 
-# --- criterion 11: sandbox-integrity and undeclared-capability control defects --
-
-
 @pytest.mark.parametrize("case", ["path_violation", "environment_violation"])
 def test_a_sandbox_integrity_violation_is_a_control_defect_that_escalates_immediately(tmp_path, case):
-    """Criterion 11: a sandbox-integrity failure (an unwritable path, or an undeclared
+    """A sandbox-integrity failure (an unwritable path, or an undeclared
     environment name) tags `control_defect` (`FM-23`), opens a `control_defect_event` of
     `control_category = 'execution_boundary'`, and escalates without consuming a verification
     attempt -- for either fixture case, since both violate the same sandbox boundary."""
@@ -183,11 +177,8 @@ def test_a_sandbox_integrity_violation_is_a_control_defect_that_escalates_immedi
     assert incident["control_category"] == "execution_boundary"
 
 
-# --- criterion 12: resume routes strictly by cause --------------------------
-
-
 def test_a_verification_exhaustion_escalation_refuses_plain_resume(tmp_path):
-    """Criterion 12: verification exhaustion resumes only through a new plan-item version and a
+    """Verification exhaustion resumes only through a new plan-item version and a
     fresh S3 approval -- `resume` itself is refused outright."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path, widget_source=_WIDGET_BROKEN)
@@ -200,7 +191,7 @@ def test_a_verification_exhaustion_escalation_refuses_plain_resume(tmp_path):
 
 
 def test_a_control_defect_escalation_refuses_resume_until_remediated_and_gated(tmp_path):
-    """Criterion 12: a control-defect escalation refuses plain `resume` until its event carries a
+    """A control-defect escalation refuses plain `resume` until its event carries a
     `remediated` disposition and a newer passing `gate` run -- then, and only then, it resumes
     through `escalation_control_defect_remediated`."""
     conn = connect(tmp_path / "factory.sqlite")
@@ -240,7 +231,7 @@ def test_a_control_defect_escalation_refuses_resume_until_remediated_and_gated(t
 
 
 def test_an_infrastructure_escalation_resumes_the_same_item_with_quota_preserved(tmp_path):
-    """Criterion 12: an infrastructure-caused escalation resumes the same item outright, straight
+    """An infrastructure-caused escalation resumes the same item outright, straight
     back to `implementing`, no remediation ceremony required."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = _ready_ticket(conn, tmp_path)
@@ -256,9 +247,6 @@ def test_an_infrastructure_escalation_resumes_the_same_item_with_quota_preserved
     queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", runs_dir=tmp_path)
 
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
-
-
-# --- criterion 10: a budget abort keeps its own outcome ---------------------
 
 
 _TWO_TASK_PLAN = """## Scope and discretion
@@ -278,7 +266,7 @@ _TWO_TASK_PLAN = """## Scope and discretion
 
 
 def test_a_second_tasks_invocation_aborts_on_budget_and_keeps_that_outcome(tmp_path):
-    """Criterion 10: a `stage_run` that exceeds the per-ticket S4 budget keeps
+    """A `stage_run` that exceeds the per-ticket S4 budget keeps
     `outcome = 'aborted_budget'`, already escalated by `budgets.abort` -- S4 adds nothing further.
 
     A two-task plan, so the first task's pass alone does not already fire
