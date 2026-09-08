@@ -1,7 +1,7 @@
 version: 1
 files:
   - path: factory/scripts/tools/manifest_hash
-    content_hash: dcd5eb65773e4fa16878965c62a0125e76db44153c9461cbb2e8b8b91b66566d
+    content_hash: 7fb498e68e92256527387b161ed9bc7e30e831000d4bb13f5415e67e725e62a2
   - path: factory/evals/scripts/tools/manifest_hash/eval.yaml
     content_hash: d149d66527b732a22019e178ce8629c85450632732ed0931295a71b9b1bed7d0
   - path: factory/evals/scripts/tools/manifest_hash/fixtures/valid/factory/manifest.yaml
@@ -137,7 +137,7 @@ files:
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/trust-profile.yaml
-    content_hash: 914d8937b9fc10c0b5f09126fa5dbfaaa47ad970b246ade246a62f8336022917
+    content_hash: f7087e2418fe862598a0197b62716799862474a8a723048c7b5b1da57cfe9443
 stages:
   S0:
     agent: null
