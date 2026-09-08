@@ -1,0 +1,19 @@
+# The pilot project's source location, target branch, recipe set, and
+# toolchain. Both paths are relative to the repository root and land under
+# the gitignored runs/ tree: the checkout is a materialised git repository,
+# never the seed under factory/evals/fixture-project/ itself.
+name: fixture-project
+checkout: runs/sources/fixture-project
+vendor: runs/sources/fixture-project-vendor
+target_branch: main
+recipes:
+  - fixture_lint
+  - fixture_compile
+  - fixture_unit
+  - fixture_integration
+  - fixture_e2e
+impact_methods:
+  - import_scan
+toolchain:
+  jdk: "17"
+generated_paths: []

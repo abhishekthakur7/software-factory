@@ -1,0 +1,124 @@
+# The typed recipe catalogue: every command a plan may name is one of
+# these, never plan-authored shell. `runner/recipes.py` validates every
+# field named here before a recipe can be dispatched at all.
+#
+# `executable_digest` is the sha256 of the committed wrapper script's exact
+# bytes, so it stays the same across machines; `runner/recipes.py` recomputes
+# it at dispatch time and refuses a mismatch. `PATH` is on every recipe's
+# `env_allowlist` because each executable is a `#!/usr/bin/env python3`
+# script whose own subprocess calls to `javac`/`java` need it resolved --
+# without it neither the interpreter nor the JDK tools could be found.
+recipes:
+  - id: fixture_lint
+    executable: factory/scripts/checks/java_lint
+    executable_digest: 7e150440c3e97164dcd3f8d0cbe73283db479bbc7f864fbd87683c998da536b6
+    args:
+      - "--source-root"
+      - "src/main/java"
+      - "--classpath"
+      - {placeholder: vendor_classpath, type: string}
+      - "--out"
+      - "out/lint-classes"
+    cwd_role: checkout
+    stages: [S4, S5]
+    timeout_seconds: 60
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: discard
+
+  - id: fixture_compile
+    executable: factory/scripts/checks/java_compile
+    executable_digest: 846c1e487c48374af94ac180aeff8de78bdaaedc2477188383c7ccce5fa80575
+    args:
+      - "--source-root"
+      - "src/main/java"
+      - "--classpath"
+      - {placeholder: vendor_classpath, type: string}
+      - "--out"
+      - "out/compile-classes"
+    cwd_role: checkout
+    stages: [S4, S5]
+    timeout_seconds: 60
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: discard
+
+  - id: fixture_unit
+    executable: factory/scripts/checks/java_test
+    executable_digest: a1c576f138ed754961c63d0049c4a31c1db0a351e586b483c119440b115210bb
+    args:
+      - "--level"
+      - "unit"
+      - "--main-root"
+      - "src/main/java"
+      - "--test-root"
+      - "src/test/java"
+      - "--test-glob"
+      - "src/test/java/**/*UnitTest.java"
+      - "--classpath"
+      - {placeholder: vendor_classpath, type: string}
+      - "--out"
+      - "out/unit-classes"
+    cwd_role: checkout
+    stages: [S4, S5]
+    timeout_seconds: 90
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: keep
+    level: unit
+    test_globs: ["src/test/java/**/*UnitTest.java"]
+
+  - id: fixture_integration
+    executable: factory/scripts/checks/java_test
+    executable_digest: a1c576f138ed754961c63d0049c4a31c1db0a351e586b483c119440b115210bb
+    args:
+      - "--level"
+      - "integration"
+      - "--main-root"
+      - "src/main/java"
+      - "--test-root"
+      - "src/it/java"
+      - "--test-glob"
+      - "src/it/java/**/*IntegrationTest.java"
+      - "--classpath"
+      - {placeholder: vendor_classpath, type: string}
+      - "--out"
+      - "out/integration-classes"
+    cwd_role: checkout
+    stages: [S5]
+    timeout_seconds: 90
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: keep
+    level: integration
+    test_globs: ["src/it/java/**/*IntegrationTest.java"]
+
+  - id: fixture_e2e
+    executable: factory/scripts/checks/java_test
+    executable_digest: a1c576f138ed754961c63d0049c4a31c1db0a351e586b483c119440b115210bb
+    args:
+      - "--level"
+      - "end_to_end"
+      - "--main-root"
+      - "src/main/java"
+      - "--test-root"
+      - "src/e2e/java"
+      - "--test-glob"
+      - "src/e2e/java/**/*EndToEndTest.java"
+      - "--classpath"
+      - {placeholder: vendor_classpath, type: string}
+      - "--out"
+      - "out/e2e-classes"
+    cwd_role: checkout
+    stages: [S5]
+    timeout_seconds: 90
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: keep
+    level: end_to_end
+    test_globs: ["src/e2e/java/**/*EndToEndTest.java"]

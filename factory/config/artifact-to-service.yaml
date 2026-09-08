@@ -1,0 +1,10 @@
+# "groupId:artifactId" to the service that owns it and the confidence of
+# that mapping: authoritative, partial, or unknown. An artefact absent from
+# this file resolves unknown -- absence is itself meaningful, not an error.
+mappings:
+  "com.fixturevendor:strings":
+    service: fixture-project
+    coverage: authoritative
+  "com.fixturevendor:util":
+    service: fixture-project
+    coverage: partial

@@ -1,0 +1,4 @@
+mappings:
+  "com.fixtureeval:known":
+    service: known-service
+    coverage: authoritative

@@ -22,6 +22,7 @@ ALLOWED_COLUMNS = {
         "tier_override_by", "tier_override_at", "tier_override_reason",
         "opened_at", "factory_completed_at", "closed_at", "close_reason",
         "pr_url", "pr_identity", "last_remote_head_sha", "last_pr_body_hash",
+        "base_sha", "target_base_sha", "branch", "worktree_path", "head_sha",
         "updated_at",
     },
     "stage_run": {
@@ -103,6 +104,11 @@ def test_ticket_lifecycle_fields_are_updatable_in_place(tmp_path):
         "pr_identity": "pr-1",
         "last_remote_head_sha": "abc123",
         "last_pr_body_hash": "def456",
+        "base_sha": "base123",
+        "target_base_sha": "targetbase123",
+        "branch": "ticket/t-1",
+        "worktree_path": "runs/tickets/t-1/worktree",
+        "head_sha": "head123",
     }
     for field_name, value in lifecycle_values.items():
         record.update(conn, "ticket", ticket_id, **{field_name: value})

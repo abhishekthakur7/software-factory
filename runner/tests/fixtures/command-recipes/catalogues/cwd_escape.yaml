@@ -1,0 +1,17 @@
+# a `path` placeholder that resolves outside the recipe's
+# declared cwd_role is refused at dispatch. {{DIGEST}} is filled in by the
+# test with ok.py's real sha256, so the accepting half of this fixture
+# proves the boundary check, not a digest mismatch.
+recipes:
+  - id: cwd_escape_test
+    executable: runner/tests/fixtures/command-recipes/scripts/ok.py
+    executable_digest: "{{DIGEST}}"
+    args:
+      - {placeholder: target, type: path}
+    cwd_role: scratch
+    stages: [S4]
+    timeout_seconds: 5
+    expected_exit_codes: [0]
+    env_allowlist: []
+    network: none
+    output_retention: discard

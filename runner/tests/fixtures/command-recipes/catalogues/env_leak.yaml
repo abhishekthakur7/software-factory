@@ -1,0 +1,14 @@
+# a requested environment variable outside the recipe's
+# declared env_allowlist is refused before dispatch.
+recipes:
+  - id: env_leak_test
+    executable: runner/tests/fixtures/command-recipes/scripts/print_env.py
+    executable_digest: "{{DIGEST}}"
+    args: []
+    cwd_role: scratch
+    stages: [S4]
+    timeout_seconds: 5
+    expected_exit_codes: [0]
+    env_allowlist: [SAFE_VAR]
+    network: none
+    output_retention: keep
