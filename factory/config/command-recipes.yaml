@@ -26,7 +26,10 @@ recipes:
     expected_exit_codes: [0]
     env_allowlist: [PATH]
     network: none
-    output_retention: discard
+    # Kept, not discarded: S5's regression-only comparison (`runner.checks.regression_only`)
+    # needs this recipe's own diagnostic text at base and head to tell a new-or-worse
+    # diagnostic apart from inherited debt; a discarded output would leave nothing to compare.
+    output_retention: keep
 
   - id: fixture_compile
     executable: factory/scripts/checks/java_compile
@@ -45,7 +48,9 @@ recipes:
     expected_exit_codes: [0]
     env_allowlist: [PATH]
     network: none
-    output_retention: discard
+    # Kept for the same reason as `fixture_lint`: S5's regression-only
+    # comparison needs its diagnostic text at base and head.
+    output_retention: keep
 
   - id: fixture_unit
     executable: factory/scripts/checks/java_test

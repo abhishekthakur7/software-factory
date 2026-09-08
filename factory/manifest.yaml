@@ -17,7 +17,7 @@ files:
   - path: factory/config/artifact-to-service.yaml
     content_hash: 0cba1d7191af7be150b9878286a250ec2f2337e6fa5981995f4d728bee71bf94
   - path: factory/config/command-recipes.yaml
-    content_hash: c86a2e1fa241bc47c8b54b3bb1133cfbd45ca446f12a209f196f7df6fe4c789b
+    content_hash: 457bb4883a5684c7376178ab581b509848c103e4ea57d1ac24d029a6e0c2e29d
   - path: factory/config/exclusions.yaml
     content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
   - path: factory/config/limits.yaml
