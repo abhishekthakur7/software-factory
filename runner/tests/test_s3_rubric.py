@@ -52,7 +52,6 @@ def _check_case(case: dict) -> list[plan_rubric.Finding]:
     )
 
 
-# --- the eval-fixture pairs, one per script rule ---
 
 
 @pytest.mark.parametrize("case", [c for c in RULE_CASES if c["expect"] == "plan_rubric_ok"], ids=[c["name"] for c in RULE_CASES if c["expect"] == "plan_rubric_ok"])
@@ -69,7 +68,6 @@ def test_a_defective_plan_fixture_raises_its_named_rule(case):
     assert any(f.rule == case["rule"] for f in findings), findings
 
 
-# --- the new_shared_abstraction/widened_shared_function clauses ---
 
 
 def test_a_widened_shared_function_row_with_no_reason_fails():
@@ -92,7 +90,6 @@ def test_a_new_utility_row_with_no_search_or_no_reason_fails():
     assert any(f.rule == "shared_abstraction_cited" for f in findings)
 
 
-# --- the characterization-test and altered-behaviour clauses, isolated from the classification-carry clause ---
 
 
 def test_an_unexplained_row_with_no_characterization_task_fails():
@@ -117,7 +114,6 @@ def test_a_row_altering_captured_behaviour_with_no_matching_unknown_fails():
     assert any(f.rule == "archaeology_carried" for f in findings)
 
 
-# --- the stacked-task exception is a blind spot, never a fail ---
 
 
 def test_a_plan_mixing_flagged_and_unflagged_tasks_is_a_blind_spot_not_a_fail():
@@ -134,7 +130,6 @@ def test_a_plan_mixing_flagged_and_unflagged_tasks_is_a_blind_spot_not_a_fail():
     assert findings and all(f.result == "blind_spot" for f in findings)
 
 
-# --- the consequential-question exception and the unknown-field blind spot ---
 
 
 def test_a_changed_field_with_no_evidence_passes_when_a_consequential_question_exists():
@@ -161,7 +156,6 @@ def test_an_unknown_contract_field_is_a_blind_spot_not_a_fail():
     assert findings == [plan_rubric.Finding("contracts_declared", "Widget.compute.input", "blind_spot")]
 
 
-# --- the size-to-recipe mapping, change-row authorization, and the large-row registration rule ---
 
 
 def test_the_size_to_recipe_level_mapping_is_fixed():
@@ -181,7 +175,6 @@ def test_a_large_row_with_no_registered_end_to_end_recipe_fails():
     assert any(f.rule == "test_strategy_typed" for f in findings)
 
 
-# --- the guardrail-count ceiling and the log-verification pattern requirement ---
 
 
 def test_guardrail_metrics_over_the_section_8_limit_fail():
@@ -202,7 +195,6 @@ def test_a_log_verification_row_missing_a_pattern_fails():
     assert any(f.rule == "rollout_structured" for f in findings)
 
 
-# --- the rubric file itself: grader lines, checklist marking, and the script-only/contract_unit rows' shape ---
 
 
 @pytest.mark.parametrize(
@@ -256,7 +248,6 @@ def test_the_seeded_human_verdict_fixture_names_its_rubric_line_and_a_fail_verdi
     assert fixture["verdict"] == "fail"
 
 
-# --- the driver: plan_rubric lands between artefact_structure and size_gate ---
 
 
 _COMMIT_ENV = {

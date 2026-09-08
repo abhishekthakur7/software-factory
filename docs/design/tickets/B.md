@@ -286,26 +286,25 @@ The factory exposes one API and every client uses it, so `runner/stage_interface
 5. An AST scan over `runner/` finds `runner/adapters/` imported only by `runner/stages/` drivers reached through `stage_interface.run_stage` (R-I-1)
 6. An AST scan over `factory/scripts/` finds no file importing `runner.record`, `runner.run_ledger`, `runner.outbox`, or `runner.adapters` (R-I-1)
 7. An AST scan over `factory/scripts/` finds no SQL literal in a script is an `INSERT`, `UPDATE`, `DELETE`, `CREATE`, or `DROP` statement (R-I-1)
-8. An AST scan over `factory/scripts/` finds `factory/scripts/tools/digest` and every other script obtaining its record access from the runner module that invoked it, never opening `runs/factory.sqlite` directly (R-I-1)
-9. The literal `gate = 'graduation'` write exists in exactly one module, `runner/graduation.py`, reached only through `stage_interface.graduate_approve` (R-I-1)
-10. A seeded `approval_record` of `gate = 'graduation'` from an identity whose `owners.yaml` role is not factory owner confers no authority on `runner/capacity.py`'s `effective_parallel_limit()` (R-I-1)
-11. An AST scan finds `runner/cli.py` and `runner/stage_interface.py` import nothing under `runner/stages/` except the driver registry `stage_interface.run_stage` dispatches through (R-I-1)
-12. An AST scan finds no module under `runner/stages/` importing `runner.cli` or `runner.stage_interface` (R-I-1)
-13. An AST scan finds no module outside `runner/stages/` importing a `runner/stages/S<n>.py` name other than its driver entry point (R-I-1)
-14. `factory/scripts/tools/fixture_from_export <export directory> <ticket id>` reads a T-A-16 export directory and writes `factory/evals/tickets/<ticket id>/` with `eval.yaml` naming `owner`, `target_failure_modes` as a list, and `redaction_review` with `reviewer_identity`, `reviewed_at`, `redacted_fields`, and `export_content_hash`, plus a `cases` list of `name`, `fixture`, and `expect`, plus `fixtures/export/` (R-I-1)
-15. T-A-35's manifest test rejects an `eval.yaml` under the `tickets/` eval kind that is missing one of `redaction_review`'s four fields (R-I-1)
-16. On the closing run, `runner/tests/test_pilot_walk.py` drives the pilot ticket from its Jira key to a draft pull request whose native GitHub view carries the diff of the approved narrative, every operation issued through `runner/stage_interface.py` (R-I-1)
-17. On the closing run, the governed export of the pilot ticket shows every run, tool result used as evidence, boundary, human decision, and external write recorded (R-I-1)
-18. On the closing run, the escape suite's `credentials` category re-runs against the pilot ticket's agent sandbox and finds no credential but the scoped runtime key (R-I-1)
-19. On the closing run, the `external_write` row dispatching the pilot ticket's pull request commits no earlier than the quorum-completing `approval_record` (R-I-1)
-20. On the closing run, T-AB-06's pre-dispatch recheck on the pilot ticket confirms S5's review subject and the PR-publication worker's referenced approved plan subject are the same fresh subjects (R-I-1)
-21. On the closing run, `factory report`'s `get measures` operation over the pilot ticket's record distinguishes first-attempt reliability, queue latency, active attention, and unavailable evidence (R-I-1)
-22. On the closing run, the redacted fixture directory `factory/evals/tickets/<pilot ticket id>/` exists, is listed in the manifest, and `python3 -m runner.gate` passes over it (R-I-1)
+8. The literal `gate = 'graduation'` write exists in exactly one module, `runner/graduation.py`, reached only through `stage_interface.graduate_approve` (R-I-1)
+9. A seeded `approval_record` of `gate = 'graduation'` from an identity whose `owners.yaml` role is not factory owner confers no authority on `runner/capacity.py`'s `effective_parallel_limit()` (R-I-1)
+10. An AST scan finds `runner/cli.py` and `runner/stage_interface.py` import nothing under `runner/stages/` except the driver registry `stage_interface.run_stage` dispatches through (R-I-1)
+11. An AST scan finds no module under `runner/stages/` importing `runner.cli` or `runner.stage_interface` (R-I-1)
+12. An AST scan finds no module outside `runner/stages/` importing a `runner/stages/S<n>.py` name other than its driver entry point (R-I-1)
+13. `factory/scripts/tools/fixture_from_export <export directory> <ticket id>` reads a T-A-16 export directory and writes `factory/evals/tickets/<ticket id>/` with `eval.yaml` naming `owner`, `target_failure_modes` as a list, and `redaction_review` with `reviewer_identity`, `reviewed_at`, `redacted_fields`, and `export_content_hash`, plus a `cases` list of `name`, `fixture`, and `expect`, plus `fixtures/export/` (R-I-1)
+14. T-A-35's manifest test rejects an `eval.yaml` under the `tickets/` eval kind that is missing one of `redaction_review`'s four fields (R-I-1)
+15. On the closing run, `runner/tests/test_pilot_walk.py` drives the pilot ticket from its Jira key to a draft pull request whose native GitHub view carries the diff of the approved narrative, every operation issued through `runner/stage_interface.py` (R-I-1)
+16. On the closing run, the governed export of the pilot ticket shows every run, tool result used as evidence, boundary, human decision, and external write recorded (R-I-1)
+17. On the closing run, the escape suite's `credentials` category re-runs against the pilot ticket's agent sandbox and finds no credential but the scoped runtime key (R-I-1)
+18. On the closing run, the `external_write` row dispatching the pilot ticket's pull request commits no earlier than the quorum-completing `approval_record` (R-I-1)
+19. On the closing run, T-AB-06's pre-dispatch recheck on the pilot ticket confirms S5's review subject and the PR-publication worker's referenced approved plan subject are the same fresh subjects (R-I-1)
+20. On the closing run, `factory report`'s `get measures` operation over the pilot ticket's record distinguishes first-attempt reliability, queue latency, active attention, and unavailable evidence (R-I-1)
+21. On the closing run, the redacted fixture directory `factory/evals/tickets/<pilot ticket id>/` exists, is listed in the manifest, and `python3 -m runner.gate` passes over it (R-I-1)
 
 ### Verification
 
-`runner/tests/test_stage_interface_complete.py`: criteria 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
-`runner/tests/fixtures/stage_interface/`: seeded export-list and non-owner-approval fixtures for criteria 3, 10
-`runner/tests/test_fixture_from_export.py`: criteria 14, 15
-`factory/evals/scripts/tools/fixture_from_export/`: eval.yaml, fixtures for criterion 14
-`runner/tests/test_pilot_walk.py`: criteria 16, 17, 18, 19, 20, 21, 22, extended here as the closing-run criteria
+`runner/tests/test_stage_interface_complete.py`: criteria 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+`runner/tests/fixtures/stage_interface/`: seeded export-list and non-owner-approval fixtures for criteria 3, 9
+`runner/tests/test_fixture_from_export.py`: criteria 13, 14
+`factory/evals/scripts/tools/fixture_from_export/`: eval.yaml, fixtures for criterion 13
+`runner/tests/test_pilot_walk.py`: criteria 15, 16, 17, 18, 19, 20, 21, extended here as the closing-run criteria
