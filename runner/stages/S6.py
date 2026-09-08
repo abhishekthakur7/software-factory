@@ -28,7 +28,7 @@ from runner import artefact_registry, artefacts, canonical, checklist, freshness
 from runner.checks import exclusion
 from runner.fs import write_text
 from runner.paths import PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
-from runner.stages import S5
+from runner.stages import S4, S5
 
 ARTEFACT_KIND = "packet"
 PR_BODY_ARTEFACT_KIND = "pr_body"
@@ -44,7 +44,6 @@ _NO_PENDING_INTENT_REASON = "no pending pull-request intent to check"
 PACKET_ASSEMBLE_SCRIPT = REPO_ROOT / "factory" / "scripts" / "tools" / "packet_assemble"
 PR_BODY_ASSEMBLE_SCRIPT = REPO_ROOT / "factory" / "scripts" / "tools" / "pr_body_assemble"
 
-_AC_ID_RE = re.compile(r"^AC-\d+$")
 
 
 def _tier(ticket: sqlite3.Row) -> str:
@@ -269,8 +268,7 @@ def _base_test_change_diff(repo: Path, base_sha: str, head_sha: str, path: str) 
 
 def _base_test_changes_payload(conn: sqlite3.Connection, ticket_id: int, *, repo: Path, base_sha: str, head_sha: str) -> list[dict]:
     rows = conn.execute(
-        "SELECT * FROM deviation WHERE ticket_id = ? AND why = 'base test change recorded by the runner' ORDER BY id",
-        (ticket_id,),
+        "SELECT * FROM deviation WHERE ticket_id = ? AND why = ? ORDER BY id", (ticket_id, S4.BASE_TEST_DEVIATION_WHY),
     ).fetchall()
     entries = []
     for row in rows:

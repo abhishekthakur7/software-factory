@@ -44,11 +44,15 @@ ESCALATE_EVENT = "escalate"
 # The machine-actor identity every automated tag/incident this driver
 # writes carries, matching `context_index.py`'s own default for a
 # runner-initiated record rather than a human one.
-RUNNER_ACTOR = "runner"
+RUNNER_ACTOR = tags.MECHANICAL_ACTOR
 
 ESCALATION_FM_ID = "FM-19"
 CONTROL_DEFECT_FM_ID = "FM-23"
 CONTROL_CATEGORY = "execution_boundary"
+
+# The `why` of every deviation row the runner itself writes for a base-test
+# change in a hand-back; the packet finds those rows by this reason.
+BASE_TEST_DEVIATION_WHY = "base test change recorded by the runner"
 
 LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 SCOPE_DIFF_SCRIPT = FACTORY_DIR / "scripts" / "checks" / "scope_diff"
@@ -317,7 +321,7 @@ def _record_base_test_deviations(
         record.insert(
             conn, "deviation", ticket_id=ticket["id"], stage_run_id=stage_run_id,
             plan_item=plan_item, plan_said=plan_said, agent_did=f"{action} {path}",
-            why="base test change recorded by the runner", kind="judgment", contract_change=0,
+            why=BASE_TEST_DEVIATION_WHY, kind="judgment", contract_change=0,
         )
 
 

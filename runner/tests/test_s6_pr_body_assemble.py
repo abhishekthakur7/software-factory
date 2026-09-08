@@ -51,7 +51,7 @@ def test_pr_body_assemble_conformance_case(case, tmp_path):
 
 
 def test_the_pr_body_carries_the_packets_narrative_and_evidence_but_never_the_literal_diff(tmp_path):
-    """R-S6-1 criterion 4: `pr_body_assemble` produces the same narrative and evidence links
+    """R-S6-1: `pr_body_assemble` produces the same narrative and evidence links
     as `packet_assemble` over the identical inputs, but its own `Diff` section and the exact
     diff text never appear."""
     case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "full_ordered_pr_body")
