@@ -71,26 +71,14 @@ and tuples never being updated in place.
 
 ## Decisions this brief did not already settle
 
-- **`ticket.head_sha` cannot be updated in place under the current schema,
-  and this ticket does not touch `runner/schema.py`.** `head_sha` (like
-  `base_sha` and `target_base_sha`) has neither `mutable=True` nor a
-  `once=` group, so the schema's own append-only trigger aborts any
-  `record.update` naming it — confirmed directly: `record.update(conn,
-  "ticket", id, head_sha=...)` raises `sqlite3.IntegrityError`. There is
-  also no `updated_at` column pairing it, so the same call would fail on
-  "no such column" even before reaching that trigger. Criterion 8's test
-  therefore does not literally call `record.update` on `ticket.head_sha`;
-  instead it records the two S4 task commits as two `stage_run` rows
-  (`stage="S4"`, `run_kind="task"`) each carrying its resulting head in
-  `outputs` — the same free-form place `check_result.observed_head_sha`
-  already models a per-run head — and shows `plan_tuple_currency` is
-  unaffected by them. This is not a workaround for the assertion itself:
-  `PlanComponents` has no `head_sha` field at all, so no call this module
-  makes could ever compare against one; the test demonstrates that
-  guarantee by construction rather than by mutating a column the schema
-  does not allow moved. If a future ticket wants `ticket.head_sha` itself
-  to advance in place, that is a `runner/schema.py` change (adding
-  `mutable=True` or a settle group) outside this ticket's scope.
+- **`ticket.head_sha` was immutable in place when this ticket was built**,
+  so its head-advance test first stood in for the S4 hand-back with two
+  `stage_run` rows. The parallel fixture-project ticket made `head_sha` (with
+  `base_sha`, `target_base_sha`, `branch` and `worktree_path`) mutable in
+  place, and on merge the test was tightened to advance the real column
+  through `record.update` and read it back, which is the literal clause.
+  Currency still holds by construction: `PlanComponents` has no `head_sha`
+  field, so no head value can ever appear in `changed`.
 - `set_hash` hashes `{"members": sorted(hashes)}`, mirroring
   `approvals.approval_set_hash`'s `{"approvals": sorted(...)}` shape, so
   every "hash of a set of hashes" in the record follows the same pattern

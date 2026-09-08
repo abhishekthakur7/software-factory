@@ -47,3 +47,8 @@ def copy_tree(src: Path, dst: Path) -> None:
     resolved = _check(dst)
     resolved.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(src, resolved)
+
+
+def remove_tree(path: Path) -> None:
+    """Delete the directory `path` and everything under it; refuses a target inside `factory/`."""
+    shutil.rmtree(_check(path))

@@ -259,18 +259,16 @@ def test_a_gate_needs_every_required_slots_minimum_count_and_separation_met_on_t
 
 
 def test_plan_tuple_currency_ignores_head_advance_but_catches_a_changed_base_sha(conn):
-    """the plan tuple binds base_sha, never head_sha -- PlanComponents has no head_sha
-    field at all, so nothing about a ticket's evolving head can appear in `changed`.
-    Two S4 task-commit runs are seeded to stand in for the hand-back itself."""
+    """the plan tuple binds base_sha, never head_sha: an S4 hand-back that
+    advances the ticket's head through two task commits leaves it current,
+    and only a moved base makes it stale."""
     ticket_id = seed_ticket(conn, base_sha="base-sha-1", target_base_sha="base-sha-1", head_sha="commit-0")
     components = plan_components()
     plan_id = create_plan_tuple(conn, ticket_id, components)
 
     for commit in ("commit-1", "commit-2"):
-        record.insert(
-            conn, "stage_run", ticket_id=ticket_id, stage="S4", run_kind="task",
-            outputs=json.dumps({"head_sha": commit}),
-        )
+        record.update(conn, "ticket", ticket_id, head_sha=commit)
+    assert record.get(conn, "ticket", ticket_id)["head_sha"] == "commit-2"
 
     still_current = plan_tuple_currency(conn, plan_id, components)
     assert still_current == Currency(current=True, changed=())

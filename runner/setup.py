@@ -13,7 +13,6 @@ module calls, so the write barrier has nothing to enforce here beyond what
 it already enforces on `fs.copy_tree`.
 """
 import os
-import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -188,14 +187,14 @@ def materialise(
     if checkout.exists():
         if not force:
             raise SetupError(f"checkout already exists: {checkout} (pass force=True to replace it)")
-        shutil.rmtree(checkout)
+        fs.remove_tree(checkout)
     if vendor.exists():
         if not force:
             raise SetupError(f"vendor directory already exists: {vendor} (pass force=True to replace it)")
-        shutil.rmtree(vendor)
+        fs.remove_tree(vendor)
 
     fs.copy_tree(Path(seed_dir), checkout)
-    shutil.rmtree(checkout / "vendor")  # vendor/ is materialised separately, beside the checkout
+    fs.remove_tree(checkout / "vendor")  # vendor/ is materialised separately, beside the checkout
 
     fs.copy_tree(Path(seed_dir) / "vendor", vendor)
     _build_vendor_jars(vendor)
