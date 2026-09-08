@@ -1,0 +1,34 @@
+tiers: [light, standard, heavy]
+
+budgets:
+  by_tier:
+    light:
+      tokens: 1000
+      wall_clock_seconds: 60
+      requests_per_minute: 10
+    standard:
+      tokens: 2000
+      wall_clock_seconds: 120
+    heavy:
+      tokens: 4000
+      wall_clock_seconds: 240
+  overrides:
+    S5:
+      wall_clock_seconds: null
+
+s4_per_ticket:
+  light:
+    tokens: 5000
+    wall_clock_seconds: 300
+  standard:
+    tokens: 10000
+    wall_clock_seconds: 600
+  heavy:
+    tokens: 20000
+    wall_clock_seconds: 1200
+
+leases:
+  seconds: 300
+
+reasoning_summary:
+  max_words: 200

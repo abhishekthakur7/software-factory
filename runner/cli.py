@@ -1,4 +1,4 @@
-"""The `factory` command: `advance`, `run`, `show`, `queue`, `act`, `abandon`, `refresh-base`, `tag`, `report`.
+"""The `factory` command: `advance`, `run`, `show`, `queue`, `act`, `abandon`, `refresh-base`, `migrate-manifest`, `tag`, `report`.
 
 Each verb is a thin wrapper over an in-process function so tests (and any
 later API) can call the function directly without going through argument
@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import freshness, gates, outbox, queue, record, refresh_base, run_ledger, tags, transitions
+from runner import freshness, gates, manifest, outbox, queue, record, refresh_base, run_ledger, tags, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -176,6 +176,10 @@ def main(argv: list[str] | None = None) -> int:
     refresh_base_parser.add_argument("--actor", required=True)
     refresh_base_parser.add_argument("--note")
 
+    migrate_manifest_parser = subparsers.add_parser("migrate-manifest")
+    migrate_manifest_parser.add_argument("--actor", required=True)
+    migrate_manifest_parser.add_argument("--note")
+
     tag_parser = subparsers.add_parser("tag")
     tag_parser.add_argument("target")
     tag_parser.add_argument("kind")
@@ -219,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
                 conn, args.ticket_id, actor=args.actor, note=args.note,
                 target_branch=freshness.target_branch(), runs_dir=runs_dir,
             ))
+        elif args.verb == "migrate-manifest":
+            print(manifest.migrate(conn, actor=args.actor, note=args.note))
         elif args.verb == "tag":
             print(tags.tag(
                 conn, target=args.target, kind=args.kind, fm_id=args.fm,

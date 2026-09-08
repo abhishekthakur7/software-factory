@@ -113,8 +113,8 @@ COST_BASES: tuple[str, ...] = (
 # guard_decision.decision's closed set.
 GUARD_DECISIONS: tuple[str, ...] = ("allow", "redact", "deny")
 
-# approval_record.gate's closed set: the four gates an approval can bind.
-APPROVAL_GATES: tuple[str, ...] = ("trust_profile", "plan", "review", "graduation")
+# approval_record.gate's closed set: the five gates an approval can bind.
+APPROVAL_GATES: tuple[str, ...] = ("trust_profile", "plan", "review", "graduation", "manifest")
 
 # approval_record.decision's closed set.
 APPROVAL_DECISIONS: tuple[str, ...] = ("approve", "reject", "redirect")

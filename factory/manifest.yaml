@@ -138,7 +138,6 @@ files:
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/trust-profile.yaml
     content_hash: f7087e2418fe862598a0197b62716799862474a8a723048c7b5b1da57cfe9443
-    content_hash: ec29090a843d393d1198a1199d3ce2b23ca7e80d1393c1c476b4c01fbe59fd85
   - path: factory/config/project.yaml
     content_hash: 694736458ee748af4d52bbc6908b2d063c03656087812c6258eef4dcdae8bf1e
   - path: factory/config/service-tiers.yaml
@@ -203,30 +202,108 @@ files:
     content_hash: 7675b0cee397c1ce72209883f4dcb551783c25ceeb0ea3de680219d75e31493c
 stages:
   S0:
-    agent: null
-    skill: null
-    rubric: factory/rubrics/S0.md
+    default:
+      agent: null
+      skill: null
+      shared_skills: []
+      rubric: factory/rubrics/S0.md
+      tool_allowlist: []
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: "1.0.31"
+      model_requested: null
+      grader_model: null
+      sandbox_policy: thin
+      toolchain:
+        jdk: "17"
   S1:
-    agent: factory/agents/S1.md
-    skill: factory/skills/S1.md
-    rubric: factory/rubrics/S1.md
+    default:
+      agent: factory/agents/S1.md
+      skill: factory/skills/S1.md
+      shared_skills: []
+      rubric: factory/rubrics/S1.md
+      tool_allowlist: [read_file, write_file, run_command]
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: "1.0.31"
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: "17"
   S2:
-    agent: factory/agents/S2.md
-    skill: factory/skills/S2.md
-    rubric: factory/rubrics/S2.md
+    default:
+      agent: factory/agents/S2.md
+      skill: factory/skills/S2.md
+      shared_skills: []
+      rubric: factory/rubrics/S2.md
+      tool_allowlist: [read_file, write_file, run_command]
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: "1.0.31"
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: "17"
+      restatement_model: claude-sonnet-5
   S3:
-    agent: factory/agents/S3.md
-    skill: factory/skills/S3.md
-    rubric: factory/rubrics/S3.md
+    default:
+      agent: factory/agents/S3.md
+      skill: factory/skills/S3.md
+      shared_skills: []
+      rubric: factory/rubrics/S3.md
+      tool_allowlist: [read_file, write_file, run_command]
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: "1.0.31"
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: "17"
   S4:
-    agent: factory/agents/S4.md
-    skill: factory/skills/S4.md
-    rubric: factory/rubrics/S4.md
+    default:
+      agent: factory/agents/S4.md
+      skill: factory/skills/S4.md
+      shared_skills: []
+      rubric: factory/rubrics/S4.md
+      tool_allowlist: [read_file, write_file, run_command]
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: "1.0.31"
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: "17"
   S5:
-    agent: null
-    skill: null
-    rubric: factory/rubrics/S5.md
+    default:
+      agent: null
+      skill: null
+      shared_skills: []
+      rubric: factory/rubrics/S5.md
+      tool_allowlist: []
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: "1.0.31"
+      model_requested: null
+      grader_model: null
+      sandbox_policy: thin
+      toolchain:
+        jdk: "17"
   S6:
-    agent: null
-    skill: null
-    rubric: factory/rubrics/S6.md
+    default:
+      agent: null
+      skill: null
+      shared_skills: []
+      rubric: factory/rubrics/S6.md
+      tool_allowlist: []
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: "1.0.31"
+      model_requested: null
+      grader_model: null
+      sandbox_policy: thin
+      toolchain:
+        jdk: "17"
