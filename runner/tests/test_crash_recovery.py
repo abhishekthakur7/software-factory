@@ -12,12 +12,13 @@ undoing the patch immediately so every later liveness check in the same
 test runs the real function.
 """
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
 
-from runner import artefact_registry, cli, governance, outbox, owners, record, run_ledger
+from runner import artefact_registry, cli, git_trees, governance, outbox, owners, record, run_ledger
 from runner.db import connect
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
 
@@ -56,6 +57,37 @@ def _open_dead_run(monkeypatch, conn, *, table="stage_run", **kwargs):
         return run_ledger.open_utility_run(conn, **kwargs)
     finally:
         monkeypatch.undo()
+
+
+_COMMIT_ENV = {
+    "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+    "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+}
+
+
+def _give_real_base(conn, runs_dir, ticket_id):
+    """Clone a one-commit repository for the ticket and bind a plan tuple to its base.
+
+    The S4 and S5 boundaries fetch the configured target branch from the
+    ticket's own clone, so a ticket that reaches them needs a real
+    fetchable base, a recorded head, and a plan tuple bound to that base.
+    """
+    source = runs_dir / f"source-repo-{ticket_id}"
+    source.mkdir(parents=True)
+    for args in (["init", "-q"], ["checkout", "-q", "-b", "main"]):
+        subprocess.run(["git", *args], cwd=source, check=True, capture_output=True)
+    (source / "README.md").write_text("seed\n")
+    subprocess.run(["git", "add", "-A"], cwd=source, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init"],
+        cwd=source, check=True, capture_output=True, env={**os.environ, **_COMMIT_ENV},
+    )
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=runs_dir)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    record.insert(
+        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
+        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash=f"plan-subject-{ticket_id}",
+    )
 
 
 def _activate_default_profile(conn):
@@ -158,6 +190,7 @@ def test_outbox_reconciles_before_a_fresh_attempt_opens(conn, tmp_path, monkeypa
     dead lease or opening the fresh attempt it leads to."""
     _activate_default_profile(conn)
     ticket_id = _ticket_in(conn, **OUTBOX_FIRST["ticket"])
+    _give_real_base(conn, tmp_path, ticket_id)
     outbox.create_intent(
         conn, ticket_id=ticket_id, operation="digest",
         payload={"ticket_id": str(ticket_id), **OUTBOX_FIRST["digest_payload"]},
@@ -221,6 +254,8 @@ def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monk
     for prior_stage in spec.get("prior_passes", []):
         prior_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=prior_stage)
         run_ledger.finish(conn, prior_id, "pass")
+    if spec.get("real_base"):
+        _give_real_base(conn, tmp_path, ticket_id)
     conn.commit()
 
     dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage=stage, lease_seconds=-1)
