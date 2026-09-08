@@ -19,8 +19,14 @@ from pathlib import Path
 
 
 def _commit_authors(checkout: Path, branch: str, path: str, *, since: str) -> list[str]:
+    # `--since-as-filter`, never plain `--since`: the latter stops walking a
+    # branch's history as soon as it meets one commit older than the cutoff,
+    # so a single stray old-dated commit anywhere earlier in the branch --
+    # common after a rebase, import, or a preserved original author date --
+    # silently zeroes out every candidate whose real commits sit behind it,
+    # even though every one of them individually falls inside the window.
     result = subprocess.run(
-        ["git", "-C", str(checkout), "log", branch, f"--since={since}", "--pretty=format:%an", "--", path],
+        ["git", "-C", str(checkout), "log", branch, f"--since-as-filter={since}", "--pretty=format:%an", "--", path],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
