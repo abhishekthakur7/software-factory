@@ -67,3 +67,15 @@ cases:
     fixture: fixtures/rollout_reject
     expect: plan_rubric_reject
     rule: rollout_structured
+  # The bootstrap checklist's expected-instance set and completeness rule
+  # driven against the real committed S1.md/S2.md plus this
+  # fixture's own small S3-stage rubric files, by runner/tests/test_s3_checklist.py.
+  - name: checklist_complete
+    fixture: fixtures/checklist
+    expect: complete
+  - name: checklist_missing_instance
+    fixture: fixtures/checklist
+    expect: missing
+  - name: checklist_duplicate
+    fixture: fixtures/checklist
+    expect: duplicate

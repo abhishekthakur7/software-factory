@@ -289,7 +289,8 @@ files:
   - path: factory/evals/rubrics/S2/fixtures/r_s2_5_grader_pass/human_verdict.yaml
     content_hash: a735a2ebaa72fc85c439f6003ecad037ee8b3e00aaf2b3d034790a73bb9c11f3
   - path: factory/evals/rubrics/S3/eval.yaml
-    content_hash: 358c6d4403a952c752b2fd15721943a24d3555d65246ff7f72d44cdb7c1bc64e
+    content_hash: 316b0d8045c511ea1afe966276f12ddf6aaeb753d49a7b7b5982934fd74adfd9
+    content_hash: fb26721ca1b8e4cad6106b164035eeb5b9c2db09f1eaff6451ae3c63c18893d5
   - path: factory/evals/rubrics/S3/fixtures/missing_front_matter/S3.md
     content_hash: 4cba7669b435c786dcbcbd05ae92a1b33dc607ffac1a38ba3305cedf16948be7
   - path: factory/evals/rubrics/S3/fixtures/ok/S3.md
@@ -768,6 +769,20 @@ files:
     content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
   - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
     content_hash: 4d198f3b4aef350a47412f964e31ca62221f82788136fda6bd7fa1819ae4ec24
+  - path: factory/evals/rubrics/S3/fixtures/checklist/brief.md
+    content_hash: 64cd4add246672442f90dc25f05b2d941d1d62c9721127c81a6774fa50cd436b
+  - path: factory/evals/rubrics/S3/fixtures/checklist/criteria.md
+    content_hash: b5da3b6b794112461ed97697a85d59cdad7c8e5b792e367b86a2758e7be12173
+  - path: factory/evals/rubrics/S3/fixtures/checklist/expected.json
+    content_hash: 0028c62a5d3bb2bfe7cca060be7dc4f407c181b7fce5aec18ca30b48a4aaed3a
+  - path: factory/evals/rubrics/S3/fixtures/checklist/plan.md
+    content_hash: 8924974e3c8044622e69d76548f1a60487e7724b96b29b3a2525edc40c1e337c
+  - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_duplicate.md
+    content_hash: 0947150924b934e4270010bb035fd1f73cde7c8e175b0ddc48ebbbe97fddde67
+  - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_ok.md
+    content_hash: 16e5795835f789928d8b990ee01b5c25e6309fb26896aedd323d083e219fbe51
+  - path: factory/evals/rubrics/S3/fixtures/checklist/verdicts.yaml
+    content_hash: 462d0fda7fe130e316973aea545bc2a2beb9238e3edc5b3b6513180e823dd1a5
 stages:
   S0:
     default:

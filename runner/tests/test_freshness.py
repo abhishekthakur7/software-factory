@@ -16,7 +16,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import approvals, artefact_registry, canonical, cli, freshness, gates, git_trees, outbox, record, refresh_base, transitions
+from runner import (
+    approvals, artefact_registry, artefacts, binding, canonical, cli, freshness, gates, git_trees, manifest, outbox,
+    owners, plan_tuple, record, refresh_base, transitions,
+)
 from runner.db import connect
 from runner.deliverers.stub import StubDeliverer
 from runner.reviewer_sets import Slot
@@ -73,9 +76,12 @@ def conn(tmp_path):
     connection.close()
 
 
-def _clone_ticket(conn, tmp_path, source, *, state):
+def _clone_ticket(conn, tmp_path, source, *, state, **ticket_fields):
+    """`ticket_fields` are set at insert time -- `trust_profile_hash` and `trust_approval_set_hash`
+    are append-only columns, so a caller that needs them set must pass them here rather than
+    through a later `record.update`."""
     runs_dir = tmp_path / "runs"
-    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now(), **ticket_fields)
     trees = git_trees.clone_for_ticket(
         conn, ticket_id, source_checkout=source, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
     )
@@ -161,13 +167,55 @@ def test_advance_refuses_s4_on_a_stale_base_and_queues_exactly_one_red_check(con
     assert len(red_checks) == 1
 
 
+def _real_plan_quorum(conn, tmp_path, ticket_id) -> int:
+    """Build a real, currently-current plan tuple and a satisfying `plan` approval on it; return the tuple's id.
+
+    `gates.plan_review_gate` now derives quorum from `approvals.evaluate`
+    against the ticket's own latest plan tuple and refuses when
+    `plan_tuple.derive_components` no longer matches it, so the bare stub
+    row `_plan_tuple`/`_approve_plan` above seed (fine for the freshness
+    boundary tests, which never call this gate) cannot stand in here:
+    this ticket needs real registered artefacts, a real planned reviewer
+    set, and a plan tuple built the same way the checklist would build
+    one, before a real `approval_record` against its exact subject hash
+    can satisfy quorum. The caller must have inserted the ticket with
+    `trust_profile_hash`/`trust_approval_set_hash` already set (see
+    `_clone_ticket`'s `ticket_fields`) -- both are append-only columns.
+    """
+    record.update(conn, "ticket", ticket_id, factory_manifest_hash=manifest.current_hash())
+    for kind in ("brief", "criteria", "plan"):
+        path = tmp_path / f"{kind}.md"
+        path.write_text(f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
+
+    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
+    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    record.insert(
+        conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-1",
+        slots=json.dumps([slot.to_json()]),
+    )
+
+    ticket = record.get(conn, "ticket", ticket_id)
+    tuple_id = plan_tuple.ensure_current(conn, ticket)
+    subject_hash = record.get(conn, "evidence_tuple", tuple_id)["content_hash"]
+    approvals.record_approval(
+        conn, gate="plan", subject_hash=subject_hash, slot_id=slot.slot_id, actor_identity=identity,
+        role="s3_reviewer", decision="approve", authority_policy_hash="authority-1",
+        membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash="att-1",
+        ticket_id=ticket_id,
+    )
+    return tuple_id
+
+
 def test_plan_review_gate_withholds_plan_quorum_fresh_on_a_stale_base(conn, tmp_path):
     """R-S5-12: the plan-approval commit boundary."""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
-    ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="plan_review")
-    _plan_tuple(conn, ticket_id, trees.base_sha, content_hash="plan-review-1")
-    _approve_plan(conn, ticket_id, "plan-review-1")
+    ticket_id, trees, runs_dir = _clone_ticket(
+        conn, tmp_path, source, state="plan_review",
+        trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1",
+    )
+    _real_plan_quorum(conn, tmp_path, ticket_id)
 
     ticket = record.get(conn, "ticket", ticket_id)
     assert gates.plan_review_gate(conn, ticket, runs_dir=runs_dir) == "plan_quorum_fresh"
@@ -405,9 +453,11 @@ def test_refresh_base_returns_to_context_and_requires_a_new_plan_approval(conn, 
     """R-S5-12"""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
-    ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="plan_review")
-    old_plan_tuple_id = _plan_tuple(conn, ticket_id, trees.base_sha, content_hash="plan-old")
-    _approve_plan(conn, ticket_id, "plan-old")
+    ticket_id, trees, runs_dir = _clone_ticket(
+        conn, tmp_path, source, state="plan_review",
+        trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1",
+    )
+    old_plan_tuple_id = _real_plan_quorum(conn, tmp_path, ticket_id)
 
     _write_files(source, fixture["target_commit"]["files"])
     _commit_all(source, fixture["target_commit"]["message"])
@@ -416,14 +466,18 @@ def test_refresh_base_returns_to_context_and_requires_a_new_plan_approval(conn, 
     ticket = record.get(conn, "ticket", ticket_id)
     assert ticket["state"] == "context"
 
-    # the old plan tuple and its quorum are still on the ticket, but its
-    # own (unmoved) base_sha is now stale against the refreshed target --
-    # advancing again requires a new plan tuple and a new approval.
+    # The old plan tuple and its quorum are still on the ticket, but its
+    # own (unmoved) target_base_sha is now stale against the refreshed
+    # ticket -- plan_review_gate's own currency check catches this before
+    # ever reaching the live freshness fetch, so advancing again requires
+    # a new plan tuple (over the ticket's now-current target_base_sha) and
+    # a fresh approval on it.
     record.update(conn, "ticket", ticket_id, state="plan_review")
     ticket = record.get(conn, "ticket", ticket_id)
     assert gates.plan_review_gate(conn, ticket, runs_dir=runs_dir) is None
-    invalidated = freshness.invalidated_tuples(conn, ticket_id)
-    assert old_plan_tuple_id in invalidated
+    currency = binding.plan_tuple_currency(conn, old_plan_tuple_id, plan_tuple.derive_components(conn, ticket))
+    assert not currency.current
+    assert "target_base_sha" in currency.changed
 
 
 @pytest.fixture

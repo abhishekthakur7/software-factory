@@ -26,11 +26,10 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, artefacts, canonical, owners, questions, recipes, record
+from runner import artefact_registry, artefacts, canonical, owners, queue, questions, recipes, record, reviewer_sets
 from runner.checks import artefact_structure, exclusion, plan_rubric
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
-from runner.reviewer_sets import Slot
 
 ARTEFACT_KIND = "plan"
 PASS_EVENT = "s3_pass"
@@ -156,18 +155,33 @@ def _write_risk_map(
     return risk_map_path
 
 
-def _reviewer_set_json(run_dir: Path) -> Path:
-    """A single planned slot for the S3 reviewer role, from `owners.yaml`.
+def _scope_paths(plan_text: str) -> list[str]:
+    """The `Scope and discretion` table's `touch`/`create`/`delete` paths; a `discretion` glob contributes nothing."""
+    section = artefacts.parse(plan_text).section("Scope and discretion")
+    rows = section.table() if section is not None else None
+    return [row["path"] for row in (rows or []) if row.get("action") in ("touch", "create", "delete") and row.get("path")]
 
-    The real derivation from the plan's own scope belongs to a later
-    ticket; until then, S3's readiness check needs *a* reviewer-set input,
-    so this stands in with the one role every Initial ticket needs.
-    """
-    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+
+def _planned_reviewer_set(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, run_dir: Path, plan_text: str,
+) -> tuple[Path, reviewer_sets.Derivation]:
+    """Derive the planned reviewer set from the plan's own scope and write it for `handoff_ready --reviewer-set`."""
+    owners_obj = owners.load_owners()
+    identity = owners_obj.roles["s3_reviewer"]["identity"]
+    derivation = reviewer_sets.derive_planned(
+        conn,
+        ticket_id=ticket["id"],
+        repo_path=Path(ticket["worktree_path"]),
+        target_base_sha=ticket["target_base_sha"],
+        changed_paths=_scope_paths(plan_text),
+        owners=owners_obj,
+        sensitive_paths=exclusion.load_sensitive_paths(),
+        authority_policy_hash=owners.authority_policy_hash(),
+        membership_snapshot_hash=canonical.content_hash(owners.identity_snapshot(owners_obj, identity)),
+    )
     path = run_dir / "reviewer_set.json"
-    write_text(path, json.dumps([slot.to_json()], sort_keys=True))
-    return path
+    write_text(path, json.dumps([slot.to_json() for slot in derivation.slots], sort_keys=True))
+    return path, derivation
 
 
 def _questions_json(conn: sqlite3.Connection, ticket_id: int, run_dir: Path) -> Path:
@@ -247,7 +261,14 @@ def run(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_d
     questions_path = _questions_json(conn, ticket_id, run_dir)
     assumptions_path = _assumptions_json(conn, ticket_id, run_dir)
     risk_map_path = run_dir / "risk_map.json"
-    reviewer_set_path = _reviewer_set_json(run_dir)
+    reviewer_set_path, planned_derivation = _planned_reviewer_set(conn, ticket, run_dir, plan_text)
+    if planned_derivation.sensitive:
+        _record_check_result(
+            conn, stage_run_id, check_name="exclusion", passed=False,
+            detail=f"plan scope touches a sensitive path: {', '.join(planned_derivation.unresolved) or 'see reviewer_set.json'}",
+        )
+        exclusion.apply_recorded_exclusion(conn, ticket_id)
+        return "fail"
     handoff = subprocess.run(
         [
             str(HANDOFF_READY_SCRIPT), "--plan", str(working_path), "--criteria", str(criteria_artefact["path"]),
@@ -324,8 +345,17 @@ def run(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_d
 
     # (7) register the exact version handoff_ready wrote as the plan.
     prior = artefact_registry.latest(conn, ticket_id, ARTEFACT_KIND)
-    artefact_registry.register(
+    plan_artefact_id = artefact_registry.register(
         conn, ticket_id=ticket_id, kind=ARTEFACT_KIND, path=working_path, stage_run_id=stage_run_id,
         supersedes=prior["id"] if prior is not None else None,
+    )
+
+    # (8) open the one plan_approval item this pass raises; the item
+    # carries no subject of its own -- the plan tuple `queue.act` creates
+    # once the bootstrap checklist completes is the subject a human
+    # eventually approves.
+    queue.open_item(
+        conn, ticket_id=ticket_id, kind="plan_approval", stage="S3", tier=tier,
+        ref=f"artefact:{plan_artefact_id}", reviewer_set_id=planned_derivation.id,
     )
     return "pass"

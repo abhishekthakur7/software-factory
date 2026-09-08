@@ -25,7 +25,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from runner import approvals, canonical, outbox, owners, record, tags, transitions
+from runner import approvals, binding, canonical, outbox, owners, record, tags, transitions
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
@@ -38,7 +38,7 @@ ATTESTATION_VERSION = "queue-act-v1"
 ACTIONS: dict[str, frozenset[str]] = {
     "question": frozenset({"answer", "accept_default"}),
     "eligibility": frozenset({"granted", "declined", "edit_scrutiny", "override"}),
-    "plan_approval": frozenset({"approve", "redirect", "send_back", "abandon"}),
+    "plan_approval": frozenset({"approve", "redirect", "send_back", "abandon", "verdict"}),
     "packet_approval": frozenset({"approve", "request_changes", "send_back"}),
     "red_check": frozenset({"send_back", "abandon"}),
     "escalation": frozenset({"resume", "send_back", "abandon"}),
@@ -60,6 +60,12 @@ _BUCKET_REQUIRED_ACTIONS = frozenset({"approve", "redirect", "request_changes"})
 # Actions resolved with no further effect beyond the once-group settlement:
 # the decision is recorded on the item and a gate reads it later.
 _RESOLVE_ONLY_ACTIONS = frozenset({"granted", "declined", "edit_scrutiny", "close_inspection"})
+
+# A `fail` verdict sends the ticket back to the checklist line's own
+# stage, keyed by that stage's name.
+_CHECKLIST_SEND_BACK_EVENT: dict[str, str] = {
+    "S1": "send_back_to_context", "S2": "send_back_to_clarifying", "S3": "send_back_to_planning",
+}
 
 
 class ActionRefused(Exception):
@@ -142,6 +148,28 @@ def _resolve_slot(owners_obj: owners.Owners, actor: str, reviewer_set_row: sqlit
     return None
 
 
+def _plan_subject_hash(conn: sqlite3.Connection, ticket_id: int) -> str | None:
+    row = conn.execute(
+        "SELECT content_hash FROM evidence_tuple WHERE ticket_id = ? AND kind = 'plan' ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    return row["content_hash"] if row is not None else None
+
+
+def _approval_subject_hash(conn: sqlite3.Connection, item: sqlite3.Row) -> str | None:
+    """The subject a decision on `item` binds to.
+
+    Every other item kind carries its own subject on `approval_subject_hash`
+    at open time. A `plan_approval` item carries none: its subject is
+    whichever `plan` `evidence_tuple` is current for the ticket right now,
+    since the bootstrap checklist -- not S3 -- is what first creates one,
+    and a drift after that can replace it before a human ever approves.
+    """
+    if item["kind"] != "plan_approval":
+        return item["approval_subject_hash"]
+    return _plan_subject_hash(conn, item["ticket_id"])
+
+
 def _record_decision(
     conn: sqlite3.Connection,
     item: sqlite3.Row,
@@ -165,7 +193,7 @@ def _record_decision(
     approvals.record_approval(
         conn,
         gate=gate,
-        subject_hash=item["approval_subject_hash"],
+        subject_hash=_approval_subject_hash(conn, item),
         slot_id=slot.slot_id,
         actor_identity=actor,
         role=slot.role or "owner",
@@ -208,18 +236,128 @@ def _override(
     tags.tag(conn, target=f"ticket:{item['ticket_id']}", kind="override", fm_id=fm_id, actor=actor, note=note)
 
 
+def _instance_keys(instances) -> list[tuple[str, str]]:
+    return [(instance.rubric_line_id, instance.subject_item_key) for instance in instances]
+
+
+def _check_plan_approvable(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
+    """Refuse a `plan_approval` item's `approve` while its checklist is incomplete or its subject just drifted.
+
+    The race guard: `plan_tuple.ensure_current` is called again right
+    here, immediately before the decision is recorded, so a change that
+    landed after the checklist completed but before the human clicked
+    approve is caught the same way a change that landed earlier is --
+    the ticket's plan subject is never approved stale.
+    """
+    from runner import checklist, plan_tuple
+
+    ticket = record.get(conn, "ticket", item["ticket_id"])
+    expected = checklist.expected_instances(conn, ticket)
+    status = checklist.completeness(conn, ticket, expected)
+    if not status.complete:
+        raise ActionRefused(
+            f"plan_approval item {item['id']} checklist is incomplete: "
+            f"missing={_instance_keys(status.missing)} "
+            f"unwaived_blind_spots={_instance_keys(status.unwaived_blind_spots)} "
+            f"failed={_instance_keys(status.failed)}"
+        )
+
+    latest = conn.execute(
+        "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'plan' ORDER BY id DESC LIMIT 1",
+        (item["ticket_id"],),
+    ).fetchone()
+    components = plan_tuple.derive_components(conn, ticket)
+    currency = binding.plan_tuple_currency(conn, latest["id"], components) if latest is not None else None
+    plan_tuple.ensure_current(conn, ticket)
+    if latest is None or not currency.current:
+        changed = currency.changed if currency is not None else ("no_prior_plan_subject",)
+        raise ActionRefused(
+            f"plan_approval item {item['id']} refused: the plan subject changed ({', '.join(changed)}); "
+            f"a fresh subject was created and must be re-approved"
+        )
+
+
 def _approve(
     conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, owners_obj: owners.Owners,
     owners_path: Path, bucket: str | None, note: str | None, runs_dir: Path,
 ) -> None:
     kind = item["kind"]
     gate = "plan" if kind == "plan_approval" else "review"
+    if kind == "plan_approval":
+        _check_plan_approvable(conn, item)
     _record_decision(
         conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path,
         gate=gate, decision="approve", action="approve", bucket=bucket, note=note,
     )
     if kind == "packet_approval":
         outbox.intent_for_review_quorum(conn, item["ticket_id"], runs_dir=runs_dir)
+
+
+def _act_verdict(
+    conn: sqlite3.Connection,
+    item: sqlite3.Row,
+    *,
+    actor: str,
+    owners_obj: owners.Owners,
+    line: str | None,
+    key: str | None,
+    verdict: str | None,
+    evidence: list[int] | None,
+    waiver: int | None,
+    fm_id: str | None,
+    note: str | None,
+    rubric_paths,
+) -> bool:
+    """Record one `human_verdict` for `item`; return whether the item itself resolves.
+
+    Only a `fail` verdict resolves the item, by sending the ticket back to
+    the failing line's own stage -- `context` for S1, `clarifying` for S2,
+    `planning` for S3 -- and tagging the send-back (`fm_id` is therefore
+    required for a `fail`). A `pass` or `blind_spot` verdict leaves the
+    item open: the checklist may still have other instances outstanding,
+    and even a complete checklist still waits on the separate `approve`
+    action. When this verdict completes the checklist with no fail and no
+    unwaived blind spot, a fresh plan tuple is created in the same
+    transaction, so `approve`'s own race guard always finds a current
+    subject to check against.
+    """
+    from runner import checklist, plan_tuple
+
+    if line is None or key is None:
+        raise ActionRefused("verdict requires --line and --key")
+    if verdict not in checklist.VERDICTS:
+        raise ActionRefused(f"verdict must be one of {sorted(checklist.VERDICTS)}")
+
+    ticket = record.get(conn, "ticket", item["ticket_id"])
+    expected = checklist.expected_instances(conn, ticket, rubric_paths=rubric_paths)
+    instance = next((i for i in expected if i.rubric_line_id == line and i.subject_item_key == key), None)
+    if instance is None:
+        raise ActionRefused(f"no expected checklist instance for line {line!r} key {key!r}")
+
+    reviewer_set_row = _reviewer_set_for_item(conn, item)
+    if reviewer_set_row is None:
+        raise ActionRefused(f"queue item {item['id']} names no reviewer set to verdict against")
+    slot = _resolve_slot(owners_obj, actor, reviewer_set_row)
+    if slot is None:
+        raise ActionRefused(f"actor {actor!r} fits no slot on this item's reviewer set")
+
+    checklist.record_verdict(
+        conn, ticket=ticket, item=item, instance=instance, verdict=verdict,
+        evidence_ids=list(evidence or []), waiver_id=waiver, reviewer_identity=actor,
+        reviewer_role=slot.role or "owner", note=note, rubric_paths=rubric_paths,
+    )
+
+    if verdict == "fail":
+        if not fm_id:
+            raise ActionRefused("a fail verdict requires --fm-id")
+        stage = checklist.stage_of(instance.rubric_file)
+        transitions.apply(conn, item["ticket_id"], _CHECKLIST_SEND_BACK_EVENT[stage])
+        tags.tag(conn, target=f"queue_item:{item['id']}", kind="send_back", fm_id=fm_id, actor=actor, note=note)
+        return True
+
+    if checklist.completeness(conn, ticket, expected).complete:
+        plan_tuple.ensure_current(conn, ticket)
+    return False
 
 
 def _redirect(
@@ -347,8 +485,14 @@ def act(
     severity: str | None = None,
     option: int | None = None,
     tier: str | None = None,
+    line: str | None = None,
+    key: str | None = None,
+    verdict: str | None = None,
+    evidence: list[int] | None = None,
+    waiver: int | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
     runs_dir: Path = RUNS_DIR,
+    rubric_paths=None,
 ) -> str:
     """Record a human decision on `item_id` and, where the action permits it, apply its effect.
 
@@ -359,8 +503,14 @@ def act(
     for an `eligibility` item -- an invalid governance state. A
     `control_event` is recorded and returns without resolving the item;
     every other action settles the item's resolution columns before
-    returning.
+    returning. `rubric_paths`, a `verdict` action only, defaults to the
+    real pinned rubrics (`checklist.DEFAULT_RUBRIC_PATHS`); a test may
+    substitute its own small rubric file for a stage whose real one is
+    still a stub.
     """
+    from runner import checklist
+
+    rubric_paths = rubric_paths if rubric_paths is not None else checklist.DEFAULT_RUBRIC_PATHS
     item = record.get(conn, "queue_item", item_id)
     if item is None:
         raise LookupError(f"no such queue item: {item_id}")
@@ -402,6 +552,20 @@ def act(
             severity=severity, fm_id=fm_id, note=note,
         )
         return f"queue item {item_id}: control event recorded"
+
+    if action == "verdict":
+        # A verdict resolves the item only on a `fail` (a send-back); a
+        # `pass` or `blind_spot` records the row and returns without
+        # touching the item's own resolution columns, since the checklist
+        # may still have other instances outstanding.
+        resolves = _act_verdict(
+            conn, item, actor=actor, owners_obj=owners_obj, line=line, key=key, verdict=verdict,
+            evidence=evidence, waiver=waiver, fm_id=fm_id, note=note, rubric_paths=rubric_paths,
+        )
+        if not resolves:
+            return f"queue item {item_id}: verdict recorded"
+        _resolve(conn, item, actor=actor, action=action, note=note, bucket=bucket, owners_obj=owners_obj)
+        return f"queue item {item_id}: resolved with {action}"
 
     if action in ("answer", "accept_default"):
         _answer(conn, item, action=action, actor=actor, option=option, note=note)
@@ -494,17 +658,42 @@ def _question_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
 
 
 def _approval_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
-    lines = ["  approval records:"]
+    subject_hash = _approval_subject_hash(conn, item)
+    lines = [f"  subject: {subject_hash}", "  approval records:"]
     rows = conn.execute(
         "SELECT actor_identity, decision, active_attention_bucket FROM approval_record "
         "WHERE subject_hash = ? ORDER BY id",
-        (item["approval_subject_hash"],),
+        (subject_hash,),
     ).fetchall()
     for row in rows:
         lines.append(
             f"    {row['actor_identity']}: {row['decision']} "
             f"(active_attention_bucket: {row['active_attention_bucket']})"
         )
+    return lines
+
+
+def _plan_checklist_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
+    """`factory queue`'s own view of a `plan_approval` item: every expected instance and its newest verdict, or `missing`."""
+    from runner import checklist
+
+    ticket = record.get(conn, "ticket", item["ticket_id"])
+    if ticket is None:
+        return []
+    expected = checklist.expected_instances(conn, ticket)
+    status = checklist.completeness(conn, ticket, expected)
+    missing_keys = {(i.rubric_line_id, i.subject_item_key) for i in status.missing}
+    verdicts = {
+        (row["rubric_line_id"], row["subject_item_key"]): row["verdict"]
+        for row in checklist.verdict_set(conn, item["ticket_id"])
+    }
+    lines = ["  checklist:"]
+    for instance in expected:
+        pair = (instance.rubric_line_id, instance.subject_item_key)
+        state = "missing" if pair in missing_keys else verdicts.get(pair, "missing")
+        lines.append(f"    {instance.rubric_line_id} / {instance.subject_item_key}: {state}")
+    if status.unwaived_blind_spots:
+        lines.append(f"  unwaived blind spots: {_instance_keys(status.unwaived_blind_spots)}")
     return lines
 
 
@@ -519,6 +708,8 @@ def _item_block(conn: sqlite3.Connection, item: sqlite3.Row, owners_obj: owners.
     ]
     if item["kind"] in ("plan_approval", "packet_approval"):
         lines.extend(_approval_context(conn, item))
+    if item["kind"] == "plan_approval":
+        lines.extend(_plan_checklist_context(conn, item))
     if item["resolved_at"] is not None:
         lines.append(f"  queue latency: {latency_seconds(item)}s")
         lines.append(f"  outcome: {item['action']}")

@@ -67,31 +67,58 @@ def _reviewer_set(conn, ticket_id, *, kind, subject_hash, roles):
 
 
 
-def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn):
+def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn, tmp_path):
     """each reviewer's `active_attention_bucket`, `unknown` among them, shows
     on its own approval record -- distinct from the queue latency line and
     the decision outcome, never collapsed into one shared value."""
+    import json as _json
+
+    from runner import artefact_registry, artefacts, checklist, manifest, owners, plan_tuple
+    from runner.reviewer_sets import Slot
+
     ticket_id = record.insert(
         conn, "ticket", state="plan_review", opened_at=record.now(), title="multi-reviewer plan",
+        # Append-only columns: set at insert time, since the bootstrap
+        # checklist's own plan tuple requires both non-null.
+        trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1",
+        factory_manifest_hash=manifest.current_hash(), base_sha="base-1", target_base_sha="base-1",
     )
-    reviewer_set_id = _reviewer_set(
-        conn, ticket_id, kind="planned", subject_hash="plan-subj",
-        roles=["s3_reviewer", "sensitive_path_owner"],
+    for kind in ("brief", "criteria", "plan"):
+        path = tmp_path / f"{kind}.md"
+        path.write_text(f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
+
+    s3_identity = owners.load_owners().roles["s3_reviewer"]["identity"]
+    slots = [
+        Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=s3_identity, min_count=1),
+        Slot(source_rule="sensitive_paths:1", role="sensitive_path_owner", owner="second-reviewer", min_count=1),
+    ]
+    reviewer_set_id = record.insert(
+        conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-subj",
+        slots=_json.dumps([slot.to_json() for slot in slots]),
     )
     item_id = queue.open_item(
-        conn, ticket_id=ticket_id, kind="plan_approval", stage="S3", tier="standard",
-        approval_subject_hash="plan-subj", reviewer_set_id=reviewer_set_id,
+        conn, ticket_id=ticket_id, kind="plan_approval", stage="S3", tier="standard", reviewer_set_id=reviewer_set_id,
     )
     conn.commit()
 
-    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m")
+    ticket = record.get(conn, "ticket", ticket_id)
+    plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
+    for instance in checklist.expected_instances(conn, ticket):
+        queue.act(
+            conn, item_id=item_id, action="verdict", actor=s3_identity, line=instance.rubric_line_id,
+            key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]], runs_dir=tmp_path,
+        )
+    subject_hash = plan_tuple.current_subject(conn, record.get(conn, "ticket", ticket_id))
+
+    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
 
     # A second, independent reviewer record on the same subject records its
     # own bucket directly, standing in for a distinct actor's decision --
     # `record_approval` itself, not `act`, is what a second slot's actor calls.
     from runner import approvals
     approvals.record_approval(
-        conn, gate="plan", subject_hash="plan-subj", slot_id="second-slot",
+        conn, gate="plan", subject_hash=subject_hash, slot_id=slots[1].slot_id,
         actor_identity="second-reviewer", role="sensitive_path_owner", decision="approve",
         authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
         attestation_version="v1", attestation_hash="att-2", active_attention_bucket="unknown",
