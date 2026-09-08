@@ -156,16 +156,16 @@ def run(
     )
     index_reads_path = attempt_out_dir / "index_reads.md"
     if reads:
-        table = artefacts.render_table(
-            ("entry", "last_verified", "stale"),
+        index_reads_text = artefacts.render_table(
+            artefacts.BRIEF_TABLES["Index entries used"],
             [
                 {"entry": r.entry.path.name, "last_verified": r.entry.last_verified or "", "stale": "yes" if r.stale else "no"}
                 for r in reads
             ],
         )
-        write_text(index_reads_path, table + "\n")
     else:
-        write_text(index_reads_path, "no entries\n")
+        index_reads_text = "no entries"
+    write_text(index_reads_path, index_reads_text + "\n")
     index_reads_artefact_id = artefact_registry.register(
         conn, ticket_id=ticket_id, kind="index_reads", path=index_reads_path, stage_run_id=stage_run_id,
     )
@@ -226,11 +226,15 @@ def run(
         "files_touched": str(files_touched), "services_touched": str(services_touched), "unknowns": str(unknowns),
         "tier_provisional": tier_provisional, "tier_final": tier_final,
     }
-    checked_sections = []
-    for title in artefacts.SECTIONS["brief"]:
-        section = parsed.section(title)
-        body = artefacts.render_table(artefacts.BRIEF_TABLES["Final tier"], [final_tier_row]) if title == "Final tier" else section.body
-        checked_sections.append((title, body))
+    # Two sections are the runner's, not the agent's: what the index read
+    # actually recorded, and the tier the rule computed.
+    runner_sections = {
+        "Index entries used": index_reads_text,
+        "Final tier": artefacts.render_table(artefacts.BRIEF_TABLES["Final tier"], [final_tier_row]),
+    }
+    checked_sections = [
+        (title, runner_sections.get(title, parsed.section(title).body)) for title in artefacts.SECTIONS["brief"]
+    ]
     checked_path = attempt_out_dir / "brief.md"
     write_text(checked_path, artefacts.render(checked_sections, front_matter=parsed.front_matter))
     prior = artefact_registry.latest(conn, ticket_id, ARTEFACT_KIND)

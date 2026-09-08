@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, artefacts, git_trees, governance, manifest, record, rubrics, run_ledger
+from runner import artefact_registry, artefacts, context_index, git_trees, governance, manifest, record, rubrics, run_ledger
 from runner.checks import brief as checks_brief
 from runner.db import connect
 from runner.paths import FACTORY_DIR
@@ -503,10 +503,21 @@ def test_must_reject_reindex_when_codegraph_is_absent_from_path(monkeypatch):
 def test_must_reject_a_ticket_that_reaches_s1_without_s0_stamped_fields(conn, tmp_path, monkeypatch):
     """R-S1-8: the final-tier rule has no floor without a provisional tier, so a ticket missing S0's stamps is refused structurally, never guessed."""
     ticket_id = _ready_ticket(conn, tmp_path, tier_provisional=None)
-    outcome, stage_run_id = _run_s1_fixture(conn, tmp_path, ticket_id, "ok", monkeypatch=monkeypatch)
+    outcome, stage_run_id = _run_s1_fixture(conn, tmp_path, ticket_id, "plain_ok", monkeypatch=monkeypatch)
     assert outcome == ("fail", "structural")
     row = conn.execute(
         "SELECT result FROM check_result WHERE stage_run_id = ? AND check_name = 'ticket_lookups'", (stage_run_id,)
     ).fetchone()
     assert row["result"] == "fail"
     assert record.get(conn, "ticket", ticket_id)["tier_final"] is None
+
+
+def test_the_checked_brief_lists_the_index_entries_the_runner_read(conn, tmp_path, monkeypatch):
+    """R-S1-7: the brief's index section is the runner's record of the read, one row per entry with its staleness, never the agent's claim."""
+    ticket_id = _ready_ticket(conn, tmp_path, pom_dependencies=[("com.fixturevendor", "strings", "1.0.0")])
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(AGENT_FIXTURES_DIR / "plain_ok" / "out"))
+    assert run_stage(conn, ticket_id, "S1", runs_dir=tmp_path) == "pass"
+    rows = _checked_brief_table(conn, ticket_id, "Index entries used")
+    entries = {entry.path.name for entry in context_index.load_entries()}
+    assert {row["entry"] for row in rows} == entries
+    assert all(row["stale"] in ("yes", "no") for row in rows)
