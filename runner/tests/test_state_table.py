@@ -9,6 +9,7 @@ consistent. Fixture families under `fixtures/state_table/` back the
 gate-derived transitions; a small loader below inserts their rows through `record.insert`, resolving `$name` references
 to a previously inserted row's id.
 """
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -16,8 +17,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import gates, git_trees, record, tickets, transitions
+from runner import approvals, artefact_registry, artefacts, gates, git_trees, manifest, owners, plan_tuple, record, tickets, transitions
 from runner.db import connect
+from runner.reviewer_sets import Slot
 from runner.stages import run_stage
 from runner.state_table import TERMINAL_STATES
 from runner.transitions import TransitionRefused
@@ -54,20 +56,42 @@ def _plan_review_ticket(conn, tmp_path):
     with a plan tuple and quorum that match its real, fetchable base --
     `plan_review_gate` now runs the real `BEFORE_S4` freshness check, so a
     bare ticket with a hand-written `base_sha` string can no longer stand
-    in for one at this gate."""
+    in for one at this gate. It also now derives quorum from a real
+    planned reviewer set and refuses when `plan_tuple.derive_components`
+    no longer matches the latest tuple, so the tuple and its approval are
+    built the same way the checklist would build them rather than as bare
+    stub rows."""
     source = _source_repo(tmp_path)
-    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    # trust_profile_hash and trust_approval_set_hash are append-only
+    # columns: they must be set at insert time, not through the
+    # `record.update` call below.
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(),
+        trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1",
+    )
     runs_dir = tmp_path / "runs"
-    trees = git_trees.clone_for_ticket(
-        conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=runs_dir,
-    )
-    record.update(conn, "ticket", ticket_id, state="plan_review")
+    git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=runs_dir)
+    record.update(conn, "ticket", ticket_id, state="plan_review", factory_manifest_hash=manifest.current_hash())
+    for kind in ("brief", "criteria", "plan"):
+        path = tmp_path / f"{kind}.md"
+        path.write_text(f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
+
+    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
+    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
     record.insert(
-        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
-        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-1",
+        conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-1",
+        slots=json.dumps([slot.to_json()]),
     )
-    record.insert(
-        conn, "approval_record", ticket_id=ticket_id, gate="plan", decision="approve", subject_hash="plan-subject-1",
+
+    ticket = record.get(conn, "ticket", ticket_id)
+    tuple_id = plan_tuple.ensure_current(conn, ticket)
+    subject_hash = record.get(conn, "evidence_tuple", tuple_id)["content_hash"]
+    approvals.record_approval(
+        conn, gate="plan", subject_hash=subject_hash, slot_id=slot.slot_id, actor_identity=identity,
+        role="s3_reviewer", decision="approve", authority_policy_hash="authority-1",
+        membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash="att-1",
+        ticket_id=ticket_id,
     )
     return ticket_id, source, runs_dir
 

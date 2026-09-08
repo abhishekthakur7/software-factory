@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from runner import artefact_registry, cli, envelope, git_trees, governance, guard, launcher, owners, queue, recipes, record, run_ledger
+from runner import artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, owners, queue, recipes, record, run_ledger
 from runner.adapters import cursor_sdk
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
@@ -133,17 +133,23 @@ def _kill_and_restart(conn, ticket_id, stage, tmp_path):
     assert sum(1 for row in rows if row["outcome"] == "infrastructure_failure") == 1
 
 
-def _grant_plan_approval(conn, ticket_id, tmp_path, *, content_hash):
-    slots = json.dumps(
-        [{"source_rule": "plan:1", "role": "s3_reviewer", "min_count": 1, "distinct_from": [], "resolved": True}]
-    )
-    reviewer_set_id = record.insert(
-        conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash=f"planned-{ticket_id}", slots=slots,
-    )
-    item_id = queue.open_item(
-        conn, ticket_id=ticket_id, kind="plan_approval", reviewer_set_id=reviewer_set_id, approval_subject_hash=content_hash,
-    )
-    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
+    """Read the `plan_approval` item S3 opened, record a `pass` verdict for every expected
+    checklist instance citing the plan artefact, then approve -- the real path to `implementing`
+    now that the bootstrap checklist and the plan tuple are real rather than hand-seeded."""
+    item = conn.execute(
+        "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'plan_approval' AND resolved_at IS NULL "
+        "ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    ticket = record.get(conn, "ticket", ticket_id)
+    plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
+    for instance in checklist.expected_instances(conn, ticket):
+        queue.act(
+            conn, item_id=item["id"], action="verdict", actor=ABHISHEK, line=instance.rubric_line_id,
+            key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]], runs_dir=tmp_path,
+        )
+    queue.act(conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
 
 
 def _grant_packet_approval(conn, ticket_id, tmp_path, *, content_hash):
@@ -249,11 +255,7 @@ def _run_walk(tmp_path) -> WalkResult:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "plan_review"
 
-    record.insert(
-        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
-        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-1",
-    )
-    _grant_plan_approval(conn, ticket_id, tmp_path, content_hash="plan-subject-1")
+    _grant_plan_approval(conn, ticket_id, tmp_path)
     cli.advance(conn, ticket_id, tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
 
@@ -336,6 +338,53 @@ def test_the_walk_reaches_pr_opened_and_every_touched_table_carries_rows(walk):
     for table in TABLES:
         count = walk.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         assert count > 0, f"expected at least one {table} row"
+
+
+def test_every_expected_checklist_instance_has_a_verdict_and_no_runner_check_failed_through_s3(walk):
+    """R-S3-20: every semantic rubric line or half-line instance from S1 through S3 carries a
+    recorded `human_verdict` row, no runner-side `check_result` failed across the S0 through S3
+    attempts, and the ticket reached `implementing`."""
+    ticket = record.get(walk.conn, "ticket", walk.ticket_id)
+    expected = checklist.expected_instances(walk.conn, ticket)
+    assert expected
+    verdicted = {
+        (row["rubric_line_id"], row["subject_item_key"])
+        for row in walk.conn.execute(
+            "SELECT DISTINCT rubric_line_id, subject_item_key FROM human_verdict WHERE ticket_id = ?",
+            (walk.ticket_id,),
+        ).fetchall()
+    }
+    missing = [instance for instance in expected if (instance.rubric_line_id, instance.subject_item_key) not in verdicted]
+    assert not missing, f"no human_verdict recorded for {missing}"
+
+    failed = walk.conn.execute(
+        "SELECT check_result.check_name, stage_run.stage FROM check_result "
+        "JOIN stage_run ON stage_run.id = check_result.stage_run_id "
+        "WHERE stage_run.ticket_id = ? AND stage_run.stage IN ('S0', 'S1', 'S2', 'S3') "
+        "AND check_result.source = 'runner' AND check_result.result = 'fail'",
+        (walk.ticket_id,),
+    ).fetchall()
+    assert not failed, [(row["stage"], row["check_name"]) for row in failed]
+
+    assert walk.conn.execute(
+        "SELECT 1 FROM stage_run WHERE ticket_id = ? AND stage = 'S4' AND outcome = 'pass' LIMIT 1",
+        (walk.ticket_id,),
+    ).fetchone() is not None
+
+
+def test_every_earlier_ticket_wrote_its_build_brief_and_plan_pair():
+    """Under PRD decision 39 every ticket before this one hand-writes `docs/build/<id>/brief.md`
+    and `plan.md` before building; whichever earlier ticket directories have already landed in
+    this tree carry both files -- one present without the other is the defect this test exists to
+    catch, and this ticket itself is the one that first reads every pair back."""
+    build_dir = REPO_ROOT / "docs" / "build"
+    earlier_ids = [f"T-A-{n:02d}" for n in range(1, 27)]
+    present = [ticket_id for ticket_id in earlier_ids if (build_dir / ticket_id).is_dir()]
+    assert present, "no earlier ticket's docs/build directory was found"
+    for ticket_id in present:
+        for filename in ("brief.md", "plan.md"):
+            path = build_dir / ticket_id / filename
+            assert path.is_file(), f"{path} is missing"
 
 
 def test_a_wrong_state_stage_invocation_is_refused_and_recorded(walk):

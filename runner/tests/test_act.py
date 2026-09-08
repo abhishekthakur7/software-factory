@@ -26,11 +26,14 @@ source/service onto the ticket at creation, since `trust_profile_hash` and
 `trust_approval_set_hash` are themselves append-only.
 """
 import json
+import tempfile
+from pathlib import Path
 
 import pytest
 
-from runner import cli, governance, queue, record, tickets
+from runner import artefact_registry, artefacts, checklist, cli, governance, manifest, owners, queue, record, tickets
 from runner.db import connect
+from runner.reviewer_sets import Slot
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
@@ -87,9 +90,49 @@ def _reviewer_set(conn, ticket_id, *, kind, role, subject_hash):
     return record.insert(conn, "reviewer_set", ticket_id=ticket_id, kind=kind, subject_hash=subject_hash, slots=slots)
 
 
+def _seed_plan_approval_item(conn, ticket_id: int) -> int:
+    """A `plan_approval` item whose bootstrap checklist is already fully satisfied with `pass` verdicts.
+
+    A `plan_approval` item carries no `approval_subject_hash` of its own
+    -- its subject is the ticket's plan tuple, which only exists once the
+    checklist completes -- so every generic `plan_approval` pairing this
+    file exercises (`approve` included, which additionally refuses an
+    incomplete checklist) needs real registered artefacts and a verdict
+    on every expected instance, not just a bare reviewer set.
+    """
+    record.update(
+        conn, "ticket", ticket_id, factory_manifest_hash=manifest.current_hash(),
+        base_sha="base-1", target_base_sha="base-1",
+    )
+    stub_dir = Path(tempfile.mkdtemp())
+    for artefact_kind in ("brief", "criteria", "plan"):
+        path = stub_dir / f"{artefact_kind}.md"
+        path.write_text(f"## {artefacts.SECTIONS[artefact_kind][0]}\n\nstub\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=artefact_kind, path=path)
+    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
+    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    reviewer_set_id = record.insert(
+        conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-subj",
+        slots=json.dumps([slot.to_json()]),
+    )
+    item_id = queue.open_item(conn, ticket_id=ticket_id, kind="plan_approval", reviewer_set_id=reviewer_set_id)
+    ticket = record.get(conn, "ticket", ticket_id)
+    plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
+    for instance in checklist.expected_instances(conn, ticket):
+        queue.act(
+            conn, item_id=item_id, action="verdict", actor=identity, line=instance.rubric_line_id,
+            key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]], runs_dir=stub_dir,
+        )
+    return item_id
+
+
 def _seed_item(conn, kind: str) -> tuple[int, int]:
     """A ticket in `kind`'s natural state, plus one open item of that kind."""
     extra = _governed_ticket_fields(conn) if kind == "eligibility" else {}
+    if kind == "plan_approval":
+        # Append-only columns: must be set at insert time, since the
+        # bootstrap checklist's own plan tuple requires both non-null.
+        extra = {"trust_profile_hash": "trust-1", "trust_approval_set_hash": "trust-approval-1"}
     ticket_id = record.insert(conn, "ticket", state=_KIND_STATE[kind], opened_at=record.now(), **extra)
     kwargs: dict = {"ticket_id": ticket_id, "kind": kind}
     if kind == "question":
@@ -102,8 +145,7 @@ def _seed_item(conn, kind: str) -> tuple[int, int]:
         stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail")
         kwargs["ref"] = f"stage_run:{stage_run_id}"
     elif kind == "plan_approval":
-        kwargs["reviewer_set_id"] = _reviewer_set(conn, ticket_id, kind="planned", role="s3_reviewer", subject_hash="plan-subj")
-        kwargs["approval_subject_hash"] = "plan-subj"
+        return ticket_id, _seed_plan_approval_item(conn, ticket_id)
     elif kind == "packet_approval":
         kwargs["reviewer_set_id"] = _reviewer_set(conn, ticket_id, kind="effective", role="s6_reviewer", subject_hash="review-subj")
         kwargs["approval_subject_hash"] = "review-subj"

@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, cli, gates, git_trees, manifest, record, schema, transitions
+from runner import artefact_registry, checklist, cli, gates, git_trees, manifest, queue, record, schema, transitions
 from runner.db import connect
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, REPO_ROOT
@@ -94,6 +94,30 @@ def _source_repo(tmp_path):
     return repo
 
 
+def _grant_plan_approval(conn, ticket_id, tmp_path, *, actor="abhishek") -> None:
+    """Record a `pass` verdict for every expected checklist instance citing the plan artefact, then approve.
+
+    Real S3 opens the one `plan_approval` item and its planned reviewer
+    set; the bootstrap checklist's own approval path is the only way to
+    reach a satisfied plan subject now that `plan_review_gate` derives
+    quorum and currency for real, so a hand-seeded evidence_tuple and a
+    bare approval_record (the old stand-in) no longer reach `implementing`.
+    """
+    item = conn.execute(
+        "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'plan_approval' AND resolved_at IS NULL "
+        "ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    ticket = record.get(conn, "ticket", ticket_id)
+    plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
+    for instance in checklist.expected_instances(conn, ticket):
+        queue.act(
+            conn, item_id=item["id"], action="verdict", actor=actor, line=instance.rubric_line_id,
+            key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]], runs_dir=tmp_path,
+        )
+    queue.act(conn, item_id=item["id"], action="approve", actor=actor, bucket="under_2m", runs_dir=tmp_path)
+
+
 def _build_completed_walk(db_path, tmp_path) -> None:
     """Walk one ticket S0 through `merged` with the real stub stages and
     transitions (see `test_stub_stages.py`), then layer on the rows the
@@ -106,6 +130,10 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         # invokes a real (fixture) agent, and every stage past S0 refuses
         # an invocation whose pin does not match it.
         factory_manifest_hash=manifest.current_hash(), tier_final="light",
+        # Set at insert time: both are append-only columns, and the plan
+        # tuple the bootstrap checklist creates once S3 passes requires
+        # both to be non-null.
+        trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1",
         # A real pilot-eligible pair, since S0's lookups now reject rather
         # than stub-pass an unresolvable service or ticket type.
         service="fixture-project", ticket_type="small_feature",
@@ -161,14 +189,7 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
     assert s3_outcome == "pass", f"S3 must pass for this walk to reach later stages, got {s3_outcome!r}"
 
-    record.insert(
-        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
-        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan_subject_1",
-    )
-    record.insert(
-        conn, "approval_record", ticket_id=ticket_id, gate="plan", subject_hash="plan_subject_1",
-        decision="approve", role="engineer", active_attention_bucket="under_2m",
-    )
+    _grant_plan_approval(conn, ticket_id, tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
     transitions.apply(
         conn, ticket_id, gates.plan_review_gate(conn, ticket, runs_dir=tmp_path)
