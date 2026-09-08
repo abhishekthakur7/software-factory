@@ -8,7 +8,10 @@ length live in `factory/config/tiers.yaml`, read fresh on every call: it is
 versioned config an engineer edits by hand, not a value worth caching against
 the risk of serving a stale copy after an edit.
 """
+import os
+import socket
 import sqlite3
+import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -37,6 +40,30 @@ def _lease_fields(lease_seconds: int | None) -> tuple[str, str]:
     heartbeat_at = now.isoformat(timespec="seconds")
     lease_expires_at = (now + timedelta(seconds=lease_seconds)).isoformat(timespec="seconds")
     return heartbeat_at, lease_expires_at
+
+
+def process_identity(pid: int | None = None) -> str:
+    """`host:pid:start` for `pid` (this process by default), or `None` for a pid that is gone.
+
+    The start time is part of the identity so a recycled pid on the same
+    host can never be mistaken for the process that took the lease: the
+    liveness check compares the whole string, not the pid alone.
+    """
+    pid = os.getpid() if pid is None else pid
+    started = subprocess.run(
+        ["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True
+    ).stdout.strip()
+    if not started:
+        return None
+    return f"{socket.gethostname()}:{pid}:{started}"
+
+
+def process_alive(identity: str | None) -> bool:
+    """Whether the process `identity` names still exists with the same start time."""
+    if not identity:
+        return False
+    pid = int(identity.split(":", 2)[1])
+    return process_identity(pid) == identity
 
 
 def _next_attempt(conn: sqlite3.Connection, ticket_id: int, stage: str) -> int:
@@ -68,6 +95,7 @@ def open_stage_run(
         run_kind=run_kind,
         parent_run_id=parent_run_id,
         tier=tier,
+        process_identity=process_identity(),
         started_at=heartbeat_at,
         heartbeat_at=heartbeat_at,
         lease_expires_at=lease_expires_at,
@@ -92,6 +120,7 @@ def open_utility_run(
         kind=kind,
         inputs=inputs,
         outputs=outputs,
+        process_identity=process_identity(),
         started_at=heartbeat_at,
         heartbeat_at=heartbeat_at,
         lease_expires_at=lease_expires_at,

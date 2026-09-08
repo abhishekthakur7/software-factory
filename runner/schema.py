@@ -126,6 +126,67 @@ REVIEWER_SET_KINDS: tuple[str, ...] = ("planned", "actual", "effective")
 # evidence_tuple.kind's closed set.
 EVIDENCE_TUPLE_KINDS: tuple[str, ...] = ("plan", "review")
 
+# queue_item.kind's closed set: every Initial kind of item that needs a human.
+QUEUE_ITEM_KINDS: tuple[str, ...] = (
+    "question",
+    "eligibility",
+    "plan_approval",
+    "packet_approval",
+    "red_check",
+    "escalation",
+    "manual_pause",
+    "pr_outcome",
+    "rubric_inspection",
+)
+
+# The coarse active-attention bucket a human enters on a plan or review
+# decision, and may enter on any other queue action. `unknown` is a value
+# in its own right: the factory never derives a bucket from editor
+# activity, so an unentered bucket is recorded as unknown, not inferred.
+ATTENTION_BUCKETS: tuple[str, ...] = (
+    "under_2m",
+    "2_to_5m",
+    "5_to_15m",
+    "15_to_30m",
+    "over_30m",
+    "unknown",
+)
+
+# external_write.operation's closed set: the four Initial outbox intents.
+EXTERNAL_WRITE_OPERATIONS: tuple[str, ...] = ("pr_create", "pr_update", "digest", "jira_feedback")
+
+# external_write.state's closed set. `pending` is created and not yet
+# sent; `sending` is ambiguous (the deliverer was called and no receipt
+# was stored) and must reconcile before anything else under its key;
+# `reconciled` holds a receipt whose remote object matches the intent;
+# `failed` and `superseded` are terminal for the row.
+EXTERNAL_WRITE_STATES: tuple[str, ...] = ("pending", "sending", "reconciled", "failed", "superseded")
+
+# tag.event_kind's closed set.
+TAG_EVENT_KINDS: tuple[str, ...] = (
+    "revision_after_approval",
+    "incident",
+    "control_defect",
+    "override",
+    "abandoned",
+    "escalation",
+    "stale_index",
+    "send_back",
+    "packet_defect",
+    "policy_exception",
+)
+
+# incident_observation.record_kind's closed set: an event root, a
+# disposition over a root, or a coverage record, in the production and
+# control series.
+INCIDENT_RECORD_KINDS: tuple[str, ...] = (
+    "production_incident_event",
+    "production_disposition",
+    "production_coverage",
+    "control_defect_event",
+    "control_disposition",
+)
+
 # utility_run.kind's closed set: work that is not itself a ticket stage.
 UTILITY_KINDS: tuple[str, ...] = (
     "setup",
@@ -154,7 +215,9 @@ TABLES: tuple[Table, ...] = (
             Column("service", "TEXT"),
             Column("service_tier", "TEXT"),
             Column("ticket_type", "TEXT"),
-            Column("factory_manifest_hash", "TEXT"),
+            # Pinned at eligibility; moved only by a human-approved manifest
+            # migration, which returns the ticket to context.
+            Column("factory_manifest_hash", "TEXT", mutable=True),
             Column("tier_provisional", "TEXT"),
             Column("tier_final", "TEXT"),
             Column("tier_override_by", "TEXT", mutable=True),
@@ -212,6 +275,10 @@ TABLES: tuple[Table, ...] = (
             Column("run_kind", "TEXT", values=RUN_KINDS),
             Column("parent_run_id", "INTEGER", references="stage_run.id"),
             Column("tier", "TEXT"),
+            # The operating-system process that holds the lease, so a restart
+            # can tell a slow live run from a dead one: a lease is expired
+            # only when it has lapsed and this process is gone too.
+            Column("process_identity", "TEXT"),
             Column("runtime", "TEXT"),
             Column("runtime_version", "TEXT"),
             Column("adapter_version", "TEXT"),
@@ -256,6 +323,7 @@ TABLES: tuple[Table, ...] = (
             Column("inputs", "TEXT"),
             Column("outputs", "TEXT"),
             Column("manifest_hash", "TEXT"),
+            Column("process_identity", "TEXT"),
             # Same runtime/model identity fields as stage_run, filled only
             # when the utility run uses an agent.
             Column("runtime", "TEXT"),
@@ -326,7 +394,7 @@ TABLES: tuple[Table, ...] = (
             Column("ticket_id", "INTEGER", references="ticket.id"),
             Column("stage", "TEXT"),
             Column("tier", "TEXT"),
-            Column("kind", "TEXT"),
+            Column("kind", "TEXT", values=QUEUE_ITEM_KINDS),
             # Polymorphic: a question_set, question, artefact, check_result
             # or stage_run id depending on `kind` — not a single-table FK.
             Column("ref", "TEXT"),
@@ -337,7 +405,7 @@ TABLES: tuple[Table, ...] = (
             Column("note", "TEXT", once="resolved_at"),
             Column("approval_subject_hash", "TEXT"),
             Column("reviewer_set_id", "INTEGER", references="reviewer_set.id"),
-            Column("active_attention_bucket", "TEXT", once="resolved_at"),
+            Column("active_attention_bucket", "TEXT", once="resolved_at", values=ATTENTION_BUCKETS),
             Column("updated_at", "TEXT", mutable=True),
         ),
     ),
@@ -548,7 +616,7 @@ TABLES: tuple[Table, ...] = (
             Column("evidence_ids", "TEXT"),
             Column("evidence_hashes", "TEXT"),
             Column("decision_supported_without_transcript", "INTEGER"),
-            Column("active_attention_bucket", "TEXT"),
+            Column("active_attention_bucket", "TEXT", values=ATTENTION_BUCKETS),
             Column("decided_at", "TEXT"),
             Column("expires_at", "TEXT"),
             Column("supersedes", "INTEGER", references="approval_record.id"),
@@ -631,7 +699,7 @@ TABLES: tuple[Table, ...] = (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
             Column("stage_run_id", "INTEGER", references="stage_run.id"),
-            Column("operation", "TEXT"),
+            Column("operation", "TEXT", values=EXTERNAL_WRITE_OPERATIONS),
             Column("idempotency_key", "TEXT"),
             Column("payload_artefact_id", "INTEGER", references="artefact.id"),
             Column("payload_digest", "TEXT"),
@@ -648,7 +716,7 @@ TABLES: tuple[Table, ...] = (
             Column("pr_body_hash", "TEXT"),
             Column("revision", "INTEGER"),
             Column("remote_pr_identity", "TEXT", mutable=True),
-            Column("state", "TEXT", mutable=True),
+            Column("state", "TEXT", mutable=True, values=EXTERNAL_WRITE_STATES),
             Column("attempt_count", "INTEGER", mutable=True),
             Column("remote_identity", "TEXT", mutable=True),
             Column("receipt_artefact_id", "INTEGER", references="artefact.id", mutable=True),
@@ -662,7 +730,7 @@ TABLES: tuple[Table, ...] = (
         (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
-            Column("event_kind", "TEXT"),
+            Column("event_kind", "TEXT", values=TAG_EVENT_KINDS),
             Column("fm_id", "TEXT", nullable=False),
             # Polymorphic: the stage run, question/version, artefact, queue
             # item, approval record, or external incident this tag names.
@@ -681,9 +749,7 @@ TABLES: tuple[Table, ...] = (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
             Column("factory_manifest_hash", "TEXT"),
-            # production_incident_event | production_disposition |
-            # production_coverage | control_defect_event | control_disposition
-            Column("record_kind", "TEXT"),
+            Column("record_kind", "TEXT", values=INCIDENT_RECORD_KINDS),
             Column("control_category", "TEXT"),
             Column("recorder_identity", "TEXT"),
             Column("recorder_role", "TEXT"),

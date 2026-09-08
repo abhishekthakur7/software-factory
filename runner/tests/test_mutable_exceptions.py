@@ -23,7 +23,7 @@ ALLOWED_COLUMNS = {
         "opened_at", "factory_completed_at", "closed_at", "close_reason",
         "pr_url", "pr_identity", "last_remote_head_sha", "last_pr_body_hash",
         "base_sha", "target_base_sha", "branch", "worktree_path", "head_sha",
-        "updated_at",
+        "factory_manifest_hash", "updated_at",
     },
     "stage_run": {
         "outcome", "failure_kind", "started_at", "heartbeat_at",
@@ -208,7 +208,7 @@ def test_queue_item_resolution_can_be_written_once(tmp_path):
     conn.execute(
         "UPDATE queue_item SET resolved_at = ?, resolved_by = ?, action = ?, "
         "note = ?, active_attention_bucket = ? WHERE id = ?",
-        ("2026-01-01T00:00:00+00:00", "reviewer", "approve", "looks fine", "none", queue_item_id),
+        ("2026-01-01T00:00:00+00:00", "reviewer", "approve", "looks fine", "unknown", queue_item_id),
     )
 
     row = record.get(conn, "queue_item", queue_item_id)
@@ -223,7 +223,7 @@ def test_must_reject_queue_item_resolution_second_write(tmp_path):
     conn.execute(
         "UPDATE queue_item SET resolved_at = ?, resolved_by = ?, action = ?, "
         "note = ?, active_attention_bucket = ? WHERE id = ?",
-        ("2026-01-01T00:00:00+00:00", "reviewer", "approve", "looks fine", "none", queue_item_id),
+        ("2026-01-01T00:00:00+00:00", "reviewer", "approve", "looks fine", "unknown", queue_item_id),
     )
 
     with pytest.raises(sqlite3.IntegrityError):
