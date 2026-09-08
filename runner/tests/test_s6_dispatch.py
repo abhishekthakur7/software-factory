@@ -81,7 +81,7 @@ def give_real_base(conn, runs_dir, ticket_id) -> None:
 
 
 def test_full_quorum_on_a_ticket_with_no_pr_identity_creates_one_pr_create_intent_with_a_receipt(conn, runs_dir, profile_paths):
-    """R-S6-10, criterion 9 (create half)."""
+    """R-S6-10: full quorum on a ticket with no PR identity creates one `pr_create` intent through the stub deliverer."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -108,7 +108,7 @@ def test_full_quorum_on_a_ticket_with_no_pr_identity_creates_one_pr_create_inten
 
 
 def test_a_second_quorum_after_a_recorded_revision_creates_one_pr_update_intent_with_a_receipt(conn, runs_dir, profile_paths):
-    """R-S6-10, criterion 9 (update half): a ticket seeded at `pr_opened` with a recorded revision."""
+    """R-S6-10: a ticket seeded at `pr_opened` with a recorded revision gets one `pr_update` intent on a second quorum."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)

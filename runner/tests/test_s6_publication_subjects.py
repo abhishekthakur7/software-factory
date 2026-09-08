@@ -23,8 +23,8 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures" / "s6_publication"
 TICKET_FIXTURE = yaml.safe_load((FIXTURES_DIR / "ticket.yaml").read_text())["base"]
 
 # The pilot's one committed identity: every role in the real `owners.yaml`
-# resolves to it, which is exactly what the separation (criterion 6) and
-# expiry (criterion 8) tests below need -- two *different* required roles,
+# resolves to it, which is exactly what the separation and
+# expiry tests below need -- two *different* required roles,
 # both held by the one real actor the authority check must still accept.
 S6_REVIEWER_IDENTITY = owners.load_owners().roles["s6_reviewer"]["identity"]
 SENSITIVE_PATH_OWNER_IDENTITY = owners.load_owners().roles["sensitive_path_owner"]["identity"]
@@ -99,11 +99,8 @@ def _write_project_config(path: Path, *, name: str, target_branch: str) -> None:
     path.write_text(yaml.safe_dump({"name": name, "target_branch": target_branch}))
 
 
-# --- publication_target (criterion 1) -----------------------------------
-
-
 def test_publication_target_folds_operation_repository_refs_identity_and_heads(conn):
-    """R-S6-10, criterion 1: a ticket with no PR identity yet hashes a `pr_create` target."""
+    """R-S6-10: a ticket with no PR identity yet hashes a `pr_create` target."""
     ticket_id = seed_ticket(conn, branch="feature/x", head_sha="head-1", pr_identity=None, last_remote_head_sha=None)
     ticket = record.get(conn, "ticket", ticket_id)
     target = publication.publication_target(conn, ticket)
@@ -121,7 +118,7 @@ def test_publication_target_folds_operation_repository_refs_identity_and_heads(c
 
 
 def test_publication_target_is_pr_update_once_the_ticket_carries_a_pr_identity(conn):
-    """R-S6-10, criterion 1: a ticket already carrying `pr_identity` hashes a `pr_update` target."""
+    """R-S6-10: a ticket already carrying `pr_identity` hashes a `pr_update` target."""
     ticket_id = seed_ticket(conn, pr_identity="fixture-project#1", last_remote_head_sha="head-0")
     ticket = record.get(conn, "ticket", ticket_id)
     target = publication.publication_target(conn, ticket)
@@ -130,11 +127,8 @@ def test_publication_target_is_pr_update_once_the_ticket_carries_a_pr_identity(c
     assert target.expected_prior_remote_head_sha == "head-0"
 
 
-# --- review_approval_subject (criterion 2) ------------------------------
-
-
 def test_review_approval_subject_folds_every_named_component(conn, runs_dir):
-    """R-S6-10, criterion 2."""
+    """R-S6-10."""
     ticket_id = seed_ticket(conn)
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     review_tuple_id, _ = seed_review_tuple(conn, ticket_id, runs_dir, slots=[slot], content_hash="review-1")
@@ -168,7 +162,7 @@ def test_review_approval_subject_folds_every_named_component(conn, runs_dir):
 
 
 def test_review_approval_subject_orders_bound_check_result_hashes_by_id_not_by_value(conn, runs_dir):
-    """R-S6-10, criterion 2: the check-result hashes are the canonical *ordered* set, in id order."""
+    """R-S6-10: the check-result hashes are the canonical *ordered* set, in id order."""
     ticket_id = seed_ticket(conn)
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     review_tuple_id, _ = seed_review_tuple(conn, ticket_id, runs_dir, slots=[slot], content_hash="review-order")
@@ -191,7 +185,7 @@ def test_review_approval_subject_orders_bound_check_result_hashes_by_id_not_by_v
 
 @pytest.mark.parametrize("missing", ["review_tuple", "check_result", "packet"])
 def test_must_reject_review_approval_subject_when_a_required_component_is_missing(conn, runs_dir, missing):
-    """R-S6-10, criterion 2 (refusal half): each component is required, checked independently."""
+    """R-S6-10: each component is required, checked independently."""
     ticket_id = seed_ticket(conn)
     if missing == "review_tuple":
         pass
@@ -224,11 +218,10 @@ def test_must_reject_review_approval_subject_when_a_required_component_is_missin
         publication.review_approval_subject(conn, ticket_id)
 
 
-# --- sensitivity to bound evidence and the destination (criteria 3-4) --
 
 
 def test_changing_a_bound_check_result_changes_the_review_approval_subject_hash(conn, runs_dir):
-    """R-S6-10, criterion 3."""
+    """R-S6-10."""
     slot = Slot(source_rule="owners", role="s6_reviewer")
     ticket_a = seed_ticket(conn)
     seed_review_tuple(conn, ticket_a, runs_dir, slots=[slot], content_hash="review-shared", check_result_hash="check-a")
@@ -242,7 +235,7 @@ def test_changing_a_bound_check_result_changes_the_review_approval_subject_hash(
 
 
 def test_changing_the_head_ref_or_desired_head_changes_the_target_and_the_subject(conn, runs_dir):
-    """R-S6-10, criterion 4: a different head ref or desired head hashes a different publication target
+    """R-S6-10: a different head ref or desired head hashes a different publication target
     and therefore a different review-approval subject."""
     slot = Slot(source_rule="owners", role="s6_reviewer")
     ticket_a = seed_ticket(conn, branch="feature/a", head_sha="head-a")
@@ -260,7 +253,7 @@ def test_changing_the_head_ref_or_desired_head_changes_the_target_and_the_subjec
 
 
 def test_changing_the_repository_or_target_ref_changes_the_publication_target_hash(conn, tmp_path):
-    """R-S6-10, criterion 4: the project configuration's own repository name and target branch are bound too."""
+    """R-S6-10: the project configuration's own repository name and target branch are bound too."""
     ticket_id = seed_ticket(conn)
     ticket = record.get(conn, "ticket", ticket_id)
     project_a = tmp_path / "project_a.yaml"
@@ -272,11 +265,8 @@ def test_changing_the_repository_or_target_ref_changes_the_publication_target_ha
     assert target_a.hash != target_b.hash
 
 
-# --- quorum: count, separation, authority, expiry (criteria 5-8) -------
-
-
 def test_fewer_approval_records_than_the_slots_minimum_count_refuses_publication(conn, runs_dir):
-    """R-S6-10, criterion 5."""
+    """R-S6-10."""
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=2)
     ticket_id = seed_ticket(conn)
     seed_review_tuple(conn, ticket_id, runs_dir, slots=[slot], content_hash="review-min-count")
@@ -289,7 +279,7 @@ def test_fewer_approval_records_than_the_slots_minimum_count_refuses_publication
 
 
 def test_distinct_from_slots_satisfied_by_the_same_actor_refuses_publication(conn, runs_dir):
-    """R-S6-10, criterion 6."""
+    """R-S6-10."""
     slot_a = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     slot_b = Slot(source_rule="sensitive_paths", role="sensitive_path_owner", min_count=1, distinct_from=(slot_a.slot_id,))
     slot_a = replace(slot_a, distinct_from=(slot_b.slot_id,))
@@ -305,7 +295,7 @@ def test_distinct_from_slots_satisfied_by_the_same_actor_refuses_publication(con
 
 
 def test_an_approval_the_authority_policy_no_longer_permits_for_the_slot_refuses_publication(conn, runs_dir):
-    """R-S6-10, criterion 7."""
+    """R-S6-10."""
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     ticket_id = seed_ticket(conn)
     seed_review_tuple(conn, ticket_id, runs_dir, slots=[slot], content_hash="review-unauthorised")
@@ -318,7 +308,7 @@ def test_an_approval_the_authority_policy_no_longer_permits_for_the_slot_refuses
 
 
 def test_expired_approvals_invalidate_the_set_and_fresh_full_quorum_satisfies_it(conn, runs_dir):
-    """R-S6-10, criterion 8: two required slots' approvals both expire; nothing counts until two
+    """R-S6-10: two required slots' approvals both expire; nothing counts until two
     fresh records against the same subject satisfy them."""
     slot_a = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     slot_b = Slot(source_rule="sensitive_paths", role="sensitive_path_owner", min_count=1)

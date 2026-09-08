@@ -30,7 +30,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import canonical, record
+from runner import canonical, publication, record
 from runner.paths import PROJECT_CONFIG, RUNS_DIR
 
 BEFORE_S4 = "before_s4"
@@ -199,8 +199,6 @@ def check(
             # results, waivers, packet, `pr_body`, and publication target, any
             # of which moving underneath a pending intent is exactly what this
             # boundary exists to catch.
-            from runner import publication
-
             try:
                 current_subject_hash = publication.review_approval_subject(conn, ticket_id).hash
             except publication.PublicationSubjectIncomplete:

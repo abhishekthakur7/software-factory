@@ -47,11 +47,8 @@ def _seed_escalation_item_with_failure_history(conn, ticket_id, tmp_path, *, fai
     return item_id, history_id
 
 
-# --- criterion 14: the engineer's own reading, on both surfaces --------
-
-
 def test_a_true_self_containedness_answer_is_recorded_on_the_approval_record_and_the_answer_row(conn, runs_dir):
-    """R-H-8, criterion 14: standing in for a grader at A, the engineer's own reading is recorded
+    """R-H-8: standing in for a grader at A, the engineer's own reading is recorded
     on a packet decision's `approval_record` and on a question's `answer` row."""
     ticket_id = seed_ticket(conn, state="review")
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
@@ -81,11 +78,8 @@ def test_must_reject_approve_with_no_self_contained_answer(conn, runs_dir):
         queue.act(conn, item_id=item_id, action="approve", actor=S6_REVIEWER_IDENTITY, bucket="under_2m", runs_dir=runs_dir)
 
 
-# --- criterion 15: a false answer writes a bound packet_defect ---------
-
-
 def test_a_false_self_containedness_answer_on_approve_writes_a_packet_defect_bound_to_the_approval_record(conn, runs_dir):
-    """R-H-8, criterion 15: on a plan or review decision, bound to the exact `approval_record`."""
+    """R-H-8: on a plan or review decision, bound to the exact `approval_record`."""
     ticket_id = seed_ticket(conn, state="review")
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     item_id = _open_packet_approval_item(conn, ticket_id, runs_dir, slot)
@@ -108,7 +102,7 @@ def test_a_false_self_containedness_answer_on_approve_writes_a_packet_defect_bou
 
 
 def test_a_false_self_containedness_answer_on_request_changes_writes_a_packet_defect_bound_to_the_approval_record(conn, runs_dir):
-    """R-H-8, criterion 15: on request changes."""
+    """R-H-8: on request changes."""
     ticket_id = seed_ticket(conn, state="review")
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     item_id = _open_packet_approval_item(conn, ticket_id, runs_dir, slot)
@@ -129,7 +123,7 @@ def test_a_false_self_containedness_answer_on_request_changes_writes_a_packet_de
 
 
 def test_a_false_self_containedness_answer_on_a_question_writes_a_packet_defect_bound_to_the_exact_question(conn, runs_dir):
-    """R-H-8, criterion 15: on a question, bound to its exact version (id)."""
+    """R-H-8: on a question, bound to its exact version (id)."""
     ticket_id = seed_ticket(conn, state="clarifying")
     item_id, question_id = _open_question_item(conn, ticket_id)
 
@@ -145,7 +139,7 @@ def test_a_false_self_containedness_answer_on_a_question_writes_a_packet_defect_
 
 
 def test_a_false_self_containedness_answer_on_an_escalation_resume_writes_a_packet_defect_bound_to_the_failure_history_artefact(conn, tmp_path):
-    """R-H-8, criteria 15 and 17: an escalation's decision is held to the rule through its `failure_history` artefact."""
+    """R-H-8: an escalation's decision is held to the rule through its `failure_history` artefact."""
     ticket_id = seed_ticket(conn, state="escalated")
     item_id, history_id = _seed_escalation_item_with_failure_history(conn, ticket_id, tmp_path)
 
@@ -171,11 +165,8 @@ def test_must_reject_a_false_self_containedness_answer_on_an_escalation_with_no_
         queue.act(conn, item_id=item_id, action="resume", actor=S6_REVIEWER_IDENTITY, self_contained="no", runs_dir=tmp_path)
 
 
-# --- criterion 16: a later correction resolves without erasing ---------
-
-
 def test_a_later_correction_appends_a_resolution_tag_without_erasing_the_original_packet_defect(conn, runs_dir):
-    """R-H-8, criterion 16."""
+    """R-H-8."""
     ticket_id = seed_ticket(conn, state="review")
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     item_id = _open_packet_approval_item(conn, ticket_id, runs_dir, slot)
@@ -201,11 +192,8 @@ def test_a_later_correction_appends_a_resolution_tag_without_erasing_the_origina
     assert unchanged["ref"] == original["ref"]
 
 
-# --- criterion 17: the failure_history payload states the rule ---------
-
-
 def test_failure_history_payload_states_the_self_containedness_rule(conn):
-    """R-H-8, criterion 17."""
+    """R-H-8."""
     assert S4.SELF_CONTAINEDNESS_RULE == "a reader with no transcript can decide from this item alone"
     ticket_id = seed_ticket(conn)
     ticket = record.get(conn, "ticket", ticket_id)

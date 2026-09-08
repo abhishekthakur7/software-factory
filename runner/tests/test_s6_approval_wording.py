@@ -30,11 +30,8 @@ def _open_packet_approval_item(conn, ticket_id, runs_dir, slot):
     )
 
 
-# --- the verbatim attestation (criterion 10) ----------------------------
-
-
 def test_final_review_attestation_is_the_verbatim_line_with_its_own_version():
-    """R-S6-7, criterion 10: the exact attestation text and version are pinned."""
+    """R-S6-7: the exact attestation text and version are pinned."""
     assert approvals.FINAL_REVIEW_ATTESTATION == (
         "Approval certifies judgment, intent, and residual risk; defect evidence was supplied by S5."
     )
@@ -42,7 +39,7 @@ def test_final_review_attestation_is_the_verbatim_line_with_its_own_version():
 
 
 def test_every_required_final_review_approval_record_carries_the_attestation(conn, runs_dir):
-    """R-S6-7, criterion 10: an `approve` on a `packet_approval` item stamps the verbatim line and its hash."""
+    """R-S6-7: an `approve` on a `packet_approval` item stamps the verbatim line and its hash."""
     ticket_id = seed_ticket(conn, state="review")
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     item_id = _open_packet_approval_item(conn, ticket_id, runs_dir, slot)
@@ -59,11 +56,8 @@ def test_every_required_final_review_approval_record_carries_the_attestation(con
     assert row["attestation_hash"] == canonical.content_hash({"text": approvals.FINAL_REVIEW_ATTESTATION})
 
 
-# --- request-changes routing and the loop note (criteria 11-12) --------
-
-
 def test_request_changes_returns_the_ticket_to_implementing_with_a_revision_after_approval_tag(conn, runs_dir):
-    """R-S6-7, criterion 11."""
+    """R-S6-7."""
     ticket_id = seed_ticket(conn, state="review")
     slot = Slot(source_rule="owners", role="s6_reviewer", min_count=1)
     item_id = _open_packet_approval_item(conn, ticket_id, runs_dir, slot)
@@ -84,7 +78,7 @@ def test_request_changes_returns_the_ticket_to_implementing_with_a_revision_afte
 
 
 def test_the_request_changes_note_is_carried_into_the_next_s4_handoff(tmp_path):
-    """R-S6-7, criterion 12: the real `queue.act` write path and S4's real read path connect."""
+    """R-S6-7: the real `queue.act` write path and S4's real read path connect."""
     from runner.db import connect
     from runner.tests.test_s4_handoff import _register_plan_and_criteria, _seed_plan_tuple
 
@@ -107,11 +101,8 @@ def test_the_request_changes_note_is_carried_into_the_next_s4_handoff(tmp_path):
     assert payload["loop_note"] == "tighten the retry backoff before merge"
 
 
-# --- the red tier bars entry to review (criterion 13) -------------------
-
-
 def test_a_ticket_whose_blocking_tier_is_red_cannot_enter_review(conn):
-    """R-S6-7, criterion 13: an unwaived blocking fail in the ticket's latest S5 run withholds `checks_pass_to_review`,
+    """R-S6-7: an unwaived blocking fail in the ticket's latest S5 run withholds `checks_pass_to_review`,
     even once S6 itself has passed."""
     ticket_id = seed_ticket(conn, state="checks")
     s5_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S5", attempt=1, outcome="fail")
