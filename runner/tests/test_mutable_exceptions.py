@@ -51,7 +51,7 @@ ALLOWED_COLUMNS = {
     "waiver": set(),
     "evidence_tuple": set(),
     "external_write": {
-        "state", "attempt_count", "remote_identity", "remote_pr_identity",
+        "state", "attempt_count", "remote_identity", "remote_pr_identity", "guard_decision_id",
         "receipt_artefact_id", "last_error", "updated_at",
     },
     "tag": set(),

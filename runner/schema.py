@@ -703,7 +703,10 @@ TABLES: tuple[Table, ...] = (
             Column("idempotency_key", "TEXT"),
             Column("payload_artefact_id", "INTEGER", references="artefact.id"),
             Column("payload_digest", "TEXT"),
-            Column("guard_decision_id", "INTEGER", references="guard_decision.id"),
+            # Set by the dispatch attempt, not at intent creation: the guard
+            # commits its own decision row, so guarding inside the
+            # approval-plus-intent transaction would split that commit.
+            Column("guard_decision_id", "INTEGER", references="guard_decision.id", mutable=True),
             Column("review_tuple_id", "INTEGER", references="evidence_tuple.id"),
             Column("review_approval_subject_hash", "TEXT"),
             Column("review_approval_set_hash", "TEXT"),
