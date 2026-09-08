@@ -1,4 +1,4 @@
-# glob to owner handle; CODEOWNERS wins, so src/legacy/** here is only
-# reached for a path CODEOWNERS does not already cover
+# glob to owner handle; every matching path is sensitive, but the owner here
+# is used only for a path CODEOWNERS does not already cover
 infra/**: "@bob"
 src/legacy/**: "@carol"

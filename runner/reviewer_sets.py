@@ -308,15 +308,17 @@ def derive_actual(
 ) -> Derivation:
     """Derive the actual reviewer set for `changed_paths` from CODEOWNERS at `target_base_sha`.
 
-    Every changed path is matched against CODEOWNERS first; a path it
-    doesn't cover falls through to `sensitive_paths`, exactly the "the file
-    adds owners only for paths CODEOWNERS does not cover" rule -- a path
-    CODEOWNERS assigns, even to zero owners, never consults the
-    sensitive-path mapping. A path neither source claims at all blocks the
-    same way an unresolved owner does, since nobody has been assigned to
-    review it. One `Slot` is recorded per `(rule, owner)` match; a rule
-    naming several owners produces one slot per owner so quorum can be
-    counted against each individually. The row is written before this
+    Ownership and sensitivity are two separate questions. For ownership
+    CODEOWNERS wins: a path it covers takes its owners from there, and the
+    sensitive-path mapping supplies an owner only for a path CODEOWNERS
+    does not cover. Sensitivity is decided for every path by the mapping
+    alone, whoever owns it, since a repository-wide `*` rule must never
+    hide that a diff touched an authentication or payments directory. A
+    path neither source claims blocks the same way an unresolved owner
+    does, since nobody has been assigned to review it. One `Slot` is
+    recorded per `(rule, owner)` match, so a rule naming several owners
+    counts quorum against each individually; a sensitive path's slots
+    carry the `sensitive_path_owner` role. The row is written before this
     function returns, so its id is available for `effective_set` and
     `is_current` even when the derivation is blocked.
     """
@@ -326,48 +328,33 @@ def derive_actual(
     sensitive = False
 
     for path in sorted(changed_paths):
+        sensitive_match = match_sensitive_path(sensitive_paths, path)
         rule = match_rule(codeowners.rules, path)
         if rule is not None:
-            for handle in rule.owners:
-                identity = resolve_owner(owners, handle)
-                slot = Slot(
-                    source_rule=f"CODEOWNERS:{rule.line}",
-                    owner=identity or handle,
-                    matched_path=path,
-                    pattern=rule.pattern,
-                    precedence=rule.line,
-                    min_count=1,
-                    resolved=identity is not None,
-                )
-                slots.append(slot)
-                if not slot.resolved:
-                    unresolved.append(slot.owner)
-            continue
-
-        sensitive_match = match_sensitive_path(sensitive_paths, path)
-        if sensitive_match is not None:
+            matches = [(f"CODEOWNERS:{rule.line}", rule.pattern, rule.line, handle) for handle in rule.owners]
+        elif sensitive_match is not None:
             glob, handle = sensitive_match
+            matches = [(f"sensitive_paths:{glob}", glob, None, handle)]
+        else:
+            slots.append(Slot(source_rule=f"unmatched:{path}", matched_path=path, min_count=1, resolved=False))
+            unresolved.append(path)
+            continue
+        sensitive = sensitive or sensitive_match is not None
+        for source_rule, pattern, precedence, handle in matches:
             identity = resolve_owner(owners, handle)
             slot = Slot(
-                source_rule=f"sensitive_paths:{glob}",
-                role="sensitive_path_owner",
+                source_rule=source_rule,
+                role="sensitive_path_owner" if sensitive_match is not None else None,
                 owner=identity or handle,
                 matched_path=path,
-                pattern=glob,
+                pattern=pattern,
+                precedence=precedence,
                 min_count=1,
                 resolved=identity is not None,
             )
             slots.append(slot)
-            sensitive = True
             if not slot.resolved:
                 unresolved.append(slot.owner)
-            continue
-
-        # Neither CODEOWNERS nor the sensitive-paths mapping claims this
-        # path: there is no owner to assign it to, which blocks the gate
-        # the same way a resolvable-but-unknown owner would.
-        slots.append(Slot(source_rule=f"unmatched:{path}", matched_path=path, min_count=1, resolved=False))
-        unresolved.append(path)
 
     if sensitive:
         blocked, routes = True, _SENSITIVE_ROUTES
@@ -442,32 +429,7 @@ def is_current(conn: sqlite3.Connection, reviewer_set_id: int, *, changed_paths:
     return row["path_set_hash"] == _path_set_hash(changed_paths) and row["base_sha"] == target_base_sha
 
 
-def recompute_before_dispatch(
-    conn: sqlite3.Connection,
-    *,
-    ticket_id: int,
-    repo_path: Path,
-    target_base_sha: str,
-    changed_paths: list[str],
-    owners: Owners,
-    sensitive_paths: dict[str, str],
-    authority_policy_hash: str,
-    membership_snapshot_hash: str,
-) -> Derivation:
-    """The S6 race guard: recompute the actual reviewer set immediately before packet assembly and dispatch.
-
-    Identical to `derive_actual` in every respect, including writing a
-    fresh row every call; it exists as its own name so a dispatch path
-    reads as "the race guard fires" rather than as an ordinary derivation.
-    """
-    return derive_actual(
-        conn,
-        ticket_id=ticket_id,
-        repo_path=repo_path,
-        target_base_sha=target_base_sha,
-        changed_paths=changed_paths,
-        owners=owners,
-        sensitive_paths=sensitive_paths,
-        authority_policy_hash=authority_policy_hash,
-        membership_snapshot_hash=membership_snapshot_hash,
-    )
+# The S6 race guard: the same derivation run again immediately before packet
+# assembly and dispatch, writing a fresh row every call. Named so a dispatch
+# path reads as "the race guard fires" rather than as an ordinary derivation.
+recompute_before_dispatch = derive_actual

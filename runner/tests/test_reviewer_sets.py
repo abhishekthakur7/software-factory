@@ -211,10 +211,10 @@ def test_initial_sensitive_path_match_only_offers_removal_or_pilot_excluded_rout
     assert slot.resolved is True
 
 
-def test_codeowners_coverage_of_a_path_skips_the_sensitive_paths_mapping(conn, tmp_path):
-    """CODEOWNERS wins: a path it covers is never looked up in the
-    sensitive-paths mapping, even when that mapping also names a glob
-    covering the same path (docs/configuration.md QP-3)."""
+def test_codeowners_wins_the_owner_of_a_sensitive_path_but_the_path_stays_sensitive(conn, tmp_path):
+    """for ownership CODEOWNERS wins over the sensitive-paths mapping, so the
+    slot comes from the CODEOWNERS rule; sensitivity is still decided by the
+    mapping, so the derivation offers only the sensitive routes (R-S6-6)."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     derivation = derive_actual(
@@ -222,12 +222,13 @@ def test_codeowners_coverage_of_a_path_skips_the_sensitive_paths_mapping(conn, t
         changed_paths=["src/legacy/special.py"], owners=OWNERS, sensitive_paths=SENSITIVE_PATHS,
         authority_policy_hash="policy-hash", membership_snapshot_hash="members-hash",
     )
-    assert derivation.sensitive is False
+    assert derivation.sensitive is True
     [slot] = derivation.slots
     assert slot.source_rule == "CODEOWNERS:6"  # the last matching rule wins over lines 4 and 5
-    assert slot.role is None
+    assert slot.role == "sensitive_path_owner"
+    assert slot.owner == "@org/team"
     assert slot.resolved is False  # @org/team is a team handle, unresolved
-    assert derivation.routes == ("planning", "s4_removal", "abandon")
+    assert derivation.routes == ("s4_removal", "pilot_excluded")
 
 
 def test_seeded_distinct_from_slot_blocks_the_gate_when_one_actor_satisfies_both(conn, tmp_path):
