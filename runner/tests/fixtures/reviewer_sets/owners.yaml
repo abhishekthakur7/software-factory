@@ -1,0 +1,35 @@
+roles:
+  factory_owner:
+    identity: alice
+    responsibilities: [tiers]
+  security_approver:
+    identity: alice
+    responsibilities: [trust_policy]
+  legal_data_governance_approver:
+    identity: bob
+    responsibilities: [trust_policy]
+  service_owner:
+    identity: alice
+    responsibilities: [tiers]
+  sensitive_path_owner:
+    identity: bob
+    responsibilities: [approvals]
+  ticket_engineer:
+    identity: alice
+    responsibilities: [sandbox_recipes]
+  s3_reviewer:
+    identity: alice
+    responsibilities: [approvals]
+  s6_reviewer:
+    identity: bob
+    responsibilities: [approvals]
+  outcome_recorder:
+    identity: alice
+    responsibilities: [incident_attribution_disposition]
+  incident_reviewer:
+    identity: alice
+    responsibilities: [incident_attribution_disposition]
+shared_identities:
+  - identity: alice
+    roles: [factory_owner, service_owner, ticket_engineer, s3_reviewer, outcome_recorder, incident_reviewer]
+    note: the test fixture's engineer identity holds these non-sensitive roles at once.

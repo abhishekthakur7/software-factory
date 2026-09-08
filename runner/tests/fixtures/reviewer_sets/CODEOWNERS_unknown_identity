@@ -1,0 +1,4 @@
+# @carol is not named on any role in owners.yaml, and an email address is
+# never a resolvable owner regardless of who holds it
+docs/** @carol
+secrets/** legal@example.com
