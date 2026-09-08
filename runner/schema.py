@@ -759,6 +759,14 @@ VIEWS: tuple[tuple[str, str], ...] = (
 )
 
 
+def table(name: str) -> Table:
+    """The declared `Table` named `name`; raises `KeyError` for an unknown table."""
+    for candidate in TABLES:
+        if candidate.name == name:
+            return candidate
+    raise KeyError(name)
+
+
 def _mutability_triggers(table: Table) -> list[str]:
     """The append-only and once-settlement triggers for one table.
 
