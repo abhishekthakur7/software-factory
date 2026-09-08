@@ -20,6 +20,14 @@ from runner.reviewer_sets import Slot
 
 MANDATORY_EXPIRY_GATES = frozenset({"trust_profile"})
 
+# The verbatim line every required final-review approval carries: what
+# approval certifies, and what it explicitly does not re-derive (defect
+# evidence is S5's, not the reviewer's, to establish).
+FINAL_REVIEW_ATTESTATION = (
+    "Approval certifies judgment, intent, and residual risk; defect evidence was supplied by S5."
+)
+FINAL_REVIEW_ATTESTATION_VERSION = "final-review-v1"
+
 
 def record_approval(
     conn: sqlite3.Connection,
@@ -117,6 +125,7 @@ def evaluate(
     slots: list[Slot],
     now: str | None = None,
     separation_exempt_identities: frozenset[str] = frozenset(),
+    excluded_ids: frozenset[int] = frozenset(),
 ) -> Quorum:
     """Whether `slots` all have quorum on `(gate, subject_hash)` at `now`.
 
@@ -124,10 +133,14 @@ def evaluate(
     that `distinct_from` each other; the trust profile's named
     both-trust-roles identity is the one such case. A forked head anywhere
     on the subject refuses quorum for every slot, since a fork means the
-    record no longer says which decision is the actor's.
+    record no longer says which decision is the actor's. `excluded_ids`
+    drops specific rows before counting -- a caller's own check this
+    function does not make (an authority check against the current
+    `owners.yaml`, for instance) can disqualify a row without this
+    function needing to know why.
     """
     now = now or record.now()
-    heads = current_heads(conn, gate, subject_hash)
+    heads = [row for row in current_heads(conn, gate, subject_hash) if row["id"] not in excluded_ids]
     forks = forked_heads(heads)
     if forks:
         return Quorum(False, tuple(f"forked_head:{slot}:{actor}" for slot, actor in forks), None)

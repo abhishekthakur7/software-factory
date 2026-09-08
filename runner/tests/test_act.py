@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from runner import artefact_registry, artefacts, checklist, cli, governance, manifest, owners, queue, record, tags, tickets
+from runner import artefact_registry, artefacts, checklist, cli, governance, manifest, owners, publication, queue, record, tags, tickets
 from runner.db import connect
 from runner.reviewer_sets import Slot
 from runner.tests.test_s5_waivers import issue_review_waiver
@@ -127,7 +127,37 @@ def _seed_plan_approval_item(conn, ticket_id: int) -> int:
     return item_id
 
 
-def _seed_item(conn, kind: str) -> tuple[int, int]:
+def _seed_packet_approval_item(conn, ticket_id: int, runs_dir) -> int:
+    """A `packet_approval` item whose ticket carries a real review evidence tuple, one bound blocking
+    check result, and packet/`pr_body` artefacts -- everything `publication.review_approval_subject`
+    needs to compute the item's own `approval_subject_hash`, the way the real S6 driver would."""
+    slot = Slot(source_rule="s6_reviewer_role", role="s6_reviewer", min_count=1)
+    reviewer_set_id = record.insert(
+        conn, "reviewer_set", ticket_id=ticket_id, kind="effective", content_hash="effective-subj",
+        slots=json.dumps([slot.to_json()]),
+    )
+    review_tuple_id = record.insert(
+        conn, "evidence_tuple", kind="review", ticket_id=ticket_id, content_hash="review-tuple-1",
+        effective_reviewer_set_id=reviewer_set_id, effective_reviewer_set_hash="effective-subj", created_at=record.now(),
+    )
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S5", attempt=1, outcome="pass")
+    record.insert(
+        conn, "check_result", stage_run_id=stage_run_id, evidence_tuple_id=review_tuple_id,
+        check_name="fixture_check", check_tier="blocking", source="runner", result="pass",
+        content_hash="check-1", canonical_serialization_version=1,
+    )
+    for kind, text in (("packet", "fixture packet\n"), ("pr_body", "fixture pr body\n")):
+        path = Path(runs_dir) / f"{kind}.md"
+        path.write_text(text)
+        artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
+    subject = publication.review_approval_subject(conn, ticket_id)
+    return queue.open_item(
+        conn, ticket_id=ticket_id, kind="packet_approval", reviewer_set_id=reviewer_set_id,
+        approval_subject_hash=subject.hash,
+    )
+
+
+def _seed_item(conn, kind: str, runs_dir=None) -> tuple[int, int]:
     """A ticket in `kind`'s natural state, plus one open item of that kind."""
     extra = _governed_ticket_fields(conn) if kind == "eligibility" else {}
     if kind == "plan_approval":
@@ -147,6 +177,12 @@ def _seed_item(conn, kind: str) -> tuple[int, int]:
         kwargs["ref"] = f"stage_run:{stage_run_id}"
     elif kind == "plan_approval":
         return ticket_id, _seed_plan_approval_item(conn, ticket_id)
+    elif kind == "packet_approval" and runs_dir is not None:
+        # Only a caller that will actually decide this item (approve or
+        # request_changes, which recompute the real publication subject)
+        # needs the full fixture; the bare reviewer set below is enough
+        # for a pairing this mapping refuses before ever reaching that.
+        return ticket_id, _seed_packet_approval_item(conn, ticket_id, runs_dir)
     elif kind == "packet_approval":
         kwargs["reviewer_set_id"] = _reviewer_set(conn, ticket_id, kind="effective", role="s6_reviewer", subject_hash="review-subj")
         kwargs["approval_subject_hash"] = "review-subj"
@@ -183,7 +219,7 @@ _ACCEPTED_PAIRS = [
 def test_each_valid_kind_action_pairing_from_the_day_one_mapping_is_accepted(conn, tmp_path, kind, action):
     """R-H-1: every pairing `queue.ACTIONS` lists for a kind
     is accepted, and resolves the item, when seeded with what that action needs."""
-    ticket_id, item_id = _seed_item(conn, kind)
+    ticket_id, item_id = _seed_item(conn, kind, tmp_path)
     kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, runs_dir=tmp_path)
     if action in ("approve", "redirect", "request_changes"):
         kwargs["bucket"] = "under_2m"
@@ -192,6 +228,8 @@ def test_each_valid_kind_action_pairing_from_the_day_one_mapping_is_accepted(con
         kwargs["note"] = "duplicates_existing_work: already built on another ticket"
     if action in ("redirect", "send_back", "abandon", "override", "request_changes"):
         kwargs["fm_id"] = "FM-07"
+    if queue._self_contained_required(kind, action):
+        kwargs["self_contained"] = "yes"
     queue.act(conn, **kwargs)
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
 
@@ -206,7 +244,7 @@ def test_escalation_send_back_uses_the_generic_send_back_transition(conn, tmp_pa
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="escalation", ref=f"stage_run:{stage_run_id}")
     queue.act(
         conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
-        note="technically_unsound: the approach does not hold", runs_dir=tmp_path,
+        note="technically_unsound: the approach does not hold", self_contained="yes", runs_dir=tmp_path,
     )
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None

@@ -263,6 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     act_parser.add_argument("--verdict")
     act_parser.add_argument("--evidence")
     act_parser.add_argument("--waiver", type=int)
+    act_parser.add_argument("--self-contained", dest="self_contained", choices=("yes", "no"))
 
     abandon_parser = subparsers.add_parser("abandon")
     abandon_parser.add_argument("ticket_id", type=int)
@@ -342,7 +343,7 @@ def main(argv: list[str] | None = None) -> int:
                 bucket=args.bucket, note=args.note, to=args.to, fm_id=args.fm,
                 category=args.category, severity=args.severity, option=args.option,
                 tier=args.tier, line=args.line, key=args.key, verdict=args.verdict,
-                evidence=evidence, waiver=args.waiver, runs_dir=runs_dir,
+                evidence=evidence, waiver=args.waiver, self_contained=args.self_contained, runs_dir=runs_dir,
             ))
         elif args.verb == "abandon":
             print(queue.abandon(

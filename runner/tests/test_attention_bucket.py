@@ -111,7 +111,7 @@ def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn, tm
         )
     subject_hash = plan_tuple.current_subject(conn, record.get(conn, "ticket", ticket_id))
 
-    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", self_contained="yes", runs_dir=tmp_path)
 
     # A second, independent reviewer record on the same subject records its
     # own bucket directly, standing in for a distinct actor's decision --

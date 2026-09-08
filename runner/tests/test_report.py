@@ -168,7 +168,7 @@ def _grant_plan_approval(conn, ticket_id, tmp_path, *, actor="abhishek") -> None
             ticket_id=ticket_id,
         )
 
-    queue.act(conn, item_id=item["id"], action="approve", actor=actor, bucket="under_2m", runs_dir=tmp_path)
+    queue.act(conn, item_id=item["id"], action="approve", actor=actor, bucket="under_2m", self_contained="yes", runs_dir=tmp_path)
 
 
 def _build_completed_walk(db_path, tmp_path) -> None:

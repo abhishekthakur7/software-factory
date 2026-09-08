@@ -54,6 +54,13 @@ CONTROL_CATEGORY = "execution_boundary"
 # change in a hand-back; the packet finds those rows by this reason.
 BASE_TEST_DEVIATION_WHY = "base test change recorded by the runner"
 
+# The self-containedness rule (R-H-8), stated once and carried verbatim
+# into every `failure_history` artefact so an escalation is held to the
+# same standard a packet or a question is, with no dedicated schema column
+# of its own -- the engineer's `--self-contained` answer on the escalation
+# item is the reading that stands in for it.
+SELF_CONTAINEDNESS_RULE = "a reader with no transcript can decide from this item alone"
+
 LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 SCOPE_DIFF_SCRIPT = FACTORY_DIR / "scripts" / "checks" / "scope_diff"
 
@@ -772,6 +779,7 @@ def _failure_history_payload(
         "quota": {"consumed": consumed, "remaining": max(cap - consumed, 0), "cap": cap},
         "infrastructure_retries": infra_retries,
         "dependent_tasks_not_yet_run": dependents_not_run,
+        "self_containedness": SELF_CONTAINEDNESS_RULE,
     }
 
 

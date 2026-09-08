@@ -35,14 +35,11 @@ import sqlite3
 from pathlib import Path
 from typing import Mapping
 
-import yaml
-
-from runner import approvals, artefact_registry, canonical, freshness, guard, owners, record, trust_profile
+from runner import artefact_registry, canonical, freshness, guard, owners, record, trust_profile, waivers
 from runner.deliverers import deliverer_for
 from runner.deliverers.stub import Receipt, RemoteRefused
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, RUNS_DIR
-from runner.reviewer_sets import Slot
 from runner.schema import EXTERNAL_WRITE_OPERATIONS
 
 DEFAULT_PROJECT_CONFIG = FACTORY_DIR / "config" / "project.yaml"
@@ -124,6 +121,7 @@ def create_intent(
     review_tuple_id: int | None = None,
     review_approval_subject_hash: str | None = None,
     review_approval_set_hash: str | None = None,
+    publication_target_hash: str | None = None,
     repository: str | None = None,
     target_ref: str | None = None,
     head_ref: str | None = None,
@@ -148,7 +146,12 @@ def create_intent(
         "review_tuple_id": review_tuple_id,
         "review_approval_subject_hash": review_approval_subject_hash,
         "review_approval_set_hash": review_approval_set_hash,
-        "publication_target_hash": (
+        # A caller that already computed the canonical publication-target
+        # hash (`runner.publication.publication_target`) passes it
+        # explicitly; a direct low-level caller naming only a repository
+        # and target ref gets this narrower stand-in instead, since this
+        # module has no ticket to derive the full target from.
+        "publication_target_hash": publication_target_hash or (
             canonical.content_hash({"repository": repository, "target_ref": target_ref})
             if repository is not None else None
         ),
@@ -218,55 +221,66 @@ def intent_for_review_quorum(
     runs_dir: Path = RUNS_DIR,
     project_path: Path = DEFAULT_PROJECT_CONFIG,
     now: str | None = None,
+    owners_path: Path = owners.DEFAULT_OWNERS_PATH,
 ) -> int | None:
     """The pull-request intent the ticket's current review quorum authorises, or None while quorum is unmet.
 
-    Reads the latest review tuple and its effective reviewer set, evaluates
-    quorum on the tuple's content hash, and on satisfaction creates a
-    `pr_update` when the ticket already carries a pull-request identity
-    and a `pr_create` otherwise; the payload is the four fields the
-    pull-request route admits. Never commits, so a caller that records the
-    quorum-completing approval first lands both in one transaction.
+    Evaluates `runner.publication.quorum` -- the review-approval subject
+    plus the authority check plain `approvals.evaluate` does not make --
+    and, on satisfaction, creates the `pr_update`/`pr_create` intent
+    `runner.publication.publication_target` names, keyed by the subject
+    quorum was actually satisfied on rather than the bare review-tuple
+    hash. Any waiver currently bound into the ticket's plan or review
+    tuple that `waivers.recheck` finds invalid also withholds the intent,
+    the same way an unmet quorum does. Never commits, so a caller that
+    records the quorum-completing approval first lands both in one
+    transaction.
     """
+    from runner import publication
+
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
         raise LookupError(f"no such ticket: {ticket_id}")
-    review_tuple = conn.execute(
-        "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'review' ORDER BY id DESC LIMIT 1",
-        (ticket_id,),
-    ).fetchone()
-    if review_tuple is None:
-        return None
-    reviewer_set = record.get(conn, "reviewer_set", review_tuple["effective_reviewer_set_id"])
-    slots = [Slot.from_json(item) for item in json.loads(reviewer_set["slots"] or "[]")] if reviewer_set else []
-    quorum = approvals.evaluate(
-        conn, gate="review", subject_hash=review_tuple["content_hash"], slots=slots, now=now
-    )
-    if not quorum.satisfied:
+
+    invalid_waivers = any(not validity.valid for validity in waivers.recheck(conn, ticket_id, now=now).values())
+    if invalid_waivers:
         return None
 
-    project = yaml.safe_load(Path(project_path).read_text())
-    target_ref = project["target_branch"]
+    try:
+        review_quorum = publication.quorum(conn, ticket_id, now=now, owners_path=owners_path, project_path=project_path)
+    except publication.PublicationSubjectIncomplete:
+        return None
+    if not review_quorum.satisfied:
+        return None
+
+    subject = publication.review_approval_subject(conn, ticket_id, now=now, project_path=project_path)
+    target = publication.publication_target(conn, ticket, project_path=project_path)
+    review_tuple = conn.execute(
+        "SELECT id FROM evidence_tuple WHERE ticket_id = ? AND kind = 'review' ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+
     return create_intent(
         conn,
         ticket_id=ticket_id,
-        operation="pr_update" if ticket["pr_identity"] else "pr_create",
+        operation=target.operation,
         payload={
             "branch_ref": ticket["branch"],
             "head_sha": ticket["head_sha"],
-            "target_ref": target_ref,
+            "target_ref": target.target_ref,
             "pr_body": _pr_body(conn, ticket_id),
         },
         runs_dir=runs_dir,
-        review_tuple_id=review_tuple["id"],
-        review_approval_subject_hash=review_tuple["content_hash"],
-        review_approval_set_hash=quorum.approval_set_hash,
-        repository=project["name"],
-        target_ref=target_ref,
-        head_ref=ticket["branch"],
-        desired_remote_head_sha=ticket["head_sha"],
-        expected_prior_remote_head_sha=ticket["last_remote_head_sha"],
-        remote_pr_identity=ticket["pr_identity"],
+        review_tuple_id=review_tuple["id"] if review_tuple is not None else None,
+        review_approval_subject_hash=subject.hash,
+        review_approval_set_hash=review_quorum.approval_set_hash,
+        publication_target_hash=target.hash,
+        repository=target.repository,
+        target_ref=target.target_ref,
+        head_ref=target.head_ref,
+        desired_remote_head_sha=target.desired_head_sha,
+        expected_prior_remote_head_sha=target.expected_prior_remote_head_sha,
+        remote_pr_identity=target.pr_identity,
     )
 
 

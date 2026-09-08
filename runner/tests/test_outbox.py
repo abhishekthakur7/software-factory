@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import approvals, cli, git_trees, governance, outbox, owners, queue, record, transitions
+from runner import approvals, artefact_registry, cli, git_trees, governance, outbox, owners, publication, queue, record, transitions
 from runner.db import connect
 from runner.deliverers.stub import Receipt, StubDeliverer
 from runner.reviewer_sets import Slot
@@ -80,31 +80,57 @@ def seed_effective_reviewer_set(conn, ticket_id: int, slot: Slot) -> int:
     )
 
 
-def seed_review_quorum(conn, ticket_id: int, *, content_hash: str) -> Slot:
-    """A review `evidence_tuple` plus the one approval that satisfies its effective reviewer set."""
+def seed_review_evidence(conn, ticket_id: int, runs_dir, *, content_hash: str) -> Slot:
+    """A review `evidence_tuple` bound to one blocking `check_result`, plus the packet and `pr_body`
+    artefacts a real `publication.review_approval_subject` needs -- everything short of the approval
+    itself, so a test that wants to seed its own approval row can still build on a real subject."""
     slot = Slot(**QUORUM_FIXTURE["slot"])
     reviewer_set_id = seed_effective_reviewer_set(conn, ticket_id, slot)
-    record.insert(
+    review_tuple_id = record.insert(
         conn, "evidence_tuple", kind="review", ticket_id=ticket_id,
-        content_hash=content_hash, effective_reviewer_set_id=reviewer_set_id, created_at=record.now(),
+        content_hash=content_hash, effective_reviewer_set_id=reviewer_set_id,
+        effective_reviewer_set_hash=f"effective-set-{ticket_id}-{slot.slot_id}", created_at=record.now(),
     )
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S5", attempt=1, outcome="pass")
+    record.insert(
+        conn, "check_result", stage_run_id=stage_run_id, evidence_tuple_id=review_tuple_id,
+        check_name="fixture_check", check_tier="blocking", source="runner", result="pass",
+        content_hash=f"check-{content_hash}", canonical_serialization_version=1,
+    )
+    if artefact_registry.latest(conn, ticket_id, "packet") is None:
+        packet_path = runs_dir / "tickets" / str(ticket_id) / "packet.md"
+        packet_path.parent.mkdir(parents=True, exist_ok=True)
+        packet_path.write_text("fixture packet\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind="packet", path=packet_path)
+    if artefact_registry.latest(conn, ticket_id, "pr_body") is None:
+        pr_body_path = runs_dir / "tickets" / str(ticket_id) / "pr_body.md"
+        pr_body_path.parent.mkdir(parents=True, exist_ok=True)
+        pr_body_path.write_text("fixture pr body\n")
+        artefact_registry.register(conn, ticket_id=ticket_id, kind="pr_body", path=pr_body_path)
+    return slot
+
+
+def seed_review_quorum(conn, ticket_id: int, runs_dir, *, content_hash: str) -> Slot:
+    """`seed_review_evidence` plus the one approval, against the real computed subject, that satisfies it."""
+    slot = seed_review_evidence(conn, ticket_id, runs_dir, content_hash=content_hash)
+    subject = publication.review_approval_subject(conn, ticket_id)
     approvals.record_approval(
-        conn, gate="review", subject_hash=content_hash, slot_id=slot.slot_id,
+        conn, gate="review", subject_hash=subject.hash, slot_id=slot.slot_id,
         actor_identity=QUORUM_FIXTURE["actor"], role=slot.role, decision="approve",
-        authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
+        authority_policy_hash=owners.authority_policy_hash(), membership_snapshot_hash="members-1",
         attestation_version="v1", attestation_hash="att-1",
     )
     return slot
 
 
-def empty_pr_body_hash() -> str:
-    """The `pr_body_hash` every fixture ticket's intent carries: no `pr_body`/`packet` artefact exists to read."""
+def fixture_pr_body_hash() -> str:
+    """The `pr_body_hash` every fixture ticket's intent carries: `seed_review_evidence`'s registered `pr_body` text."""
     from runner import canonical
-    return canonical.content_hash({"pr_body": ""})
+    return canonical.content_hash({"pr_body": "fixture pr body\n"})
 
 
 def pr_create_intent(conn, ticket_id, runs_dir, *, content_hash="review-subject-1") -> int:
-    seed_review_quorum(conn, ticket_id, content_hash=content_hash)
+    seed_review_quorum(conn, ticket_id, runs_dir, content_hash=content_hash)
     intent_id = outbox.intent_for_review_quorum(conn, ticket_id, runs_dir=runs_dir)
     conn.commit()
     return intent_id
@@ -260,7 +286,7 @@ def test_pending_pr_create_reconciles_an_existing_matching_pull_request_before_c
     deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
     deliverer.seed_pull_request(
         scenario["repository"], scenario["identity"], head_ref=scenario["head_ref"],
-        target_ref=scenario["target_ref"], head_sha=scenario["head_sha"], body_hash=empty_pr_body_hash(),
+        target_ref=scenario["target_ref"], head_sha=scenario["head_sha"], body_hash=fixture_pr_body_hash(),
     )
 
     acted = outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
@@ -355,7 +381,7 @@ def test_pr_update_against_a_pull_request_from_a_driven_create_reconciles_withou
     deliverer.set_branch_head("fixture-project", "feature/fixture-outbox", "head-sha-1")
     deliverer.seed_pull_request(
         "fixture-project", driven_identity, head_ref="feature/fixture-outbox", target_ref="main",
-        head_sha="head-sha-1", body_hash=empty_pr_body_hash(),
+        head_sha="head-sha-1", body_hash=fixture_pr_body_hash(),
     )
 
     record.update(conn, "ticket", ticket_id, pr_identity=driven_identity, last_remote_head_sha="head-sha-1")
@@ -375,17 +401,12 @@ def test_pr_update_against_a_pull_request_from_a_driven_create_reconciles_withou
 def test_review_quorum_approval_and_intent_land_in_one_transaction(conn, runs_dir):
     """R-T-11: the quorum-completing approval and the intent it authorises never land separately."""
     ticket_id = seed_ticket(conn)
-    slot = Slot(**QUORUM_FIXTURE["slot"])
-    reviewer_set_id = seed_effective_reviewer_set(conn, ticket_id, slot)
-    content_hash = "review-subject-atomic"
-    record.insert(
-        conn, "evidence_tuple", kind="review", ticket_id=ticket_id,
-        content_hash=content_hash, effective_reviewer_set_id=reviewer_set_id, created_at=record.now(),
-    )
+    slot = seed_review_evidence(conn, ticket_id, runs_dir, content_hash="review-subject-atomic")
+    subject = publication.review_approval_subject(conn, ticket_id)
     approvals.record_approval(
-        conn, gate="review", subject_hash=content_hash, slot_id=slot.slot_id,
-        actor_identity="reviewer-1", role="s6_reviewer", decision="approve",
-        authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
+        conn, gate="review", subject_hash=subject.hash, slot_id=slot.slot_id,
+        actor_identity=QUORUM_FIXTURE["actor"], role=slot.role, decision="approve",
+        authority_policy_hash=owners.authority_policy_hash(), membership_snapshot_hash="members-1",
         attestation_version="v1", attestation_hash="att-1",
     )
     intent_id = outbox.intent_for_review_quorum(conn, ticket_id, runs_dir=runs_dir)
@@ -401,17 +422,12 @@ def test_must_reject_by_construction_a_rolled_back_transaction_leaves_neither_ro
     conn = connect(db_path)
     try:
         ticket_id = seed_ticket(conn)
-        slot = Slot(**QUORUM_FIXTURE["slot"])
-        reviewer_set_id = seed_effective_reviewer_set(conn, ticket_id, slot)
-        content_hash = "review-subject-rollback"
-        record.insert(
-            conn, "evidence_tuple", kind="review", ticket_id=ticket_id,
-            content_hash=content_hash, effective_reviewer_set_id=reviewer_set_id, created_at=record.now(),
-        )
+        slot = seed_review_evidence(conn, ticket_id, tmp_path / "runs", content_hash="review-subject-rollback")
+        subject = publication.review_approval_subject(conn, ticket_id)
         approvals.record_approval(
-            conn, gate="review", subject_hash=content_hash, slot_id=slot.slot_id,
-            actor_identity="reviewer-1", role="s6_reviewer", decision="approve",
-            authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
+            conn, gate="review", subject_hash=subject.hash, slot_id=slot.slot_id,
+            actor_identity=QUORUM_FIXTURE["actor"], role=slot.role, decision="approve",
+            authority_policy_hash=owners.authority_policy_hash(), membership_snapshot_hash="members-1",
             attestation_version="v1", attestation_hash="att-1",
         )
         intent_id = outbox.intent_for_review_quorum(conn, ticket_id, runs_dir=tmp_path / "runs")
@@ -460,7 +476,7 @@ def test_stub_driven_to_a_duplicate_key_returns_the_stored_receipt_not_a_second_
     deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
     seeded = Receipt(
         remote_identity="fixture-project#seeded", remote_pr_identity="fixture-project#seeded",
-        remote_head_sha="head-sha-1", body_hash=empty_pr_body_hash(), payload_digest=record.get(conn, "external_write", intent_id)["payload_digest"],
+        remote_head_sha="head-sha-1", body_hash=fixture_pr_body_hash(), payload_digest=record.get(conn, "external_write", intent_id)["payload_digest"],
         idempotency_key=key, created_at=record.now(),
     )
     deliverer.seed_receipt(key, seeded)

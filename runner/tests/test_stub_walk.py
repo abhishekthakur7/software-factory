@@ -27,8 +27,8 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, owners, queue,
-    recipes, record, run_ledger,
+    approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, owners,
+    publication, queue, recipes, record, run_ledger,
 )
 from runner.adapters import cursor_sdk
 from runner.db import connect
@@ -241,7 +241,7 @@ def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
             ticket_id=ticket_id,
         )
 
-    queue.act(conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+    queue.act(conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", self_contained="yes", runs_dir=tmp_path)
 
 
 def _grant_packet_approval(conn, ticket_id, tmp_path):
@@ -256,9 +256,6 @@ def _grant_packet_approval(conn, ticket_id, tmp_path):
         "ORDER BY id DESC LIMIT 1",
         (ticket_id,),
     ).fetchone()
-    review_tuple = conn.execute(
-        "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'review' ORDER BY id DESC LIMIT 1", (ticket_id,)
-    ).fetchone()
     reviewer_set = record.get(conn, "reviewer_set", item["reviewer_set_id"])
     owners_obj = owners.load_owners()
     first_slot_seen = False
@@ -270,14 +267,21 @@ def _grant_packet_approval(conn, ticket_id, tmp_path):
         if not first_slot_seen:
             first_slot_seen = True
             continue  # `queue.act`'s own "approve" call resolves this one
+        # The item's own `approval_subject_hash` -- the real, fully
+        # computed `publication.review_approval_subject` S6 opened it
+        # with -- not the bare review-tuple content hash, which is no
+        # longer what an `approval_record` for this gate binds.
         approvals.record_approval(
-            conn, gate="review", subject_hash=review_tuple["content_hash"], slot_id=slot.slot_id, actor_identity=ABHISHEK,
+            conn, gate="review", subject_hash=item["approval_subject_hash"], slot_id=slot.slot_id, actor_identity=ABHISHEK,
             role=slot.role or "owner", decision="approve", authority_policy_hash=owners.authority_policy_hash(),
             membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash=f"att-{slot.slot_id}",
             ticket_id=ticket_id,
         )
 
-    queue.act(conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+    queue.act(
+        conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", self_contained="yes",
+        runs_dir=tmp_path,
+    )
     conn.commit()  # `create_intent` never commits; the caller owns the transaction.
 
 
@@ -385,7 +389,7 @@ def _run_walk(tmp_path) -> WalkResult:
     escalation_item = conn.execute(
         "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'escalation' ORDER BY id DESC LIMIT 1", (ticket_id,)
     ).fetchone()
-    queue.act(conn, item_id=escalation_item["id"], action="resume", actor=ABHISHEK, runs_dir=tmp_path)
+    queue.act(conn, item_id=escalation_item["id"], action="resume", actor=ABHISHEK, self_contained="yes", runs_dir=tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
 
     # The real S4 hands off, invokes the fixture worker, and records a real

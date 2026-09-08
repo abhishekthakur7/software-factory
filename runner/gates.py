@@ -154,10 +154,19 @@ def _effective_slots(conn: sqlite3.Connection, review_tuple: sqlite3.Row) -> lis
     return [Slot.from_json(item) for item in json.loads(reviewer_set["slots"] or "[]")]
 
 
-def _review_quorum_satisfied(conn: sqlite3.Connection, review_tuple: sqlite3.Row) -> bool:
-    """Full quorum over the review tuple's effective reviewer set -- the same evaluation `outbox.intent_for_review_quorum` makes before creating the pull-request intent."""
+def _review_quorum_satisfied(conn: sqlite3.Connection, review_tuple: sqlite3.Row, write: sqlite3.Row) -> bool:
+    """Full quorum on the exact publication subject `write` -- the reconciled intent -- was dispatched under.
+
+    Reads `write["review_approval_subject_hash"]` rather than recomputing
+    `publication.review_approval_subject` fresh: a reconciled `pr_create`
+    itself moves `ticket.last_remote_head_sha`, which is one of the
+    publication target's own fields, so a live recompute here would
+    always find yesterday's dispatch "stale" the moment it succeeds. The
+    subject a reviewer actually approved is the one this gate confirms
+    quorum against, not whatever the target happens to hash to right now.
+    """
     quorum = approvals.evaluate(
-        conn, gate="review", subject_hash=review_tuple["content_hash"], slots=_effective_slots(conn, review_tuple),
+        conn, gate="review", subject_hash=write["review_approval_subject_hash"], slots=_effective_slots(conn, review_tuple),
     )
     return quorum.satisfied
 
@@ -197,7 +206,7 @@ def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path
         write["state"] == "reconciled"
         and review_tuple is not None
         and _receipt_matches_desired(conn, write)
-        and _review_quorum_satisfied(conn, review_tuple)
+        and _review_quorum_satisfied(conn, review_tuple, write)
     ):
         return "review_quorum_reconciled"
     if write["state"] == "superseded":

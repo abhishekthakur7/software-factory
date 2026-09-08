@@ -1,7 +1,11 @@
 # The one reviewer slot review quorum is evaluated over, and the actor
 # whose approval satisfies it -- one slot, one approver, mirroring the
 # pilot's single-reviewer authority (`owners.yaml`'s `s6_reviewer` role).
+# The actor names the real `s6_reviewer` identity in the committed
+# `owners.yaml`: `publication.quorum`'s authority check drops any
+# approval whose actor no longer holds the slot's role there, so a seeded
+# approval must name an identity that role really resolves to.
 slot:
   source_rule: owners
   role: s6_reviewer
-actor: reviewer-1
+actor: abhishek

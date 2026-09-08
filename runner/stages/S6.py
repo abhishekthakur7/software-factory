@@ -24,7 +24,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, artefacts, canonical, checklist, freshness, owners, queue, record, recipes, reviewer_sets, waivers
+from runner import artefact_registry, artefacts, canonical, checklist, freshness, owners, publication, queue, record, recipes, reviewer_sets, waivers
 from runner.checks import exclusion
 from runner.fs import write_text
 from runner.paths import PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
@@ -507,8 +507,14 @@ def run(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_d
         (ticket_id,),
     ).fetchone()
     if open_item is None:
+        # The packet and `pr_body` artefacts just registered above are what
+        # `review_approval_subject` reads back as this ticket's latest --
+        # the subject a required final-review slot approves is therefore
+        # exactly what this run assembled, never an artefact from a prior
+        # attempt still on record when this one started.
+        subject = publication.review_approval_subject(conn, ticket_id)
         queue.open_item(
             conn, ticket_id=ticket_id, kind="packet_approval", reviewer_set_id=review_tuple["effective_reviewer_set_id"],
-            approval_subject_hash=review_tuple["content_hash"], ref=f"artefact:{packet_id}",
+            approval_subject_hash=subject.hash, ref=f"artefact:{packet_id}",
         )
     return "pass"

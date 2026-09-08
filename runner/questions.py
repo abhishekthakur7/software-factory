@@ -154,7 +154,7 @@ def raise_round(
 
 def record_answer(
     conn: sqlite3.Connection, question_id: int, *, action: str, actor: str, option: int | None = None,
-    note: str | None = None,
+    note: str | None = None, supported_without_transcript: bool | None = None,
 ) -> int:
     """Write one `answer` row for `question_id`, settle its `state`, and return the answer id.
 
@@ -162,7 +162,10 @@ def record_answer(
     question's own default); any other action records `default_accepted`
     against the question's default and, since nobody answered, appends
     one `assumption` row naming it -- the one path an `answer` row creates
-    an `assumption` on its own.
+    an `assumption` on its own. `supported_without_transcript` is the
+    self-containedness rule's answer for this question: whether the
+    answering human could decide from the question alone, with no
+    transcript access; left null when the caller supplies none.
     """
     question = record.get(conn, "question", question_id)
     if question is None:
@@ -176,6 +179,9 @@ def record_answer(
         question_id=question_id, resolution_kind=resolution_kind,
         chosen_option=str(chosen) if chosen is not None else None,
         free_text=note, answered_by=actor, answered_at=record.now(),
+        supported_without_transcript=(
+            None if supported_without_transcript is None else (1 if supported_without_transcript else 0)
+        ),
     )
     record.update(conn, "question", question_id, state="answered" if resolution_kind == "chosen_option" else "default_accepted")
     if resolution_kind == "default_accepted":

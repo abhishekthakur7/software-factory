@@ -508,6 +508,12 @@ TABLES: tuple[Table, ...] = (
             Column("free_text", "TEXT"),
             Column("answered_by", "TEXT"),
             Column("answered_at", "TEXT"),
+            # Whether the answering human could decide from this question
+            # alone, with no transcript access -- the self-containedness
+            # rule's answer for a question, mirroring
+            # `approval_record.decision_supported_without_transcript` for a
+            # plan or review decision.
+            Column("supported_without_transcript", "INTEGER"),
         ),
     ),
     Table(

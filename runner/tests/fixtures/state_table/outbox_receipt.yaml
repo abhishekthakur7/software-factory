@@ -35,4 +35,5 @@ reconciled:
       remote_identity: "fixture-project#8"
       desired_remote_head_sha: head-sha-reconciled-8
       payload_digest: payload-digest-8
+      review_approval_subject_hash: review-subject-8
       receipt_artefact_id: $receipt_artefact

@@ -456,8 +456,8 @@ def test_s2_walk_raises_ranks_and_answers_one_round_then_passes(conn, tmp_path, 
             non_blocking_item = item
     assert blocking_item is not None and non_blocking_item is not None
 
-    queue.act(conn, item_id=blocking_item["id"], action="answer", actor=ABHISHEK, option=0)
-    queue.act(conn, item_id=non_blocking_item["id"], action="accept_default", actor=ABHISHEK)
+    queue.act(conn, item_id=blocking_item["id"], action="answer", actor=ABHISHEK, option=0, self_contained="yes")
+    queue.act(conn, item_id=non_blocking_item["id"], action="accept_default", actor=ABHISHEK, self_contained="yes")
 
     non_blocking_question_id = int(non_blocking_item["ref"].split(":", 1)[1])
     assumption = conn.execute(

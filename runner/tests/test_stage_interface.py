@@ -324,7 +324,7 @@ def test_send_back_from_any_open_item_moves_the_ticket_and_adds_no_approval(conn
 
     queue.act(
         conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
-        note="duplicates_existing_work: already covered elsewhere",
+        note="duplicates_existing_work: already covered elsewhere", self_contained="yes",
     )
 
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"

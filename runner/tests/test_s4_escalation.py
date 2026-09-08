@@ -185,7 +185,7 @@ def test_a_verification_exhaustion_escalation_refuses_plain_resume(tmp_path):
     item = _open_escalation_item(conn, ticket_id)
 
     with pytest.raises(ActionRefused):
-        queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", runs_dir=tmp_path)
+        queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", self_contained="yes", runs_dir=tmp_path)
 
 
 def test_a_control_defect_escalation_refuses_resume_until_remediated_and_gated(tmp_path):
@@ -202,7 +202,7 @@ def test_a_control_defect_escalation_refuses_resume_until_remediated_and_gated(t
     item = _open_escalation_item(conn, ticket_id)
 
     with pytest.raises(ActionRefused):
-        queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", runs_dir=tmp_path)
+        queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", self_contained="yes", runs_dir=tmp_path)
 
     event = conn.execute(
         "SELECT id, created_at FROM incident_observation WHERE ticket_id = ? AND record_kind = 'control_defect_event'",
@@ -216,7 +216,7 @@ def test_a_control_defect_escalation_refuses_resume_until_remediated_and_gated(t
 
     # A disposition alone is not enough: no passing gate run yet.
     with pytest.raises(ActionRefused):
-        queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", runs_dir=tmp_path)
+        queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", self_contained="yes", runs_dir=tmp_path)
 
     gate_id = record.insert(
         conn, "utility_run", kind="gate", ticket_id=ticket_id, outcome="pass",
@@ -224,7 +224,7 @@ def test_a_control_defect_escalation_refuses_resume_until_remediated_and_gated(t
     )
     assert gate_id
 
-    queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", runs_dir=tmp_path)
+    queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", self_contained="yes", runs_dir=tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
 
 
@@ -242,7 +242,7 @@ def test_an_infrastructure_escalation_resumes_the_same_item_with_quota_preserved
     assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
     item = _open_escalation_item(conn, ticket_id)
 
-    queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", runs_dir=tmp_path)
+    queue.act(conn, item_id=item["id"], action="resume", actor="abhishek", self_contained="yes", runs_dir=tmp_path)
 
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
 

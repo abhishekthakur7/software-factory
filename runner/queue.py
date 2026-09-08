@@ -25,13 +25,21 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from runner import approvals, artefact_registry, binding, canonical, outbox, owners, record, tags, transitions
+from runner import approvals, artefact_registry, binding, canonical, outbox, owners, publication, record, tags, transitions
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
 # The attestation version `factory act` stamps; a new attestation format
 # gets a new version without invalidating rows stamped with this one.
 ATTESTATION_VERSION = "queue-act-v1"
+
+# `--self-contained` is mandatory on these actions regardless of item kind,
+# and additionally on an escalation item's `resume`/`send_back`/`abandon`
+# (its own decision is held to the same self-containedness rule through
+# its `failure_history` artefact rather than through a dedicated column).
+_SELF_CONTAINED_MANDATORY_ACTIONS = frozenset({"approve", "request_changes", "answer", "accept_default"})
+_SELF_CONTAINED_MANDATORY_ESCALATION_ACTIONS = frozenset({"resume", "send_back", "abandon"})
+_SELF_CONTAINED_VALUES = frozenset({"yes", "no"})
 
 # Every action a `queue_item` of each kind accepts, `control_event` aside.
 # `pr_outcome` is non-blocking and takes no action here.
@@ -170,6 +178,42 @@ def _approval_subject_hash(conn: sqlite3.Connection, item: sqlite3.Row) -> str |
     return _plan_subject_hash(conn, item["ticket_id"])
 
 
+def _review_decision_fields(conn: sqlite3.Connection, item: sqlite3.Row) -> tuple[str, dict]:
+    """The review-gate subject hash and the extra `approval_record` fields C11 requires of a final-review record.
+
+    The subject is recomputed fresh right here through
+    `publication.review_approval_subject` rather than trusted from the
+    item's own `approval_subject_hash` -- the packet, a bound check
+    result, a waiver, or the publication target could all have changed
+    underneath an item still sitting open -- and compared against it,
+    refusing outright on any drift; the same race `_check_plan_approvable`
+    guards for the plan gate. The verbatim final-review attestation is
+    stamped here rather than the ordinary per-decision one, since every
+    required final-review record carries it (R-S6-7).
+    """
+    subject = publication.review_approval_subject(conn, item["ticket_id"])
+    if subject.hash != item["approval_subject_hash"]:
+        raise ActionRefused(
+            f"packet_approval item {item['id']} refused: the review-approval subject changed; "
+            f"a fresh subject was created and must be re-approved"
+        )
+    review_tuple = conn.execute(
+        "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'review' ORDER BY id DESC LIMIT 1",
+        (item["ticket_id"],),
+    ).fetchone()
+    ticket = record.get(conn, "ticket", item["ticket_id"])
+    target = publication.publication_target(conn, ticket)
+    fields = {
+        "evidence_tuple_id": review_tuple["id"],
+        "evidence_tuple_hash": review_tuple["content_hash"],
+        "reviewer_set_hash": subject.effective_reviewer_set_hash,
+        "publication_target_hash": target.hash,
+        "attestation_version": approvals.FINAL_REVIEW_ATTESTATION_VERSION,
+        "attestation_hash": canonical.content_hash({"text": approvals.FINAL_REVIEW_ATTESTATION}),
+    }
+    return subject.hash, fields
+
+
 def _record_decision(
     conn: sqlite3.Connection,
     item: sqlite3.Row,
@@ -182,33 +226,57 @@ def _record_decision(
     action: str,
     bucket: str | None,
     note: str | None,
-) -> None:
-    """Write one `approval_record` for `item`'s subject, from the slot `actor` fills on its reviewer set."""
+    self_contained: str | None = None,
+) -> int:
+    """Write one `approval_record` for `item`'s subject, from the slot `actor` fills on its reviewer set.
+
+    Returns the new row's id. `self_contained` ("yes"/"no"/`None`) lands
+    on `decision_supported_without_transcript`, null when the caller
+    supplied none.
+    """
     reviewer_set_row = _reviewer_set_for_item(conn, item)
     if reviewer_set_row is None:
         raise ActionRefused(f"queue item {item['id']} names no reviewer set to decide against")
     slot = _resolve_slot(owners_obj, actor, reviewer_set_row)
     if slot is None:
         raise ActionRefused(f"actor {actor!r} fits no slot on this item's reviewer set")
-    approvals.record_approval(
+
+    subject_hash = _approval_subject_hash(conn, item)
+    extra_fields: dict = {}
+    attestation_version = ATTESTATION_VERSION
+    attestation_hash = canonical.content_hash({"item_id": item["id"], "action": action, "note": note})
+    if gate == "review":
+        subject_hash, review_fields = _review_decision_fields(conn, item)
+        attestation_version = review_fields.pop("attestation_version")
+        attestation_hash = review_fields.pop("attestation_hash")
+        extra_fields = review_fields
+
+    return approvals.record_approval(
         conn,
         gate=gate,
-        subject_hash=_approval_subject_hash(conn, item),
+        subject_hash=subject_hash,
         slot_id=slot.slot_id,
         actor_identity=actor,
         role=slot.role or "owner",
         decision=decision,
         authority_policy_hash=owners.authority_policy_hash(owners_path),
         membership_snapshot_hash=canonical.content_hash(owners.identity_snapshot(owners_obj, actor)),
-        attestation_version=ATTESTATION_VERSION,
-        attestation_hash=canonical.content_hash({"item_id": item["id"], "action": action, "note": note}),
+        attestation_version=attestation_version,
+        attestation_hash=attestation_hash,
+        decision_supported_without_transcript=(
+            None if self_contained is None else (1 if self_contained == "yes" else 0)
+        ),
         active_attention_bucket=bucket,
         ticket_id=item["ticket_id"],
         reviewer_set_id=reviewer_set_row["id"],
+        **extra_fields,
     )
 
 
-def _answer(conn: sqlite3.Connection, item: sqlite3.Row, *, action: str, actor: str, option: int | None, note: str | None) -> None:
+def _answer(
+    conn: sqlite3.Connection, item: sqlite3.Row, *, action: str, actor: str, option: int | None, note: str | None,
+    self_contained: str | None = None,
+) -> int:
     # Deferred import: `questions` imports this module back (for
     # `open_item`), so a top-level import here would cycle.
     from runner import questions
@@ -217,7 +285,10 @@ def _answer(conn: sqlite3.Connection, item: sqlite3.Row, *, action: str, actor: 
     question = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
     if question is None:
         raise ActionRefused(f"question item {item['id']} names no question: {item['ref']!r}")
-    questions.record_answer(conn, question["id"], action=action, actor=actor, option=option, note=note)
+    return questions.record_answer(
+        conn, question["id"], action=action, actor=actor, option=option, note=note,
+        supported_without_transcript=None if self_contained is None else self_contained == "yes",
+    )
 
 
 def _override(
@@ -279,18 +350,19 @@ def _check_plan_approvable(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
 
 def _approve(
     conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, owners_obj: owners.Owners,
-    owners_path: Path, bucket: str | None, note: str | None, runs_dir: Path,
-) -> None:
+    owners_path: Path, bucket: str | None, note: str | None, runs_dir: Path, self_contained: str | None = None,
+) -> int:
     kind = item["kind"]
     gate = "plan" if kind == "plan_approval" else "review"
     if kind == "plan_approval":
         _check_plan_approvable(conn, item)
-    _record_decision(
+    approval_id = _record_decision(
         conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path,
-        gate=gate, decision="approve", action="approve", bucket=bucket, note=note,
+        gate=gate, decision="approve", action="approve", bucket=bucket, note=note, self_contained=self_contained,
     )
     if kind == "packet_approval":
         outbox.intent_for_review_quorum(conn, item["ticket_id"], runs_dir=runs_dir)
+    return approval_id
 
 
 def _act_verdict(
@@ -375,17 +447,19 @@ def _redirect(
 
 def _request_changes(
     conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, owners_obj: owners.Owners,
-    owners_path: Path, bucket: str | None, fm_id: str | None, note: str | None,
-) -> None:
-    _record_decision(
+    owners_path: Path, bucket: str | None, fm_id: str | None, note: str | None, self_contained: str | None = None,
+) -> int:
+    approval_id = _record_decision(
         conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path,
         gate="review", decision="reject", action="request_changes", bucket=bucket, note=note,
+        self_contained=self_contained,
     )
     transitions.apply(conn, item["ticket_id"], "request_changes")
     tags.tag(
         conn, target=f"ticket:{item['ticket_id']}", kind="revision_after_approval",
         fm_id=fm_id, actor=actor, note=note,
     )
+    return approval_id
 
 
 def _send_back(conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, to: str | None, fm_id: str | None, note: str | None) -> None:
@@ -402,6 +476,23 @@ def _referenced_stage(conn: sqlite3.Connection, ref: str | None) -> str:
     if stage_run is None:
         raise ActionRefused(f"escalation item references a missing stage_run: {ref!r}")
     return stage_run["stage"]
+
+
+def _escalation_defect_target(conn: sqlite3.Connection, item: sqlite3.Row) -> str:
+    """`artefact:<failure_history id>` for the `failure_history` artefact `item`'s stage run registered.
+
+    An escalation's own decision has no dedicated column for the
+    self-containedness rule -- it is held to it through this artefact
+    (R-H-8) -- so a false answer on it is refused outright rather than
+    silently accepted when the run behind the item registered none (only
+    a verification-exhaustion escalation ever does).
+    """
+    ref = item["ref"] or ""
+    stage_run = record.get(conn, "stage_run", int(ref.split(":", 1)[1])) if ref.startswith("stage_run:") else None
+    history = artefact_registry.latest(conn, stage_run["ticket_id"], "failure_history") if stage_run is not None else None
+    if history is None:
+        raise ActionRefused(f"escalation item {item['id']} names no failure_history artefact to bind a defect to")
+    return f"artefact:{history['id']}"
 
 
 def _control_defect_remediated(conn: sqlite3.Connection, ticket_id: int) -> bool:
@@ -534,6 +625,16 @@ def _resolve(
     _clear_blocked_on(conn, item)
 
 
+def _self_contained_required(kind: str, action: str) -> bool:
+    if action in _SELF_CONTAINED_MANDATORY_ACTIONS:
+        return True
+    return kind == "escalation" and action in _SELF_CONTAINED_MANDATORY_ESCALATION_ACTIONS
+
+
+def _write_packet_defect(conn: sqlite3.Connection, *, target: str, actor: str, note: str | None) -> None:
+    tags.tag(conn, target=target, kind="packet_defect", fm_id=tags.PACKET_DEFECT_FM_ID, actor=actor, note=note)
+
+
 def act(
     conn: sqlite3.Connection,
     *,
@@ -553,6 +654,7 @@ def act(
     verdict: str | None = None,
     evidence: list[int] | None = None,
     waiver: int | None = None,
+    self_contained: str | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
     runs_dir: Path = RUNS_DIR,
 ) -> str:
@@ -561,11 +663,17 @@ def act(
     Raises `LookupError` for an unknown item and `ActionRefused` for every
     other refusal: an already-resolved item, an action not in this kind's
     mapping, an actor `owners_path` does not name, a missing mandatory
-    bucket, an approval action whose actor fits no reviewer slot, or --
-    for an `eligibility` item -- an invalid governance state. A
-    `control_event` is recorded and returns without resolving the item;
-    every other action settles the item's resolution columns before
-    returning.
+    bucket, a missing mandatory `self_contained` (`approve`,
+    `request_changes`, `answer`, `accept_default`, and an escalation
+    item's `resume`/`send_back`/`abandon`), an approval action whose actor
+    fits no reviewer slot, or -- for an `eligibility` item -- an invalid
+    governance state. A `control_event` is recorded and returns without
+    resolving the item; every other action settles the item's resolution
+    columns before returning. `self_contained == "no"` writes, in the same
+    transaction as the decision itself, a `packet_defect` tag bound to the
+    exact `approval_record` (a plan or review decision), `question` (an
+    answer), or `failure_history` artefact (an escalation) the false
+    self-containedness answer was about (R-H-8).
     """
     item = record.get(conn, "queue_item", item_id)
     if item is None:
@@ -602,6 +710,11 @@ def act(
     if action in _BUCKET_REQUIRED_ACTIONS and bucket is None:
         raise ActionRefused(f"action {action!r} requires --bucket")
 
+    if self_contained is not None and self_contained not in _SELF_CONTAINED_VALUES:
+        raise ActionRefused(f"--self-contained must be one of {sorted(_SELF_CONTAINED_VALUES)}, got {self_contained!r}")
+    if _self_contained_required(kind, action) and self_contained is None:
+        raise ActionRefused(f"action {action!r} requires --self-contained yes|no")
+
     if action == CONTROL_EVENT:
         _record_control_event(
             conn, item, actor=actor, owners_obj=owners_obj, category=category,
@@ -624,23 +737,41 @@ def act(
         return f"queue item {item_id}: resolved with {action}"
 
     if action in ("answer", "accept_default"):
-        _answer(conn, item, action=action, actor=actor, option=option, note=note)
+        _answer(conn, item, action=action, actor=actor, option=option, note=note, self_contained=self_contained)
+        if self_contained == "no":
+            _write_packet_defect(conn, target=item["ref"], actor=actor, note=note)
     elif action in _RESOLVE_ONLY_ACTIONS:
         pass
     elif action == "override":
         _override(conn, item, actor=actor, note=note, fm_id=fm_id, tier=tier)
     elif action == "approve":
-        _approve(conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, note=note, runs_dir=runs_dir)
+        approval_id = _approve(
+            conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, note=note,
+            runs_dir=runs_dir, self_contained=self_contained,
+        )
+        if self_contained == "no":
+            _write_packet_defect(conn, target=f"approval_record:{approval_id}", actor=actor, note=note)
     elif action == "redirect":
         _redirect(conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, to=to, fm_id=fm_id, note=note)
     elif action == "send_back":
         _send_back(conn, item, actor=actor, to=to, fm_id=fm_id, note=note)
+        if kind == "escalation" and self_contained == "no":
+            _write_packet_defect(conn, target=_escalation_defect_target(conn, item), actor=actor, note=note)
     elif action == "abandon":
         abandon(conn, item["ticket_id"], actor=actor, fm_id=fm_id, note=note, runs_dir=runs_dir)
+        if kind == "escalation" and self_contained == "no":
+            _write_packet_defect(conn, target=_escalation_defect_target(conn, item), actor=actor, note=note)
     elif action == "request_changes":
-        _request_changes(conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, fm_id=fm_id, note=note)
+        approval_id = _request_changes(
+            conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, fm_id=fm_id,
+            note=note, self_contained=self_contained,
+        )
+        if self_contained == "no":
+            _write_packet_defect(conn, target=f"approval_record:{approval_id}", actor=actor, note=note)
     elif action == "resume":
         _resume(conn, item)
+        if kind == "escalation" and self_contained == "no":
+            _write_packet_defect(conn, target=_escalation_defect_target(conn, item), actor=actor, note=note)
     elif action == "stop":
         transitions.apply(conn, item["ticket_id"], "escalate")
     else:
@@ -736,7 +867,15 @@ def _question_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
 
 def _approval_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
     subject_hash = _approval_subject_hash(conn, item)
-    lines = [f"  subject: {subject_hash}", "  approval records:"]
+    lines = [f"  subject: {subject_hash}"]
+    if item["kind"] == "packet_approval":
+        # `queue_item` carries no column for the publication-target hash:
+        # this is the one place it is shown to the human deciding, always
+        # recomputed fresh rather than read back from anywhere stored.
+        ticket = record.get(conn, "ticket", item["ticket_id"])
+        if ticket is not None:
+            lines.append(f"  publication target: {publication.publication_target(conn, ticket).hash}")
+    lines.append("  approval records:")
     rows = conn.execute(
         "SELECT actor_identity, decision, active_attention_bucket FROM approval_record "
         "WHERE subject_hash = ? ORDER BY id",

@@ -238,7 +238,7 @@ def test_partial_quorum_over_two_required_slots_withholds_the_gate(tmp_path):
     slot_b = replace(unlinked_b, distinct_from=(slot_a.slot_id,))
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path, slots=[slot_a, slot_b])
 
-    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", self_contained="yes", runs_dir=tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
     assert gates.plan_review_gate(conn, ticket, runs_dir=tmp_path) is None  # only slot_a's approval exists
 
@@ -259,7 +259,7 @@ def test_identity_separation_violation_withholds_quorum_even_with_a_row_on_each_
     slot_b = replace(unlinked_b, distinct_from=(slot_a.slot_id,))
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path, slots=[slot_a, slot_b])
 
-    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", self_contained="yes", runs_dir=tmp_path)
     row = _latest_plan_tuple(conn, ticket_id)
     approvals.record_approval(
         conn, gate="plan", subject_hash=row["content_hash"], slot_id=slot_b.slot_id, actor_identity=ABHISHEK,
@@ -279,7 +279,7 @@ def test_plan_review_gate_withholds_the_event_when_the_target_branch_has_moved(t
     a fresh commit there, after cloning, moves the target branch out from under the pinned base."""
     conn = _conn(tmp_path)
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path)
-    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", self_contained="yes", runs_dir=tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
     assert gates.plan_review_gate(conn, ticket, runs_dir=tmp_path) == "plan_quorum_fresh"
 
