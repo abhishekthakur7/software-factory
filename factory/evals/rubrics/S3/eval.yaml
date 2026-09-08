@@ -13,57 +13,57 @@ cases:
   # generic ok/reject definition walk above.
   - name: alternatives_ok
     fixture: fixtures/alternatives_ok
-    expect: ok
+    expect: plan_rubric_ok
     rule: rejected_alternative_reason
   - name: alternatives_reject
     fixture: fixtures/alternatives_reject
-    expect: reject
+    expect: plan_rubric_reject
     rule: rejected_alternative_reason
   - name: abstraction_ok
     fixture: fixtures/abstraction_ok
-    expect: ok
+    expect: plan_rubric_ok
     rule: shared_abstraction_cited
   - name: abstraction_reject
     fixture: fixtures/abstraction_reject
-    expect: reject
+    expect: plan_rubric_reject
     rule: shared_abstraction_cited
   - name: archaeology_ok
     fixture: fixtures/archaeology_ok
-    expect: ok
+    expect: plan_rubric_ok
     rule: archaeology_carried
   - name: archaeology_reject
     fixture: fixtures/archaeology_reject
-    expect: reject
+    expect: plan_rubric_reject
     rule: archaeology_carried
   - name: no_behaviour_change_ok
     fixture: fixtures/no_behaviour_change_ok
-    expect: ok
+    expect: plan_rubric_ok
     rule: no_behaviour_change_isolated
   - name: no_behaviour_change_reject
     fixture: fixtures/no_behaviour_change_reject
-    expect: reject
+    expect: plan_rubric_reject
     rule: no_behaviour_change_isolated
   - name: contracts_ok
     fixture: fixtures/contracts_ok
-    expect: ok
+    expect: plan_rubric_ok
     rule: contracts_declared
   - name: contracts_reject
     fixture: fixtures/contracts_reject
-    expect: reject
+    expect: plan_rubric_reject
     rule: contracts_declared
   - name: test_strategy_ok
     fixture: fixtures/test_strategy_ok
-    expect: ok
+    expect: plan_rubric_ok
     rule: test_strategy_typed
   - name: test_strategy_reject
     fixture: fixtures/test_strategy_reject
-    expect: reject
+    expect: plan_rubric_reject
     rule: test_strategy_typed
   - name: rollout_ok
     fixture: fixtures/rollout_ok
-    expect: ok
+    expect: plan_rubric_ok
     rule: rollout_structured
   - name: rollout_reject
     fixture: fixtures/rollout_reject
-    expect: reject
+    expect: plan_rubric_reject
     rule: rollout_structured

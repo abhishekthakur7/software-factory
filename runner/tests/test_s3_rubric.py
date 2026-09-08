@@ -34,7 +34,7 @@ CATALOGUE = recipes.load_catalogue()
 PROJECT_RECIPES = yaml.safe_load((FACTORY_DIR / "config" / "project.yaml").read_text())["recipes"]
 
 RULE_CASES = [case for case in EVAL_SPEC["cases"] if "rule" in case]
-assert any(c["expect"] == "ok" for c in RULE_CASES) and any(c["expect"] == "reject" for c in RULE_CASES)
+assert any(c["expect"] == "plan_rubric_ok" for c in RULE_CASES) and any(c["expect"] == "plan_rubric_reject" for c in RULE_CASES)
 
 ABHISHEK = "abhishek"
 
@@ -55,14 +55,14 @@ def _check_case(case: dict) -> list[plan_rubric.Finding]:
 # --- the eval-fixture pairs, one per script rule (criteria 1, 3, 4, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 22, 23) ---
 
 
-@pytest.mark.parametrize("case", [c for c in RULE_CASES if c["expect"] == "ok"], ids=[c["name"] for c in RULE_CASES if c["expect"] == "ok"])
+@pytest.mark.parametrize("case", [c for c in RULE_CASES if c["expect"] == "plan_rubric_ok"], ids=[c["name"] for c in RULE_CASES if c["expect"] == "plan_rubric_ok"])
 def test_a_conforming_plan_fixture_raises_no_finding_for_its_rule(case):
     findings = _check_case(case)
     assert not any(f.rule == case["rule"] for f in findings), findings
 
 
 @pytest.mark.parametrize(
-    "case", [c for c in RULE_CASES if c["expect"] == "reject"], ids=[c["name"] for c in RULE_CASES if c["expect"] == "reject"],
+    "case", [c for c in RULE_CASES if c["expect"] == "plan_rubric_reject"], ids=[c["name"] for c in RULE_CASES if c["expect"] == "plan_rubric_reject"],
 )
 def test_a_defective_plan_fixture_raises_its_named_rule(case):
     findings = _check_case(case)
