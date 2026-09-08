@@ -2,12 +2,14 @@
 # passing run before the named stage becomes due. S5 and S6 both run from
 # `checks`; `factory advance` only reaches S6 once an S5 pass already
 # exists, so S6's entry seeds one. S4 and S5 fetch the target branch from
-# the ticket's clone before running, so their entries ask for a real base.
+# the ticket's clone before running, so their entries ask for a real base;
+# S1 asks for one too, since its own impact scan reads the ticket's worktree.
 stages:
   S0:
     state: intake
   S1:
     state: context
+    real_base: true
   S2:
     state: clarifying
   S3:

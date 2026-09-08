@@ -1,0 +1,9 @@
+subject: factory/scripts/tools/reindex
+owner: abhishek
+cases:
+  - name: indexed
+    fixture: fixtures/indexed
+    expect: ok
+  - name: absent_binary
+    fixture: fixtures/absent_binary
+    expect: reject

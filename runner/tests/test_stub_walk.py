@@ -17,6 +17,7 @@ at all, so its identity is this very test process.
 import json
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
@@ -24,10 +25,13 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from runner import cli, git_trees, governance, guard, owners, queue, record, recipes, run_ledger
+from runner import cli, envelope, git_trees, governance, guard, launcher, owners, queue, record, recipes, run_ledger
+from runner.adapters import cursor_sdk
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
+
+ADAPTER_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "adapter"
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "stub_walk"
 TABLES = yaml.safe_load((FIXTURES_DIR / "tables.yaml").read_text())["tables"]
@@ -57,6 +61,18 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
+    # A minimal pom so the now-real S1's impact_scan has something to read;
+    # the dependency matches the committed artifact-to-service.yaml's one
+    # authoritative entry.
+    (repo / "pom.xml").write_text(
+        "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
+        "  <dependencies>\n    <dependency>\n      <groupId>com.fixturevendor</groupId>\n"
+        "      <artifactId>strings</artifactId>\n      <version>1.0.0</version>\n    </dependency>\n  </dependencies>\n"
+        "</project>\n"
+    )
+    src = repo / "src" / "main" / "java" / "com" / "example"
+    src.mkdir(parents=True)
+    (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     _git(["add", "-A"], cwd=repo)
     _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
     return repo
@@ -190,20 +206,28 @@ def _run_walk(tmp_path) -> WalkResult:
     cli.advance(conn, ticket_id, tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
 
+    # A real, fetchable worktree: the now-real S1 needs one to run its
+    # impact scan over, and S4's freshness preflight and the plan-review
+    # gate's own freshness check both fetch the configured target branch
+    # from this same clone later in the walk.
+    source = _source_repo(tmp_path)
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+
     # S1, S2, S3: each always due while its state holds, killed and restarted once.
-    _kill_and_restart(conn, ticket_id, "S1", tmp_path)
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
+        FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+    )
+    try:
+        _kill_and_restart(conn, ticket_id, "S1", tmp_path)
+    finally:
+        del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
     _kill_and_restart(conn, ticket_id, "S2", tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "planning"
     _kill_and_restart(conn, ticket_id, "S3", tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "plan_review"
 
-    # A real, fetchable base: S4's freshness preflight and the plan-review
-    # gate's own freshness check both fetch the configured target branch
-    # from the ticket's own clone.
-    source = _source_repo(tmp_path)
-    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
-    git_trees.record_head(conn, ticket_id, trees.worktree)
     record.insert(
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
         base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-1",
@@ -261,8 +285,23 @@ def _run_walk(tmp_path) -> WalkResult:
     )
 
 
+def _patch_fixture_runtime(tmp_path_factory) -> None:
+    """Point the adapter at the fixture worker directly, module-attribute assignment rather than
+    `conftest.py`'s `monkeypatch` -- `walk` is module-scoped and so sets up before that
+    function-scoped autouse fixture ever runs, and the now-real S1 driver this walk exercises is
+    the first stage in this file to actually reach `cursor_sdk.invoke`."""
+    doc = yaml.safe_load((ADAPTER_FIXTURES_DIR / "runtime.yaml").read_text())
+    doc["adapters"]["cursor_sdk"]["command"] = [sys.executable, str(ADAPTER_FIXTURES_DIR / "fixture_worker.py")]
+    runtime_path = tmp_path_factory.mktemp("runtime") / "runtime.yaml"
+    runtime_path.write_text(yaml.safe_dump(doc))
+    cursor_sdk.RUNTIME_PATH = runtime_path
+    launcher.SANDBOX_PATH = ADAPTER_FIXTURES_DIR / "sandbox.yaml"
+    envelope.SANDBOX_PATH = ADAPTER_FIXTURES_DIR / "sandbox.yaml"
+
+
 @pytest.fixture(scope="module")
 def walk(tmp_path_factory):
+    _patch_fixture_runtime(tmp_path_factory)
     result = _run_walk(tmp_path_factory.mktemp("stub_walk"))
     yield result
     result.conn.close()
