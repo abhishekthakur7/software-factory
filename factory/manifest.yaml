@@ -5,7 +5,7 @@ files:
   - path: factory/agents/S2.md
     content_hash: 0e78685449f86e0a5ea192c6d3ba0986baa952efc521d283334c86a81aec9446
   - path: factory/agents/S3.md
-    content_hash: dd76240591bfd70e1da0c8941cd918f304ce0f5e1dc5ee435589b69f7876abcc
+    content_hash: c55ba0cf2ade2b485a72d8b3fbb98579ac9b18c47b02a74a5a7e67e4b9eee762
   - path: factory/agents/S4.md
     content_hash: 032f03596fea0c0612fa4f38fac1dfc7eae381aec44edc1d3d535858d3858697
   - path: factory/benchmarks/.gitkeep
@@ -569,7 +569,7 @@ files:
   - path: factory/skills/S2.md
     content_hash: 8fa555d084c9487da87847240128ce8f5face04f8a9546ac8cfa83b3326571bd
   - path: factory/skills/S3.md
-    content_hash: 8246c91599141f20e88777b7048620a8231f5d7a24762f0f0225d4446c10b4e7
+    content_hash: b5532208b0bce5603a000fa1058c2b2c9ac239e24ce5b8a5c30c4ab958625722
   - path: factory/skills/S4.md
     content_hash: 7ea55a0125a73c5d307643b61d3adb4e5fc3770ba1b5c7fd4185766764436fb1
   - path: factory/skills/shared/codegraph-lookup.md
