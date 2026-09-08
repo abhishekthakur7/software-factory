@@ -1,3 +1,0 @@
-## Ticket summary
-
-seeded brief
