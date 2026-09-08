@@ -126,8 +126,17 @@ def open_stage_run(
     parent_run_id: int | None = None,
     tier: str | None = None,
     lease_seconds: int | None = None,
+    **identity,
 ) -> int:
-    """Insert a new `stage_run` row and return its id: attempt computed, lease and heartbeat started now."""
+    """Insert a new `stage_run` row and return its id: attempt computed, lease and heartbeat started now.
+
+    `identity` carries the invocation's fixed identity an adapter knows
+    before dispatch (runtime, versions, requested model, agent/skill/rubric
+    refs, manifest and trust hashes, tool allowlist, digests, ordered
+    inputs, envelope hash), written once at insert so those columns stay
+    immutable; what the run learns only after it ends goes through
+    `record_invocation_result`.
+    """
     heartbeat_at, lease_expires_at = _lease_fields(lease_seconds)
     return record.insert(
         conn,
@@ -142,6 +151,7 @@ def open_stage_run(
         started_at=heartbeat_at,
         heartbeat_at=heartbeat_at,
         lease_expires_at=lease_expires_at,
+        **identity,
     )
 
 
@@ -231,72 +241,33 @@ def settle_cost(
     )
 
 
-def record_invocation(
+def record_invocation_result(
     conn: sqlite3.Connection,
     run_id: int,
     *,
-    runtime: str | None = None,
-    runtime_version: str | None = None,
-    adapter_version: str | None = None,
-    model_requested: str | None = None,
     model_resolved: str | None = None,
-    agent_ref: str | None = None,
-    skill_ref: str | None = None,
-    rubric_ref: str | None = None,
-    manifest_hash: str | None = None,
-    trust_profile_hash: str | None = None,
-    trust_approval_set_hash: str | None = None,
-    tool_allowlist: str | None = None,
-    sandbox_digest: str | None = None,
-    toolchain_digest: str | None = None,
-    recipe_set_hash: str | None = None,
-    inputs: str | None = None,
     outputs: str | None = None,
     tokens_in: int | None = None,
     tokens_out: int | None = None,
     wall_clock_seconds: float | None = None,
-    envelope_hash: str | None = None,
     replayability: str | None = None,
     replayability_blind_spot: str | None = None,
 ) -> None:
-    """Write a runtime adapter's own fields on an already-open `stage_run`.
+    """Write what a `stage_run` learns only once its invocation has ended.
 
-    Every keyword here names a plain-mutable `stage_run` column, not an
-    attempt/lease/outcome/cost field -- those stay on `open_stage_run`,
-    `finish`, and `settle_cost`, the three functions that already own this
-    table's shared lifecycle bookkeeping. A run's lease has to start before
-    a possibly long invocation runs, so the row necessarily exists before
-    an adapter knows any of these values, whether it learns them just
-    before dispatch (the identity/version/hash fields) or only after (the
-    resolved model, usage, and replayability fields); this is the one
-    write path for both halves, called as many times as the caller has
-    values ready rather than requiring them all at once. Only fields
-    actually passed are written -- an omitted keyword leaves its column
-    untouched, so a later call filling in the rest never clobbers what an
-    earlier call already recorded.
+    These seven columns are the ones an adapter cannot know when the row
+    opens -- the row exists, with its lease, before a possibly long
+    invocation runs -- so they settle in place afterwards, the same way
+    `reasoning_summary` does. Everything fixed before dispatch is written
+    at insert by `open_stage_run`; attempt, lease, outcome and cost keep
+    their own functions. Only fields actually passed are written.
     """
     fields = {
-        "runtime": runtime,
-        "runtime_version": runtime_version,
-        "adapter_version": adapter_version,
-        "model_requested": model_requested,
         "model_resolved": model_resolved,
-        "agent_ref": agent_ref,
-        "skill_ref": skill_ref,
-        "rubric_ref": rubric_ref,
-        "manifest_hash": manifest_hash,
-        "trust_profile_hash": trust_profile_hash,
-        "trust_approval_set_hash": trust_approval_set_hash,
-        "tool_allowlist": tool_allowlist,
-        "sandbox_digest": sandbox_digest,
-        "toolchain_digest": toolchain_digest,
-        "recipe_set_hash": recipe_set_hash,
-        "inputs": inputs,
         "outputs": outputs,
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
         "wall_clock_seconds": wall_clock_seconds,
-        "envelope_hash": envelope_hash,
         "replayability": replayability,
         "replayability_blind_spot": replayability_blind_spot,
     }

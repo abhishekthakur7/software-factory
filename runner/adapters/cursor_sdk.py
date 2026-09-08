@@ -248,17 +248,10 @@ def invoke(
     if adapter_cfg is None or entry.model_requested not in models:
         return _refuse_unavailable_model(entry.model_requested)
 
+    env = envelope_mod.build(conn, ticket, entry, adapter_version=ADAPTER_VERSION, sandbox_path=sandbox_path)
+    env_hash = envelope_mod.content_hash(env)
     stage_run_id = run_ledger.open_stage_run(
         conn, ticket_id=ticket["id"], stage=stage, parent_run_id=parent_run_id, tier=tier,
-    )
-    env = envelope_mod.build(conn, ticket, stage_run_id, entry, adapter_version=ADAPTER_VERSION, sandbox_path=sandbox_path)
-    env_hash = envelope_mod.content_hash(env)
-    run_dir = _run_dir(runs_dir, ticket["id"], stage_run_id)
-    envelope_path = run_dir / "envelope.json"
-    write_text(envelope_path, canonical.canonical_json(envelope_mod.to_dict(env)).decode())
-
-    run_ledger.record_invocation(
-        conn, stage_run_id,
         runtime=entry.runtime_adapter, runtime_version=entry.runtime_version, adapter_version=ADAPTER_VERSION,
         model_requested=entry.model_requested, agent_ref=env.agent_hash, skill_ref=env.skill_hash,
         rubric_ref=env.rubric_hash, manifest_hash=env.manifest_hash, trust_profile_hash=env.trust_profile_hash,
@@ -269,6 +262,9 @@ def invoke(
         inputs=canonical.canonical_json([item.artefact_id for item in env.inputs]).decode(),
         envelope_hash=env_hash,
     )
+    run_dir = _run_dir(runs_dir, ticket["id"], stage_run_id)
+    envelope_path = run_dir / "envelope.json"
+    write_text(envelope_path, canonical.canonical_json(envelope_mod.to_dict(env)).decode())
 
     launch_result = launcher.launch(
         run_dir=run_dir, argv=[*adapter_cfg["command"], str(envelope_path)], role="agent",
@@ -303,7 +299,7 @@ def invoke(
         reasoning_summary = run_ledger.record_reasoning_summary(conn, stage_run_id, payload["reasoning_summary"])
 
     duration_ms = payload.get("duration_ms")
-    run_ledger.record_invocation(
+    run_ledger.record_invocation_result(
         conn, stage_run_id,
         model_resolved=model_resolved, tokens_in=payload.get("tokens_in"), tokens_out=payload.get("tokens_out"),
         wall_clock_seconds=(duration_ms / 1000 if duration_ms is not None else None),

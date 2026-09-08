@@ -286,34 +286,29 @@ TABLES: tuple[Table, ...] = (
             # can tell a slow live run from a dead one: a lease is expired
             # only when it has lapsed and this process is gone too.
             Column("process_identity", "TEXT"),
-            # This whole group -- identity/version fields the adapter knows
-            # before it dispatches, and result fields it learns only after --
-            # is written by runner.run_ledger.record_invocation, never at
-            # INSERT: the row is opened (and its lease started) before a
-            # possibly long-running invocation begins, so every field an
-            # adapter determines is necessarily a write-after-open, the same
-            # way reasoning_summary already settles in place below.
-            Column("runtime", "TEXT", mutable=True),
-            Column("runtime_version", "TEXT", mutable=True),
-            Column("adapter_version", "TEXT", mutable=True),
-            Column("model_requested", "TEXT", mutable=True),
+            # The invocation's identity is fixed before dispatch and written
+            # at insert; only what a run learns after it ends (resolved
+            # model, outputs, usage, replayability) settles in place, the
+            # same way reasoning_summary does below.
+            Column("runtime", "TEXT"),
+            Column("runtime_version", "TEXT"),
+            Column("adapter_version", "TEXT"),
+            Column("model_requested", "TEXT"),
             Column("model_resolved", "TEXT", mutable=True),
-            Column("agent_ref", "TEXT", mutable=True),
-            Column("skill_ref", "TEXT", mutable=True),
-            Column("rubric_ref", "TEXT", mutable=True),
-            Column("manifest_hash", "TEXT", mutable=True),
-            Column("trust_profile_hash", "TEXT", mutable=True),
-            Column("trust_approval_set_hash", "TEXT", mutable=True),
-            Column("tool_allowlist", "TEXT", mutable=True),
-            Column("sandbox_digest", "TEXT", mutable=True),
-            Column("toolchain_digest", "TEXT", mutable=True),
-            Column("recipe_set_hash", "TEXT", mutable=True),
-            Column("inputs", "TEXT", mutable=True),
+            Column("agent_ref", "TEXT"),
+            Column("skill_ref", "TEXT"),
+            Column("rubric_ref", "TEXT"),
+            Column("manifest_hash", "TEXT"),
+            Column("trust_profile_hash", "TEXT"),
+            Column("trust_approval_set_hash", "TEXT"),
+            Column("tool_allowlist", "TEXT"),
+            Column("sandbox_digest", "TEXT"),
+            Column("toolchain_digest", "TEXT"),
+            Column("recipe_set_hash", "TEXT"),
+            Column("inputs", "TEXT"),
             Column("outputs", "TEXT", mutable=True),
-            # The canonical hash of the invocation envelope this run was
-            # given, written once the envelope is built (after the row
-            # opens, since the envelope itself names this run's id).
-            Column("envelope_hash", "TEXT", mutable=True),
+            # The canonical hash of the invocation envelope this run was given.
+            Column("envelope_hash", "TEXT"),
             # Whether every field needed to rebuild this run's envelope and
             # execution boundary is present, and the named gap when it
             # is not; never a claim of identical hosted-model output on

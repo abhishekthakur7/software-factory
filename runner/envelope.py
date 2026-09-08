@@ -213,20 +213,17 @@ def _ordered_inputs(conn: sqlite3.Connection, ticket_id: int) -> tuple[InputRef,
 
 
 def build(
-    conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, entry, *, adapter_version: str | None = None,
+    conn: sqlite3.Connection, ticket: sqlite3.Row, entry, *, adapter_version: str | None = None,
     sandbox_path: Path = SANDBOX_PATH,
 ) -> Envelope:
     """The envelope a fresh invocation of `entry.stage` for `ticket` receives.
 
-    `stage_run_id` names the run this envelope belongs to; the envelope's
-    own content does not depend on it (nothing here reads the row), it is
-    accepted so a caller cannot build one before the run it will be
-    attached to actually exists. `adapter_version` names the calling
-    adapter module's own pinned version -- distinct from `entry`'s
+    Built before the run's row opens, so the row can carry the envelope's
+    identity fields and hash from its insert. `adapter_version` names the
+    calling adapter module's own pinned version -- distinct from `entry`'s
     `runtime_version`, the SDK/CLI package version -- so this function
     stays adapter-agnostic rather than assuming which one is calling it.
     """
-    del stage_run_id  # identifies the caller's run; not part of the envelope's content
     project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
     toolchain = dict(entry.toolchain) if entry.toolchain else dict(project.get("toolchain", {}))
     return Envelope(
@@ -261,8 +258,8 @@ def reconstruct(conn: sqlite3.Connection, stage_run_id: int, *, runs_dir: Path =
     """Rebuild the envelope `stage_run_id` was given, from its own row, the ticket, and the artefacts it names.
 
     Reads only what the record already holds: the `stage_run` row's own
-    hash/version/digest fields (written by `run_ledger.record_invocation`
-    at the same time `build` produced them), the ticket row, and the
+    hash/version/digest fields (written at its insert from what `build`
+    produced), the ticket row, and the
     artefact rows named by the run's own `inputs` column -- never the
     manifest file or the recipe catalogue again, since a later edit to
     either must not silently change what an already-run invocation is

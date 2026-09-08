@@ -4,8 +4,8 @@
 
 | # | Step | Files touched | Proves |
 |---|---|---|---|
-| 1 | `stage_run.envelope_hash`, `replayability`, `replayability_blind_spot` added; every field a runtime adapter learns after the row opens marked `mutable=True`. `USER_VERSION` bumped. | `runner/schema.py`, `runner/db.py` | criteria 6, 22, 24, 26, 27 |
-| 2 | `run_ledger.record_invocation`: the one write path for those fields. | `runner/run_ledger.py` | criteria 7, 8-15, 22, 24-28 |
+| 1 | `stage_run.envelope_hash`, `replayability`, `replayability_blind_spot` added; the seven result fields a run learns after it ends marked `mutable=True`, identity fields stay immutable. `USER_VERSION` bumped. | `runner/schema.py`, `runner/db.py` | criteria 6, 22, 24, 26, 27 |
+| 2 | `run_ledger.open_stage_run` takes the identity fields at insert; `run_ledger.record_invocation_result` is the one write path for the result fields. | `runner/run_ledger.py` | criteria 7, 8-15, 22, 24-28 |
 | 3 | Mutable-exception allowlist extended for `stage_run`. | `runner/tests/test_mutable_exceptions.py` | criterion 22 (allowlist sweep) |
 | 4 | `envelope.py`: `Envelope`, `build`, `reconstruct`, `content_hash`, `sandbox_digest`, `toolchain_digest`, `recipe_set_hash`. | `runner/envelope.py` | criteria 2, 3, 6, 24-28 |
 | 5 | `launcher.py`: `launch`, the allowlist-only child environment, per-role credential injection, codegraph start, `out/`/`results/`, sandbox-integrity check, `terminate_child`. | `runner/launcher.py` | criteria 18-23 |

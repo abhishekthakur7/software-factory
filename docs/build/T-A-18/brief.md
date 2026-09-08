@@ -116,28 +116,24 @@ the governance and execution-boundary identities in force.
 
 ## Decisions this brief did not already settle
 
-- **`run_ledger.py` gains one new function, `record_invocation`,** even
-  though the ticket's own "files you own"/"shared, minimal edits" lists do
-  not name it. `stage_run`'s identity, version, hash, and result fields
-  (everything a runtime adapter learns, whether just before dispatch or
-  only after) have nowhere else to be written once the row is open, and
-  COMMON.md's seam rule is explicit that every `stage_run` write goes
-  through `run_ledger`, never a direct `record.update` from adapter code.
-  Extending it minimally -- one typed, well-documented function, no change
-  to any existing signature -- follows the same precedent the ticket
-  states for `manifest.Entry`: extend the shared module you actually need
-  rather than bypass its seam, and say so here.
-- **Every field `record_invocation` writes became a plain-mutable
-  `stage_run` column**, alongside the three the ticket names
-  (`envelope_hash`, `replayability`, `replayability_blind_spot`). The row
-  must open (and its lease start) before a possibly long invocation runs,
-  so every field an adapter determines -- identity/version/hash fields
-  known just before dispatch, and result fields known only after -- is
-  necessarily a write-after-open; treating the whole group uniformly, the
-  same way `reasoning_summary` already works, keeps one rule rather than
-  an arbitrary insert-time/update-time split. `runner/tests/
-  test_mutable_exceptions.py`'s hand-written allowlist is extended to
-  match; `USER_VERSION` moves with the schema change.
+- **The invocation's identity is written at insert; only its result
+  settles in place.** The envelope is built before the run's row opens
+  (its content never depends on the run id), so `run_ledger.open_stage_run`
+  takes the identity fields an adapter knows before dispatch -- runtime and
+  versions, requested model, agent/skill/rubric refs, manifest and trust
+  hashes, tool allowlist, digests, ordered inputs, `envelope_hash` -- as
+  insert-time keywords and those columns stay immutable. The seven fields
+  a run learns only after it ends (`model_resolved`, `outputs`,
+  `tokens_in`, `tokens_out`, `wall_clock_seconds`, `replayability`,
+  `replayability_blind_spot`) are the only new mutable columns, written by
+  the one new ledger function `run_ledger.record_invocation_result`, the
+  same way `reasoning_summary` already settles. COMMON.md's seam rule
+  (every `stage_run` write goes through `run_ledger`) is why the function
+  lives there rather than in adapter code; keeping the identity immutable
+  is why the split exists instead of one uniform write-after-open rule.
+  `runner/tests/test_mutable_exceptions.py`'s hand-written allowlist is
+  extended by exactly those seven; `USER_VERSION` moves with the schema
+  change.
 - **`envelope.build`'s "inputs"** are every one of the ticket's
   latest-version artefacts, ordered by kind, rather than a per-stage
   subset. The manifest does not yet name, per stage, which artefact kinds
