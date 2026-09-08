@@ -136,7 +136,7 @@ def stale_reason(
 
 def record_reads(
     conn: sqlite3.Connection, *, stage_run_id: int, entries, now: str | None = None, checkout: Path | None = None,
-    target_branch: str | None = None, actor: str = "runner",
+    target_branch: str | None = None, actor: str = tags.MECHANICAL_ACTOR,
 ) -> tuple[Read, ...]:
     """Write one `index_use` row per entry read by `stage_run_id`, tagging each stale read `stale_index`."""
     reads: list[Read] = []

@@ -51,7 +51,7 @@ def test_packet_assemble_conformance_case(case, tmp_path):
 
 
 def test_the_full_packet_opens_with_identity_and_freshness_then_one_evidence_table_in_charter_order(tmp_path):
-    """R-S6-1 criterion 1: the packet's sections appear, in order, exactly as the charter's
+    """R-S6-1: the packet's sections appear, in order, exactly as the charter's
     review-packet paragraph fixes them."""
     case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "full_ordered_packet")
     completed, out_path = _run(case, tmp_path)
@@ -62,7 +62,7 @@ def test_the_full_packet_opens_with_identity_and_freshness_then_one_evidence_tab
 
 
 def test_every_evidence_row_names_its_source_artefact_and_its_hash(tmp_path):
-    """R-S6-1 criterion 2: every element in the evidence table carries a non-empty
+    """R-S6-1: every element in the evidence table carries a non-empty
     `source_artefact` cell, and a `hash` cell wherever the input row named one -- a fix
     round's own `stage_run` carries no content hash of its own to cite."""
     case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "full_ordered_packet")
@@ -81,7 +81,7 @@ def test_every_evidence_row_names_its_source_artefact_and_its_hash(tmp_path):
 
 
 def test_the_evidence_table_lists_every_check_fix_round_base_test_change_readiness_approval_and_waiver(tmp_path):
-    """R-S6-1 criterion 3: the evidence table's rows cover every blocking check, fix round,
+    """R-S6-1: the evidence table's rows cover every blocking check, fix round,
     base-test change, readiness row, approval record, and waiver the inputs named."""
     case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "full_ordered_packet")
     completed, out_path = _run(case, tmp_path)
@@ -94,7 +94,7 @@ def test_the_evidence_table_lists_every_check_fix_round_base_test_change_readine
 
 
 def test_an_impact_entry_seeded_pass_is_relabelled_blind_spot_never_pass(tmp_path):
-    """R-S6-1 criterion 5: a seeded impact, declaration, or behaviour-limitation entry
+    """R-S6-1: a seeded impact, declaration, or behaviour-limitation entry
     is labelled `blind_spot` in the evidence table, never `pass`."""
     case = next(c for c in EVAL_SPEC["cases"] if c["name"] == "impact_entry_relabelled_blind_spot")
     completed, out_path = _run(case, tmp_path)
