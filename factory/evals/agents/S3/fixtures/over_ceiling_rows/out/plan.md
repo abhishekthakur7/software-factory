@@ -16,7 +16,9 @@ Widget.compute currently ignores negative input; this plan adds validation so it
 
 ## Risk map
 
-Widget.java is the only touched file; the last twelve months show two authors with the primary author holding a clear majority of commits, so no reviewer beyond the size gate's ordinary check is named.
+| place | why |
+|---|---|
+| src/main/java/com/fixture/Widget.java | sole touched file; a fresh guard clause changes its error path, worth a reviewer's eyes even though ownership is clear |
 
 ## Goals and non-goals
 
@@ -28,7 +30,9 @@ Add a guard clause at the top of Widget.compute that raises a typed error for ne
 
 ## Alternatives
 
-Considered and rejected: validating at the caller instead, which would leave the library unsafe for other callers.
+| alternative | rejected_because |
+|---|---|
+| validate at the caller instead | leaves the library unsafe for every other caller that skips validation |
 
 ## Scope and discretion
 
@@ -43,17 +47,20 @@ Considered and rejected: validating at the caller instead, which would leave the
 
 ## Archaeology and characterization tests
 
-Widget.compute is explained: its one prior commit's message and the existing unit test both document intended behaviour for valid input.
+| path | classification | characterization_task | alters_captured_behaviour |
+|---|---|---|---|
+| src/main/java/com/fixture/Widget.java | explained |  | no |
 
 ## Abstraction and separate debt
 
-No new abstraction introduced; the guard clause is local to Widget.compute.
+| kind | unit | existing | reason |
+|---|---|---|---|
 
 ## Contracts
 
 | unit | kind | source_declaration | input | output | errors | side_effects | invariants | authorization | ordering_concurrency | transaction_persistence | compatibility |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Widget.compute | function | Widget.java:42 | int x | int | none | none | deterministic | none | single-threaded | none | unchanged |
+| Widget.compute | function | unchanged: Widget.java:42 | changed: added a negative-input guard | unchanged | changed: raises a typed error for negative input | unchanged | unchanged | unchanged | unchanged | unchanged | unchanged |
 
 ## Semantic-contract checklist
 
@@ -157,7 +164,31 @@ Widget.compute: input validation is the only changed field, output and side effe
 
 ## Rollout
 
-No flag; this is a small_feature ticket with no ramp. No guardrail metrics beyond the existing test suite.
+### Flags
+
+| flag | expected_life | owner | removal_condition | cleanup_task |
+|---|---|---|---|---|
+
+### Ramp
+
+| step | description |
+|---|---|
+
+### Guardrails
+
+| metric | query | critical_threshold |
+|---|---|---|
+
+### Kill trigger
+
+| trigger | default_response |
+|---|---|
+| Widget.compute rejects previously-accepted negative input in production | rollback the deploy and restore the previous compute implementation |
+
+### Log verification
+
+| query | pass_pattern | fail_pattern |
+|---|---|---|
 
 ## Size
 
