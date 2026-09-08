@@ -1,0 +1,20 @@
+{
+  "deviations": [
+    {
+      "plan_item": "T-1",
+      "plan_said": "add a guard clause at the top of Widget.compute",
+      "agent_did": "raised the guard through a typed IllegalArgumentException rather than a bare RuntimeException",
+      "why": "matches the fixture project's existing error-handling convention in Greeter.java",
+      "kind": "judgment",
+      "contract_change": false
+    },
+    {
+      "plan_item": "T-1",
+      "plan_said": "validation_recipe fixture_compile should compile clean",
+      "agent_did": "left an unused import in Widget.java from an earlier draft",
+      "why": "missed during cleanup before hand-back",
+      "kind": "error",
+      "contract_change": false
+    }
+  ]
+}

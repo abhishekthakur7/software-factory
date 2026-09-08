@@ -134,12 +134,39 @@ def _copy_fixture_output(out_dir: Path, locations: dict) -> None:
                     shutil.copy(path, out_dir / path.name)
 
 
+def _copy_fixture_worktree(locations: dict) -> list[str]:
+    """Stand in for the agent's own worktree edits: copy a fixture tree onto the ticket worktree.
+
+    `FIXTURE_ADAPTER_WORKTREE_DIR` names a directory whose files are
+    copied, path for path, onto `locations["worktree_path"]` -- this
+    fixture worker never runs git, matching the real worker's contract
+    that only the trusted runner commits after hand-back. Returns the
+    absolute destination paths written so the caller can fold them into
+    `files_written` and keep the sandbox-integrity report truthful.
+    """
+    source = os.environ.get("FIXTURE_ADAPTER_WORKTREE_DIR")
+    worktree_path = locations.get("worktree_path")
+    if not source or not worktree_path:
+        return []
+    root = Path(source)
+    dest_root = Path(worktree_path)
+    written = []
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            dest = dest_root / path.relative_to(root)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(path, dest)
+            written.append(str(dest))
+    return written
+
+
 def main() -> int:
     out_dir = Path(os.environ["FACTORY_RUN_OUT"])
     envelope_path = Path(sys.argv[1])
     envelope = json.loads(envelope_path.read_text())
     locations = json.loads(Path(sys.argv[2]).read_text()) if len(sys.argv) > 2 else {}
     _copy_fixture_output(out_dir, locations)
+    worktree_written = _copy_fixture_worktree(locations)
 
     # The adoption-gate eval directory (factory/evals/adapters/cursor_sdk/)
     # supplies its own canned JSON documents on disk; when the launcher
@@ -150,7 +177,7 @@ def main() -> int:
     if payload_path:
         payload = json.loads(Path(payload_path).read_text())
         payload.setdefault("environment_names", sorted(os.environ))
-        payload.setdefault("files_written", [str(p) for p in out_dir.rglob("*") if p.is_file()])
+        payload.setdefault("files_written", [str(p) for p in out_dir.rglob("*") if p.is_file()] + worktree_written)
         payload["_envelope_stage"] = envelope.get("stage")
         print(json.dumps(payload))
         return 0
@@ -165,7 +192,7 @@ def main() -> int:
         (out_dir / "result.md").write_text("agent output\n")
 
     payload.setdefault("environment_names", sorted(os.environ))
-    payload.setdefault("files_written", [str(p) for p in out_dir.rglob("*") if p.is_file()])
+    payload.setdefault("files_written", [str(p) for p in out_dir.rglob("*") if p.is_file()] + worktree_written)
     # Proves the worker actually read the envelope it was given, without
     # leaking its content into any case table above.
     payload["_envelope_stage"] = envelope.get("stage")

@@ -1,0 +1,12 @@
+{
+  "deviations": [
+    {
+      "plan_item": "T-1",
+      "plan_said": "add a guard clause at the top of Widget.compute",
+      "agent_did": "used a different validation strategy entirely",
+      "why": "an unregistered deviation kind, not judgment or error",
+      "kind": "surprise",
+      "contract_change": false
+    }
+  ]
+}
