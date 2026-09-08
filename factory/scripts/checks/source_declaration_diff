@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""Source-declaration diff: public/protected Java declarations, base against head.
+
+Standalone: no import of `runner`. A regex extractor over Java source text
+finds every `public`/`protected` class, interface, enum, record, method,
+constructor and field declaration in the touched files named by
+`--files`, normalises each into a signature (modifiers, type, name,
+parameter types), and matches base against head by kind, owner class and
+bare name -- a parameter-list change on the same method name is a
+`changed` declaration, not a remove-plus-add, so a plan reviewer sees one
+finding per real change. This is a source-text extractor, not a compiler:
+it has no symbol table and cannot resolve inherited or generated members,
+so `limitations` says so and also names any touched file it could not
+find a single type declaration in, and any touched file whose text
+mentions a reflection call -- both are inputs `behavior_contract_evidence`
+turns into blind spots, since this script has no other channel back to it
+for facts about the touched files.
+"""
+import argparse
+import json
+import re
+from pathlib import Path
+
+_VISIBILITIES = ("public", "protected")
+
+_TYPE_RE = re.compile(
+    r"^\s*(?P<visibility>public|protected)\s+"
+    r"(?P<modifiers>(?:(?:abstract|final|static|sealed)\s+)*)"
+    r"(?P<kind>class|interface|enum|record)\s+"
+    r"(?P<name>\w+)"
+    r"(?:\s*<[^>]*>)?"
+    r"(?:\s*\([^)]*\))?"
+    r"(?P<rest>[^{;]*)"
+)
+_METHOD_RE = re.compile(
+    r"^\s*(?P<visibility>public|protected)\s+"
+    r"(?P<modifiers>(?:(?:static|final|abstract|synchronized|default|native)\s+)*)"
+    r"(?:<[^>]+>\s+)?"
+    r"(?P<type>[\w\[\]]+(?:<[^>]*>)?(?:\[\])*)\s+"
+    r"(?P<name>\w+)\s*"
+    r"\((?P<params>[^)]*)\)"
+    r"(?:\s*throws\s+[\w.,\s]+)?"
+    r"\s*[{;]"
+)
+_CTOR_RE = re.compile(
+    r"^\s*(?P<visibility>public|protected)\s+"
+    r"(?P<name>\w+)\s*"
+    r"\((?P<params>[^)]*)\)"
+    r"(?:\s*throws\s+[\w.,\s]+)?"
+    r"\s*\{"
+)
+_FIELD_RE = re.compile(
+    r"^\s*(?P<visibility>public|protected)\s+"
+    r"(?P<modifiers>(?:(?:static|final|volatile|transient)\s+)*)"
+    r"(?P<type>[\w\[\]]+(?:<[^>]*>)?(?:\[\])*)\s+"
+    r"(?P<name>\w+)\s*(?:=[^;]*)?;"
+)
+_REFLECTION_MARKERS = ("Class.forName", "getMethod", "getDeclared")
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _param_types(params: str) -> list[str]:
+    params = params.strip()
+    if not params:
+        return []
+    types = []
+    for segment in params.split(","):
+        segment = segment.strip()
+        if not segment:
+            continue
+        segment = re.sub(r"^final\s+", "", segment)
+        segment = re.sub(r"@\w+\s+", "", segment)
+        tokens = segment.split()
+        types.append(" ".join(tokens[:-1]) if len(tokens) >= 2 else tokens[0])
+    return types
+
+
+def _extract_declarations(text: str) -> tuple[list[dict], bool]:
+    """`(declarations, found_a_type)`. `found_a_type` false marks the text as unparsable."""
+    declarations: list[dict] = []
+    current_class = ""
+    found_type = False
+    for raw_line in text.splitlines():
+        match = _TYPE_RE.match(raw_line)
+        if match:
+            found_type = True
+            name = match.group("name")
+            modifiers = match.group("modifiers").split()
+            rest = match.group("rest") or ""
+            extends, implements = [], []
+            ext_match = re.search(r"\bextends\s+([\w<>,.\s]+?)(?:\bimplements\b|$)", rest)
+            if ext_match:
+                extends = [t.strip() for t in re.split(r"[,<>]", ext_match.group(1)) if t.strip()]
+            impl_match = re.search(r"\bimplements\s+([\w<>,.\s]+)", rest)
+            if impl_match:
+                implements = [t.strip() for t in re.split(r"[,<>]", impl_match.group(1)) if t.strip()]
+            signature = _norm(f"{match.group('visibility')} {' '.join(modifiers)} {match.group('kind')} {name}"
+                               + (" extends " + ",".join(extends) if extends else "")
+                               + (" implements " + ",".join(implements) if implements else ""))
+            declarations.append({
+                "kind": match.group("kind"), "owner": "", "base_name": name, "name": name,
+                "visibility": match.group("visibility"), "signature": signature,
+                "extends": extends, "implements": implements,
+            })
+            current_class = name
+            continue
+        match = _METHOD_RE.match(raw_line)
+        if match:
+            param_types = _param_types(match.group("params"))
+            display = f"{match.group('name')}({','.join(param_types)})"
+            modifiers = match.group("modifiers").split()
+            signature = _norm(f"{match.group('visibility')} {' '.join(modifiers)} {match.group('type')} {display}")
+            declarations.append({
+                "kind": "method", "owner": current_class, "base_name": match.group("name"), "name": display,
+                "visibility": match.group("visibility"), "signature": signature,
+                "extends": [], "implements": [],
+            })
+            continue
+        match = _CTOR_RE.match(raw_line)
+        if match and match.group("name") == current_class:
+            param_types = _param_types(match.group("params"))
+            display = f"{match.group('name')}({','.join(param_types)})"
+            signature = _norm(f"{match.group('visibility')} {display}")
+            declarations.append({
+                "kind": "constructor", "owner": current_class, "base_name": match.group("name"), "name": display,
+                "visibility": match.group("visibility"), "signature": signature,
+                "extends": [], "implements": [],
+            })
+            continue
+        match = _FIELD_RE.match(raw_line)
+        if match:
+            modifiers = match.group("modifiers").split()
+            signature = _norm(f"{match.group('visibility')} {' '.join(modifiers)} {match.group('type')} "
+                               f"{match.group('name')}")
+            declarations.append({
+                "kind": "field", "owner": current_class, "base_name": match.group("name"),
+                "name": match.group("name"), "visibility": match.group("visibility"), "signature": signature,
+                "extends": [], "implements": [],
+            })
+            continue
+    return declarations, found_type
+
+
+def _extract_section(text: str, title: str) -> str:
+    match = re.search(rf"^## {re.escape(title)}[ \t]*$", text, re.MULTILINE)
+    if not match:
+        return ""
+    rest = text[match.end():]
+    next_heading = re.search(r"^## ", rest, re.MULTILINE)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
+def _parse_pipe_table(section_text: str) -> list[dict[str, str]]:
+    lines = [line for line in section_text.splitlines() if line.lstrip().startswith("|")]
+    if len(lines) < 2:
+        return []
+    header = [cell.strip() for cell in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[2:]:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        cells += [""] * (len(header) - len(cells))
+        rows.append(dict(zip(header, cells)))
+    return rows
+
+
+def _contract_rows(plan_path: Path) -> list[dict[str, str]]:
+    return _parse_pipe_table(_extract_section(plan_path.read_text(), "Contracts"))
+
+
+def _candidates(decl: dict) -> list[str]:
+    return [decl["base_name"], f"{decl['owner']}.{decl['base_name']}"] if decl["owner"] else [decl["base_name"]]
+
+
+def _matching_row(decl: dict, rows: list[dict[str, str]]) -> dict[str, str] | None:
+    for row in rows:
+        haystack = f"{row.get('unit', '')} {row.get('source_declaration', '')}"
+        if any(candidate and candidate in haystack for candidate in _candidates(decl)):
+            return row
+    return None
+
+
+def _cell_state(cell: str) -> str:
+    return cell.split(":", 1)[0].strip()
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="source_declaration_diff")
+    parser.add_argument("--base", required=True, type=Path)
+    parser.add_argument("--head", required=True, type=Path)
+    parser.add_argument("--files", required=True, type=Path)
+    parser.add_argument("--plan", required=True, type=Path)
+    args = parser.parse_args(argv)
+
+    touched = [line.strip() for line in args.files.read_text().splitlines() if line.strip()]
+    limitations = ["source-text extractor, not a compiler"]
+
+    base_all: list[dict] = []
+    head_all: list[dict] = []
+    added: list[dict] = []
+    removed: list[dict] = []
+    changed: list[dict] = []
+
+    for rel in touched:
+        base_path, head_path = args.base / rel, args.head / rel
+        base_text = base_path.read_text() if base_path.is_file() else None
+        head_text = head_path.read_text() if head_path.is_file() else None
+
+        base_decls, base_ok = _extract_declarations(base_text) if base_text is not None else ([], True)
+        head_decls, head_ok = _extract_declarations(head_text) if head_text is not None else ([], True)
+        for decl in base_decls:
+            decl["file"] = rel
+        for decl in head_decls:
+            decl["file"] = rel
+
+        if (base_text is not None and not base_ok) or (head_text is not None and not head_ok):
+            limitations.append(f"unparsable: {rel}")
+        if any(marker in (text or "") for text in (base_text, head_text) for marker in _REFLECTION_MARKERS):
+            limitations.append(f"reflection: {rel}")
+
+        base_all += base_decls
+        head_all += head_decls
+
+        base_by_key = {(d["kind"], d["owner"], d["base_name"]): d for d in base_decls if d["visibility"] in _VISIBILITIES}
+        head_by_key = {(d["kind"], d["owner"], d["base_name"]): d for d in head_decls if d["visibility"] in _VISIBILITIES}
+        for key, decl in head_by_key.items():
+            if key not in base_by_key:
+                added.append(decl)
+        for key, decl in base_by_key.items():
+            if key not in head_by_key:
+                removed.append(decl)
+        for key in set(base_by_key) & set(head_by_key):
+            base_decl, head_decl = base_by_key[key], head_by_key[key]
+            if base_decl["signature"] != head_decl["signature"]:
+                changed.append(head_decl)
+
+    rows = _contract_rows(args.plan)
+    unplanned = [decl for decl in added + removed if _matching_row(decl, rows) is None]
+    unchanged_but_changed = []
+    for decl in changed:
+        row = _matching_row(decl, rows)
+        if row is not None and _cell_state(row.get("source_declaration", "")) == "unchanged":
+            unchanged_but_changed.append(decl)
+
+    result = "fail" if (unplanned or unchanged_but_changed) else "pass"
+    payload = {
+        "result": result,
+        "added": added,
+        "removed": removed,
+        "changed": changed,
+        "unplanned": unplanned,
+        "unchanged_but_changed": unchanged_but_changed,
+        "limitations": limitations,
+        "touched": sorted(touched),
+        "all_declarations": {"base": base_all, "head": head_all},
+    }
+    print(json.dumps(payload, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

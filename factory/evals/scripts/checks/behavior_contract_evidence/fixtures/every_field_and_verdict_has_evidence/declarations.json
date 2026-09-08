@@ -1,0 +1,14 @@
+{
+  "result": "pass",
+  "added": [],
+  "removed": [],
+  "changed": [],
+  "unplanned": [],
+  "unchanged_but_changed": [],
+  "limitations": ["source-text extractor, not a compiler"],
+  "touched": ["src/main/java/com/fixture/Widget.java"],
+  "all_declarations": {
+    "base": [{"kind": "method", "owner": "Widget", "base_name": "compute", "name": "compute(int)", "visibility": "public", "signature": "public int compute(int)", "extends": [], "implements": [], "file": "src/main/java/com/fixture/Widget.java"}],
+    "head": [{"kind": "method", "owner": "Widget", "base_name": "compute", "name": "compute(int)", "visibility": "public", "signature": "public int compute(int)", "extends": [], "implements": [], "file": "src/main/java/com/fixture/Widget.java"}]
+  }
+}

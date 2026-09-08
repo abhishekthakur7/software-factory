@@ -709,3 +709,63 @@ stages:
     content_hash: a913c141fd38bfe12d6058ed8c345591c31289a90977de91ef4893d5340881d0
   - path: factory/scripts/checks/scope_diff
     content_hash: 86a02d36c93ef7a46ccd1fba57c7897c3ae43ed14a6d33c707ec49f17f6ab08e
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/eval.yaml
+    content_hash: a913f394e791941ca9a1a811b7909300f1eabe085bd9dc54f37a44386e99881c
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/every_field_and_verdict_has_evidence/declarations.json
+    content_hash: ffb99426c9d699d589ec5336a34d142b3eb635837f521899bfb0813d50d6c925
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/every_field_and_verdict_has_evidence/plan.md
+    content_hash: 3c54050d1372820ed8563d655082acb39c0a4e98889f6270093b69ec9982b133
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/every_field_and_verdict_has_evidence/tests_base.json
+    content_hash: 2371d0c6cda5b1173651bf64c059413885fb24f8e73631be6fe316b8f7e7947c
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/every_field_and_verdict_has_evidence/tests_head.json
+    content_hash: 2371d0c6cda5b1173651bf64c059413885fb24f8e73631be6fe316b8f7e7947c
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/every_field_and_verdict_has_evidence/verdicts.json
+    content_hash: 0b0257c32130a630632e38b874a241c5ae6b8d5cd99c6e76eac8c6a0f7ed67ce
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/declarations.json
+    content_hash: 35c95ebb4ee2e56a461a61806c190adeab981e9503c6e941e615b5b94410b428
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/plan.md
+    content_hash: a4d547d9142fad4923ccafebee6945e1fa172ddc3986342765ff6a6bca9a0d39
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/tests_base.json
+    content_hash: 88a189537cbcb1ca3ac193faa1bfa6833d3f27295521042572a77ec9006d8f54
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/tests_head.json
+    content_hash: 88a189537cbcb1ca3ac193faa1bfa6833d3f27295521042572a77ec9006d8f54
+  - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/verdicts.json
+    content_hash: 0b0257c32130a630632e38b874a241c5ae6b8d5cd99c6e76eac8c6a0f7ed67ce
+  - path: factory/evals/scripts/checks/source_declaration_diff/eval.yaml
+    content_hash: c58000fbc717bc5a8fe6e7dfa8a5780f2db0f2e85284eb4ac0fadcb486286e39
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/added_unplanned/base/src/main/java/com/fixture/Widget.java
+    content_hash: fcca5f2833636a5e0f68379dd2b8a2cd4ff5438847c4be76a27c4eb6fd0bf00e
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/added_unplanned/files.txt
+    content_hash: 9d405622d7ed6007047302b27ffe62105b44f6dd9e88d68be11818fc283c83c2
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/added_unplanned/head/src/main/java/com/fixture/Widget.java
+    content_hash: c1d60393efb5e59d20b61231cf20e9cd03de576b0ff296a945c7085092a42fb8
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/added_unplanned/plan.md
+    content_hash: dc6481bd70d4ff9c94fec95a9f1c5e95adf3960bbf7dac4beff3de217e056e59
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/matches_plan/base/src/main/java/com/fixture/Widget.java
+    content_hash: fcca5f2833636a5e0f68379dd2b8a2cd4ff5438847c4be76a27c4eb6fd0bf00e
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/matches_plan/files.txt
+    content_hash: 9d405622d7ed6007047302b27ffe62105b44f6dd9e88d68be11818fc283c83c2
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/matches_plan/head/src/main/java/com/fixture/Widget.java
+    content_hash: c1d60393efb5e59d20b61231cf20e9cd03de576b0ff296a945c7085092a42fb8
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/matches_plan/plan.md
+    content_hash: b933ca28c02206eae1092b80960077c053f54e9d44f56d126945acb541c943d9
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/removed_unplanned/base/src/main/java/com/fixture/Widget.java
+    content_hash: c1d60393efb5e59d20b61231cf20e9cd03de576b0ff296a945c7085092a42fb8
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/removed_unplanned/files.txt
+    content_hash: 9d405622d7ed6007047302b27ffe62105b44f6dd9e88d68be11818fc283c83c2
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/removed_unplanned/head/src/main/java/com/fixture/Widget.java
+    content_hash: fcca5f2833636a5e0f68379dd2b8a2cd4ff5438847c4be76a27c4eb6fd0bf00e
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/removed_unplanned/plan.md
+    content_hash: dc6481bd70d4ff9c94fec95a9f1c5e95adf3960bbf7dac4beff3de217e056e59
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/base/src/main/java/com/fixture/Widget.java
+    content_hash: fcca5f2833636a5e0f68379dd2b8a2cd4ff5438847c4be76a27c4eb6fd0bf00e
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/files.txt
+    content_hash: 9d405622d7ed6007047302b27ffe62105b44f6dd9e88d68be11818fc283c83c2
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/head/src/main/java/com/fixture/Widget.java
+    content_hash: 1168bddad007141507fd2799173cfc0dd1fa6854cc07f37baf3c3ad078f61497
+  - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/plan.md
+    content_hash: dc6481bd70d4ff9c94fec95a9f1c5e95adf3960bbf7dac4beff3de217e056e59
+  - path: factory/scripts/checks/behavior_contract_evidence
+    content_hash: 09ae92491b85ac80dcf30ab4ded5864779e76e56003be969c1a2cf33f2379f51
+  - path: factory/scripts/checks/source_declaration_diff
+    content_hash: 5ce0b73d7cb9b9494b3b490070c881e299834ae82e00cc232f7c1c486b196ae1
