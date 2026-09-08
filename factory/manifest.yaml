@@ -7,7 +7,7 @@ files:
   - path: factory/agents/S3.md
     content_hash: c55ba0cf2ade2b485a72d8b3fbb98579ac9b18c47b02a74a5a7e67e4b9eee762
   - path: factory/agents/S4.md
-    content_hash: 280a3419a9598bb0a9f76c7f60ee7e726168006d7a50dad4736a999eb3d9db1b
+    content_hash: f8995b3fffc890e43e2f98278f7605260785e70427c985e37846dccfc15b7d1f
   - path: factory/benchmarks/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/catalogue/.gitkeep
@@ -21,7 +21,7 @@ files:
   - path: factory/config/exclusions.yaml
     content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
   - path: factory/config/limits.yaml
-    content_hash: 64a862b9b12eae5581910484bed0a8140e1dc5ed518760a446f0b862c3531178
+    content_hash: 455e87459b9b83d03581c450aec18650fd8dc37901e2d5ad44b5f3ee5ecfdac4
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/pricing.yaml
@@ -783,6 +783,16 @@ files:
     content_hash: 16e5795835f789928d8b990ee01b5c25e6309fb26896aedd323d083e219fbe51
   - path: factory/evals/rubrics/S3/fixtures/checklist/verdicts.yaml
     content_hash: 462d0fda7fe130e316973aea545bc2a2beb9238e3edc5b3b6513180e823dd1a5
+  - path: factory/evals/agents/S4/fixtures/fix_round_authorized/worktree/src/main/java/com/fixture/Widget.java
+    content_hash: 78a8cd8d8b1fd7f2bc5a3f1b510c3ac91ed438cd992dc637f0b44946390ea185
+  - path: factory/evals/agents/S4/fixtures/fix_round_authorized/worktree/src/test/java/com/fixture/WidgetUnitTest.java
+    content_hash: fcc4b9cd2033180a09b403aab2434b26c70c9749bab4d9e51e40c47c3344b3f0
+  - path: factory/evals/agents/S4/fixtures/fix_round_break_compile/worktree/src/main/java/com/fixture/Widget.java
+    content_hash: b65baa4a7cde53f52a5d29953fc4b824d42651de190ea18179e518b2989cc177
+  - path: factory/evals/agents/S4/fixtures/fix_round_out_of_scope/worktree/src/main/java/com/fixture/Unrelated.java
+    content_hash: 8caa0cf24dad73e6a042747cde475a16889bd33b9fb5b9b22756179fd0cbef08
+  - path: factory/evals/agents/S4/fixtures/fix_round_test_only/worktree/src/test/java/com/fixture/WidgetUnitTest.java
+    content_hash: 47c7f8059837517b2e6cab95991b0ff20eb949add09bc89d786264c16bebcfb2
 stages:
   S0:
     default:

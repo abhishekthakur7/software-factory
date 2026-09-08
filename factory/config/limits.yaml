@@ -42,3 +42,8 @@ test_mix:
 # round runs inside the per-ticket S4 budget.
 fix_rounds:
   max_per_ticket: 2
+
+# Verification failures a plan task may take, per approved plan-item
+# version, before the ticket escalates.
+verification:
+  max_attempts: 3

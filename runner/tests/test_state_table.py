@@ -49,6 +49,14 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
+    # A real, dependency-free compileable class: a `validation_only` S4
+    # run has no agent to write one for it, so this repository's own seed
+    # must already satisfy `fixture_compile`.
+    src = repo / "src" / "main" / "java" / "com" / "fixture"
+    src.mkdir(parents=True)
+    (src / "Widget.java").write_text(
+        "package com.fixture;\n\npublic class Widget {\n    public int compute(int x) {\n        return x * 2;\n    }\n}\n"
+    )
     _git(["add", "-A"], cwd=repo)
     _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
     return repo
@@ -113,8 +121,12 @@ def _implementing_ticket_with_plan_inputs(conn, tmp_path):
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
         base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-implementing",
     )
+    # The S3 "ok" fixture's own one-task plan, not the shared two-task
+    # `s4_handoff/plan.md`: S4 opens one fresh `stage_run` per plan task,
+    # so a single `run_stage` call only finishes a one-task plan.
     artefact_registry.register(
-        conn, ticket_id=ticket_id, kind="plan", path=S4_HANDOFF_FIXTURES_DIR / "plan.md",
+        conn, ticket_id=ticket_id, kind="plan",
+        path=FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out" / "plan.md",
     )
     artefact_registry.register(
         conn, ticket_id=ticket_id, kind="criteria", path=S3_FIXTURES_DIR / "criteria.md",
