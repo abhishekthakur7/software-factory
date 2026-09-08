@@ -6,3 +6,6 @@ runs/
 .claude/settings.local.json
 .serena/
 .playwright-cli/
+.venv/
+__pycache__/
+.pytest_cache/

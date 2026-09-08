@@ -1,0 +1,4 @@
+version: 1
+files:
+  - path: scripts/tools/manifest_hash
+    content_hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

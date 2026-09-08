@@ -1,0 +1,4 @@
+version: 1
+files:
+  - path: factory/../secrets/token
+    content_hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

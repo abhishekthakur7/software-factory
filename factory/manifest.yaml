@@ -1,0 +1,14 @@
+version: 1
+files:
+  - path: factory/scripts/tools/manifest_hash
+    content_hash: dcd5eb65773e4fa16878965c62a0125e76db44153c9461cbb2e8b8b91b66566d
+  - path: factory/evals/scripts/tools/manifest_hash/eval.yaml
+    content_hash: d149d66527b732a22019e178ce8629c85450632732ed0931295a71b9b1bed7d0
+  - path: factory/evals/scripts/tools/manifest_hash/fixtures/valid/factory/manifest.yaml
+    content_hash: 1546cff7c8e72fe3f384407b4c024c267b8d540c45f5381b2f5384e6f5f16a9c
+  - path: factory/evals/scripts/tools/manifest_hash/fixtures/path_outside_factory/factory/manifest.yaml
+    content_hash: 59670e1529850c153ee4e09bc2533e429b1f3cfac92cc516d54bcacee61eb767
+  - path: factory/evals/scripts/tools/manifest_hash/fixtures/parent_traversal/factory/manifest.yaml
+    content_hash: ab6b9a76c122d28764b39facdf412e5f76990f746c76c65e25c04867d18859b9
+  - path: factory/evals/scripts/tools/manifest_hash/fixtures/missing_content_hash/factory/manifest.yaml
+    content_hash: e4b4ad2a679cd1d6c43a224ba7cf0ad8cd9fe544a22dd5a319d18d703d18385b

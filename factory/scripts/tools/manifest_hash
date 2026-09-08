@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Recompute the manifest hash from the committed factory/manifest.yaml (R-F-1).
+
+Standalone by design: no import of `runner`, so the trusted control plane
+never has to load agent-reachable code to check its own manifest. Validates
+entry shape first, then treats the git-committed bytes -- never the
+working-tree bytes -- as the source of the hash, so an uncommitted edit
+fails validation and repeated runs over an unchanged tree agree.
+"""
+import argparse
+import hashlib
+import subprocess
+import sys
+from pathlib import Path
+
+import yaml
+
+MANIFEST_REL = "factory/manifest.yaml"
+
+
+def _fail(reason: str) -> int:
+    print(reason, file=sys.stderr)
+    return 1
+
+
+def _validate_entries(entries) -> str | None:
+    if not isinstance(entries, list):
+        return "manifest 'files' must be a list"
+    for entry in entries:
+        if not isinstance(entry, dict):
+            return f"manifest entry is not a mapping: {entry!r}"
+        path, content_hash = entry.get("path"), entry.get("content_hash")
+        if not isinstance(path, str) or not isinstance(content_hash, str):
+            return f"manifest entry missing path/content_hash: {entry!r}"
+        if Path(path).is_absolute() or ".." in Path(path).parts:
+            return f"manifest entry path is unsafe: {path}"
+        if not path.startswith("factory/"):
+            return f"manifest entry path is outside factory/: {path}"
+    return None
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="manifest_hash")
+    parser.add_argument("--root", type=Path, default=None)
+    args = parser.parse_args(argv)
+
+    if args.root is not None:
+        root = args.root.resolve()
+    else:
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True
+        )
+        if top.returncode != 0:
+            print("not inside a git repository; pass --root", file=sys.stderr)
+            return 2
+        root = Path(top.stdout.strip())
+
+    manifest_path = root / MANIFEST_REL
+    try:
+        on_disk = manifest_path.read_bytes()
+    except OSError as exc:
+        return _fail(f"cannot read {manifest_path}: {exc}")
+
+    try:
+        data = yaml.safe_load(on_disk)
+    except yaml.YAMLError as exc:
+        return _fail(f"manifest is not valid YAML: {exc}")
+
+    if not isinstance(data, dict) or not isinstance(data.get("files"), list):
+        return _fail("manifest must be a mapping with a 'files' list")
+    reason = _validate_entries(data["files"])
+    if reason is not None:
+        return _fail(reason)
+
+    committed = subprocess.run(
+        ["git", "-C", str(root), "show", f"HEAD:{MANIFEST_REL}"], capture_output=True
+    )
+    if committed.returncode != 0:
+        return _fail(f"{MANIFEST_REL} is not committed at HEAD")
+    if committed.stdout != on_disk:
+        return _fail(f"{MANIFEST_REL} on disk differs from the committed version")
+
+    print(hashlib.sha256(committed.stdout).hexdigest())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

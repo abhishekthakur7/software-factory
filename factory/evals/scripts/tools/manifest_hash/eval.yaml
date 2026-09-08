@@ -1,0 +1,14 @@
+subject: factory/scripts/tools/manifest_hash
+cases:
+  - name: valid
+    fixture: fixtures/valid
+    expect: ok
+  - name: path_outside_factory
+    fixture: fixtures/path_outside_factory
+    expect: reject
+  - name: parent_traversal
+    fixture: fixtures/parent_traversal
+    expect: reject
+  - name: missing_content_hash
+    fixture: fixtures/missing_content_hash
+    expect: reject

@@ -1,0 +1,3 @@
+version: 1
+files:
+  - path: factory/scripts/tools/manifest_hash
