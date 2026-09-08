@@ -818,16 +818,324 @@ LATER_TABLES: frozenset[str] = frozenset(
     {"score", "human_signal", "proposal", "benchmark", "fixture_candidate"}
 )
 
+# The baseline_measure.measure value the graduation gate compares against
+# the factory's own post-plan-approval revision count. A module constant so
+# the baseline view and whatever later reads it never hand-copy the string.
+BASELINE_REVISIONS_MEASURE = "revisions_per_ticket_after_plan_approval"
+
 # (name, select statement) pairs; `ddl()` emits one `CREATE VIEW IF NOT
 # EXISTS <name> AS <select>` per entry, after every table and its triggers.
+#
+# Every measure view here reads only the record: no view joins outside the
+# tables `TABLES` declares. A factory-performance view (everything except
+# the two baseline views) excludes `baseline = 1` tickets and carries a
+# `manifest_hash` column a caller filters on with `WHERE manifest_hash = ?`.
+# `v_ticket_manifest_cohorts` is the one place that resolves a ticket's
+# manifest_hash: a row per `(ticket_id, manifest_hash)` a ticket actually
+# ran a stage under, falling back to the ticket's own pinned
+# `factory_manifest_hash` only when it has no stage runs yet. A migrated
+# ticket therefore surfaces once per manifest it ran under, and every
+# ticket-grained view built on this table inherits that "belongs to every
+# cohort it ran under" rule rather than re-deriving it. A view whose rows
+# come from `stage_run` directly (cost, tool calls, fix rounds, stage
+# reliability) instead reads that run's own `manifest_hash` column, which
+# is authoritative for the run that produced it and needs no cohort lookup.
 VIEWS: tuple[tuple[str, str], ...] = (
     (
+        "v_ticket_manifest_cohorts",
+        "SELECT t.id AS ticket_id, "
+        "COALESCE(sr.manifest_hash, t.factory_manifest_hash) AS manifest_hash, "
+        "MIN(sr.started_at) AS first_run_started_at, "
+        "MAX(sr.started_at) AS last_run_started_at "
+        "FROM ticket t "
+        "LEFT JOIN stage_run sr ON sr.ticket_id = t.id AND sr.manifest_hash IS NOT NULL "
+        "WHERE t.baseline IS NOT 1 "
+        "GROUP BY t.id, COALESCE(sr.manifest_hash, t.factory_manifest_hash)",
+    ),
+    (
+        "v_revisions_per_ticket_by_fm",
+        "SELECT mc.ticket_id, mc.manifest_hash, tag.fm_id, COUNT(*) AS revision_count "
+        "FROM tag "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = tag.ticket_id "
+        "WHERE tag.event_kind = 'revision_after_approval' "
+        "GROUP BY mc.ticket_id, mc.manifest_hash, tag.fm_id",
+    ),
+    (
+        "v_questions_per_ticket",
+        # A question's tier is not its own column: it is read off the
+        # `question` kind queue_item raised for it, matched by that item's
+        # `ref` naming the question's id (queue_item.ref is polymorphic).
+        "SELECT mc.ticket_id, mc.manifest_hash, qi.tier AS tier, COUNT(*) AS question_count "
+        "FROM question q "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = q.ticket_id "
+        "LEFT JOIN queue_item qi ON qi.kind = 'question' AND qi.ref = CAST(q.id AS TEXT) "
+        "GROUP BY mc.ticket_id, mc.manifest_hash, qi.tier",
+    ),
+    (
+        "v_default_shown_share",
+        "SELECT mc.manifest_hash, COUNT(*) AS total_questions, "
+        "SUM(CASE WHEN q.default_option IS NOT NULL THEN 1 ELSE 0 END) AS shown_count "
+        "FROM question q "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = q.ticket_id "
+        "GROUP BY mc.manifest_hash",
+    ),
+    (
+        "v_default_accepted_share",
+        # The denominator is questions shown with a default; the numerator
+        # counts immutable default_accepted answer events over them. Answer
+        # rows are never updated or deleted, so a later superseding answer
+        # cannot erase an event already counted here.
+        "SELECT mc.manifest_hash, "
+        "COUNT(DISTINCT q.id) AS shown_with_default_count, "
+        "COUNT(a.id) AS default_accepted_count "
+        "FROM question q "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = q.ticket_id "
+        "LEFT JOIN answer a ON a.question_id = q.id AND a.resolution_kind = 'default_accepted' "
+        "WHERE q.default_option IS NOT NULL "
+        "GROUP BY mc.manifest_hash",
+    ),
+    (
+        "v_queue_latency_by_stage_tier",
+        # SQLite has no interval type: julianday() gives fractional days, so
+        # the difference is scaled by 86400 to land in seconds, the unit the
+        # column name promises. Labelled queue_latency_seconds, never
+        # "attention" -- that is a separate, human-entered measure below.
+        "SELECT mc.manifest_hash, qi.stage, qi.tier, COUNT(*) AS item_count, "
+        "AVG((julianday(qi.resolved_at) - julianday(qi.queued_at)) * 86400.0) AS queue_latency_seconds "
+        "FROM queue_item qi "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = qi.ticket_id "
+        "WHERE qi.stage IN ('S2', 'S3', 'S6') "
+        "AND qi.kind IN ('question', 'plan_approval', 'packet_approval') "
+        "AND qi.resolved_at IS NOT NULL "
+        "GROUP BY mc.manifest_hash, qi.stage, qi.tier",
+    ),
+    (
+        "v_active_attention_by_stage_tier_outcome",
+        # Attention is read only off approval_record.active_attention_bucket,
+        # never derived from queue latency; `unknown` groups like any other
+        # bucket rather than being filtered out.
+        "SELECT mc.manifest_hash, "
+        "CASE ar.gate WHEN 'plan' THEN 'S3' WHEN 'review' THEN 'S6' END AS stage, "
+        "t.tier_final AS tier, ar.decision, ar.active_attention_bucket AS bucket, "
+        "COUNT(*) AS record_count "
+        "FROM approval_record ar "
+        "JOIN ticket t ON t.id = ar.ticket_id "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = ar.ticket_id "
+        "WHERE ar.gate IN ('plan', 'review') "
+        "GROUP BY mc.manifest_hash, stage, tier, ar.decision, ar.active_attention_bucket",
+    ),
+    (
+        "v_generated_test_kept_share",
+        # Only the latest decision row per identity counts (a later review
+        # subject appends rather than edits), so the denominator is
+        # identities with at least one decision -- zero-generated-test
+        # tickets contribute no identity row and so are absent, not a zero.
+        "WITH latest_decision AS ("
+        "SELECT d.identity_id, d.decision FROM generated_test d "
+        "WHERE d.record_kind = 'decision' AND d.id = ("
+        "SELECT MAX(d2.id) FROM generated_test d2 "
+        "WHERE d2.record_kind = 'decision' AND d2.identity_id = d.identity_id)) "
+        "SELECT mc.manifest_hash, COUNT(*) AS judged_count, "
+        "SUM(CASE WHEN ld.decision = 'kept' THEN 1 ELSE 0 END) AS kept_count "
+        "FROM latest_decision ld "
+        "JOIN generated_test identity_row ON identity_row.id = ld.identity_id "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = identity_row.ticket_id "
+        "GROUP BY mc.manifest_hash",
+    ),
+    (
+        "v_plan_approved_no_redirect_share",
+        # Only a ticket's first plan evidence_tuple (lowest id) is its first
+        # canonical plan-approval subject; later plan subjects from a
+        # send-back never rewrite this outcome.
+        "WITH first_plan_subject AS ("
+        "SELECT et.ticket_id, et.content_hash AS subject_hash FROM evidence_tuple et "
+        "WHERE et.kind = 'plan' AND et.id = ("
+        "SELECT MIN(et2.id) FROM evidence_tuple et2 "
+        "WHERE et2.kind = 'plan' AND et2.ticket_id = et.ticket_id)), "
+        "plan_decisions AS ("
+        "SELECT fps.ticket_id, ar.id AS approval_record_id, ar.decision FROM first_plan_subject fps "
+        "JOIN approval_record ar ON ar.ticket_id = fps.ticket_id "
+        "AND ar.gate = 'plan' AND ar.subject_hash = fps.subject_hash) "
+        "SELECT mc.manifest_hash, "
+        "COUNT(DISTINCT pd.ticket_id) AS decided_count, "
+        "COUNT(DISTINCT CASE WHEN NOT EXISTS ("
+        "SELECT 1 FROM plan_decisions pd2 WHERE pd2.ticket_id = pd.ticket_id "
+        "AND pd2.decision IN ('reject', 'redirect')"
+        ") AND NOT EXISTS ("
+        "SELECT 1 FROM plan_decisions pd3 "
+        "JOIN tag tg ON tg.event_kind = 'send_back' AND tg.ref = CAST(pd3.approval_record_id AS TEXT) "
+        "WHERE pd3.ticket_id = pd.ticket_id"
+        ") THEN pd.ticket_id END) AS approved_no_redirect_count "
+        "FROM plan_decisions pd "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = pd.ticket_id "
+        "GROUP BY mc.manifest_hash",
+    ),
+    (
+        "v_production_incidents_attributable",
+        # One view, two record shapes distinguished by record_type: an
+        # `incident` row is the attributable-count breakdown by severity and
+        # disposition; a `coverage` row is one merged ticket's latest
+        # production-coverage status. Event roots are read directly (never
+        # superseded) and only their latest disposition decides attribution,
+        # so a reviewed re-disposition supersedes the count without the
+        # event row itself ever changing.
+        "SELECT 'incident' AS record_type, io.severity AS severity, "
+        "latest_disp.attribution AS attribution, latest_disp.disposition AS disposition, "
+        "COUNT(*) AS incident_count, NULL AS ticket_id, mc1.manifest_hash AS manifest_hash, "
+        "NULL AS coverage_status, NULL AS exposure_source, NULL AS exposure_start, "
+        "NULL AS observed_through "
+        "FROM incident_observation io "
+        "LEFT JOIN v_ticket_manifest_cohorts mc1 ON mc1.ticket_id = io.ticket_id "
+        "JOIN (SELECT d.event_id, d.attribution, d.disposition FROM incident_observation d "
+        "WHERE d.record_kind = 'production_disposition' AND d.id = ("
+        "SELECT MAX(d2.id) FROM incident_observation d2 "
+        "WHERE d2.record_kind = 'production_disposition' AND d2.event_id = d.event_id"
+        ")) latest_disp ON latest_disp.event_id = io.id "
+        "WHERE io.record_kind = 'production_incident_event' "
+        "AND latest_disp.attribution = 'attributable' "
+        "GROUP BY io.severity, latest_disp.attribution, latest_disp.disposition, mc1.manifest_hash "
+        "UNION ALL "
+        "SELECT 'coverage' AS record_type, NULL AS severity, NULL AS attribution, "
+        "NULL AS disposition, NULL AS incident_count, t.id AS ticket_id, "
+        "mc2.manifest_hash AS manifest_hash, "
+        "latest_cov.coverage_status AS coverage_status, "
+        "latest_cov.exposure_source AS exposure_source, "
+        "latest_cov.exposure_start AS exposure_start, "
+        "latest_cov.observed_through AS observed_through "
+        "FROM ticket t "
+        "JOIN v_ticket_manifest_cohorts mc2 ON mc2.ticket_id = t.id "
+        "JOIN (SELECT c.ticket_id, c.coverage_status, c.exposure_source, c.exposure_start, "
+        "c.observed_through FROM incident_observation c "
+        "WHERE c.record_kind = 'production_coverage' AND c.id = ("
+        "SELECT MAX(c2.id) FROM incident_observation c2 "
+        "WHERE c2.record_kind = 'production_coverage' AND c2.ticket_id = c.ticket_id"
+        ")) latest_cov ON latest_cov.ticket_id = t.id "
+        "WHERE t.closed_at IS NOT NULL AND t.close_reason = 'merged'",
+    ),
+    (
+        "v_reconstruction_share_by_gate",
+        # `packet_defect` tags with fm_id FM-10 point straight at the
+        # affected approval_record (never merely its shared queue item), so
+        # the join back is a plain ref-to-id match. A defect is resolved
+        # when some other tag names it through resolves_tag_id.
+        "WITH defect_tags AS ("
+        "SELECT tg.id AS tag_id, tg.ref AS approval_record_ref, "
+        "EXISTS(SELECT 1 FROM tag r WHERE r.resolves_tag_id = tg.id) AS is_resolved "
+        "FROM tag tg WHERE tg.event_kind = 'packet_defect' AND tg.fm_id = 'FM-10') "
+        "SELECT mc.manifest_hash, ar.gate, t.tier_final AS tier, ar.role, ar.decision, "
+        "ar.active_attention_bucket AS bucket, COUNT(*) AS decision_count, "
+        "SUM(CASE WHEN dt.tag_id IS NOT NULL THEN 1 ELSE 0 END) AS defect_tagged_count, "
+        "SUM(CASE WHEN dt.tag_id IS NOT NULL AND dt.is_resolved THEN 1 ELSE 0 END) AS defect_resolved_count, "
+        "SUM(CASE WHEN dt.tag_id IS NOT NULL AND NOT dt.is_resolved THEN 1 ELSE 0 END) AS defect_unresolved_count "
+        "FROM approval_record ar "
+        "JOIN ticket t ON t.id = ar.ticket_id "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = ar.ticket_id "
+        "LEFT JOIN defect_tags dt ON dt.approval_record_ref = CAST(ar.id AS TEXT) "
+        "WHERE ar.gate IN ('plan', 'review') "
+        "GROUP BY mc.manifest_hash, ar.gate, t.tier_final, ar.role, ar.decision, ar.active_attention_bucket",
+    ),
+    (
+        "v_escalations_per_ticket",
+        "SELECT mc.ticket_id, mc.manifest_hash, COUNT(*) AS escalation_count "
+        "FROM tag tg "
+        "JOIN stage_run sr ON sr.id = CAST(tg.ref AS INTEGER) AND sr.stage = 'S4' "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = tg.ticket_id "
+        "WHERE tg.event_kind = 'escalation' "
+        "GROUP BY mc.ticket_id, mc.manifest_hash",
+    ),
+    (
+        "v_stale_index_entries_per_ticket",
+        "SELECT mc.ticket_id, mc.manifest_hash, COUNT(*) AS stale_count "
+        "FROM index_use iu "
+        "JOIN stage_run sr ON sr.id = iu.stage_run_id "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = sr.ticket_id "
+        "WHERE iu.stale = 1 "
+        "GROUP BY mc.ticket_id, mc.manifest_hash",
+    ),
+    (
         "stage_reliability_view",
-        # Selecting from stage_run alone is what excludes utility_run by
-        # construction: a later ticket narrows this further to first
-        # attempts, but a utility run can never appear here regardless.
-        "SELECT id, ticket_id, stage, attempt, verification_attempt, run_kind, "
-        "outcome, failure_kind, started_at, ended_at FROM stage_run",
+        # Narrowed to the first-attempt rule: run_kind = 'task' excludes
+        # fix_round and validation_only, attempt = 1 excludes every retry,
+        # parent_run_id IS NULL excludes every child run, and the outcome
+        # list excludes blocked, refused, and aborted_human (a cancellation,
+        # not a first-attempt result). Selecting from stage_run alone is
+        # what excludes utility_run by construction.
+        "SELECT sr.manifest_hash, sr.stage, sr.tier, COUNT(*) AS eligible_count, "
+        "SUM(CASE WHEN sr.outcome = 'pass' THEN 1 ELSE 0 END) AS passed_count "
+        "FROM stage_run sr "
+        "JOIN ticket t ON t.id = sr.ticket_id "
+        "WHERE sr.run_kind = 'task' AND sr.attempt = 1 AND sr.parent_run_id IS NULL "
+        "AND sr.outcome IN ('pass', 'fail', 'infrastructure_failure', 'sandbox_violation', 'aborted_budget') "
+        "AND (t.baseline IS NOT 1) "
+        "GROUP BY sr.manifest_hash, sr.stage, sr.tier",
+    ),
+    (
+        "v_ctx_completions_outcomes_per_window",
+        # factory_completed_at counts a draft PR; closed_at separately
+        # counts a manually observed merge/abandon outcome. Neither column
+        # is read as a stand-in for the other.
+        "SELECT mc.ticket_id, mc.manifest_hash, t.factory_completed_at, t.closed_at, t.close_reason "
+        "FROM ticket t "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = t.id "
+        "WHERE t.factory_completed_at IS NOT NULL OR t.closed_at IS NOT NULL",
+    ),
+    (
+        "v_ctx_cost_per_ticket",
+        # Currencies are never combined (grouped separately) and cost_basis
+        # stays a group key so an estimate is never presented as settled
+        # cost; a cost_basis = 'unavailable' group's run_count is exactly
+        # the count of runs with no usable cost.
+        "SELECT sr.ticket_id, sr.manifest_hash, sr.stage, sr.tier, sr.currency, sr.cost_basis, "
+        "SUM(sr.cost) AS total_cost, COUNT(*) AS run_count "
+        "FROM stage_run sr "
+        "JOIN ticket t ON t.id = sr.ticket_id "
+        "WHERE (t.baseline IS NOT 1) "
+        "GROUP BY sr.ticket_id, sr.manifest_hash, sr.stage, sr.tier, sr.currency, sr.cost_basis",
+    ),
+    (
+        "v_ctx_non_structural_touchpoints",
+        # Only question, red_check and escalation count: eligibility is
+        # structural and rubric_inspection is a factory-health signal, and
+        # pr_outcome is excluded here as everywhere else non-structural
+        # touchpoints or attention are read.
+        "SELECT mc.ticket_id, mc.manifest_hash, qi.tier, COUNT(*) AS touchpoint_count "
+        "FROM queue_item qi "
+        "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = qi.ticket_id "
+        "WHERE qi.kind IN ('question', 'red_check', 'escalation') "
+        "GROUP BY mc.ticket_id, mc.manifest_hash, qi.tier",
+    ),
+    (
+        "v_ctx_fix_rounds_per_ticket",
+        "SELECT sr.ticket_id, sr.manifest_hash, COUNT(*) AS fix_round_count "
+        "FROM stage_run sr "
+        "JOIN ticket t ON t.id = sr.ticket_id "
+        "WHERE sr.stage = 'S4' AND sr.run_kind = 'fix_round' AND (t.baseline IS NOT 1) "
+        "GROUP BY sr.ticket_id, sr.manifest_hash",
+    ),
+    (
+        "v_ctx_tool_calls_bytes_per_stage_run",
+        # An unavailable result_bytes is counted (unavailable_size_count),
+        # never estimated into total_result_bytes.
+        "SELECT tc.stage_run_id, sr.stage, sr.tier, sr.manifest_hash, "
+        "COUNT(*) AS tool_call_count, "
+        "SUM(CASE WHEN tc.result_bytes IS NOT NULL THEN tc.result_bytes ELSE 0 END) AS total_result_bytes, "
+        "SUM(CASE WHEN tc.result_bytes IS NULL THEN 1 ELSE 0 END) AS unavailable_size_count, "
+        "SUM(CASE WHEN tc.inline = 1 THEN 1 ELSE 0 END) AS inline_count "
+        "FROM tool_call tc "
+        "JOIN stage_run sr ON sr.id = tc.stage_run_id "
+        "JOIN ticket t ON t.id = sr.ticket_id "
+        "WHERE (t.baseline IS NOT 1) "
+        "GROUP BY tc.stage_run_id, sr.stage, sr.tier, sr.manifest_hash",
+    ),
+    (
+        "v_baseline_revisions_per_ticket",
+        # Dedicated baseline view: reads only baseline_measure, requires no
+        # manifest hash, and keeps approximate/unavailable rows visible
+        # rather than dropping them.
+        "SELECT ticket_id, service, ticket_type, tier, value, status, unavailable_reason, "
+        "source_kind, source_ref, source_observed_at "
+        "FROM baseline_measure "
+        f"WHERE measure = '{BASELINE_REVISIONS_MEASURE}'",
     ),
 )
 

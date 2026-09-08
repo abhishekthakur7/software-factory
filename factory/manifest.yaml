@@ -179,6 +179,28 @@ files:
     content_hash: 5a7b7a54b702cffbecb5e221b4753562aac7051f207d43ab01598da67993aa71
   - path: factory/evals/scripts/checks/impact_scan/fixtures/unknown/mapping.yaml
     content_hash: 14bff6fd89c4f822c21fbaef9e4cec7d5b46f3b19d806d3f34cf53882df5d8f3
+  - path: factory/scripts/tools/report
+    content_hash: 839395b724eef5aa6245555cd344c6ff9e27f932296f5159a9b348aa22dcfb75
+  - path: factory/evals/scripts/tools/report/eval.yaml
+    content_hash: 78258e8c91bcc18257db4e12cf7d592bad60368fb8d548388ef4ddf7982a408c
+  - path: factory/evals/scripts/tools/report/fixtures/baseline_excluded/expect.txt
+    content_hash: 86097f4ae53b4723c6bd1c800f5b71011476ea0d8be1a9111b422d94cf160eb4
+  - path: factory/evals/scripts/tools/report/fixtures/baseline_excluded/seed.yaml
+    content_hash: 65a404e2aab53cd104f20f668f720ccfdb5d40e14b90785515d0a1ffc152b22e
+  - path: factory/evals/scripts/tools/report/fixtures/completed_walk/README.md
+    content_hash: 84b83b44c3064356a63a1bfea9b76e49736bc6f5fe7e98e9e631f99d831a8edb
+  - path: factory/evals/scripts/tools/report/fixtures/completed_walk/expect.txt
+    content_hash: 62e9cc4a6000328287868b71c3a8411bb0053fd4bce2afd0476fe92990e9af18
+  - path: factory/evals/scripts/tools/report/fixtures/context_cost_row/expect.txt
+    content_hash: b6842ae4629b58bea0eab7515f95f0d5e8f220bdb53a6727fceed6db20f3dbc3
+  - path: factory/evals/scripts/tools/report/fixtures/context_cost_row/seed.yaml
+    content_hash: f0410e1a99ce65ba68ad39c1cf56669fcaff3d0545c54a2d344433588fb52d0a
+  - path: factory/evals/scripts/tools/report/fixtures/missing_views/README.md
+    content_hash: 004657c890ace828be37edb7d2a9b75d5b2f99bcb414b0833a46b1ca2f7de1b6
+  - path: factory/evals/scripts/tools/report/fixtures/unavailable_measure/expect.txt
+    content_hash: 8006e4eabce95972b6f56f8880f44f0e0e20983e9de5fbdd02cbf670ae323ae0
+  - path: factory/evals/scripts/tools/report/fixtures/unavailable_measure/seed.yaml
+    content_hash: 7675b0cee397c1ce72209883f4dcb551783c25ceeb0ea3de680219d75e31493c
 stages:
   S0:
     agent: null

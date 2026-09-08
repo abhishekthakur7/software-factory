@@ -1,0 +1,11 @@
+- table: ticket
+  fields:
+    title: baseline-only ticket
+    baseline: 1
+    service: svc
+    ticket_type: type_a
+- table: tag
+  fields:
+    ticket_id: 1
+    event_kind: revision_after_approval
+    fm_id: FM-01

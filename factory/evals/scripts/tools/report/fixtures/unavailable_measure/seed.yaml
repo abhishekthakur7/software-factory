@@ -1,0 +1,4 @@
+- table: ticket
+  fields:
+    title: solo ticket with no other record rows
+    factory_manifest_hash: m1

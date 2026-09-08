@@ -1,0 +1,17 @@
+subject: factory/scripts/tools/report
+cases:
+  - name: completed_walk
+    fixture: fixtures/completed_walk
+    expect: ok
+  - name: unavailable_measure
+    fixture: fixtures/unavailable_measure
+    expect: ok
+  - name: baseline_excluded
+    fixture: fixtures/baseline_excluded
+    expect: ok
+  - name: context_cost_row
+    fixture: fixtures/context_cost_row
+    expect: ok
+  - name: missing_views
+    fixture: fixtures/missing_views
+    expect: reject
