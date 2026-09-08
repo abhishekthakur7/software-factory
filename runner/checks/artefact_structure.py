@@ -30,10 +30,12 @@ KIND_TABLES: dict[str, dict[str, tuple[str, ...]]] = {
     "plan": artefacts.PLAN_TABLES,
 }
 
-# The one fixed table allowed to carry zero rows: an empty dependency list
-# is itself the finding ("nothing changed"), written explicitly rather than
-# omitted.
-_EMPTY_TABLE_ALLOWED: frozenset[tuple[str, str]] = frozenset({("plan", "Dependencies")})
+# The fixed tables allowed to carry zero rows: an empty dependency list is
+# itself the finding ("nothing changed"), written explicitly rather than
+# omitted; an empty agreement check is what a version with no formalised
+# or provisional criterion legitimately looks like (every criterion
+# unformalisable, restated by no children at all).
+_EMPTY_TABLE_ALLOWED: frozenset[tuple[str, str]] = frozenset({("plan", "Dependencies"), ("criteria", "Agreement check")})
 
 # The three sections a reviewer must be able to read without scrolling to
 # decide whether to open the rest; `first_page_lines` names how far "the

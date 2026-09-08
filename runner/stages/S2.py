@@ -112,9 +112,10 @@ def _check_id_continuity(rows: list[dict], prior_rows: list[dict]) -> list[str]:
     An id already used in `prior_rows` must name the same `source` text it
     named before (kept, not reassigned); a `source` text that already
     appeared in `prior_rows` must keep that row's id (never given a fresh
-    one); every other id must be new -- strictly greater than every prior
-    id -- so restatement order never leaves a gap or reuses a retired
-    number.
+    one); every other id is a genuinely new criterion and must be the
+    next unused number in restatement order -- assigned in table-row
+    order, starting right after the prior version's highest id -- so a
+    fresh id never skips or reuses a number.
     """
     reasons: list[str] = []
     prior_by_id = {row["id"]: row for row in prior_rows}
@@ -122,6 +123,7 @@ def _check_id_continuity(rows: list[dict], prior_rows: list[dict]) -> list[str]:
     prior_max = max((int(_AC_ID_RE.match(row["id"]).group(1)) for row in prior_rows if _AC_ID_RE.match(row["id"])), default=0)
 
     seen: set[str] = set()
+    next_new_id = prior_max + 1
     for row in rows:
         ac_id, source = row.get("id") or "", row.get("source")
         match = _AC_ID_RE.match(ac_id)
@@ -135,8 +137,11 @@ def _check_id_continuity(rows: list[dict], prior_rows: list[dict]) -> list[str]:
         if ac_id in prior_by_id:
             if prior_by_id[ac_id]["source"] != source:
                 reasons.append(f"id {ac_id} was reused for a different criterion")
-        elif int(match.group(1)) <= prior_max:
-            reasons.append(f"id {ac_id} was never assigned before but is not greater than the prior max {prior_max}")
+        else:
+            number = int(match.group(1))
+            if number != next_new_id:
+                reasons.append(f"id {ac_id} is a new criterion but the next unused id is AC-{next_new_id}")
+            next_new_id = max(next_new_id, number) + 1
         if source in prior_id_by_source and prior_id_by_source[source] != ac_id:
             reasons.append(f"criterion with source {source!r} must keep id {prior_id_by_source[source]}, not {ac_id}")
     return reasons
