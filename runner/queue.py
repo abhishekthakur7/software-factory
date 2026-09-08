@@ -25,7 +25,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from runner import approvals, binding, canonical, outbox, owners, record, tags, transitions
+from runner import approvals, artefact_registry, binding, canonical, outbox, owners, record, tags, transitions
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
@@ -404,18 +404,82 @@ def _referenced_stage(conn: sqlite3.Connection, ref: str | None) -> str:
     return stage_run["stage"]
 
 
+def _control_defect_remediated(conn: sqlite3.Connection, ticket_id: int) -> bool:
+    """Whether the ticket's latest `control_defect_event` carries a `remediated` disposition and a newer passing gate run.
+
+    Both conditions must hold on the same event: a disposition alone is a
+    human's word that the underlying defect is fixed, and a gate run
+    alone proves nothing about which incident it clears, so resuming
+    needs the pair, in that order, against the one event this escalation
+    named.
+    """
+    event = conn.execute(
+        "SELECT id, created_at FROM incident_observation WHERE ticket_id = ? AND record_kind = 'control_defect_event' "
+        "ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    if event is None:
+        return False
+    disposition = conn.execute(
+        "SELECT id FROM incident_observation WHERE ticket_id = ? AND record_kind = 'control_disposition' "
+        "AND event_id = ? AND disposition = 'remediated' ORDER BY id DESC LIMIT 1",
+        (ticket_id, event["id"]),
+    ).fetchone()
+    if disposition is None:
+        return False
+    # `>=`, not `>`: `record.now()` carries second precision, so a gate run
+    # started in the same second as the event it clears is still at least
+    # as new as it -- the ordering this guards against is a stale gate run
+    # from *before* the event, not one merely tied with it.
+    gate = conn.execute(
+        "SELECT id FROM utility_run WHERE ticket_id = ? AND kind = 'gate' AND outcome = 'pass' AND started_at >= ? "
+        "ORDER BY id DESC LIMIT 1",
+        (ticket_id, event["created_at"]),
+    ).fetchone()
+    return gate is not None
+
+
 def _resume(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
-    if item["kind"] == "escalation":
-        stage = _referenced_stage(conn, item["ref"])
-        if stage == "S4":
-            event = "escalation_resume_implementing"
-        elif stage in ("S5", "S6"):
-            event = "escalation_resume_checks"
-        else:
-            raise ActionRefused(f"cannot resume an escalation whose failed stage was {stage!r}")
-        transitions.apply(conn, item["ticket_id"], event)
-    else:
+    """Route a plain `resume` by the escalation's own cause, read from the run its `ref` names.
+
+    Verification exhaustion never resumes this way at all -- the only
+    route is `send_back --to planning`, a new plan-item version and a
+    fresh S3 approval. A control defect (a sandbox-integrity or an
+    invalid recipe-policy-binding failure) resumes only once its event
+    carries a `remediated` disposition and a newer passing `gate` run,
+    and then through `escalation_control_defect_remediated`, never the
+    plain resume events below. Every other cause -- an infrastructure
+    failure or a human stop -- resumes the same item with its quota
+    preserved, exactly as before this function grew cause-awareness.
+    """
+    if item["kind"] != "escalation":
         record.update(conn, "ticket", item["ticket_id"], pause_requested=0, paused_at=None)
+        return
+
+    stage = _referenced_stage(conn, item["ref"])
+    run = record.get(conn, "stage_run", int(item["ref"].split(":", 1)[1]))
+
+    if run["failure_kind"] == "verification":
+        raise ActionRefused(
+            "a verification-exhaustion escalation resumes only through 'send_back --to planning' (a new "
+            "plan-item version and a fresh S3 approval), never through resume"
+        )
+    if run["failure_kind"] in ("sandbox_integrity", "recipe_binding"):
+        if not _control_defect_remediated(conn, item["ticket_id"]):
+            raise ActionRefused(
+                "a control-defect escalation resumes only once its event carries a 'remediated' disposition and a "
+                "utility_run of kind 'gate' with outcome 'pass' newer than the event"
+            )
+        transitions.apply(conn, item["ticket_id"], "escalation_control_defect_remediated")
+        return
+
+    if stage == "S4":
+        event = "escalation_resume_implementing"
+    elif stage in ("S5", "S6"):
+        event = "escalation_resume_checks"
+    else:
+        raise ActionRefused(f"cannot resume an escalation whose failed stage was {stage!r}")
+    transitions.apply(conn, item["ticket_id"], event)
 
 
 def _record_control_event(
@@ -779,6 +843,12 @@ def escalation_context(conn: sqlite3.Connection, item: sqlite3.Row) -> dict:
     }
     if stage_run["stage"] == "S4":
         context.update(_s4_progress(conn, stage_run["ticket_id"]))
+        # The registered `failure_history` JSON artefact a verification-
+        # exhaustion escalation writes, distinct from the `failure_history`
+        # list above (this stage's own prior-attempt summary): `None` for
+        # any other escalation cause, which writes no such artefact.
+        history = artefact_registry.latest(conn, stage_run["ticket_id"], "failure_history")
+        context["failure_history_artefact_id"] = history["id"] if history is not None else None
     return context
 
 
