@@ -70,7 +70,7 @@ def _ready_ticket(conn, tmp_path, *, plan_text: str = PLAN_TEXT, widget_source: 
     criteria_path = tmp_path / f"criteria-{ticket_id}.md"
     criteria_path.write_text(CRITERIA_TEXT)
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
-    support.approve_current_plan(conn, ticket_id)
+    support.approve_current_plan(conn, ticket_id, tmp_path)
     return ticket_id
 
 
@@ -298,7 +298,7 @@ def test_a_new_plan_tuple_starts_a_fresh_verification_count(tmp_path):
     revised_path.write_text(PLAN_TEXT.replace("implement widget compute", "implement widget compute, revised"))
     prior = artefact_registry.latest(conn, ticket_id, "plan")
     artefact_registry.register(conn, ticket_id=ticket_id, kind="plan", path=revised_path, supersedes=prior["id"])
-    support.approve_current_plan(conn, ticket_id)
+    support.approve_current_plan(conn, ticket_id, tmp_path)
 
     _run_s4(conn, ticket_id, tmp_path)
     third_run = _last_s4_run(conn, ticket_id)
