@@ -39,13 +39,20 @@ def load_scenario(conn, family: str, scenario: str) -> dict[str, int]:
     """Insert every row of `scenario` from `fixtures/state_table/<family>.yaml`, in order.
 
     A row's `as: name` is remembered; a later row may reference it with a
-    `$name` string, which resolves to that row's id before insert.
+    `$name` string, which resolves to that row's id before insert. A
+    `fixture:<name>` string resolves to the absolute path of that file
+    under `FIXTURES_DIR`, for a row (an `artefact`) that must point at
+    real file content rather than a bare string.
     """
     data = yaml.safe_load((FIXTURES_DIR / f"{family}.yaml").read_text())[scenario]
     refs: dict[str, int] = {}
 
     def resolve(value):
-        return refs[value[1:]] if isinstance(value, str) and value.startswith("$") else value
+        if isinstance(value, str) and value.startswith("$"):
+            return refs[value[1:]]
+        if isinstance(value, str) and value.startswith("fixture:"):
+            return str(FIXTURES_DIR / value[len("fixture:"):])
+        return value
 
     for table, rows in data.items():
         for row in rows:

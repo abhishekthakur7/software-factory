@@ -1,0 +1,10 @@
+# The one ticket shape every outbox test seeds from, overriding only the
+# fields a given scenario cares about.
+base:
+  source_kind: fixture
+  title: fixture outbox ticket
+  state: review
+  base_sha: base-sha-1
+  target_base_sha: base-sha-1
+  branch: feature/fixture-outbox
+  head_sha: head-sha-1

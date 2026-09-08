@@ -24,12 +24,16 @@ def register(
     stage_run_id: int | None = None,
     supersedes: int | None = None,
     data_class: str | None = None,
+    guard_decision_id: int | None = None,
 ) -> int:
     """Register the existing file at `path` as a new `artefact` row and return its id.
 
     With `supersedes`, the new row is the next version of that artefact and
     must share its ticket and kind; a mismatch is a caller error and raises
     `ValueError` before anything is written. Without it, the row is version 1.
+    `guard_decision_id` names the decision that authorised persisting this
+    exact content, for a caller whose artefact is itself a governed,
+    content-bearing crossing rather than internal run bookkeeping.
     """
     resolved = Path(path).resolve()
     version = 1
@@ -55,6 +59,7 @@ def register(
         created_at=record.now(),
         data_class=data_class,
         supersedes=supersedes,
+        guard_decision_id=guard_decision_id,
     )
 
 

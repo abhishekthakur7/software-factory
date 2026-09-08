@@ -13,7 +13,11 @@ event through `transitions.apply`.
 """
 import json
 import sqlite3
+from pathlib import Path
 from typing import Callable
+
+from runner import approvals
+from runner.reviewer_sets import Slot
 
 
 def _latest(conn: sqlite3.Connection, table: str, ticket_id: int, **where) -> sqlite3.Row | None:
@@ -96,21 +100,59 @@ def checks_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
     return None
 
 
-def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
-    """Full review quorum plus a reconciled receipt opens the pull request; a superseded intent routes back to checks.
+def _effective_slots(conn: sqlite3.Connection, review_tuple: sqlite3.Row) -> list[Slot]:
+    reviewer_set = conn.execute(
+        "SELECT * FROM reviewer_set WHERE id = ?", (review_tuple["effective_reviewer_set_id"],)
+    ).fetchone()
+    if reviewer_set is None:
+        return []
+    return [Slot.from_json(item) for item in json.loads(reviewer_set["slots"] or "[]")]
 
-    The state table routes a pre-dispatch mismatch to checks, planning or
-    context "as applicable"; which applies is the outbox's reconciliation,
-    which arrives later. Until then every superseded intent routes to
-    checks, and the planning and context routes are applied only by a
-    caller that decides them.
+
+def _review_quorum_satisfied(conn: sqlite3.Connection, review_tuple: sqlite3.Row) -> bool:
+    """Full quorum over the review tuple's effective reviewer set -- the same evaluation `outbox.intent_for_review_quorum` makes before creating the pull-request intent."""
+    quorum = approvals.evaluate(
+        conn, gate="review", subject_hash=review_tuple["content_hash"], slots=_effective_slots(conn, review_tuple),
+    )
+    return quorum.satisfied
+
+
+def _receipt_matches_desired(conn: sqlite3.Connection, write: sqlite3.Row) -> bool:
+    """Whether `write`'s stored receipt confirms the remote head and payload the ticket wanted published."""
+    if not write["remote_identity"] or write["receipt_artefact_id"] is None:
+        return False
+    artefact = conn.execute("SELECT * FROM artefact WHERE id = ?", (write["receipt_artefact_id"],)).fetchone()
+    if artefact is None:
+        return False
+    receipt = json.loads(Path(artefact["path"]).read_text())
+    return (
+        receipt.get("remote_head_sha") == write["desired_remote_head_sha"]
+        and receipt.get("payload_digest") == write["payload_digest"]
+    )
+
+
+def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+    """Full review quorum plus a reconciled, matching receipt opens the pull request; a superseded intent routes back to checks.
+
+    "Reconciled" alone is not enough: the latest `external_write` row must
+    also carry a remote identity and a stored receipt whose head and
+    payload digest are exactly what the ticket wanted published, so a
+    reconciliation that adopted a stale or partial remote object never
+    advances the ticket by itself. The state table routes a pre-dispatch
+    mismatch to checks, planning or context "as applicable"; which applies
+    is the outbox's reconciliation, which arrives later. Until then every
+    superseded intent routes to checks, and the planning and context
+    routes are applied only by a caller that decides them.
     """
     review_tuple = _latest(conn, "evidence_tuple", ticket["id"], kind="review")
     write = _latest(conn, "external_write", ticket["id"])
     if write is None:
         return None
-    if write["state"] == "reconciled" and review_tuple is not None and _quorum(
-        conn, ticket["id"], "review", review_tuple["content_hash"]
+    if (
+        write["state"] == "reconciled"
+        and review_tuple is not None
+        and _receipt_matches_desired(conn, write)
+        and _review_quorum_satisfied(conn, review_tuple)
     ):
         return "review_quorum_reconciled"
     if write["state"] == "superseded":

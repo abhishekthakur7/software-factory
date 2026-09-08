@@ -1,0 +1,178 @@
+# The one content-addressed governance policy the guard enforces. Every
+# field here is read by runner/trust_profile.py's validator; a file missing
+# any one of them fails to load rather than silently running with a gap.
+
+both_trust_roles_identity: abhishek
+
+# Least to most restrictive. The join of several input classes is the most
+# dominant (highest-index) of them unless join_rules names an exception.
+classes:
+  - public
+  - internal
+  - confidential
+  - restricted
+
+join_rules:
+  # The default rule needs no table entry: it is always the more
+  # restrictive of the two inputs. `exceptions` exists for a join the
+  # default rule would get wrong; none are needed among these four classes,
+  # so the list stays empty rather than padded with a no-op entry.
+  default: dominant
+  exceptions: []
+  # A class absent from `classes` above, or a join `default`/`exceptions`
+  # cannot resolve, denies rather than falling back to a guess.
+  default_deny: true
+
+admitted_scopes:
+  repositories: [fixture-project]
+  jira_projects: [FIX]
+  confluence_spaces: [FIX]
+
+# Every rule the guard scans a payload against before it is ever admitted
+# to a route. Their canonical hash is `rule_set_hash` below, and every
+# route's own `rule_set_hash` field must equal it -- one rule set, bound
+# into every route rather than copied by value.
+secret_rules:
+  - id: aws_access_key_id
+    pattern: 'AKIA[0-9A-Z]{16}'
+  - id: pem_private_key_header
+    pattern: '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+  - id: github_token
+    pattern: 'ghp_[A-Za-z0-9]{36}'
+
+# `rule_set_hash`: runner.canonical.content_hash({"secret_rules": [...]})
+# over the list above, in this exact shape. Recompute it whenever
+# secret_rules changes; the validator rejects a route whose value drifts.
+rule_set_hash: &rule_set_hash "3539578bfc740d82163e8b99fecbea3af5e7a5a32e6cbcc70a079aeb1361bafc"
+
+# A sanitizer implementation/rule hash is permitted only for the one named
+# source-to-target class pair it lists; invoked for any other pair, or
+# with a hash not listed here at all, the guard denies rather than
+# applying the plain join.
+sanitizers:
+  - rule_hash: "aa26cebd47c1e8d481d908a32e2cc171876423d421d39faad6c3362c9b2ff37d"
+    source_class: confidential
+    target_class: internal
+
+# The five routes the walk crosses. Every route is a stub deliverer except
+# the hosted model, which is live because planning and review already
+# depend on it; wiring a real deliverer for any other route is separate,
+# later work.
+routes:
+  hosted_model:
+    purpose: send ticket and code context to the hosted coding model for plan and review assistance
+    fields: [ticket_text, diff, code, question_options]
+    provider: anthropic/claude
+    processing_location: provider_cloud_us
+    storage_location: none_transient
+    logging_terms: no_persistent_logging
+    training_reuse_terms: no_training_reuse
+    subprocessors: []
+    residency: us
+    reader_roles: [ticket_engineer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: confidential
+    deliverer: live
+
+  governed_export_display:
+    purpose: display and export the governed ticket record to an authorised human reader
+    fields: [ticket_record, artefacts, guard_decisions, approval_records, branch_patch]
+    provider: factory_export_tool
+    processing_location: factory_host
+    storage_location: factory_host_export_directory
+    logging_terms: audit_logged
+    training_reuse_terms: not_applicable
+    subprocessors: []
+    residency: us
+    reader_roles: [ticket_engineer, s6_reviewer]
+    export_rule:
+      allowed_formats: [directory_export]
+      max_class: confidential
+    retention_days: 90
+    rule_set_hash: *rule_set_hash
+    max_class: confidential
+    deliverer: stub
+
+  github_pr:
+    purpose: open or update the ticket's pull request on the admitted repository
+    operations: [pr_create, pr_update]
+    fields: [branch_ref, head_sha, pr_body, target_ref]
+    provider: github_rest_api
+    processing_location: github_cloud
+    storage_location: github_hosted_repository
+    logging_terms: provider_audit_log
+    training_reuse_terms: no_training_reuse
+    subprocessors: [github]
+    residency: us
+    reader_roles: [ticket_engineer, s6_reviewer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: internal
+    deliverer: stub
+
+  slack_digest:
+    purpose: post the day's queue digest to the configured Slack channel
+    # Exactly these five fields -- nothing wider ever reaches a digest,
+    # whatever the source ticket or repository text says.
+    fields: [ticket_id, tier, item_kind, age, command]
+    provider: slack_web_api
+    processing_location: provider_cloud
+    storage_location: slack_hosted_channel_history
+    logging_terms: provider_audit_log
+    training_reuse_terms: no_training_reuse
+    subprocessors: [slack]
+    residency: us
+    reader_roles: [ticket_engineer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    # Admits only internal (never confidential) so that even before field
+    # projection, nothing sensitive reaches the digest path.
+    max_class: internal
+    deliverer: stub
+
+  jira_feedback:
+    purpose: post ticket feedback comments back to the linked Jira issue
+    fields: [ticket_id, comment_text, status_summary]
+    provider: atlassian_jira_cloud_api
+    processing_location: provider_cloud
+    storage_location: jira_hosted_issue
+    logging_terms: provider_audit_log
+    training_reuse_terms: no_training_reuse
+    subprocessors: [atlassian]
+    residency: us
+    reader_roles: [ticket_engineer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: internal
+    deliverer: stub
+
+# Immutable, content-addressed references to the approved provider
+# terms/DPA and security assessment; the profile carries only the pinned
+# reference to what was approved, never the documents themselves.
+evidence:
+  provider_terms_dpa_ref: "sha256:89b55298c2715ae9a3472c8bfd9a64f4049ea42d4bb4665f9c92922fd34fc1e9"
+  security_assessment_ref: "sha256:fa7ca07384cecb630f6f0517ed61823abd0c234f1c5778ba6f78870ef922cb56"
+
+# The two governance slots activation is evaluated over. Each requires one
+# distinct actor from the other -- except `both_trust_roles_identity`
+# above, the one identity permitted to satisfy both at once.
+approval_slots:
+  security_approver:
+    min_count: 1
+    distinct_from: [legal_data_governance_approver]
+  legal_data_governance_approver:
+    min_count: 1
+    distinct_from: [security_approver]

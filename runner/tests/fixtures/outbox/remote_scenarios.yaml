@@ -1,0 +1,17 @@
+# Named stub-remote states a test drives before dispatching or
+# reconciling an intent against them, through `StubDeliverer`'s own
+# driving methods (`set_branch_head`, `seed_pull_request`, `seed_receipt`).
+unexpected_head:
+  repository: fixture-project
+  ref: feature/fixture-outbox
+  sha: someone-elses-commit
+
+# `body_hash` is not fixed here: it must equal the canonical hash of
+# whatever `pr_body` text the scenario's own intent carries, which the
+# test computes itself rather than duplicating that computation here.
+existing_pull_request:
+  repository: fixture-project
+  identity: "fixture-project#driven-1"
+  head_ref: feature/fixture-outbox
+  target_ref: main
+  head_sha: head-sha-1
