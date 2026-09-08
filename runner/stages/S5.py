@@ -422,9 +422,10 @@ def _apply_routing(
     if not non_passing:
         return
 
-    # `runner.checks.red_route` is T-A-29's own module, built in parallel
-    # with this one; imported here, at the one call site that needs it,
-    # so this file still imports cleanly before that ticket merges.
+    # Imported here, at the one call site that needs it, rather than at
+    # module load: `runner.checks.red_route` is a separate, independently
+    # developed module, so this file must still import cleanly regardless
+    # of that module's own development state.
     from runner.checks.red_route import CheckOutcome, RecipeOutcome, classify
 
     recipe_outcomes = [
