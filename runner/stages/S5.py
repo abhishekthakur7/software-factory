@@ -108,9 +108,6 @@ def _record_check_result(
     return record.insert(conn, "check_result", **row)
 
 
-# ---- preflight: the review tuple, or one refusal ----
-
-
 def _latest_plan_tuple(conn: sqlite3.Connection, ticket_id: int) -> sqlite3.Row | None:
     return conn.execute(
         "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'plan' ORDER BY id DESC LIMIT 1", (ticket_id,)
@@ -217,9 +214,6 @@ def _preflight(
         return None, ("fail", "stale_binding")
 
     return {"review_tuple_id": review_tuple_id, "plan_row": plan_row, "planned_slots": planned_slots, "components": components, "repo": repo}, None
-
-
-# ---- base/head checkouts and the project's own recipes ----
 
 
 def _vendor_classpath(project: dict) -> str:
@@ -330,9 +324,6 @@ def _verdicts_payload(conn: sqlite3.Connection, ticket_id: int) -> list[dict]:
     return payload
 
 
-# ---- the CHECK_ORDER scripts and regression-only ----
-
-
 def _run_check_script(
     conn: sqlite3.Connection, stage_run_id: int, *, check_name: str, script: Path, args: list[str],
     review_tuple_id: int, trust_json_over_exit_code: bool = False,
@@ -393,9 +384,6 @@ def _run_regression_only(
     return payload, cr_id
 
 
-# ---- criterion 9: a public-compatibility blind spot re-triggers pilot exclusion ----
-
-
 def _handle_compatibility_exclusion(
     conn: sqlite3.Connection, ticket_id: int, stage_run_id: int, *, bce_payload: dict, plan_paths: list[str],
 ) -> bool:
@@ -424,9 +412,6 @@ def _handle_compatibility_exclusion(
         exclusion.apply_recorded_exclusion(conn, ticket_id)
         return True
     return False
-
-
-# ---- aggregation: every red result into one route or one red_check item ----
 
 
 def _apply_routing(
@@ -469,9 +454,6 @@ def _apply_routing(
         evidence_tuple_id=review_tuple_id,
     )
     queue.open_item(conn, ticket_id=ticket["id"], kind="red_check", stage="S5", tier=_tier(ticket), ref=f"stage_run:{stage_run_id}")
-
-
-# ---- the driver ----
 
 
 def run(
