@@ -1,4 +1,4 @@
-"""The `factory` command: `advance`, `run`, `show`, `queue`, `act`, `abandon`, `refresh-base`, `tag`, `report`.
+"""The `factory` command: `advance`, `run`, `show`, `pause`, `resume`, `stop`, `queue`, `act`, `abandon`, `refresh-base`, `tag`, `report`.
 
 Each verb is a thin wrapper over an in-process function so tests (and any
 later API) can call the function directly without going through argument
@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import freshness, gates, outbox, queue, record, refresh_base, run_ledger, tags, transitions
+from runner import control, freshness, gates, outbox, queue, record, refresh_base, run_ledger, tags, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -59,32 +59,43 @@ def _open_stale_base_item(conn: sqlite3.Connection, ticket_id: int, fresh: fresh
 def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR) -> str:
     """Reconcile the outbox, expire dead leases, then run the stage due in the ticket's state, else evaluate its gate, else report the wait.
 
-    Outbox reconciliation runs before lease expiry, and both run before
-    any due-stage or gate logic: a restart must never advance ticket state
-    on evidence a crashed attempt left ambiguous or a dead run still holds
-    a lease over. Before ever starting S4, the runner fetches the
-    configured target branch and refuses to start it on a stale result: no
-    stage runs, one `red_check` item is queued (unless the ticket already
-    has one open), and the ticket stays where it is. The same freshness
-    check backs `plan_review`'s own gate, so a moved target withholds
-    `plan_quorum_fresh` too.
+    A ticket with a live run refuses every command but `factory stop`,
+    `advance` included, before touching anything else. Outbox
+    reconciliation runs before lease expiry, and both run before any
+    due-stage or gate logic: a restart must never advance ticket state on
+    evidence a crashed attempt left ambiguous or a dead run still holds a
+    lease over. Immediately before it would start a due stage or evaluate
+    a gate -- the two recorded boundaries -- `advance` checks the durable
+    pause flag; a pending pause consumes the boundary instead, so nothing
+    below it runs this call. Before ever starting S4, the runner fetches
+    the configured target branch and refuses to start it on a stale
+    result: no stage runs, one `red_check` item is queued (unless the
+    ticket already has one open), and the ticket stays where it is. The
+    same freshness check backs `plan_review`'s own gate, so a moved target
+    withholds `plan_quorum_fresh` too.
     """
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
         return f"no such ticket: {ticket_id}"
+    if control.live_run(conn, ticket_id) is not None:
+        return control.live_run_refusal(ticket_id)
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
     run_ledger.expire_dead_runs(conn, ticket_id)
     stage = _due_stage(conn, ticket)
-    if stage == "S4":
-        fresh = freshness.check(
-            conn, ticket_id, boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,
-        )
-        if not fresh.fresh:
-            _open_stale_base_item(conn, ticket_id, fresh)
-            return f"ticket {ticket_id}: base is stale ({'; '.join(fresh.reasons)})"
     if stage is not None:
+        if control.pause_pending(conn, ticket_id):
+            return f"ticket {ticket_id}: paused at {ticket['state']}"
+        if stage == "S4":
+            fresh = freshness.check(
+                conn, ticket_id, boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,
+            )
+            if not fresh.fresh:
+                _open_stale_base_item(conn, ticket_id, fresh)
+                return f"ticket {ticket_id}: base is stale ({'; '.join(fresh.reasons)})"
         return f"ticket {ticket_id}: {stage} {run_stage(conn, ticket_id, stage, runs_dir=runs_dir)}"
     gate = gates.GATES.get(ticket["state"])
+    if gate is not None and control.pause_pending(conn, ticket_id):
+        return f"ticket {ticket_id}: paused at {ticket['state']}"
     event = gate(conn, ticket, runs_dir=runs_dir) if gate is not None else None
     if event is None:
         return f"ticket {ticket_id} is waiting on a human at {ticket['state']}"
@@ -93,14 +104,21 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
 
 
 def run(conn: sqlite3.Connection, ticket_id: int, stage: str, runs_dir: Path = RUNS_DIR) -> str:
-    """Run the named stage for `ticket_id`; `run_stage` refuses and records a stage its state does not precede."""
+    """Run the named stage for `ticket_id`; `run_stage` refuses and records a stage its state does not precede.
+
+    A ticket with a live run refuses this call too, before `run_stage`
+    ever sees it: only `factory stop` may act on a ticket while one of its
+    stages is actually running.
+    """
     if record.get(conn, "ticket", ticket_id) is not None:
+        if control.live_run(conn, ticket_id) is not None:
+            return control.live_run_refusal(ticket_id)
         outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
     return run_stage(conn, ticket_id, stage, runs_dir=runs_dir)
 
 
 def show(conn: sqlite3.Connection, ticket_id: int) -> str:
-    """The ticket's state and its stage runs (id, stage, attempt, outcome), plain text."""
+    """The ticket's state, its stage runs (id, stage, attempt, outcome), and its current control status, plain text."""
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
         return f"no such ticket: {ticket_id}"
@@ -113,7 +131,34 @@ def show(conn: sqlite3.Connection, ticket_id: int) -> str:
             f"  stage_run {stage_run['id']}: {stage_run['stage']} "
             f"attempt {stage_run['attempt']} outcome {stage_run['outcome']}"
         )
+    info = control.status(conn, ticket_id)
+    lines.append(f"  pause pending: {info['pause_pending']}")
+    if info["stage"] is not None:
+        lines.append(
+            f"  current: {info['stage']} attempt {info['attempt']}, elapsed {info['elapsed_seconds']:.1f}s"
+        )
+        remaining = info["budget_remaining"]
+        lines.append(
+            f"  budget remaining: tokens {remaining['tokens']}, wall_clock_seconds {remaining['wall_clock_seconds']}"
+        )
+        for output in info["outputs"]:
+            lines.append(f"    output: artefact {output['id']} {output['kind']} {output['path']}")
     return "\n".join(lines)
+
+
+def pause(conn: sqlite3.Connection, ticket_id: int) -> str:
+    """Request a pause for `ticket_id`; `advance` honours it at the next recorded boundary."""
+    return control.pause(conn, ticket_id)
+
+
+def resume(conn: sqlite3.Connection, ticket_id: int, *, actor: str, runs_dir: Path = RUNS_DIR) -> str:
+    """Resume `ticket_id` from its held pause boundary."""
+    return control.resume(conn, ticket_id, actor=actor, runs_dir=runs_dir)
+
+
+def stop(conn: sqlite3.Connection, ticket_id: int, *, actor: str, fm_id: str, note: str | None = None) -> str:
+    """Terminate `ticket_id`'s running stage(s) and escalate the ticket."""
+    return control.stop(conn, ticket_id, actor=actor, fm_id=fm_id, note=note)
 
 
 def report(
@@ -149,6 +194,19 @@ def main(argv: list[str] | None = None) -> int:
 
     show_parser = subparsers.add_parser("show")
     show_parser.add_argument("ticket_id", type=int)
+
+    pause_parser = subparsers.add_parser("pause")
+    pause_parser.add_argument("ticket_id", type=int)
+
+    resume_parser = subparsers.add_parser("resume")
+    resume_parser.add_argument("ticket_id", type=int)
+    resume_parser.add_argument("--actor", required=True)
+
+    stop_parser = subparsers.add_parser("stop")
+    stop_parser.add_argument("ticket_id", type=int)
+    stop_parser.add_argument("--actor", required=True)
+    stop_parser.add_argument("--fm", required=True)
+    stop_parser.add_argument("--note")
 
     queue_parser = subparsers.add_parser("queue")
     queue_parser.add_argument("--all", action="store_true", dest="show_all")
@@ -201,6 +259,12 @@ def main(argv: list[str] | None = None) -> int:
             print(run(conn, args.ticket_id, args.stage, runs_dir))
         elif args.verb == "show":
             print(show(conn, args.ticket_id))
+        elif args.verb == "pause":
+            print(pause(conn, args.ticket_id))
+        elif args.verb == "resume":
+            print(resume(conn, args.ticket_id, actor=args.actor, runs_dir=runs_dir))
+        elif args.verb == "stop":
+            print(stop(conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note))
         elif args.verb == "queue":
             print(queue.list_queue(conn, include_resolved=args.show_all))
         elif args.verb == "act":
