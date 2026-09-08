@@ -1,14 +1,22 @@
 # AGENTS.md — working rules for soft-factory
 
+## Greenfield
+- This is a greenfield project so never worry about backward compatibility and never create messy solutions
+
+## Tickets
+- All implementation should be ticket agnostic, never mention ticket # or PRD # or milestone # in the code or code comments
+- The code documentation should always be ticket agnostic, document what's the behavior of the code
+
 ## Comments
 
-A comment you add must do one of three things:
+A comment you add must do one of 4 things:
 
 1. **Explain why** — the trade-off, constraint, or rejected alternative.
 2. **State a non-obvious invariant** — conditional field presence, ordering
    precondition, fail-closed contract, why a force-unwrap or a redundant-looking
    guard is safe.
 3. **Warn** — platform quirk, thread hazard, TOCTOU race, macro workaround.
+4. **Code comments** should never focus on only 1 aspect of the method/function, it should state what code's behavior is.
 
 Never restate the adjacent line, narrate control flow, decorate (`// ====`),
 or leave scaffolding chatter. Leave alone things that look like slop but are
