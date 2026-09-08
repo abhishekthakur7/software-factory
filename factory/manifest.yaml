@@ -574,125 +574,6 @@ files:
     content_hash: 7ea55a0125a73c5d307643b61d3adb4e5fc3770ba1b5c7fd4185766764436fb1
   - path: factory/skills/shared/codegraph-lookup.md
     content_hash: f4c6b1018bd39e49ba7e093053ea35830c7da7e933715d28c517409bba0eb5f0
-stages:
-  S0:
-    default:
-      agent: null
-      skill: null
-      shared_skills: []
-      rubric: factory/rubrics/S0.md
-      tool_allowlist: []
-      budget: factory/config/tiers.yaml
-      runtime_adapter: cursor_sdk
-      runtime_version: 1.0.31
-      model_requested: null
-      grader_model: null
-      sandbox_policy: thin
-      toolchain:
-        jdk: '17'
-  S1:
-    default:
-      agent: factory/agents/S1.md
-      skill: factory/skills/S1.md
-      shared_skills: [factory/skills/shared/codegraph-lookup.md]
-      rubric: factory/rubrics/S1.md
-      tool_allowlist:
-      - read_file
-      - write_file
-      - run_command
-      budget: factory/config/tiers.yaml
-      runtime_adapter: cursor_sdk
-      runtime_version: 1.0.31
-      model_requested: claude-sonnet-5
-      grader_model: claude-sonnet-5
-      sandbox_policy: thin
-      toolchain:
-        jdk: '17'
-  S2:
-    default:
-      agent: factory/agents/S2.md
-      skill: factory/skills/S2.md
-      shared_skills: []
-      rubric: factory/rubrics/S2.md
-      tool_allowlist:
-      - read_file
-      - write_file
-      - run_command
-      budget: factory/config/tiers.yaml
-      runtime_adapter: cursor_sdk
-      runtime_version: 1.0.31
-      model_requested: claude-sonnet-5
-      grader_model: claude-sonnet-5
-      sandbox_policy: thin
-      toolchain:
-        jdk: '17'
-      restatement_model: claude-sonnet-5
-  S3:
-    default:
-      agent: factory/agents/S3.md
-      skill: factory/skills/S3.md
-      shared_skills: [factory/skills/shared/codegraph-lookup.md]
-      rubric: factory/rubrics/S3.md
-      tool_allowlist:
-      - read_file
-      - write_file
-      - run_command
-      budget: factory/config/tiers.yaml
-      runtime_adapter: cursor_sdk
-      runtime_version: 1.0.31
-      model_requested: claude-sonnet-5
-      grader_model: claude-sonnet-5
-      sandbox_policy: thin
-      toolchain:
-        jdk: '17'
-  S4:
-    default:
-      agent: factory/agents/S4.md
-      skill: factory/skills/S4.md
-      shared_skills: [factory/skills/shared/codegraph-lookup.md]
-      rubric: factory/rubrics/S4.md
-      tool_allowlist:
-      - read_file
-      - write_file
-      - run_command
-      budget: factory/config/tiers.yaml
-      runtime_adapter: cursor_sdk
-      runtime_version: 1.0.31
-      model_requested: claude-sonnet-5
-      grader_model: claude-sonnet-5
-      sandbox_policy: thin
-      toolchain:
-        jdk: '17'
-  S5:
-    default:
-      agent: null
-      skill: null
-      shared_skills: []
-      rubric: factory/rubrics/S5.md
-      tool_allowlist: []
-      budget: factory/config/tiers.yaml
-      runtime_adapter: cursor_sdk
-      runtime_version: 1.0.31
-      model_requested: null
-      grader_model: null
-      sandbox_policy: thin
-      toolchain:
-        jdk: '17'
-  S6:
-    default:
-      agent: null
-      skill: null
-      shared_skills: []
-      rubric: factory/rubrics/S6.md
-      tool_allowlist: []
-      budget: factory/config/tiers.yaml
-      runtime_adapter: cursor_sdk
-      runtime_version: 1.0.31
-      model_requested: null
-      grader_model: null
-      sandbox_policy: thin
-      toolchain:
-        jdk: '17'
   - path: factory/evals/scripts/checks/scope_diff/eval.yaml
     content_hash: 085f370414feb7712fdf1f3f99ee3787fe88f624f661922835860eda48ce4e7a
   - path: factory/evals/scripts/checks/scope_diff/fixtures/discretion_glob/diff.txt
@@ -821,3 +702,122 @@ stages:
     content_hash: 524e65a701a92932b7eefe5b697f73a6950a80f1e1152f9081517d15a58a7bf7
   - path: factory/scripts/checks/base_test_diff
     content_hash: 3972a133e3ec4e403c1f9c29c62cdc787322352d178b3f9f0ef02f79ae915c81
+stages:
+  S0:
+    default:
+      agent: null
+      skill: null
+      shared_skills: []
+      rubric: factory/rubrics/S0.md
+      tool_allowlist: []
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: 1.0.31
+      model_requested: null
+      grader_model: null
+      sandbox_policy: thin
+      toolchain:
+        jdk: '17'
+  S1:
+    default:
+      agent: factory/agents/S1.md
+      skill: factory/skills/S1.md
+      shared_skills: [factory/skills/shared/codegraph-lookup.md]
+      rubric: factory/rubrics/S1.md
+      tool_allowlist:
+      - read_file
+      - write_file
+      - run_command
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: 1.0.31
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: '17'
+  S2:
+    default:
+      agent: factory/agents/S2.md
+      skill: factory/skills/S2.md
+      shared_skills: []
+      rubric: factory/rubrics/S2.md
+      tool_allowlist:
+      - read_file
+      - write_file
+      - run_command
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: 1.0.31
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: '17'
+      restatement_model: claude-sonnet-5
+  S3:
+    default:
+      agent: factory/agents/S3.md
+      skill: factory/skills/S3.md
+      shared_skills: [factory/skills/shared/codegraph-lookup.md]
+      rubric: factory/rubrics/S3.md
+      tool_allowlist:
+      - read_file
+      - write_file
+      - run_command
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: 1.0.31
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: '17'
+  S4:
+    default:
+      agent: factory/agents/S4.md
+      skill: factory/skills/S4.md
+      shared_skills: [factory/skills/shared/codegraph-lookup.md]
+      rubric: factory/rubrics/S4.md
+      tool_allowlist:
+      - read_file
+      - write_file
+      - run_command
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: 1.0.31
+      model_requested: claude-sonnet-5
+      grader_model: claude-sonnet-5
+      sandbox_policy: thin
+      toolchain:
+        jdk: '17'
+  S5:
+    default:
+      agent: null
+      skill: null
+      shared_skills: []
+      rubric: factory/rubrics/S5.md
+      tool_allowlist: []
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: 1.0.31
+      model_requested: null
+      grader_model: null
+      sandbox_policy: thin
+      toolchain:
+        jdk: '17'
+  S6:
+    default:
+      agent: null
+      skill: null
+      shared_skills: []
+      rubric: factory/rubrics/S6.md
+      tool_allowlist: []
+      budget: factory/config/tiers.yaml
+      runtime_adapter: cursor_sdk
+      runtime_version: 1.0.31
+      model_requested: null
+      grader_model: null
+      sandbox_policy: thin
+      toolchain:
+        jdk: '17'
