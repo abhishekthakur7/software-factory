@@ -289,7 +289,7 @@ files:
   - path: factory/evals/rubrics/S2/fixtures/r_s2_5_grader_pass/human_verdict.yaml
     content_hash: a735a2ebaa72fc85c439f6003ecad037ee8b3e00aaf2b3d034790a73bb9c11f3
   - path: factory/evals/rubrics/S3/eval.yaml
-    content_hash: 9392cc6179d45649a2a9f0726195ffb356803a9aa2518c55e4ff62a933e4b892
+    content_hash: 358c6d4403a952c752b2fd15721943a24d3555d65246ff7f72d44cdb7c1bc64e
   - path: factory/evals/rubrics/S3/fixtures/missing_front_matter/S3.md
     content_hash: 4cba7669b435c786dcbcbd05ae92a1b33dc607ffac1a38ba3305cedf16948be7
   - path: factory/evals/rubrics/S3/fixtures/ok/S3.md
