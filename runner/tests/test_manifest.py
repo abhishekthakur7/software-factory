@@ -305,7 +305,7 @@ def test_must_reject_a_stage_run_on_a_ticket_with_no_manifest_pin(tmp_path):
 
     outcome = stages.invoke_agent(
         conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
-    )
+    ).outcome
 
     assert outcome == "refused_request"
     assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
@@ -323,7 +323,7 @@ def test_must_reject_a_stage_run_whose_pin_no_longer_matches_the_resolved_manife
 
     outcome = stages.invoke_agent(
         conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
-    )
+    ).outcome
 
     assert outcome == "refused_request"
     assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
@@ -340,7 +340,7 @@ def test_a_matching_pin_lets_a_later_stage_run_through(tmp_path):
 
     outcome = stages.invoke_agent(
         conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
-    )
+    ).outcome
 
     assert outcome == "pass"
     assert conn.execute("SELECT COUNT(*) FROM utility_run WHERE kind = 'refused_request'").fetchone()[0] == 0
@@ -355,7 +355,7 @@ def test_s0_is_exempt_from_the_pin_check(tmp_path):
 
     outcome = stages.invoke_agent(
         conn, ticket, "S0", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
-    )
+    ).outcome
 
     assert outcome == "pass"
 

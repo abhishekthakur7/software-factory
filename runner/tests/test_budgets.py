@@ -360,7 +360,7 @@ def test_a_changed_s4_budget_requires_migration_and_reapproval_before_it_takes_e
     record.update(conn, "ticket", ticket_id, state="implementing")
     ticket = record.get(conn, "ticket", ticket_id)
 
-    outcome = stages.invoke_agent(conn, ticket, "S5", tier="light", manifest_path=manifest_path, runs_dir=tmp_path)
+    outcome = stages.invoke_agent(conn, ticket, "S5", tier="light", manifest_path=manifest_path, runs_dir=tmp_path).outcome
     assert outcome == "refused_request"
     assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
 
@@ -369,5 +369,5 @@ def test_a_changed_s4_budget_requires_migration_and_reapproval_before_it_takes_e
     ticket = record.get(conn, "ticket", ticket_id)
     assert ticket["factory_manifest_hash"] == new_hash
 
-    outcome = stages.invoke_agent(conn, ticket, "S5", tier="light", manifest_path=manifest_path, runs_dir=tmp_path)
+    outcome = stages.invoke_agent(conn, ticket, "S5", tier="light", manifest_path=manifest_path, runs_dir=tmp_path).outcome
     assert outcome == "pass"

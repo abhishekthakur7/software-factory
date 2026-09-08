@@ -27,7 +27,7 @@ from pathlib import Path
 import yaml
 
 from runner import canonical, record, recipes
-from runner.paths import FACTORY_DIR, PROJECT_CONFIG, RUNS_DIR
+from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
 
 SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
 
@@ -212,9 +212,20 @@ def _ordered_inputs(conn: sqlite3.Connection, ticket_id: int) -> tuple[InputRef,
     )
 
 
+def _named_inputs(conn: sqlite3.Connection, ticket_id: int, artefact_ids) -> tuple[InputRef, ...]:
+    """The caller-chosen input set, in the caller's order; an id that is not this ticket's artefact is refused."""
+    refs = []
+    for artefact_id in artefact_ids:
+        row = record.get(conn, "artefact", artefact_id)
+        if row is None or row["ticket_id"] != ticket_id:
+            raise EnvelopeError(f"artefact {artefact_id} is not an artefact of ticket {ticket_id}")
+        refs.append(InputRef(artefact_id=row["id"], kind=row["kind"], hash=row["hash"], guard_decision_id=row["guard_decision_id"]))
+    return tuple(refs)
+
+
 def build(
     conn: sqlite3.Connection, ticket: sqlite3.Row, entry, *, adapter_version: str | None = None,
-    sandbox_path: Path = SANDBOX_PATH,
+    sandbox_path: Path | None = None, input_artefact_ids=None,
 ) -> Envelope:
     """The envelope a fresh invocation of `entry.stage` for `ticket` receives.
 
@@ -223,13 +234,23 @@ def build(
     calling adapter module's own pinned version -- distinct from `entry`'s
     `runtime_version`, the SDK/CLI package version -- so this function
     stays adapter-agnostic rather than assuming which one is calling it.
+    `input_artefact_ids` fixes the input set and its order when the stage
+    driver knows exactly which artefacts this invocation reads (a
+    restatement child reads one subject, S2 reads the source and the
+    brief); left None, every latest-version artefact of the ticket is an
+    input, sorted by kind.
     """
     project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
     toolchain = dict(entry.toolchain) if entry.toolchain else dict(project.get("toolchain", {}))
+    sandbox_path = sandbox_path if sandbox_path is not None else SANDBOX_PATH
+    inputs = (
+        _named_inputs(conn, ticket["id"], input_artefact_ids) if input_artefact_ids is not None
+        else _ordered_inputs(conn, ticket["id"])
+    )
     return Envelope(
         ticket_id=ticket["id"],
         stage=entry.stage,
-        inputs=_ordered_inputs(conn, ticket["id"]),
+        inputs=inputs,
         agent_hash=entry.agent_hash,
         skill_hash=entry.skill_hash,
         shared_skill_hashes=entry.shared_skill_hashes,
@@ -252,6 +273,34 @@ def build(
         tool_allowlist=entry.tool_allowlist,
         approval_subject_hash=_approval_subject_hash(conn, ticket["id"], entry.stage),
     )
+
+
+def locations(conn: sqlite3.Connection, ticket: sqlite3.Row, entry, envelope: Envelope) -> dict:
+    """Where the worker finds each thing the envelope names by hash: the second, unhashed file an invocation receives.
+
+    The envelope carries identities (hashes and ids) so it can be rebuilt
+    from the record alone; the worker needs paths. Keeping the two apart
+    means adding a path here never changes an envelope hash, and every
+    path is derivable from the record (artefact rows carry their path,
+    the manifest entry names its files) rather than being a second
+    source of identity. Manifest paths are repository-relative and are
+    resolved here so the worker never has to know the repository root.
+    """
+    def _abs(rel: str | None) -> str | None:
+        return str(REPO_ROOT / rel) if rel else None
+
+    inputs = []
+    for ref in envelope.inputs:
+        row = record.get(conn, "artefact", ref.artefact_id)
+        inputs.append({"artefact_id": ref.artefact_id, "kind": ref.kind, "path": row["path"]})
+    return {
+        "agent": _abs(entry.agent),
+        "skill": _abs(entry.skill),
+        "shared_skills": [_abs(path) for path in entry.shared_skills],
+        "rubric": _abs(entry.rubric),
+        "inputs": inputs,
+        "worktree_path": ticket["worktree_path"],
+    }
 
 
 def reconstruct(conn: sqlite3.Connection, stage_run_id: int, *, runs_dir: Path = RUNS_DIR) -> Envelope:

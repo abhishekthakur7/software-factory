@@ -11,6 +11,7 @@ case deliberately overrides them to drive a sandbox-integrity violation.
 """
 import json
 import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -106,10 +107,39 @@ CASES: dict[str, dict] = {
 }
 
 
+def _copy_fixture_output(out_dir: Path, locations: dict) -> None:
+    """Stand in for the agent's own writing: copy a fixture's canned `out/` tree into this run's `out/`.
+
+    `FIXTURE_ADAPTER_OUT_DIR` names a directory whose top-level files are
+    copied as the invocation's output. A child invocation that must vary
+    by what it was given (one restatement child per criterion, say) is
+    served from `<dir>/by_input/<input file stem>/`, chosen by the stem of
+    any input path the locations document names, so one fixture directory
+    can drive a whole family of invocations without the worker seeing the
+    database. Copied through `shutil` from the fixture into `out/` only,
+    never anywhere else, so the sandbox-integrity report stays truthful.
+    """
+    source = os.environ.get("FIXTURE_ADAPTER_OUT_DIR")
+    if not source:
+        return
+    root = Path(source)
+    for path in sorted(root.iterdir()):
+        if path.is_file():
+            shutil.copy(path, out_dir / path.name)
+    for item in locations.get("inputs", []):
+        variant = root / "by_input" / Path(item.get("path") or "").stem
+        if variant.is_dir():
+            for path in sorted(variant.iterdir()):
+                if path.is_file():
+                    shutil.copy(path, out_dir / path.name)
+
+
 def main() -> int:
     out_dir = Path(os.environ["FACTORY_RUN_OUT"])
     envelope_path = Path(sys.argv[1])
     envelope = json.loads(envelope_path.read_text())
+    locations = json.loads(Path(sys.argv[2]).read_text()) if len(sys.argv) > 2 else {}
+    _copy_fixture_output(out_dir, locations)
 
     # The adoption-gate eval directory (factory/evals/adapters/cursor_sdk/)
     # supplies its own canned JSON documents on disk; when the launcher

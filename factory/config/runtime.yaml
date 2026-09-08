@@ -8,8 +8,8 @@ adapters:
   cursor_sdk:
     package: cursor-sdk
     version: "1.0.31"
-    # The worker's argv, run inside the sandbox; the launcher appends the
-    # envelope path as this command's last argument.
+    # The worker's argv, run inside the sandbox; the adapter appends the
+    # envelope path and the locations path as this command's last two arguments.
     command: [python3, -m, runner.adapters.cursor_sdk_worker]
     models:
       - claude-sonnet-5

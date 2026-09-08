@@ -23,25 +23,50 @@ def _read_envelope(path: str) -> dict:
     return json.loads(Path(path).read_text())
 
 
-def _prompt_from_envelope(envelope: dict) -> str:
-    """The concatenated body of every file the envelope names, in envelope order.
+def _read_locations(argv: list[str]) -> dict:
+    """The locations document (argv[2]) naming the files behind the envelope's hashes, or `{}` when none was given."""
+    return json.loads(Path(argv[2]).read_text()) if len(argv) > 2 else {}
 
-    `envelope.json` as written by `runner/envelope.py` carries only hashes
-    and ids, not file bodies -- a later ticket that wires real stage
-    content extends the envelope with the actual agent/skill/rubric/input
-    paths this worker reads; until then, the envelope's own dict is
-    itself the prompt payload, so a fixture worker and the real one agree
-    on what "the envelope" means without this file needing a shape only
-    the real SDK understands.
+
+def _prompt(envelope: dict, locations: dict) -> str:
+    """The stage prompt: skill, then shared skills, then rubric, then every input artefact, each body under a path heading.
+
+    `envelope.json` carries only hashes and ids; `locations.json`, written
+    beside it by the adapter, carries the paths. The agent definition is
+    not part of the prompt text: it is the runtime's own rules file,
+    passed as the agent's `cwd`-independent instructions below. A named
+    file that is missing is reported in the prompt rather than raised, so
+    the parent classifies the run from the worker's one JSON document.
     """
-    return json.dumps(envelope, sort_keys=True)
+    parts = [f"ticket {envelope.get('ticket_id')} stage {envelope.get('stage')}"]
+    named = [locations.get("skill"), *locations.get("shared_skills", []), locations.get("rubric")]
+    named += [item.get("path") for item in locations.get("inputs", [])]
+    for path in named:
+        if not path:
+            continue
+        try:
+            body = Path(path).read_text()
+        except OSError as exc:
+            body = f"(unreadable: {exc})"
+        parts.append(f"--- {path} ---\n{body}")
+    return "\n\n".join(parts)
+
+
+def _agent_rules(locations: dict) -> str | None:
+    path = locations.get("agent")
+    if not path:
+        return None
+    try:
+        return Path(path).read_text()
+    except OSError:
+        return None
 
 
 def _files_written(out_dir: Path) -> list[str]:
     return [str(path) for path in out_dir.rglob("*") if path.is_file()]
 
 
-def _run(envelope: dict) -> dict:
+def _run(envelope: dict, locations: dict) -> dict:
     import cursor_sdk
 
     out_dir = Path(os.environ["FACTORY_RUN_OUT"])
@@ -49,11 +74,16 @@ def _run(envelope: dict) -> dict:
     agent = cursor_sdk.Agent.create(
         model=model_requested,
         local=cursor_sdk.LocalAgentOptions(
-            cwd=envelope.get("worktree_path") or str(out_dir),
+            cwd=locations.get("worktree_path") or str(out_dir),
             setting_sources=[],
         ),
     )
-    run = agent.send(_prompt_from_envelope(envelope), cursor_sdk.SendOptions(model=model_requested))
+    # The agent definition leads the one prompt this worker sends, since
+    # the local runtime takes no separate rules file per invocation.
+    rules = _agent_rules(locations)
+    prompt = _prompt(envelope, locations)
+    text = f"{rules}\n\n{prompt}" if rules else prompt
+    run = agent.send(text, cursor_sdk.SendOptions(model=model_requested))
 
     tool_calls = []
     for seq, event in enumerate(run.events(), start=1):
@@ -107,7 +137,7 @@ def main(argv: list[str]) -> int:
         return 2
     envelope = _read_envelope(argv[1])
     try:
-        payload = _run(envelope)
+        payload = _run(envelope, _read_locations(argv))
     except Exception as exc:
         # The worker's one contract is printing exactly one JSON document;
         # a raised exception is reported as data, in that same document,

@@ -41,7 +41,7 @@ ALLOWED_COLUMNS = {
         "resolved_at", "resolved_by", "resolved_role", "action", "note", "active_attention_bucket",
         "updated_at",
     },
-    "question": {"state", "updated_at"},
+    "question": {"state", "consequential", "hard_to_reverse", "blocking", "updated_at"},
     "answer": set(),
     "assumption": set(),
     "deviation": set(),

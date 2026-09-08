@@ -181,7 +181,12 @@ TAG_EVENT_KINDS: tuple[str, ...] = (
     "send_back",
     "packet_defect",
     "policy_exception",
+    "flag_correction",
 )
+
+# question.state's closed set: open until answered, or until the S3
+# reviewer accepts its proposed assumption, or until it is withdrawn.
+QUESTION_STATES: tuple[str, ...] = ("open", "answered", "assumption_accepted", "withdrawn")
 
 # incident_observation.record_kind's closed set: an event root, a
 # disposition over a root, or a coverage record, in the production and
@@ -468,12 +473,17 @@ TABLES: tuple[Table, ...] = (
             Column("reasoning", "TEXT"),
             Column("options", "TEXT"),
             Column("default_option", "INTEGER"),
-            Column("consequential", "INTEGER"),
-            Column("hard_to_reverse", "INTEGER"),
-            Column("blocking", "INTEGER"),
+            # The two flags and their reasons are stored separately; a human
+            # may correct either flag in place, the correction's reason
+            # landing as a `flag_correction` tag on the question.
+            Column("consequential", "INTEGER", mutable=True),
+            Column("consequential_reason", "TEXT"),
+            Column("hard_to_reverse", "INTEGER", mutable=True),
+            Column("hard_to_reverse_reason", "TEXT"),
+            Column("blocking", "INTEGER", mutable=True),
             Column("rank_inputs", "TEXT"),
             Column("raised_by_answer", "INTEGER", references="answer.id"),
-            Column("state", "TEXT", mutable=True),
+            Column("state", "TEXT", mutable=True, values=QUESTION_STATES),
             Column("updated_at", "TEXT", mutable=True),
         ),
     ),

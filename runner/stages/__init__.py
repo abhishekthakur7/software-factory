@@ -19,6 +19,7 @@ instead return `(outcome, failure_kind)` when the outcome itself needs a
 is the one case today -- so `run_ledger.finish` records it; every other
 driver keeps returning a bare string, which carries no `failure_kind`.
 """
+import dataclasses
 import sqlite3
 from pathlib import Path
 
@@ -75,17 +76,28 @@ def run_stage(
 
 def invoke_agent(
     conn: sqlite3.Connection, ticket: sqlite3.Row, stage: str, *, tier: str | None = None, runs_dir: Path = RUNS_DIR,
-    manifest_path: Path = manifest.MANIFEST_PATH,
-) -> str:
+    manifest_path: Path = manifest.MANIFEST_PATH, parent_run_id: int | None = None, input_artefact_ids=None,
+    model_override: str | None = None,
+) -> cursor_sdk.InvocationResult:
     """The seam a real stage driver calls once it has agent content: resolve the manifest entry, invoke if agent-bearing.
 
-    No stub driver calls this yet -- S1 to S4 stay stubs until their own
-    tickets land real agent content. Its own `stage_run` is opened and
-    finished by `adapters.cursor_sdk.invoke`, separate from any row this
-    module's own `run_stage` may have opened for the same call; how the
-    two compose for a real agent stage is that later ticket's decision to
-    make. A stage whose resolved manifest entry names no agent (a
-    script-only stage) returns "pass" without invoking anything.
+    A real stage runs as two kinds of `stage_run` row. The row `run_stage`
+    opened is the stage attempt: it holds the lease, and its outcome
+    (pass, blocked, fail) is what the state table reads. Every agent
+    invocation the driver makes is a child of that attempt, opened by
+    `adapters.cursor_sdk.invoke` with `parent_run_id` set, carrying its own
+    envelope, model, tokens, cost and replayability; a restatement child
+    is a sibling of the main invocation under the same attempt. Budgets
+    sum over the attempt's whole family and the first-attempt measure
+    excludes children, so the split costs nothing either way. A driver
+    therefore passes its own `stage_run_id` as `parent_run_id`; a stage
+    whose resolved manifest entry names no agent (a script-only stage)
+    gets a `pass` result with no run opened.
+
+    `model_override` names a model other than the entry's `model_requested`
+    for one invocation -- the manifest's `restatement_model` for S2's
+    agreement-check children -- and is checked against the runtime's
+    approved models exactly like the entry's own.
 
     Every stage but `S0` first compares the ticket's `factory_manifest_hash`
     pin against this resolution's own manifest hash: a missing pin, or one
@@ -107,8 +119,12 @@ def invoke_agent(
             )
             run_id = run_ledger.open_utility_run(conn, kind="refused_request", ticket_id=ticket["id"], outputs=reason)
             run_ledger.finish(conn, run_id, "refused_request", table="utility_run")
-            return "refused_request"
+            return cursor_sdk.no_run_result("refused_request", blind_spot=reason)
     if entry.agent is None:
-        return "pass"
-    result = cursor_sdk.invoke(conn, ticket=ticket, stage=stage, tier=tier, entry=entry, runs_dir=runs_dir)
-    return result.outcome
+        return cursor_sdk.no_run_result("pass", blind_spot="script-only stage: no agent invoked")
+    if model_override is not None:
+        entry = dataclasses.replace(entry, model_requested=model_override)
+    return cursor_sdk.invoke(
+        conn, ticket=ticket, stage=stage, tier=tier, entry=entry, runs_dir=runs_dir,
+        parent_run_id=parent_run_id, input_artefact_ids=input_artefact_ids,
+    )

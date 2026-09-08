@@ -5,7 +5,7 @@
 # whether the real binary happens to be installed on the test host.
 policies:
   thin:
-    env_allowlist: [PATH, HOME, TMPDIR, FIXTURE_ADAPTER_CASE, FIXTURE_ADAPTER_PAYLOAD_PATH]
+    env_allowlist: [PATH, HOME, TMPDIR, FIXTURE_ADAPTER_CASE, FIXTURE_ADAPTER_PAYLOAD_PATH, FIXTURE_ADAPTER_OUT_DIR]
     credential_roles:
       agent: runtime_key
       build: null

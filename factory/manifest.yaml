@@ -133,7 +133,7 @@ files:
   - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/config/tiers.yaml
-    content_hash: 238a0bf2e384156ff6612617c980a382d3c1556464e36ac797bba2383f486424
+    content_hash: ead3cce3050dc53e9813b1a09aca41117f2c2d0719f6be67929258e28ff7c88d
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/trust-profile.yaml
@@ -263,13 +263,13 @@ files:
   - path: factory/evals/scripts/tools/purge/fixtures/within_retention/export/manifest.json
     content_hash: 478de3a9aa19ceaaa88777fcba4fd23eca07c7d5d7355081c8c41c815894db88
   - path: factory/config/limits.yaml
-    content_hash: 22d113b72d3f204c0067f93a8439d48c60f478fe24a5a315ac09ad304662d87a
+    content_hash: 6a2194ddac9bba29d599d8c2c561da2a1fb71061d757a42ea291872d48b1240e
   - path: factory/config/pricing.yaml
     content_hash: 97eacffbad3dda9e6764f831eaa46c122a1db03a8108dfdb09159f603c0cd160
   - path: factory/config/sandbox.yaml
     content_hash: 2e22183b522cd5d99cb472384532c51aed48ebe3d0d6043f4a3f9c674c79dace
   - path: factory/config/runtime.yaml
-    content_hash: ae16fc5f9e7bef48c572afe9d7442d25c16f2838a4ac4216be0f2ac5933b4e57
+    content_hash: 26be69a13d9d9a481151f609f6d43c1cc2de013fb4610ab13e1706f1303520c4
   - path: factory/evals/adapters/cursor_sdk/eval.yaml
     content_hash: 85c0ea32bbe8de73b0d7165583bf09224653340bd3ce371008306b818948818d
   - path: factory/evals/adapters/cursor_sdk/fixtures/settled.json

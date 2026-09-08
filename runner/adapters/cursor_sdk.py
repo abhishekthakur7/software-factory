@@ -71,15 +71,29 @@ def _run_dir(runs_dir: Path, ticket_id: int, stage_run_id: int) -> Path:
     return Path(runs_dir) / "tickets" / str(ticket_id) / "runs" / str(stage_run_id)
 
 
-def _refuse_unavailable_model(model_requested: str | None) -> InvocationResult:
-    """No `stage_run` at all: R-I-4's unavailable-model check runs before any run is opened."""
+def no_run_result(
+    outcome: str, *, failure_kind: str | None = None, model_requested: str | None = None, blind_spot: str | None = None,
+) -> InvocationResult:
+    """The result of an invocation that never opened a `stage_run`: `stage_run_id` is -1 and nothing is settled.
+
+    Used for a refusal decided before any run exists (an unavailable
+    model, a manifest-pin mismatch) and for a script-only stage that has
+    no agent to invoke, so every caller of `invoke` handles one shape.
+    """
     return InvocationResult(
-        stage_run_id=-1, outcome="infrastructure_failure", failure_kind="infrastructure",
+        stage_run_id=-1, outcome=outcome, failure_kind=failure_kind,
         model_requested=model_requested, model_resolved=None, provider_request_id=None,
         tokens_in=None, tokens_out=None, wall_clock_seconds=None, cost=None, currency=None,
         cost_basis="unavailable", pricing_table_hash=None, reasoning_summary=None, tool_call_ids=(),
-        replayability="best_effort", replayability_blind_spot="model unavailable before invocation started",
-        envelope_hash=None,
+        replayability="best_effort", replayability_blind_spot=blind_spot, envelope_hash=None,
+    )
+
+
+def _refuse_unavailable_model(model_requested: str | None) -> InvocationResult:
+    """No `stage_run` at all: R-I-4's unavailable-model check runs before any run is opened."""
+    return no_run_result(
+        "infrastructure_failure", failure_kind="infrastructure", model_requested=model_requested,
+        blind_spot="model unavailable before invocation started",
     )
 
 
@@ -248,10 +262,11 @@ def invoke(
     entry,  # manifest.Entry
     runs_dir: Path = RUNS_DIR,
     parent_run_id: int | None = None,
-    runtime_path: Path = RUNTIME_PATH,
-    pricing_path: Path = PRICING_PATH,
-    limits_path: Path = LIMITS_PATH,
-    sandbox_path: Path = launcher.SANDBOX_PATH,
+    input_artefact_ids=None,
+    runtime_path: Path | None = None,
+    pricing_path: Path | None = None,
+    limits_path: Path | None = None,
+    sandbox_path: Path | None = None,
     runtime_key_value: str | None = None,
     env_source: dict[str, str] | None = None,
 ) -> InvocationResult:
@@ -260,14 +275,26 @@ def invoke(
     `parent_run_id` set makes this a child invocation (an R-S2-3
     restatement, for instance): the child gets its own run, its own
     envelope, and its own everything below, separate from the parent's.
+    `input_artefact_ids` fixes the invocation's input set (see
+    `envelope.build`). The four config paths resolve to this module's
+    defaults at call time, not at import, so a test suite can point every
+    driver in the runner at a fixture runtime by patching the module
+    constants once.
     """
+    runtime_path = runtime_path if runtime_path is not None else RUNTIME_PATH
+    pricing_path = pricing_path if pricing_path is not None else PRICING_PATH
+    limits_path = limits_path if limits_path is not None else LIMITS_PATH
+    sandbox_path = sandbox_path if sandbox_path is not None else launcher.SANDBOX_PATH
     runtime_doc = _yaml(runtime_path)
     adapter_cfg = runtime_doc.get("adapters", {}).get(entry.runtime_adapter)
     models = adapter_cfg["models"] if adapter_cfg is not None else ()
     if adapter_cfg is None or entry.model_requested not in models:
         return _refuse_unavailable_model(entry.model_requested)
 
-    env = envelope_mod.build(conn, ticket, entry, adapter_version=ADAPTER_VERSION, sandbox_path=sandbox_path)
+    env = envelope_mod.build(
+        conn, ticket, entry, adapter_version=ADAPTER_VERSION, sandbox_path=sandbox_path,
+        input_artefact_ids=input_artefact_ids,
+    )
     env_hash = envelope_mod.content_hash(env)
     stage_run_id = run_ledger.open_stage_run(
         conn, ticket_id=ticket["id"], stage=stage, parent_run_id=parent_run_id, tier=tier,
@@ -297,9 +324,13 @@ def invoke(
     run_dir = _run_dir(runs_dir, ticket["id"], stage_run_id)
     envelope_path = run_dir / "envelope.json"
     write_text(envelope_path, canonical.canonical_json(envelope_mod.to_dict(env)).decode())
+    # The worker's second argument: where to find what the envelope names
+    # by hash. Unhashed on purpose (see `envelope.locations`).
+    locations_path = run_dir / "locations.json"
+    write_text(locations_path, canonical.canonical_json(envelope_mod.locations(conn, ticket, entry, env)).decode())
 
     launch_result = launcher.launch(
-        run_dir=run_dir, argv=[*adapter_cfg["command"], str(envelope_path)], role="agent",
+        run_dir=run_dir, argv=[*adapter_cfg["command"], str(envelope_path), str(locations_path)], role="agent",
         policy=entry.sandbox_policy, cwd=Path(ticket["worktree_path"]) if ticket["worktree_path"] else run_dir,
         wall_clock_seconds=entry.budget.get("wall_clock_seconds"), env_source=env_source,
         runtime_key_value=runtime_key_value, envelope_path=envelope_path, sandbox_path=sandbox_path,

@@ -20,7 +20,7 @@ SEVERITY_REQUIRED_KINDS = frozenset({"incident", "control_defect", "policy_excep
 
 # The target shapes `tag` accepts: `<table>:<id>` for these tables, each of
 # whose rows carries `ticket_id` (or, for `ticket`, is the ticket).
-_TARGET_TABLES: frozenset[str] = frozenset({"ticket", "stage_run", "approval_record", "queue_item", "artefact"})
+_TARGET_TABLES: frozenset[str] = frozenset({"ticket", "stage_run", "approval_record", "queue_item", "artefact", "question"})
 
 
 class TagRefused(ValueError):

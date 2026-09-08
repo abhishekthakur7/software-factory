@@ -44,3 +44,45 @@ leases:
 # length is capped rather than left to grow without bound.
 reasoning_summary:
   max_words: 200
+
+# The size gate's changed-line threshold per tier, applied over the plan's
+# size table at S3 and over the real diff at S5. Heavy is tighter because
+# reviewer attention matters more there.
+size_gate:
+  light: 300
+  standard: 300
+  heavy: 200
+
+# S2 proposes a split when the criteria's estimate exceeds this share of
+# the tier's size gate as lines, or this many files.
+split_threshold:
+  share_of_size_gate: 0.6
+  max_files: 10
+
+# A signal, never a cap: exceeding it queues a rubric_inspection item.
+# `null` means no ceiling at that tier.
+question_ceiling:
+  light: 2
+  standard: 6
+  heavy: null
+
+# Length limits over agent-authored text.
+length_limits:
+  brief_summary_words: 300
+  plan_prose_words:
+    light: 800
+    standard: 1500
+    heavy: 2500
+  plan_table_rows:
+    light: 40
+    standard: 80
+    heavy: 150
+  first_page_lines: 60
+  instruction_file_lines: 300
+
+# S1's final-tier rule: raise one level when any of these holds. Never
+# lowered automatically.
+final_tier_rule:
+  services_touched_at_least: 2
+  files_touched_over: 10
+  unknowns_at_least: 3

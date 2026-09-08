@@ -18,22 +18,27 @@ class DefinitionError(ValueError):
     """The file has no front matter, malformed YAML, a missing key, or an invalid `kind`."""
 
 
-def load_definition(path: Path) -> dict:
-    text = Path(path).read_text()
+def front_matter(text: str, *, path: Path) -> tuple[dict, str]:
+    """The required `---` front-matter mapping and the body after it; `path` names the file in every error."""
     if not text.startswith("---\n"):
         raise DefinitionError(f"{path}: missing front matter")
     end = text.find("\n---", 4)
     if end == -1:
         raise DefinitionError(f"{path}: unterminated front matter")
     try:
-        front_matter = yaml.safe_load(text[4:end])
+        parsed = yaml.safe_load(text[4:end])
     except yaml.YAMLError as exc:
         raise DefinitionError(f"{path}: invalid YAML front matter: {exc}") from exc
-    if not isinstance(front_matter, dict):
+    if not isinstance(parsed, dict):
         raise DefinitionError(f"{path}: front matter is not a mapping")
-    missing = [key for key in REQUIRED_KEYS if key not in front_matter]
+    return parsed, text[end + len("\n---"):].strip()
+
+
+def load_definition(path: Path) -> dict:
+    meta, body = front_matter(Path(path).read_text(), path=path)
+    missing = [key for key in REQUIRED_KEYS if key not in meta]
     if missing:
         raise DefinitionError(f"{path}: front matter missing {missing}")
-    if front_matter["kind"] not in VALID_KINDS:
-        raise DefinitionError(f"{path}: invalid kind {front_matter['kind']!r}")
-    return {**front_matter, "body": text[end + len("\n---"):].strip()}
+    if meta["kind"] not in VALID_KINDS:
+        raise DefinitionError(f"{path}: invalid kind {meta['kind']!r}")
+    return {**meta, "body": body}
