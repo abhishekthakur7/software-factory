@@ -62,8 +62,12 @@ def _source_repo(tmp_path):
     return repo
 
 
-def _activate_default_profile(conn):
-    """Satisfy the default trust profile's quorum, the same way `factory advance` reads it."""
+def _activate_default_profile(conn) -> dict:
+    """Satisfy the default trust profile's quorum, the same way `factory advance` reads it.
+
+    Returns the ticket fields that bind a ticket to the activated profile
+    and to the pilot's admitted source scope, so S0's governance check
+    admits the walk's eligibility grant."""
     proposal = governance.propose(DEFAULT_TRUST_PROFILE_PATH, owners.DEFAULT_OWNERS_PATH)
     for role in ("security_approver", "legal_data_governance_approver"):
         governance.decide(
@@ -72,6 +76,13 @@ def _activate_default_profile(conn):
             owners_path=owners.DEFAULT_OWNERS_PATH, profile_path=DEFAULT_TRUST_PROFILE_PATH,
         )
     conn.commit()
+    activated = governance.activation(conn, proposal)
+    return {
+        "trust_profile_hash": proposal.profile_hash,
+        "trust_approval_set_hash": activated.trust_approval_set_hash,
+        "source_kind": "jira",
+        "source_ref": "FIX-1",
+    }
 
 
 def _manifest_hash() -> subprocess.CompletedProcess:
@@ -152,9 +163,13 @@ class WalkResult:
 def _run_walk(tmp_path) -> WalkResult:
     conn = connect(tmp_path / "factory.sqlite")
     manifest_hash_before = _manifest_hash()
-    _activate_default_profile(conn)
+    governed = _activate_default_profile(conn)
 
-    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    # A pilot-eligible service and type, since the real S0 rejects anything else.
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(),
+        service="fixture-project", ticket_type="small_feature", **governed,
+    )
 
     # criterion 14: a stage invoked from a state the transition table does not permit is refused and recorded.
     wrong_state_outcome = cli.run(conn, ticket_id, "S4", runs_dir=tmp_path)
@@ -166,7 +181,11 @@ def _run_walk(tmp_path) -> WalkResult:
 
     # S0, kill and restart, then eligibility admits to `context`.
     _kill_and_restart(conn, ticket_id, "S0", tmp_path)
-    record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
+    eligibility_item = conn.execute(
+        "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'eligibility' AND resolved_at IS NULL",
+        (ticket_id,),
+    ).fetchone()
+    queue.act(conn, item_id=eligibility_item["id"], action="granted", actor=ABHISHEK, runs_dir=tmp_path)
     cli.advance(conn, ticket_id, tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
 
