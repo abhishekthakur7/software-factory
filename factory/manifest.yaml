@@ -7,7 +7,7 @@ files:
   - path: factory/agents/S3.md
     content_hash: c55ba0cf2ade2b485a72d8b3fbb98579ac9b18c47b02a74a5a7e67e4b9eee762
   - path: factory/agents/S4.md
-    content_hash: 280a3419a9598bb0a9f76c7f60ee7e726168006d7a50dad4736a999eb3d9db1b
+    content_hash: f8995b3fffc890e43e2f98278f7605260785e70427c985e37846dccfc15b7d1f
   - path: factory/benchmarks/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/catalogue/.gitkeep
