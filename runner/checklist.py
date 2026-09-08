@@ -22,7 +22,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from runner import artefact_registry, artefacts, binding, canonical, definitions, record, rubrics
+from runner import artefact_registry, artefacts, binding, canonical, definitions, record, rubrics, waivers
 from runner.paths import FACTORY_DIR
 
 # The three rubric files this ticket's checklist code reads by default;
@@ -231,11 +231,16 @@ class Completeness:
 
 
 def _waived(conn: sqlite3.Connection, verdict_row: sqlite3.Row, *, now: str) -> bool:
-    row = conn.execute(
-        "SELECT 1 FROM waiver WHERE waived_human_verdict_id = ? AND expires_at > ? LIMIT 1",
-        (verdict_row["id"], now),
-    ).fetchone()
-    return row is not None
+    """Whether any `waiver` naming `verdict_row` is currently valid, not merely unexpired.
+
+    Delegates to `runner.waivers.validity` -- the one place expiry, policy
+    drift, lost actor authority, a changed subject, and changed evidence
+    are all checked -- rather than re-testing expiry alone here.
+    """
+    rows = conn.execute(
+        "SELECT id FROM waiver WHERE waived_human_verdict_id = ? ORDER BY id DESC", (verdict_row["id"],)
+    ).fetchall()
+    return any(waivers.validity(conn, row["id"], now=now).valid for row in rows)
 
 
 def completeness(

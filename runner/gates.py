@@ -27,7 +27,7 @@ import sqlite3
 from pathlib import Path
 from typing import Callable
 
-from runner import approvals, binding, freshness, manifest, plan_tuple, record
+from runner import approvals, binding, freshness, manifest, plan_tuple, record, waivers
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
@@ -118,17 +118,29 @@ def _reviewer_set_has_unresolved_slot(reviewer_set: sqlite3.Row) -> bool:
     return any(not slot.get("resolved", True) for slot in slots)
 
 
+def _s5_cleared(conn: sqlite3.Connection, ticket_id: int) -> bool:
+    """Whether S5 no longer blocks: its latest run passed outright, or every blocking result on it is validly waived."""
+    run = _latest(conn, "stage_run", ticket_id, stage="S5")
+    if run is None:
+        return False
+    return run["outcome"] == "pass" or waivers.cleared(conn, run["id"])
+
+
 def checks_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
-    """A new or unresolved reviewer slot returns to planning; otherwise S5 and S6 both passed admits to review.
+    """A new or unresolved reviewer slot returns to planning; otherwise a cleared S5 and a passed S6 admit to review.
 
     A stale review base, like plan_review's stale base, withholds this
     event rather than firing a redirect; only `refresh_base` and the
-    send-backs move the ticket away from a stale binding.
+    send-backs move the ticket away from a stale binding. S5 counts as
+    cleared either because its latest run passed outright or because
+    every blocking result it left is `pass` or a validly waived
+    `blind_spot` (`runner.waivers.cleared`); either way S5 itself is not
+    rerun for it.
     """
     reviewer_set = _latest(conn, "reviewer_set", ticket["id"])
     if reviewer_set is not None and _reviewer_set_has_unresolved_slot(reviewer_set):
         return "checks_new_reviewer_slot"
-    if _latest_passed(conn, ticket["id"], "S5") and _latest_passed(conn, ticket["id"], "S6"):
+    if _s5_cleared(conn, ticket["id"]) and _latest_passed(conn, ticket["id"], "S6"):
         return "checks_pass_to_review"
     return None
 
