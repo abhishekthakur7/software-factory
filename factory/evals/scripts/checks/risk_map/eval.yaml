@@ -17,9 +17,9 @@ cases:
 # parametrizes only over `cases` above, against the one small repo it builds
 # for that pinned expectation; adding a case here with a different repo shape
 # would silently break that walk. `runner/tests/test_risk_map.py` reads this
-# key instead, against the four-file repo it builds for the churn-window
-# scenarios the ticket names: top-decile churn-times-size, no clear owner,
-# and a commit outside the window.
+# key instead, against the four-file repo it builds for three churn-window
+# scenarios: top-decile churn-times-size, no clear owner, and a commit
+# outside the window.
 churn_window_cases:
   - name: churn_window
     fixture: fixtures/churn_window

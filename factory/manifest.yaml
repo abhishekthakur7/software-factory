@@ -333,7 +333,7 @@ files:
   - path: factory/evals/scripts/checks/impact_scan/fixtures/unknown/vendor/com/fixtureeval/mystery/1.0.0/mystery-1.0.0.pom
     content_hash: 5a7b7a54b702cffbecb5e221b4753562aac7051f207d43ab01598da67993aa71
   - path: factory/evals/scripts/checks/risk_map/eval.yaml
-    content_hash: ffa2f04c82c7d02d847712b55c8303e7b5726ae4816de753622795261e14a3fe
+    content_hash: f009f9c0634d32ce9d0e8df53b692e4b792918a0375b4ae869d03b9a5977bbb7
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn/candidates.txt
     content_hash: ff6c40f3a036e8b89f0d3731a719f669f9972eab564868c657bf638d7c927b3b
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn/expected.json
