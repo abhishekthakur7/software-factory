@@ -31,7 +31,7 @@ files:
   - path: factory/rubrics/S0.md
     content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
   - path: factory/rubrics/S1.md
-    content_hash: 47cb2314d2b46354c7b1c58fe6e7c6ec7bf4621aba53dea2a205c8dc4798558b
+    content_hash: a577dafe89f364ef0b8d9b1368907f30f553885962d37f280e247d69f0ab05b3
   - path: factory/rubrics/S2.md
     content_hash: f3251fff130e6b0dd283fe7c26b6e1bcc5c7d5983b0c78e18f314a966b9f9fa7
   - path: factory/rubrics/S3.md
@@ -43,7 +43,7 @@ files:
   - path: factory/rubrics/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/evals/agents/S1/eval.yaml
-    content_hash: 263913f1fa9470b25917ad28cea9d52ccabafd0dfafb4a9507885bcb207c28c6
+    content_hash: 171964c3f3583dfee486746a53fa73f97ba51ffde83e307bd9b654cdb926c633
   - path: factory/evals/agents/S1/fixtures/missing_front_matter/S1.md
     content_hash: 23639892fef58f689b91e81c055299768550c89459e76d3d86758a1e56c59495
   - path: factory/evals/agents/S1/fixtures/ok/S1.md
@@ -97,7 +97,7 @@ files:
   - path: factory/evals/rubrics/S0/fixtures/ok/S0.md
     content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
   - path: factory/evals/rubrics/S1/eval.yaml
-    content_hash: afd660a76c4069c4aeec19d1d929584d412de4ddd1fa085aa9c7eb133c9f9a1a
+    content_hash: 2f9740118e2fc9a7ea8adc8853e12dde2a4f6259a0797998a201ac6a3e30036a
   - path: factory/evals/rubrics/S1/fixtures/missing_front_matter/S1.md
     content_hash: e74a1a9ef3f638b26843d2ac07b06a8c38434b92b7febb9a772de3c5aaf2543f
   - path: factory/evals/rubrics/S1/fixtures/ok/S1.md
@@ -282,6 +282,40 @@ files:
     content_hash: bcef81dcedca3e4fb0f555136516190b0b2f4f70728d6027f81ca99760df5e72
   - path: factory/evals/adapters/cursor_sdk/fixtures/silent_fallback.json
     content_hash: d69ee50b15b8c3862556a95ebb0ddea2663019525c3e62d6c13f5362588692d5
+  - path: factory/scripts/tools/reindex
+    content_hash: 1bb6cf68cd9ab26dcb5dc4ba0bbf905766750220d2f02902cd8ec08bcfa67d83
+  - path: factory/evals/scripts/tools/reindex/eval.yaml
+    content_hash: 3757f8d7fce2ca671735b5062d63e766d6702bbee45b4d45a0c02eac70fc9112
+  - path: factory/evals/scripts/tools/reindex/fixtures/indexed/worktree/README.md
+    content_hash: 4a6689419b00b11700c9b6246bcfa8936c8f5e1e824db3a7e57030e2d1c1a684
+  - path: factory/evals/scripts/tools/reindex/fixtures/absent_binary/worktree/README.md
+    content_hash: 4a6689419b00b11700c9b6246bcfa8936c8f5e1e824db3a7e57030e2d1c1a684
+  - path: factory/evals/rubrics/S1/fixtures/fact_only_summary/summary.txt
+    content_hash: 3c5444bf07016a2de7ce79e9fe94b398fbefe75e31978f3cd3547743e58689a3
+  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-2.yaml
+    content_hash: 84623f9331782c4e65a6f356f719f7b04ea96e748ca05e5190f6f7555e0a4483
+  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-3.yaml
+    content_hash: be933bbc9cc87b2487ff7e102e207d39f6e005683c1cec157c3c2f121f8490a3
+  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-6.yaml
+    content_hash: 536910e93e2e47bd815581be8bf5b57edd95ae22eb0a2accf9b65feb4dddec24
+  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-11.yaml
+    content_hash: 2071e6cb8151ddf811f26576fa971bdb851502b750c0b85103ae66146f20831e
+  - path: factory/evals/agents/S1/fixtures/http_dependency/out/brief.md
+    content_hash: 156e47b5d8ad7e3273ded790409801c7f760659f0ebb004efca6b2d8cb4e4166
+  - path: factory/evals/agents/S1/fixtures/messaging_dependency/out/brief.md
+    content_hash: 8369b90398cfc80ab24a6cd35ae8782fa8a5219343abe230370b984f1d73b43b
+  - path: factory/evals/agents/S1/fixtures/config_dependency/out/brief.md
+    content_hash: 902a337055f513c4db692d45d485a881dcbeee72b257e78743a1fde8466900f9
+  - path: factory/evals/agents/S1/fixtures/stale_catalogue/out/brief.md
+    content_hash: 80200c6a87f6fb3c1685b87a54a2a446f84af84bce5e377820e2e40eab764272
+  - path: factory/evals/agents/S1/fixtures/unmapped_package/out/brief.md
+    content_hash: e4ef03ef0835ce206e7802cb044cd8b4a48363811e647df9ee67ce55d3b87664
+  - path: factory/evals/agents/S1/fixtures/authoritative_build_graph/out/brief.md
+    content_hash: c3589ff5cd47cd75cc19fb34e788d660300dc2720efb6c1658c9310520436a27
+  - path: factory/evals/agents/S1/fixtures/eligibility_triggering_unknown/out/brief.md
+    content_hash: f591527b64eb5d7492bd32642ab1e126749627812c1e0a51a32abf947d1c8c94
+  - path: factory/evals/agents/S1/fixtures/plain_ok/out/brief.md
+    content_hash: c3589ff5cd47cd75cc19fb34e788d660300dc2720efb6c1658c9310520436a27
 stages:
   S0:
     default:

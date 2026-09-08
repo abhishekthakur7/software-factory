@@ -1,0 +1,6 @@
+# A seeded human_verdict scenario for the R-S1-3 grader line: the plan's
+# named owner must restate the brief's own impact-evidence owner exactly.
+rubric_line_id: R-S1-3:grader
+subject: "brief impact evidence names owner 'billing-team'; the plan's dependency table names owner 'platform-team'."
+verdict: fail
+reason: the plan names an owner other than the one the brief's impact evidence names
