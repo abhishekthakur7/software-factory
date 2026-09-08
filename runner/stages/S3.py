@@ -6,13 +6,18 @@ ordinary input rather than invented by the agent; the agent then writes
 the plan; `handoff_ready` derives the readiness table from the criteria,
 question/assumption log, brief, risk map and the plan's own tables --
 never from agent prose -- immediately after, so every later reviewer sees
-the same derived table the structure check does; the structure check and
-the size gate run against that exact version; only a version that clears
-both is registered as the ticket's `plan`. A structural or size failure is
-a `check_result` fail plus a `fail` outcome, never a silent default, and
-the exact file `handoff_ready` wrote is what gets registered -- nothing
-here re-renders it afterward, so the readiness table's hash column binds
-the same bytes every later verdict reads.
+the same derived table the structure check does; the structure check, the
+plan rubric's script-half findings, and the size gate run against that
+exact version, in that order; only a version that clears all three is
+registered as the ticket's `plan`. A structural, rubric, or size failure
+is a `check_result` fail plus a `fail` outcome, never a silent default,
+and the exact file `handoff_ready` wrote is what gets registered --
+nothing here re-renders it afterward, so the readiness table's hash
+column binds the same bytes every later verdict reads. A `Contracts` row
+whose `compatibility` field is `unknown` on a public unit re-triggers the
+same pilot-exclusion route S1 uses for a discovered excluded scope: this
+stage cannot itself judge whether a public contract genuinely changed, so
+it defers to the human the same way S1 defers a second discovered service.
 """
 import json
 import sqlite3
@@ -22,7 +27,7 @@ from pathlib import Path
 import yaml
 
 from runner import artefact_registry, artefacts, canonical, owners, questions, recipes, record
-from runner.checks import artefact_structure
+from runner.checks import artefact_structure, exclusion, plan_rubric
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
 from runner.reviewer_sets import Slot
@@ -64,6 +69,45 @@ def _record_check_result(conn: sqlite3.Connection, stage_run_id: int, *, check_n
     }
     row["content_hash"] = canonical.content_hash(row)
     record.insert(conn, "check_result", **row)
+
+
+def _record_plan_rubric_result(conn: sqlite3.Connection, stage_run_id: int, *, findings: list, extra_summary: str) -> str:
+    """Record the `plan_rubric` check_result and return its result: `fail` over any fail finding, else `blind_spot` over any finding, else `pass`."""
+    if any(f.result == "fail" for f in findings):
+        outcome = "fail"
+    elif findings:
+        outcome = "blind_spot"
+    else:
+        outcome = "pass"
+    summary = "; ".join(f"{f.rule} ({f.result}): {f.detail}" for f in findings) if findings else "no findings"
+    row = {
+        "stage_run_id": stage_run_id, "check_name": "plan_rubric", "check_tier": "blocking", "source": "runner",
+        "result": outcome, "summary": f"{summary}. {extra_summary}",
+        "canonical_serialization_version": canonical.SERIALIZATION_VERSION,
+    }
+    row["content_hash"] = canonical.content_hash(row)
+    record.insert(conn, "check_result", **row)
+    return outcome
+
+
+def _contracts_exclusion_reason(plan_text: str) -> str | None:
+    """The reason a `Contracts` row re-triggers pilot exclusion, or `None`: an `unknown` `compatibility` field on a public unit.
+
+    "Public" is read from either cell a plan might use to say so -- the
+    `kind` cell or the free-form `source_declaration` text -- since the
+    Contracts table's `kind` column (function, module, endpoint, event,
+    serialized shape) carries no dedicated visibility column of its own.
+    """
+    section = artefacts.parse(plan_text).section("Contracts")
+    for row in (section.table() if section is not None else None) or []:
+        try:
+            state, _ = artefacts.contract_cell(row.get("compatibility"))
+        except artefacts.ArtefactError:
+            continue  # malformed cells are the structure check's finding, not this one's
+        is_public = "public" in (row.get("kind") or "").lower() or "public" in (row.get("source_declaration") or "").lower()
+        if state == "unknown" and is_public:
+            return f"contracts row {row.get('unit')!r} carries an unknown compatibility field on a public unit"
+    return None
 
 
 def _pending_allowed(conn: sqlite3.Connection, ticket_id: int, stage_run_id: int) -> bool:
@@ -231,6 +275,38 @@ def run(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_d
         detail="; ".join(f"{f.rule}: {f.detail}" for f in findings) if findings else "structurally sound",
     )
     if findings:
+        return "fail", "structural"
+
+    # (5b) the plan rubric's script-half findings, over the same version.
+    # `unknown` on a public unit's compatibility field is checked ahead of
+    # the ordinary findings: it is a bigger-picture pilot-exclusion signal,
+    # not an in-place plan defect, so it takes the exclusion route even
+    # when the rest of the rubric would otherwise pass.
+    risk_map_doc = json.loads(risk_map_path.read_text()) if risk_map_path.is_file() else {"candidates": []}
+    risk_map_candidate_count = sum(1 for c in risk_map_doc.get("candidates", []) if c.get("named"))
+    project_config = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    question_rows = conn.execute(
+        "SELECT id, text, consequential, state, blocking FROM question WHERE ticket_id = ?", (ticket_id,)
+    ).fetchall()
+    limits = _limits_config()
+    rubric_findings = plan_rubric.check(
+        final_text, brief_text=brief_text, criteria_text=criteria_text, catalogue=recipes.load_catalogue(),
+        project_recipes=project_config.get("recipes", []), questions=[dict(row) for row in question_rows],
+        limits=limits, risk_map_candidate_count=risk_map_candidate_count,
+    )
+    rubric_outcome = _record_plan_rubric_result(
+        conn, stage_run_id, findings=rubric_findings, extra_summary=plan_rubric.test_mix_report(
+            artefacts.parse(final_text), limits=limits,
+        ),
+    )
+
+    exclusion_reason = _contracts_exclusion_reason(final_text)
+    if exclusion_reason is not None:
+        _record_check_result(conn, stage_run_id, check_name="exclusion", passed=False, detail=exclusion_reason)
+        exclusion.apply_recorded_exclusion(conn, ticket_id)
+        return "fail"
+
+    if rubric_outcome == "fail":
         return "fail", "structural"
 
     # (6) the size gate, over the plan's own Size table.

@@ -18,8 +18,22 @@ agreement_check:
 index_staleness:
   days: 90
 
-# The risk map's churn window and the top-author share under which a file
-# has no clear owner.
+# The risk map's churn window, the top-author share under which a file has
+# no clear owner, and the floor on how many places R-S3-11 names -- unless
+# the computed risk map itself names fewer candidates than that.
 risk_map:
   churn_window_months: 12
   clear_owner_min_share: 0.4
+  named_places: 3
+
+# The rollout section's guardrail-metrics ceiling (R-S3-10).
+guardrail_metrics:
+  max: 12
+
+# The plan's test-strategy target mix, by count over `add` rows
+# (R-S3-9); reported in the plan-rubric summary as information, never
+# enforced as a fail.
+test_mix:
+  small: 80
+  medium: 15
+  large: 5
