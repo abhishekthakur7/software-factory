@@ -16,7 +16,7 @@ every field the plan and review `evidence_tuple` rows bind;
 meaning the row itself does not. `plan_tuple_currency` compares a stored
 plan tuple against a caller-supplied current `PlanComponents` without ever
 reading `ticket` or any config file itself: every bound hash and SHA this
-module touches arrives as an argument, so a sibling ticket that changes
+module touches arrives as an argument, so a later change to
 how a hash is derived, or adds a real trust profile or recipe catalogue,
 never changes this module. `preflight_review_tuple` is the S5 preflight:
 it constructs a review tuple only after checking, in order, that the plan

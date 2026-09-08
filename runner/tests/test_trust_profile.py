@@ -40,7 +40,7 @@ def _write(tmp_path: Path, doc: dict, name: str = "trust-profile.yaml") -> Path:
     return path
 
 
-# Every field criterion 1 names, plus the admitted-source-class and
+# Every field a route must carry, plus the admitted-source-class and
 # deliverer fields the routes section also carries, so a file missing any
 # one of them is proven to fail rather than silently passing.
 REQUIRED_FIELD_PATHS = [
@@ -100,7 +100,7 @@ def test_must_reject_digest_route_fields_wider_than_the_five_declared(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Criterion 6: an owners.yaml content-hash change changes the trust-approval
+# an owners.yaml content-hash change changes the trust-approval
 # subject, and a previously satisfying approval set stops satisfying it.
 # ---------------------------------------------------------------------------
 
@@ -155,7 +155,7 @@ def test_owners_content_hash_change_invalidates_a_previously_satisfying_approval
 
 
 # ---------------------------------------------------------------------------
-# Criterion 7: a sanitizer rule hash is permitted only for its named pair.
+# a sanitizer rule hash is permitted only for its named pair.
 # ---------------------------------------------------------------------------
 
 def test_sanitizer_records_the_permitted_downgrade_for_its_named_pair():
@@ -179,7 +179,7 @@ def test_must_reject_sanitizer_rule_hash_invoked_outside_its_permitted_pair():
 
 
 # ---------------------------------------------------------------------------
-# Criterion 15: both_trust_roles_identity names one identity, and activation
+# both_trust_roles_identity names one identity, and activation
 # depends on that exact field.
 # ---------------------------------------------------------------------------
 
@@ -202,7 +202,7 @@ def test_must_reject_proposal_when_the_profile_names_a_different_shared_trust_ro
 
 
 # ---------------------------------------------------------------------------
-# Criterion 16: export requests are evaluated against the route's own rule.
+# export requests are evaluated against the route's own rule.
 # ---------------------------------------------------------------------------
 
 def test_export_request_within_the_route_rule_is_permitted():
@@ -219,7 +219,7 @@ def test_must_reject_export_request_outside_the_route_rule():
 
 
 # ---------------------------------------------------------------------------
-# Criterion 17: retention/deletion is a distinct flag from "still current".
+# retention/deletion is a distinct flag from "still current".
 # ---------------------------------------------------------------------------
 
 def test_artefact_past_retention_is_flagged_distinct_from_one_still_inside_the_window():
@@ -231,7 +231,7 @@ def test_artefact_past_retention_is_flagged_distinct_from_one_still_inside_the_w
 
 
 # ---------------------------------------------------------------------------
-# Criterion 18: every route the walk crosses names its provider, reader
+# every route the walk crosses names its provider, reader
 # roles, and deliverer kind.
 # ---------------------------------------------------------------------------
 

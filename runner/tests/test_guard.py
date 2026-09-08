@@ -63,7 +63,7 @@ def _operation(name, **overrides):
 
 
 # ---------------------------------------------------------------------------
-# Criterion 2: the governance-only console cannot read, persist, or dispatch
+# the governance-only console cannot read, persist, or dispatch
 # production content.
 # ---------------------------------------------------------------------------
 
@@ -129,7 +129,7 @@ def test_proposal_carries_metadata_only(profile_paths):
 
 
 # ---------------------------------------------------------------------------
-# Criterion 3: no valid class join denies.
+# no valid class join denies.
 # ---------------------------------------------------------------------------
 
 def test_must_reject_operation_whose_input_classes_have_no_valid_join(conn, profile_paths):
@@ -142,7 +142,7 @@ def test_must_reject_operation_whose_input_classes_have_no_valid_join(conn, prof
 
 
 # ---------------------------------------------------------------------------
-# Criteria 4, 15: activation needs the configured slots and separation rule,
+# activation needs the configured slots and separation rule,
 # with the both_trust_roles_identity as the one exemption.
 # ---------------------------------------------------------------------------
 
@@ -165,7 +165,7 @@ def test_activation_succeeds_only_because_both_trust_roles_identity_permits_the_
     """the fixture owners file names `abhishek` for both trust roles;
     activation succeeds only because the profile's
     `both_trust_roles_identity` names that same identity as the
-    separation exemption (criterion 15)."""
+    separation exemption."""
     profile_path, owners_path = profile_paths
     proposal = governance.propose(profile_path, owners_path)
     assert proposal.both_trust_roles_identity == "abhishek"
@@ -185,7 +185,7 @@ def test_activation_succeeds_only_because_both_trust_roles_identity_permits_the_
 
 
 # ---------------------------------------------------------------------------
-# Criteria 5, 19: mandatory expiry, and one approval_record row per acting
+# mandatory expiry, and one approval_record row per acting
 # approver.
 # ---------------------------------------------------------------------------
 
@@ -235,7 +235,7 @@ def test_governance_decide_writes_one_approval_record_per_acting_approver(conn, 
 
 
 # ---------------------------------------------------------------------------
-# Criterion 9: every decide() call writes exactly one guard_decision row.
+# every decide() call writes exactly one guard_decision row.
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("scenario", sorted(OPERATIONS))
@@ -249,7 +249,7 @@ def test_every_guard_decide_call_writes_exactly_one_row(conn, profile_paths, sce
 
 
 # ---------------------------------------------------------------------------
-# Criterion 8: pass_through is the seat every crossing must go through.
+# pass_through is the seat every crossing must go through.
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("crossing", guard.CROSSINGS)
@@ -293,7 +293,7 @@ def test_must_reject_pass_through_given_a_raw_payload_instead_of_a_decision(conn
 
 
 # ---------------------------------------------------------------------------
-# Criterion 10: ticket/repository text cannot widen an operation's own
+# ticket/repository text cannot widen an operation's own
 # capabilities.
 # ---------------------------------------------------------------------------
 
@@ -308,7 +308,7 @@ def test_injected_widen_instruction_leaves_capabilities_unchanged(conn, profile_
 
 
 # ---------------------------------------------------------------------------
-# Criteria 11, 20: a secret hit denies and never stores the match, the raw
+# a secret hit denies and never stores the match, the raw
 # payload, or a reversible digest of either.
 # ---------------------------------------------------------------------------
 
@@ -332,7 +332,7 @@ def test_must_reject_secret_hit_and_the_row_stores_no_match_or_raw_payload(conn,
 
 def test_must_reject_secret_in_an_export_payload_matching_the_exit_test(conn, profile_paths):
     """the same non-retention rule applies to the governed export route,
-    which is the walk's own exit test for this ticket."""
+    which is the milestone's own exit test."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     op = _operation("export_secret_hit")
@@ -344,7 +344,7 @@ def test_must_reject_secret_in_an_export_payload_matching_the_exit_test(conn, pr
 
 
 # ---------------------------------------------------------------------------
-# Criterion 12: an operation naming an absent route denies.
+# an operation naming an absent route denies.
 # ---------------------------------------------------------------------------
 
 def test_must_reject_operation_naming_a_route_absent_from_the_trust_profile(conn, profile_paths):
@@ -356,7 +356,7 @@ def test_must_reject_operation_naming_a_route_absent_from_the_trust_profile(conn
 
 
 # ---------------------------------------------------------------------------
-# Criterion 13: guard unavailable denies, whatever makes it unavailable.
+# guard unavailable denies, whatever makes it unavailable.
 # ---------------------------------------------------------------------------
 
 def test_must_reject_operation_when_the_trust_profile_is_unreadable(conn, profile_paths, tmp_path):
@@ -377,7 +377,7 @@ def test_must_reject_operation_when_the_guard_sink_connection_is_closed(profile_
 
 
 # ---------------------------------------------------------------------------
-# Criterion 14: the digest route lets only its five declared fields through.
+# the digest route lets only its five declared fields through.
 # ---------------------------------------------------------------------------
 
 def test_digest_payload_passes_only_the_five_declared_fields(conn, profile_paths):

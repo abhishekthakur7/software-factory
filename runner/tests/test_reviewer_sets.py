@@ -231,7 +231,7 @@ def test_codeowners_coverage_of_a_path_skips_the_sensitive_paths_mapping(conn, t
 
 
 def test_seeded_distinct_from_slot_blocks_the_gate_when_one_actor_satisfies_both(conn, tmp_path):
-    """criterion 5 is proved through `approvals.evaluate` over slots read
+    """separation is proved through `approvals.evaluate` over slots read
     back from a derived reviewer_set row, not by re-implementing
     separation: a `distinct_from` constraint seeded onto one derived slot
     blocks quorum when the same actor approves both slots it names (R-S6-6)."""

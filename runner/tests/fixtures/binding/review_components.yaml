@@ -1,7 +1,7 @@
 # One complete review-component set (minus the row ids a test fills in
 # once it has created the plan tuple and reviewer_set rows it references)
 # and the variant a test swaps in to move only the effective reviewer-set
-# hash (criterion 5).
+# hash.
 base:
   plan_approval_set_hash: plan-approval-set-1
   head_sha: head-sha-1

@@ -160,8 +160,8 @@ routes:
     deliverer: stub
 
 # Immutable, content-addressed references to the approved provider
-# terms/DPA and security assessment; this ticket does not carry the
-# documents themselves, only the pinned reference to what was approved.
+# terms/DPA and security assessment; the profile carries only the pinned
+# reference to what was approved, never the documents themselves.
 evidence:
   provider_terms_dpa_ref: "sha256:89b55298c2715ae9a3472c8bfd9a64f4049ea42d4bb4665f9c92922fd34fc1e9"
   security_assessment_ref: "sha256:fa7ca07384cecb630f6f0517ed61823abd0c234f1c5778ba6f78870ef922cb56"

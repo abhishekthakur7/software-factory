@@ -84,7 +84,7 @@ def approve(conn, *, gate: str, subject_hash: str, slot: Slot, actor: str, **ove
     return approvals.record_approval(conn, **fields)
 
 
-# --- criterion 1: canonical serialisation over the stored row -------------
+# --- canonical serialisation over the stored row -------------
 
 
 def test_stored_plan_tuple_content_hash_equals_the_canonical_hash_over_its_own_row(conn):
@@ -108,7 +108,7 @@ def test_two_plan_tuples_differing_only_in_created_at_share_a_content_hash(conn,
     assert row1["content_hash"] == row2["content_hash"]
 
 
-# --- criterion 2: set_hash and the question-resolution / assumption sets --
+# --- set_hash and the question-resolution / assumption sets --
 
 
 def test_set_hash_is_order_independent_and_changes_with_membership():
@@ -142,7 +142,7 @@ def test_a_superseding_assumption_changes_the_assumption_hash_and_the_plan_tuple
     assert new_row["content_hash"] != base_row["content_hash"]
 
 
-# --- criterion 3: planned/actual slot merge, seen from the binding side ---
+# --- planned/actual slot merge, seen from the binding side ---
 
 
 def test_review_tuple_binds_the_effective_set_merge_slots_produces_preserving_a_planned_only_slot(conn):
@@ -175,7 +175,7 @@ def test_review_tuple_binds_the_effective_set_merge_slots_produces_preserving_a_
     assert row["effective_reviewer_set_hash"] != row["actual_reviewer_set_hash"]
 
 
-# --- criterion 4: approval expiry invalidates, and re-quorums the same subject ---
+# --- approval expiry invalidates, and re-quorums the same subject ---
 
 
 def test_expired_plan_approval_no_longer_satisfies_quorum_and_a_fresh_one_on_the_same_subject_does(conn):
@@ -197,7 +197,7 @@ def test_expired_plan_approval_no_longer_satisfies_quorum_and_a_fresh_one_on_the
     assert record.get(conn, "evidence_tuple", plan_id)["content_hash"] == subject
 
 
-# --- criterion 5: review tuple's reviewer-set hashes move independently of the plan tuple ---
+# --- review tuple's reviewer-set hashes move independently of the plan tuple ---
 
 
 def test_review_tuple_content_hash_moves_with_the_effective_reviewer_set_hash_while_the_plan_tuple_does_not(conn):
@@ -221,7 +221,7 @@ def test_review_tuple_content_hash_moves_with_the_effective_reviewer_set_hash_wh
     assert record.get(conn, "evidence_tuple", plan_id)["content_hash"] == plan_hash_before
 
 
-# --- criterion 7: a gate passes only under the full minimum-count/separation rule ---
+# --- a gate passes only under the full minimum-count/separation rule ---
 
 
 def test_a_gate_needs_every_required_slots_minimum_count_and_separation_met_on_the_same_subject(conn):
@@ -255,7 +255,7 @@ def test_a_gate_needs_every_required_slots_minimum_count_and_separation_met_on_t
     assert any(reason.startswith("separation:") for reason in shared_actor_again.reasons)
 
 
-# --- criterion 8: an S4 head advance with base_sha unchanged never invalidates the plan tuple ---
+# --- an S4 head advance with base_sha unchanged never invalidates the plan tuple ---
 
 
 def test_plan_tuple_currency_ignores_head_advance_but_catches_a_changed_base_sha(conn):
@@ -282,7 +282,7 @@ def test_plan_tuple_currency_ignores_head_advance_but_catches_a_changed_base_sha
     assert "target_base_sha" in now_stale.changed
 
 
-# --- criteria 9, 10: the plan and review tuple field shapes ---------------
+# --- the plan and review tuple field shapes ---------------
 
 
 def test_plan_tuple_row_binds_every_plancomponents_field_verbatim(conn):
@@ -333,7 +333,7 @@ def test_must_reject_a_review_tuple_with_a_missing_component(conn):
         create_review_tuple(conn, ticket_id, incomplete)
 
 
-# --- criterion 11: never updated in place; a change is always a new row ---
+# --- never updated in place; a change is always a new row ---
 
 
 def test_must_reject_updating_a_bound_column_on_an_evidence_tuple_row(conn):

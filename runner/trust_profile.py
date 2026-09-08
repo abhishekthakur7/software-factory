@@ -35,9 +35,8 @@ DEFAULT_TRUST_PROFILE_PATH = FACTORY_DIR / "config" / "trust-profile.yaml"
 # The five routes the walk crosses; `routes` must name exactly these.
 ROUTE_IDS = ("hosted_model", "governed_export_display", "github_pr", "slack_digest", "jira_feedback")
 
-# Every field a route must carry (criterion 1's list, plus the admitted
-# source class and the deliverer kind the "what this ticket builds" section
-# adds to that same list).
+# Every field a route must carry: the governance terms of the route, the
+# admitted source class, and whether its deliverer is live or a stub.
 ROUTE_REQUIRED_FIELDS = (
     "purpose", "fields", "provider", "processing_location", "storage_location",
     "logging_terms", "training_reuse_terms", "subprocessors", "residency",
@@ -368,7 +367,7 @@ def trust_approval_subject(profile_hash_value: str, authority_policy_hash: str) 
     Binding both hashes into one subject means a change to either file --
     the profile or the owners file it depends on -- creates a new subject,
     so a previously satisfying approval set stops satisfying this one
-    without any row needing to change (criterion 6).
+    without any row needing to change.
     """
     return canonical.content_hash({"trust_profile_hash": profile_hash_value, "authority_policy_hash": authority_policy_hash})
 
@@ -398,7 +397,7 @@ def resolve_sanitizer(
     """The permitted target class for `rule_hash` from `source_class`, or `None`.
 
     With `target_class` given, this confirms that exact triple is a
-    registered pair (used by a direct test of criterion 7). Left as
+    registered pair. Left as
     `None`, it looks up whichever target the rule is registered for from
     `source_class` -- the form the guard uses, since an `Operation` names
     only the sanitizer it invoked and the class it is downgrading from,
@@ -431,13 +430,13 @@ def approval_slots(profile: TrustProfile) -> list[Slot]:
 
 
 def export_permitted(route: Route, request: Mapping) -> bool:
-    """Whether `request` (`{"format": ..., "class": ...}`) satisfies `route.export_rule` (criterion 16)."""
+    """Whether `request` (`{"format": ..., "class": ...}`) satisfies `route.export_rule`."""
     rule = route.export_rule
     return request.get("format") in rule.allowed_formats and request.get("class") in rule.admitted_classes
 
 
 def retention_expired(route: Route, created_at: str, now: str) -> bool:
-    """Whether `created_at` is past `route.retention_days` as of `now` (criterion 17).
+    """Whether `created_at` is past `route.retention_days` as of `now`.
 
     Both timestamps are the record's ISO-8601 UTC format
     (`runner.record.now`); comparing them as strings would break across a

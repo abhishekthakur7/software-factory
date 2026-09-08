@@ -1,6 +1,6 @@
 # One complete plan-component set and the variants a test swaps a single
 # field from, to prove a changed set hash produces a new tuple content
-# hash (criterion 2) without restating every other field per scenario.
+# hash without restating every other field per scenario.
 base:
   ticket_source_hash: ticket-source-1
   brief_hash: brief-1
