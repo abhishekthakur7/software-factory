@@ -57,10 +57,11 @@ def test_must_reject_a_version_missing_its_fixed_produces_section_list(kind):
 
 
 def test_must_reject_a_packet_fixture_missing_a_listed_section():
-    """R-I-12: the packet kind's stipulated placeholder section list (Summary, Evidence,
-    Test summary, Approvers) is not the real S6 content -- it stands in until that ticket lands."""
-    assert artefacts.SECTIONS["packet"] == ("Summary", "Evidence", "Test summary", "Approvers")
-    text = "## Summary\n\nprose.\n\n## Evidence\n\nprose.\n\n## Approvers\n\nprose.\n"
+    """R-I-12: a packet missing one of its fixed, charter-order sections is rejected."""
+    sections = artefacts.SECTIONS["packet"]
+    assert sections[0] == "Identity and freshness"
+    assert "Test summary" in sections
+    text = "".join(f"## {name}\n\nprose.\n\n" for name in sections if name != "Test summary")
     findings = artefact_structure.check("packet", text)
     assert any(f.rule == "missing_section" and f.detail == "Test summary" for f in findings)
 
