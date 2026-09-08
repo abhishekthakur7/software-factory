@@ -22,7 +22,8 @@ driver keeps returning a bare string, which carries no `failure_kind`.
 import sqlite3
 from pathlib import Path
 
-from runner import record, run_ledger, transitions
+from runner import manifest, record, run_ledger, transitions
+from runner.adapters import cursor_sdk
 from runner.paths import RUNS_DIR
 from runner.stages import S0, S1, S2, S3, S4, S5, S6
 from runner.state_table import STAGE_STATE
@@ -70,3 +71,24 @@ def run_stage(
     if outcome == "pass" and not validation_only and driver.PASS_EVENT is not None:
         transitions.apply(conn, ticket_id, driver.PASS_EVENT)
     return outcome
+
+
+def invoke_agent(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, stage: str, *, tier: str | None = None, runs_dir: Path = RUNS_DIR,
+) -> str:
+    """The seam a real stage driver calls once it has agent content: resolve the manifest entry, invoke if agent-bearing.
+
+    No stub driver calls this yet -- S1 to S4 stay stubs until their own
+    tickets land real agent content. Its own `stage_run` is opened and
+    finished by `adapters.cursor_sdk.invoke`, separate from any row this
+    module's own `run_stage` may have opened for the same call; how the
+    two compose for a real agent stage is that later ticket's decision to
+    make. A stage whose resolved manifest entry names no agent (a
+    script-only stage) returns "pass" without invoking anything.
+    """
+    tier = tier or ticket["tier_final"] or ticket["tier_provisional"] or "standard"
+    entry = manifest.resolve(manifest.load(), stage, tier)
+    if entry.agent is None:
+        return "pass"
+    result = cursor_sdk.invoke(conn, ticket=ticket, stage=stage, tier=tier, entry=entry, runs_dir=runs_dir)
+    return result.outcome

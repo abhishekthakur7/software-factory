@@ -1,0 +1,10 @@
+# The price-table cost-provenance rule of PRD section 2.2: used only when
+# a runtime returns final token totals with no runtime- or provider-settled
+# cost. Dated because model prices change; `pricing_table_hash` on a
+# settled `stage_run` names the exact revision of this file that priced it.
+as_of: "2026-09-08"
+currency: USD
+models:
+  claude-sonnet-5:
+    input_per_million: 3.00
+    output_per_million: 15.00

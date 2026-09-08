@@ -110,6 +110,13 @@ COST_BASES: tuple[str, ...] = (
     "unavailable",
 )
 
+# stage_run.replayability's closed set: whether every field needed to
+# rebuild the invocation envelope and reproduce its execution boundary is
+# present ("exact"), or a named gap keeps replay approximate
+# ("best_effort"). Never a claim that a hosted model returns identical
+# output on replay -- only that the envelope itself is complete.
+REPLAYABILITY: tuple[str, ...] = ("exact", "best_effort")
+
 # guard_decision.decision's closed set.
 GUARD_DECISIONS: tuple[str, ...] = ("allow", "redact", "deny")
 
@@ -296,11 +303,15 @@ TABLES: tuple[Table, ...] = (
             # can tell a slow live run from a dead one: a lease is expired
             # only when it has lapsed and this process is gone too.
             Column("process_identity", "TEXT"),
+            # The invocation's identity is fixed before dispatch and written
+            # at insert; only what a run learns after it ends (resolved
+            # model, outputs, usage, replayability) settles in place, the
+            # same way reasoning_summary does below.
             Column("runtime", "TEXT"),
             Column("runtime_version", "TEXT"),
             Column("adapter_version", "TEXT"),
             Column("model_requested", "TEXT"),
-            Column("model_resolved", "TEXT"),
+            Column("model_resolved", "TEXT", mutable=True),
             Column("agent_ref", "TEXT"),
             Column("skill_ref", "TEXT"),
             Column("rubric_ref", "TEXT"),
@@ -312,18 +323,26 @@ TABLES: tuple[Table, ...] = (
             Column("toolchain_digest", "TEXT"),
             Column("recipe_set_hash", "TEXT"),
             Column("inputs", "TEXT"),
-            Column("outputs", "TEXT"),
+            Column("outputs", "TEXT", mutable=True),
+            # The canonical hash of the invocation envelope this run was given.
+            Column("envelope_hash", "TEXT"),
+            # Whether every field needed to rebuild this run's envelope and
+            # execution boundary is present, and the named gap when it
+            # is not; never a claim of identical hosted-model output on
+            # replay (R-I-15).
+            Column("replayability", "TEXT", mutable=True, values=REPLAYABILITY),
+            Column("replayability_blind_spot", "TEXT", mutable=True),
             # The agent's self-report arrives when the run ends, so it is
             # settled after the row exists, capped by tiers.yaml on write.
             Column("reasoning_summary", "TEXT", mutable=True),
-            Column("tokens_in", "INTEGER"),
-            Column("tokens_out", "INTEGER"),
+            Column("tokens_in", "INTEGER", mutable=True),
+            Column("tokens_out", "INTEGER", mutable=True),
             Column("cost", "REAL", once="cost_settled_at"),
             Column("currency", "TEXT", once="cost_settled_at"),
             Column("cost_basis", "TEXT", once="cost_settled_at", values=COST_BASES),
             Column("pricing_table_hash", "TEXT", once="cost_settled_at"),
             Column("cost_settled_at", "TEXT", once="cost_settled_at"),
-            Column("wall_clock_seconds", "REAL"),
+            Column("wall_clock_seconds", "REAL", mutable=True),
             Column("outcome", "TEXT", mutable=True, values=OUTCOMES),
             Column("failure_kind", "TEXT", mutable=True, values=FAILURE_KINDS),
             Column("started_at", "TEXT", mutable=True),

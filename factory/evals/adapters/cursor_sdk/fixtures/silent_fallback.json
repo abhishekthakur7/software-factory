@@ -1,0 +1,14 @@
+{
+  "model_resolved": "claude-haiku-5-20260115",
+  "provider_request_id": "req-fallback",
+  "status": "ok",
+  "tokens_in": 10,
+  "tokens_out": 5,
+  "duration_ms": 100,
+  "cost": null,
+  "currency": null,
+  "cost_basis": null,
+  "cost_settled_at": null,
+  "reasoning_summary": null,
+  "tool_calls": []
+}

@@ -1,0 +1,14 @@
+{
+  "model_resolved": "claude-sonnet-5",
+  "provider_request_id": "req-settled",
+  "status": "ok",
+  "tokens_in": 1000,
+  "tokens_out": 200,
+  "duration_ms": 4200,
+  "cost": 0.42,
+  "currency": "USD",
+  "cost_basis": "provider_settled",
+  "cost_settled_at": "2026-09-08T00:00:00+00:00",
+  "reasoning_summary": "did the thing",
+  "tool_calls": []
+}

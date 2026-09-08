@@ -126,8 +126,17 @@ def open_stage_run(
     parent_run_id: int | None = None,
     tier: str | None = None,
     lease_seconds: int | None = None,
+    **identity,
 ) -> int:
-    """Insert a new `stage_run` row and return its id: attempt computed, lease and heartbeat started now."""
+    """Insert a new `stage_run` row and return its id: attempt computed, lease and heartbeat started now.
+
+    `identity` carries the invocation's fixed identity an adapter knows
+    before dispatch (runtime, versions, requested model, agent/skill/rubric
+    refs, manifest and trust hashes, tool allowlist, digests, ordered
+    inputs, envelope hash), written once at insert so those columns stay
+    immutable; what the run learns only after it ends goes through
+    `record_invocation_result`.
+    """
     heartbeat_at, lease_expires_at = _lease_fields(lease_seconds)
     return record.insert(
         conn,
@@ -142,6 +151,7 @@ def open_stage_run(
         started_at=heartbeat_at,
         heartbeat_at=heartbeat_at,
         lease_expires_at=lease_expires_at,
+        **identity,
     )
 
 
@@ -229,6 +239,41 @@ def settle_cost(
         pricing_table_hash=pricing_table_hash,
         cost_settled_at=record.now(),
     )
+
+
+def record_invocation_result(
+    conn: sqlite3.Connection,
+    run_id: int,
+    *,
+    model_resolved: str | None = None,
+    outputs: str | None = None,
+    tokens_in: int | None = None,
+    tokens_out: int | None = None,
+    wall_clock_seconds: float | None = None,
+    replayability: str | None = None,
+    replayability_blind_spot: str | None = None,
+) -> None:
+    """Write what a `stage_run` learns only once its invocation has ended.
+
+    These seven columns are the ones an adapter cannot know when the row
+    opens -- the row exists, with its lease, before a possibly long
+    invocation runs -- so they settle in place afterwards, the same way
+    `reasoning_summary` does. Everything fixed before dispatch is written
+    at insert by `open_stage_run`; attempt, lease, outcome and cost keep
+    their own functions. Only fields actually passed are written.
+    """
+    fields = {
+        "model_resolved": model_resolved,
+        "outputs": outputs,
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "wall_clock_seconds": wall_clock_seconds,
+        "replayability": replayability,
+        "replayability_blind_spot": replayability_blind_spot,
+    }
+    given = {name: value for name, value in fields.items() if value is not None}
+    if given:
+        record.update(conn, "stage_run", run_id, **given)
 
 
 def budget(stage: str, tier: str) -> dict:

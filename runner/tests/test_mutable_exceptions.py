@@ -30,6 +30,8 @@ ALLOWED_COLUMNS = {
         "outcome", "failure_kind", "started_at", "heartbeat_at",
         "lease_expires_at", "ended_at", "reasoning_summary",
         "cost", "currency", "cost_basis", "pricing_table_hash", "cost_settled_at",
+        "model_resolved", "outputs", "replayability", "replayability_blind_spot",
+        "tokens_in", "tokens_out", "wall_clock_seconds",
         "updated_at",
     },
     "utility_run": {"outcome", "heartbeat_at", "lease_expires_at", "ended_at", "updated_at"},

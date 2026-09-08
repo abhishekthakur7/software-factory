@@ -1,0 +1,14 @@
+{
+  "model_resolved": "claude-sonnet-5",
+  "provider_request_id": "req-estimate",
+  "status": "ok",
+  "tokens_in": 500,
+  "tokens_out": 100,
+  "duration_ms": 1200,
+  "cost": 0.05,
+  "currency": "USD",
+  "cost_basis": "runtime_estimate",
+  "cost_settled_at": null,
+  "reasoning_summary": null,
+  "tool_calls": []
+}

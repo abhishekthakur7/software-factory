@@ -1,0 +1,12 @@
+# A test copy of factory/config/runtime.yaml naming the fixture worker
+# instead of the real Cursor SDK worker. `command`'s two entries are
+# placeholders the test resolves to the running interpreter and the
+# absolute path of fixture_worker.py, since a fixed relative path would
+# depend on the test's working directory.
+adapters:
+  cursor_sdk:
+    package: cursor-sdk
+    version: "1.0.31"
+    command: [PYTHON_EXECUTABLE, FIXTURE_WORKER_PATH]
+    models: [claude-sonnet-5]
+    key_role: CURSOR_API_KEY

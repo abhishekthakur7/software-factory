@@ -262,6 +262,26 @@ files:
     content_hash: 04a1830601458e98d670ddf74f858bcf9a70f2b6667f1ba556fc0da2f5ce6e54
   - path: factory/evals/scripts/tools/purge/fixtures/within_retention/export/manifest.json
     content_hash: 478de3a9aa19ceaaa88777fcba4fd23eca07c7d5d7355081c8c41c815894db88
+  - path: factory/config/limits.yaml
+    content_hash: 22d113b72d3f204c0067f93a8439d48c60f478fe24a5a315ac09ad304662d87a
+  - path: factory/config/pricing.yaml
+    content_hash: 97eacffbad3dda9e6764f831eaa46c122a1db03a8108dfdb09159f603c0cd160
+  - path: factory/config/sandbox.yaml
+    content_hash: 2e22183b522cd5d99cb472384532c51aed48ebe3d0d6043f4a3f9c674c79dace
+  - path: factory/config/runtime.yaml
+    content_hash: ae16fc5f9e7bef48c572afe9d7442d25c16f2838a4ac4216be0f2ac5933b4e57
+  - path: factory/evals/adapters/cursor_sdk/eval.yaml
+    content_hash: 85c0ea32bbe8de73b0d7165583bf09224653340bd3ce371008306b818948818d
+  - path: factory/evals/adapters/cursor_sdk/fixtures/settled.json
+    content_hash: aeabaf6d9ca0cee8680570ff7a306f3ade3393b83651a51815906c52c8f01616
+  - path: factory/evals/adapters/cursor_sdk/fixtures/runtime_estimate.json
+    content_hash: cf0348eaea2bd232d7391c0cf898e5235c314d27b80a1f59185e9a3bf50b0c3e
+  - path: factory/evals/adapters/cursor_sdk/fixtures/price_table.json
+    content_hash: 54452a5f19eeda0fa18efe6143f6582c29c711068aa52568379f3522e168c150
+  - path: factory/evals/adapters/cursor_sdk/fixtures/null_cost.json
+    content_hash: bcef81dcedca3e4fb0f555136516190b0b2f4f70728d6027f81ca99760df5e72
+  - path: factory/evals/adapters/cursor_sdk/fixtures/silent_fallback.json
+    content_hash: d69ee50b15b8c3862556a95ebb0ddea2663019525c3e62d6c13f5362588692d5
 stages:
   S0:
     default:

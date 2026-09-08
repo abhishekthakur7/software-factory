@@ -1,0 +1,326 @@
+"""The Cursor SDK runtime adapter: pinned runner code that turns a manifest entry into one governed invocation.
+
+`invoke` is the whole contract of R-I-13: given a resolved manifest
+`Entry`, it opens the invocation's own `stage_run` (so a child sub-run
+opened with `parent_run_id` is a full row with its own lease, runtime,
+model, tokens, cost and wall clock, per R-I-2 criterion 7), checks the
+requested model against `runtime.yaml` before anything starts, builds and
+writes the R-I-15 envelope, launches the worker inside the thin sandbox
+through `runner/launcher.py`, and turns what comes back into: one
+`tool_call` row per call, registered `out/` artefacts (skipped entirely on
+a resolved-model mismatch -- "no output registered"), a settled cost
+group, and a `replayability` verdict. Every field the worker did not
+report stays null; nothing here estimates a token count, a duration, or a
+per-call usage figure.
+"""
+import hashlib
+import re
+import sqlite3
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
+
+from runner import artefact_registry, canonical, envelope as envelope_mod, launcher, record, run_ledger
+from runner.fs import write_text
+from runner.paths import FACTORY_DIR, RUNS_DIR
+
+RUNTIME_PATH = FACTORY_DIR / "config" / "runtime.yaml"
+PRICING_PATH = FACTORY_DIR / "config" / "pricing.yaml"
+LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
+
+# This adapter module's own pinned version -- distinct from the SDK
+# package version `entry.runtime_version` names -- bumped when this
+# module's behavior changes in a way that could affect a run's outcome.
+ADAPTER_VERSION = "1"
+
+# A model id carries an immutable build/version suffix when it names a
+# concrete pinned revision (an "@digest" pin, or a date-like build stamp
+# of six or more digits); a bare model family id like "claude-sonnet-5"
+# does not, and replayability is best_effort until the runtime returns one.
+_BUILD_SUFFIX_RE = re.compile(r"(@|-\d{6,})")
+
+
+@dataclass(frozen=True)
+class InvocationResult:
+    stage_run_id: int
+    outcome: str
+    failure_kind: str | None
+    model_requested: str | None
+    model_resolved: str | None
+    provider_request_id: str | None
+    tokens_in: int | None
+    tokens_out: int | None
+    wall_clock_seconds: float | None
+    cost: float | None
+    currency: str | None
+    cost_basis: str
+    pricing_table_hash: str | None
+    reasoning_summary: str | None
+    tool_call_ids: tuple[int, ...]
+    replayability: str
+    replayability_blind_spot: str | None
+    envelope_hash: str | None
+
+
+def _yaml(path: Path) -> dict:
+    return yaml.safe_load(Path(path).read_text())
+
+
+def _run_dir(runs_dir: Path, ticket_id: int, stage_run_id: int) -> Path:
+    return Path(runs_dir) / "tickets" / str(ticket_id) / "runs" / str(stage_run_id)
+
+
+def _refuse_unavailable_model(model_requested: str | None) -> InvocationResult:
+    """No `stage_run` at all: R-I-4's unavailable-model check runs before any run is opened."""
+    return InvocationResult(
+        stage_run_id=-1, outcome="infrastructure_failure", failure_kind="infrastructure",
+        model_requested=model_requested, model_resolved=None, provider_request_id=None,
+        tokens_in=None, tokens_out=None, wall_clock_seconds=None, cost=None, currency=None,
+        cost_basis="unavailable", pricing_table_hash=None, reasoning_summary=None, tool_call_ids=(),
+        replayability="best_effort", replayability_blind_spot="model unavailable before invocation started",
+        envelope_hash=None,
+    )
+
+
+def _has_immutable_build(model_resolved: str | None) -> bool:
+    return model_resolved is not None and bool(_BUILD_SUFFIX_RE.search(model_resolved))
+
+
+def _excerpt(lines: list[str], rule: dict) -> str:
+    head = lines[: rule["excerpt_head_lines"]]
+    tail = lines[-rule["excerpt_tail_lines"] :] if rule["excerpt_tail_lines"] else []
+    max_bytes = rule["excerpt_max_bytes_per_end"]
+    head_text = "\n".join(head).encode()[:max_bytes].decode(errors="ignore")
+    tail_text = "\n".join(tail).encode()[:max_bytes].decode(errors="ignore")
+    return f"{head_text}\n...\n{tail_text}"
+
+
+def _record_tool_calls(
+    conn: sqlite3.Connection, *, ticket_id: int, stage_run_id: int, tool_calls: list[dict],
+    run_dir: Path, inline_rule: dict,
+) -> tuple[int, ...]:
+    """One governed `tool_call` row per call; a result over the inline limit lands as a `tool_result` artefact.
+
+    A result within the limit is recorded by digest and byte count alone
+    (`inline = 1`) -- it already reached the agent's own context
+    transiently through the runtime, so the ledger's job is proving it was
+    small and unmodified, not storing a second copy. A result over the
+    limit is written whole to `results/tool_calls/<seq>.txt`, registered
+    as a `tool_result` artefact, and given a sidecar excerpt file at
+    `<seq>.excerpt.txt` next to it -- discoverable by that naming
+    convention rather than by an extra column.
+    """
+    ids: list[int] = []
+    for call in tool_calls:
+        seq = call.get("seq")
+        args = call.get("args")
+        result = call.get("result")
+        args_text = canonical.canonical_json(args).decode() if args is not None else None
+        result_text = (
+            result if isinstance(result, str) else (canonical.canonical_json(result).decode() if result is not None else None)
+        )
+        args_digest = hashlib.sha256(args_text.encode()).hexdigest() if args_text is not None else None
+        result_digest = hashlib.sha256(result_text.encode()).hexdigest() if result_text is not None else None
+        result_bytes = len(result_text.encode()) if result_text is not None else None
+        result_artefact_id = None
+        inline = True
+        if result_text is not None:
+            lines = result_text.splitlines()
+            inline = len(lines) <= inline_rule["max_lines"] and result_bytes <= inline_rule["max_bytes"]
+            if not inline:
+                full_path = run_dir / "results" / "tool_calls" / f"{seq}.txt"
+                write_text(full_path, result_text)
+                write_text(run_dir / "results" / "tool_calls" / f"{seq}.excerpt.txt", _excerpt(lines, inline_rule))
+                result_artefact_id = artefact_registry.register(
+                    conn, ticket_id=ticket_id, kind="tool_result", path=full_path, stage_run_id=stage_run_id,
+                )
+        row_id = record.insert(
+            conn, "tool_call",
+            stage_run_id=stage_run_id, seq=seq, tool=call.get("tool"), tool_version=call.get("tool_version"),
+            args_digest=args_digest, result_digest=result_digest, result_artefact=result_artefact_id,
+            duration_ms=call.get("duration_ms"), tokens=call.get("tokens"),
+            result_bytes=result_bytes, inline=1 if inline else 0,
+        )
+        ids.append(row_id)
+    return tuple(ids)
+
+
+def _register_outputs(conn: sqlite3.Connection, *, ticket_id: int, stage_run_id: int, out_dir: Path) -> tuple[int, ...]:
+    ids = []
+    for path in sorted(out_dir.rglob("*")):
+        if path.is_file():
+            ids.append(
+                artefact_registry.register(conn, ticket_id=ticket_id, kind="agent_output", path=path, stage_run_id=stage_run_id)
+            )
+    return tuple(ids)
+
+
+def _replayability(*, model_resolved: str | None, retention_blind_spot: str | None) -> tuple[str, str | None]:
+    """`exact` only when the resolved model names an immutable build and every tool result was retainable.
+
+    `retention_blind_spot` is the worker's own report that some tool
+    result could not lawfully be retained (a non-text or otherwise
+    unretainable result, per R-I-17); when present it names the gap
+    directly rather than this function re-deriving it from tool_calls it
+    has no lawful copy of.
+    """
+    if retention_blind_spot is not None:
+        return "best_effort", retention_blind_spot
+    if not _has_immutable_build(model_resolved):
+        return "best_effort", f"model_resolved {model_resolved!r} carries no immutable build/version suffix"
+    return "exact", None
+
+
+def _classify(
+    *, launch_result: launcher.LaunchResult, model_requested: str | None, model_resolved: str | None,
+) -> tuple[str, str | None]:
+    if not launch_result.integrity.ok:
+        return "sandbox_violation", "sandbox_integrity"
+    if launch_result.timed_out:
+        return "infrastructure_failure", "infrastructure"
+    if model_resolved is not None and model_requested is not None and model_resolved != model_requested:
+        return "infrastructure_failure", "infrastructure"
+    payload = launch_result.stdout_json or {}
+    status = payload.get("status")
+    if launch_result.exit_code != 0 or status in (None, "error"):
+        return "infrastructure_failure", "infrastructure"
+    return "pass", None
+
+
+def _settle_cost(
+    conn: sqlite3.Connection, stage_run_id: int, *, payload: dict, model_resolved: str | None,
+    model_requested: str | None, pricing_path: Path,
+) -> tuple[float | None, str | None, str, str | None]:
+    cost, currency, basis = payload.get("cost"), payload.get("currency"), payload.get("cost_basis")
+    if basis in ("provider_settled", "runtime_estimate") and cost is not None and currency is not None:
+        run_ledger.settle_cost(conn, stage_run_id, cost=cost, currency=currency, cost_basis=basis)
+        return cost, currency, basis, None
+
+    tokens_in, tokens_out = payload.get("tokens_in"), payload.get("tokens_out")
+    if tokens_in is not None and tokens_out is not None:
+        pricing_doc = _yaml(pricing_path)
+        # Priced by the approved requested model family, not the resolved
+        # build: pricing.yaml is maintained against the model an operator
+        # chose, and a resolved id may carry a build suffix the table was
+        # never meant to be keyed by.
+        model_prices = pricing_doc.get("models", {}).get(model_requested or model_resolved)
+        if model_prices is not None:
+            computed = (
+                tokens_in * model_prices["input_per_million"] + tokens_out * model_prices["output_per_million"]
+            ) / 1_000_000
+            table_hash = hashlib.sha256(Path(pricing_path).read_bytes()).hexdigest()
+            run_ledger.settle_cost(
+                conn, stage_run_id, cost=computed, currency=pricing_doc["currency"],
+                cost_basis="price_table_estimate", pricing_table_hash=table_hash,
+            )
+            return computed, pricing_doc["currency"], "price_table_estimate", table_hash
+
+    run_ledger.settle_cost(conn, stage_run_id, cost=None, currency=None, cost_basis="unavailable")
+    return None, None, "unavailable", None
+
+
+def invoke(
+    conn: sqlite3.Connection,
+    *,
+    ticket: sqlite3.Row,
+    stage: str,
+    tier: str | None,
+    entry,  # manifest.Entry
+    runs_dir: Path = RUNS_DIR,
+    parent_run_id: int | None = None,
+    runtime_path: Path = RUNTIME_PATH,
+    pricing_path: Path = PRICING_PATH,
+    limits_path: Path = LIMITS_PATH,
+    sandbox_path: Path = launcher.SANDBOX_PATH,
+    runtime_key_value: str | None = None,
+    env_source: dict[str, str] | None = None,
+) -> InvocationResult:
+    """Run one fresh, governed agent invocation for `entry`, opening (and finishing) its own `stage_run`.
+
+    `parent_run_id` set makes this a child invocation (an R-S2-3
+    restatement, for instance): the child gets its own run, its own
+    envelope, and its own everything below, separate from the parent's.
+    """
+    runtime_doc = _yaml(runtime_path)
+    adapter_cfg = runtime_doc.get("adapters", {}).get(entry.runtime_adapter)
+    models = adapter_cfg["models"] if adapter_cfg is not None else ()
+    if adapter_cfg is None or entry.model_requested not in models:
+        return _refuse_unavailable_model(entry.model_requested)
+
+    env = envelope_mod.build(conn, ticket, entry, adapter_version=ADAPTER_VERSION, sandbox_path=sandbox_path)
+    env_hash = envelope_mod.content_hash(env)
+    stage_run_id = run_ledger.open_stage_run(
+        conn, ticket_id=ticket["id"], stage=stage, parent_run_id=parent_run_id, tier=tier,
+        runtime=entry.runtime_adapter, runtime_version=entry.runtime_version, adapter_version=ADAPTER_VERSION,
+        model_requested=entry.model_requested, agent_ref=env.agent_hash, skill_ref=env.skill_hash,
+        rubric_ref=env.rubric_hash, manifest_hash=env.manifest_hash, trust_profile_hash=env.trust_profile_hash,
+        trust_approval_set_hash=env.trust_approval_set_hash,
+        tool_allowlist=canonical.canonical_json(list(env.tool_allowlist)).decode(),
+        sandbox_digest=env.sandbox_digest, toolchain_digest=env.toolchain_digest,
+        recipe_set_hash=env.recipe_set_hash,
+        inputs=canonical.canonical_json([item.artefact_id for item in env.inputs]).decode(),
+        envelope_hash=env_hash,
+    )
+    run_dir = _run_dir(runs_dir, ticket["id"], stage_run_id)
+    envelope_path = run_dir / "envelope.json"
+    write_text(envelope_path, canonical.canonical_json(envelope_mod.to_dict(env)).decode())
+
+    launch_result = launcher.launch(
+        run_dir=run_dir, argv=[*adapter_cfg["command"], str(envelope_path)], role="agent",
+        policy=entry.sandbox_policy, cwd=Path(ticket["worktree_path"]) if ticket["worktree_path"] else run_dir,
+        wall_clock_seconds=entry.budget.get("wall_clock_seconds"), env_source=env_source,
+        runtime_key_value=runtime_key_value, envelope_path=envelope_path, sandbox_path=sandbox_path,
+    )
+    payload = launch_result.stdout_json or {}
+    model_resolved = payload.get("model_resolved")
+    outcome, failure_kind = _classify(
+        launch_result=launch_result, model_requested=entry.model_requested, model_resolved=model_resolved,
+    )
+    mismatch = model_resolved is not None and entry.model_requested is not None and model_resolved != entry.model_requested
+
+    limits_doc = _yaml(limits_path)
+    inline_rule = limits_doc["tool_result_inline"]
+    tool_call_ids = _record_tool_calls(
+        conn, ticket_id=ticket["id"], stage_run_id=stage_run_id, tool_calls=payload.get("tool_calls") or [],
+        run_dir=run_dir, inline_rule=inline_rule,
+    )
+
+    output_ids: tuple[int, ...] = ()
+    if not mismatch and outcome == "pass":
+        output_ids = _register_outputs(conn, ticket_id=ticket["id"], stage_run_id=stage_run_id, out_dir=launch_result.out_dir)
+
+    replayability, blind_spot = _replayability(
+        model_resolved=model_resolved, retention_blind_spot=payload.get("retention_blind_spot"),
+    )
+
+    reasoning_summary = None
+    if payload.get("reasoning_summary"):
+        reasoning_summary = run_ledger.record_reasoning_summary(conn, stage_run_id, payload["reasoning_summary"])
+
+    duration_ms = payload.get("duration_ms")
+    run_ledger.record_invocation_result(
+        conn, stage_run_id,
+        model_resolved=model_resolved, tokens_in=payload.get("tokens_in"), tokens_out=payload.get("tokens_out"),
+        wall_clock_seconds=(duration_ms / 1000 if duration_ms is not None else None),
+        outputs=canonical.canonical_json(list(output_ids)).decode(),
+        replayability=replayability, replayability_blind_spot=blind_spot,
+    )
+
+    cost, currency, cost_basis, pricing_table_hash = _settle_cost(
+        conn, stage_run_id, payload=payload, model_resolved=model_resolved, model_requested=entry.model_requested,
+        pricing_path=pricing_path,
+    )
+
+    run_ledger.finish(conn, stage_run_id, outcome, failure_kind=failure_kind)
+
+    return InvocationResult(
+        stage_run_id=stage_run_id, outcome=outcome, failure_kind=failure_kind,
+        model_requested=entry.model_requested, model_resolved=model_resolved,
+        provider_request_id=payload.get("provider_request_id"),
+        tokens_in=payload.get("tokens_in"), tokens_out=payload.get("tokens_out"),
+        wall_clock_seconds=(duration_ms / 1000 if duration_ms is not None else None),
+        cost=cost, currency=currency, cost_basis=cost_basis, pricing_table_hash=pricing_table_hash,
+        reasoning_summary=reasoning_summary, tool_call_ids=tool_call_ids,
+        replayability=replayability, replayability_blind_spot=blind_spot, envelope_hash=env_hash,
+    )
