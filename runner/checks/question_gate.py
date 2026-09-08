@@ -89,6 +89,8 @@ def validate(candidate: dict, *, allowed_names: frozenset = frozenset()) -> list
     consequential = bool(candidate.get("consequential")) or sensitive
     hard_to_reverse = bool(candidate.get("hard_to_reverse"))
 
+    if not (candidate.get("text") or "").strip():
+        reasons.append("question text is required")
     if not reasoning:
         reasons.append("reasoning is required and must name sources tried")
     if not affects:

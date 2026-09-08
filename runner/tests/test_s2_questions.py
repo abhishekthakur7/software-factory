@@ -486,3 +486,25 @@ def test_the_fixture_eval_yaml_names_a_readable_questions_yaml_for_each_new_case
     for case_name in ("question_round", "gate_rejected"):
         candidates = yaml.safe_load((FIXTURES_DIR / case_name / "out" / "questions.yaml").read_text())
         assert isinstance(candidates, list) and candidates
+
+
+def test_the_queue_lists_a_question_by_its_wording_options_and_default(conn):
+    """R-S2-14: the human answers from the queue alone, so the item shows the question text, every option with its consequence, and which one is the default."""
+    ticket_id = _ticket(conn)
+    candidate = _candidate()
+    questions.raise_round(conn, ticket_id=ticket_id, stage="S2", candidates=[candidate], tier="standard")
+
+    listing = queue.list_queue(conn)
+
+    assert f"question: {candidate['text']}" in listing
+    for option in candidate["options"]:
+        assert option["text"] in listing and option["consequence"] in listing
+    assert "(default)" in listing
+
+
+def test_accepting_a_default_settles_the_question_state_as_default_accepted(conn):
+    """R-S2-11: a default accepted without an answer is its own state, distinct from a chosen option."""
+    ticket_id = _ticket(conn)
+    ids = questions.raise_round(conn, ticket_id=ticket_id, stage="S2", candidates=[_candidate(blocking=False)], tier="standard")
+    questions.record_answer(conn, ids[0], action="accept_default", actor=ABHISHEK)
+    assert record.get(conn, "question", ids[0])["state"] == "default_accepted"

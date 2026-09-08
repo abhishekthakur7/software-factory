@@ -135,7 +135,7 @@ def raise_round(
         question_id = record.insert(
             conn, "question",
             ticket_id=ticket_id, stage=stage, round=new_round, rank=rank_value,
-            affects=candidate["affects"], reasoning=candidate["reasoning"],
+            text=candidate["text"], affects=candidate["affects"], reasoning=candidate["reasoning"],
             options=canonical.canonical_json(candidate["options"]).decode(),
             default_option=candidate.get("default_option"),
             consequential=1 if consequential else 0,
@@ -177,7 +177,7 @@ def record_answer(
         chosen_option=str(chosen) if chosen is not None else None,
         free_text=note, answered_by=actor, answered_at=record.now(),
     )
-    record.update(conn, "question", question_id, state="answered")
+    record.update(conn, "question", question_id, state="answered" if resolution_kind == "chosen_option" else "default_accepted")
     if resolution_kind == "default_accepted":
         options = json.loads(question["options"] or "[]")
         text = options[chosen]["consequence"] if chosen is not None and 0 <= chosen < len(options) else None

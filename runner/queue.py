@@ -478,6 +478,21 @@ def _eligibility_context(conn: sqlite3.Connection, ticket: sqlite3.Row, owners_o
     return lines
 
 
+def _question_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
+    """The question's wording, its options with their consequences, and which option is the default, for a human to answer from."""
+    table, _, raw_id = (item["ref"] or "").partition(":")
+    question = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
+    if question is None:
+        return []
+    lines = [f"  question: {question['text']}", f"  affects: {question['affects']}"]
+    options = json.loads(question["options"] or "[]")
+    for index, option in enumerate(options):
+        marker = " (default)" if question["default_option"] == index else ""
+        lines.append(f"  option {index}{marker}: {option.get('text')} -- {option.get('consequence')}")
+    lines.append(f"  blocking: {bool(question['blocking'])}; consequential: {bool(question['consequential'])}; hard to reverse: {bool(question['hard_to_reverse'])}")
+    return lines
+
+
 def _approval_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
     lines = ["  approval records:"]
     rows = conn.execute(
@@ -509,6 +524,8 @@ def _item_block(conn: sqlite3.Connection, item: sqlite3.Row, owners_obj: owners.
         lines.append(f"  outcome: {item['action']}")
     if item["kind"] == "eligibility" and ticket is not None:
         lines.extend(_eligibility_context(conn, ticket, owners_obj))
+    if item["kind"] == "question":
+        lines.extend(_question_context(conn, item))
     if item["kind"] == "escalation":
         lines.extend(f"  {key}: {value}" for key, value in escalation_context(conn, item).items())
     return lines

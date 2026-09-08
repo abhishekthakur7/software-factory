@@ -184,9 +184,9 @@ TAG_EVENT_KINDS: tuple[str, ...] = (
     "flag_correction",
 )
 
-# question.state's closed set: open until answered, or until the S3
-# reviewer accepts its proposed assumption, or until it is withdrawn.
-QUESTION_STATES: tuple[str, ...] = ("open", "answered", "assumption_accepted", "withdrawn")
+# question.state's closed set: open until a human answers it, accepts its
+# default, or (the S3 reviewer alone) accepts its proposed assumption.
+QUESTION_STATES: tuple[str, ...] = ("open", "answered", "default_accepted", "assumption_accepted")
 
 # incident_observation.record_kind's closed set: an event root, a
 # disposition over a root, or a coverage record, in the production and
@@ -469,6 +469,8 @@ TABLES: tuple[Table, ...] = (
             Column("stage", "TEXT"),
             Column("round", "INTEGER"),
             Column("rank", "INTEGER"),
+            # The question's own wording: what the human reads in the queue.
+            Column("text", "TEXT"),
             Column("affects", "TEXT"),
             Column("reasoning", "TEXT"),
             Column("options", "TEXT"),
