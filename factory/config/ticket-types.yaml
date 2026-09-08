@@ -1,7 +1,69 @@
-# Ticket types the pilot accepts, the Jira issue types each maps from, and
-# the services eligible for each type. Any other type is rejected at intake
-# with "outside pilot scope" until the owner widens this list.
+# Ticket types the factory recognises, the Jira issue types each maps
+# from, the services eligible for each type at Initial, the provisional
+# tier matrix (service tier by ticket type, section 8), and the per-type
+# scrutiny template S0 fills at eligibility. A Story maps to small_feature
+# only at or under this many estimate points; above it, or with no
+# estimate, it maps to feature.
+small_feature_max_points: 3
+
 types:
+  bug:
+    jira_issue_types: [Bug]
+    eligible_services: []
+    scrutiny_template: >-
+      {ticket_type} ticket "{title}" at provisional tier {tier}. Sensitive-path
+      match: {sensitive_match}. Look hardest at the fix's blast radius and
+      whether the regression test actually reproduces the reported failure;
+      take the ticket's own reproduction steps on the evidence.
   small_feature:
     jira_issue_types: [Story]
     eligible_services: [fixture-project]
+    scrutiny_template: >-
+      {ticket_type} ticket "{title}" at provisional tier {tier}. Sensitive-path
+      match: {sensitive_match}. Look hardest at scope creep beyond the stated
+      acceptance criteria; take the linked ticket's acceptance criteria on
+      the evidence.
+  feature:
+    jira_issue_types: [Story]
+    eligible_services: []
+    scrutiny_template: >-
+      {ticket_type} ticket "{title}" at provisional tier {tier}. Sensitive-path
+      match: {sensitive_match}. Look hardest at new surface area and its
+      interaction with existing behaviour; take the ticket's stated scope on
+      the evidence.
+  refactor:
+    jira_issue_types: [Task]
+    eligible_services: []
+    scrutiny_template: >-
+      {ticket_type} ticket "{title}" at provisional tier {tier}. Sensitive-path
+      match: {sensitive_match}. Look hardest at behaviour-preservation claims;
+      take the existing test suite's coverage on the evidence.
+  config_or_docs:
+    jira_issue_types: [Task]
+    eligible_services: []
+    scrutiny_template: >-
+      {ticket_type} ticket "{title}" at provisional tier {tier}. Sensitive-path
+      match: {sensitive_match}. Look hardest at whether the change really is
+      config or docs only; take the diff's file list on the evidence.
+
+# service_tier -> ticket_type -> provisional tier, copied from the PRD's
+# section 8 table, tier names lowercase as tiers.yaml spells them.
+provisional_tier:
+  T1:
+    bug: heavy
+    small_feature: heavy
+    feature: heavy
+    refactor: heavy
+    config_or_docs: standard
+  T2:
+    bug: standard
+    small_feature: standard
+    feature: heavy
+    refactor: standard
+    config_or_docs: light
+  T3:
+    bug: light
+    small_feature: light
+    feature: standard
+    refactor: standard
+    config_or_docs: light

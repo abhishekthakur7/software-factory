@@ -84,6 +84,9 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     conn = connect(db_path)
     ticket_id = record.insert(
         conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash="m1", tier_final="light",
+        # A real pilot-eligible pair, since S0's lookups now reject rather
+        # than stub-pass an unresolvable service or ticket type.
+        service="fixture-project", ticket_type="small_feature",
     )
     run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")

@@ -76,10 +76,12 @@ def _checks_ticket_with_fresh_base(conn, tmp_path):
 
 
 def test_s0_stub_runs_and_the_eligibility_gate_moves_intake_to_context(conn, tmp_path):
-    """the real S0 stub driver runs (writing and registering a
+    """the real S0 driver runs (writing and registering a
     `ticket_source` artefact), then a granted eligibility item moves the
-    ticket on; S0 passing by itself is not enough."""
-    ticket_id = _ticket_in(conn, "intake")
+    ticket on; S0 passing by itself is not enough. `service`/`ticket_type`
+    are seeded here since S0's own lookups now need a real pilot-eligible
+    pair to pass rather than reject."""
+    ticket_id = _ticket_in(conn, "intake", service="fixture-project", ticket_type="small_feature")
     outcome = run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     assert outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "intake"  # S0 alone doesn't move it

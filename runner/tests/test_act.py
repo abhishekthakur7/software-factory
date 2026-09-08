@@ -16,15 +16,42 @@ also carries a failure-mode id here even though it names no `--fm`
 requirement of its own: the `revision_after_approval` tag its own effect
 writes has the same required `fm_id` every other tag does, so the id is
 supplied for the same reason a redirect or send-back needs one.
+
+An `eligibility` item's every action now runs behind S0's own governance
+validity check, so every ticket seeded in `intake` for one carries a real,
+currently active governance state: `_governed_ticket_fields` activates the
+committed trust profile the same default-path way `test_outbox.py`'s
+reconcile-first test does, and stamps the resulting hashes and admitted
+source/service onto the ticket at creation, since `trust_profile_hash` and
+`trust_approval_set_hash` are themselves append-only.
 """
 import json
 
 import pytest
 
-from runner import cli, queue, record, tickets
+from runner import cli, governance, queue, record, tickets
 from runner.db import connect
 
 ABHISHEK = "abhishek"
+FAR_FUTURE = "2999-01-01T00:00:00+00:00"
+
+
+def _governed_ticket_fields(conn) -> dict:
+    """Ticket fields that satisfy `S0.governance_valid` against the committed trust profile and owners file."""
+    proposal = governance.propose()
+    for role in ("security_approver", "legal_data_governance_approver"):
+        governance.decide(
+            conn, proposal, actor_identity=ABHISHEK, role=role, decision="approve",
+            expires_at=FAR_FUTURE, attestation_version="v1", attestation_hash=f"att-{role}",
+        )
+    activated = governance.activation(conn, proposal)
+    return {
+        "trust_profile_hash": proposal.profile_hash,
+        "trust_approval_set_hash": activated.trust_approval_set_hash,
+        "service": "fixture-project",
+        "source_kind": "jira",
+        "source_ref": "FIX-1",
+    }
 
 # The ticket state each kind's own item is naturally opened from, used by
 # `_seed_item` for every accepted-pairing and refused-pairing test.
@@ -62,7 +89,8 @@ def _reviewer_set(conn, ticket_id, *, kind, role, subject_hash):
 
 def _seed_item(conn, kind: str) -> tuple[int, int]:
     """A ticket in `kind`'s natural state, plus one open item of that kind."""
-    ticket_id = record.insert(conn, "ticket", state=_KIND_STATE[kind], opened_at=record.now())
+    extra = _governed_ticket_fields(conn) if kind == "eligibility" else {}
+    ticket_id = record.insert(conn, "ticket", state=_KIND_STATE[kind], opened_at=record.now(), **extra)
     kwargs: dict = {"ticket_id": ticket_id, "kind": kind}
     if kind == "question":
         question_id = record.insert(
@@ -229,7 +257,7 @@ def test_factory_act_resolves_the_item_and_resumes_only_when_the_action_permits_
     applies `eligibility_granted` only on a later `factory advance` -- while
     `send_back` applies its transition immediately, as part of `act` itself."""
     conn = connect(db_path)
-    ticket_id = tickets.open_ticket(conn, title="t")
+    ticket_id = tickets.open_ticket(conn, title="t", **_governed_ticket_fields(conn))
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="eligibility")
     conn.commit()
     conn.close()

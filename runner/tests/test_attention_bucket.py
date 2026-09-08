@@ -14,11 +14,30 @@ import json
 
 import pytest
 
-from runner import queue, record
+from runner import governance, queue, record
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
 
 ABHISHEK = "abhishek"
+FAR_FUTURE = "2999-01-01T00:00:00+00:00"
+
+
+def _governed_ticket_fields(conn) -> dict:
+    """Ticket fields that satisfy `S0.governance_valid`, the same default-path activation `test_outbox.py`'s reconcile-first test uses."""
+    proposal = governance.propose()
+    for role in ("security_approver", "legal_data_governance_approver"):
+        governance.decide(
+            conn, proposal, actor_identity=ABHISHEK, role=role, decision="approve",
+            expires_at=FAR_FUTURE, attestation_version="v1", attestation_hash=f"att-{role}",
+        )
+    activated = governance.activation(conn, proposal)
+    return {
+        "trust_profile_hash": proposal.profile_hash,
+        "trust_approval_set_hash": activated.trust_approval_set_hash,
+        "service": "fixture-project",
+        "source_kind": "jira",
+        "source_ref": "FIX-1",
+    }
 
 FORBIDDEN_TOKENS = (
     "keystroke",
@@ -156,12 +175,16 @@ def test_must_reject_a_plan_or_packet_decision_missing_its_attention_bucket(conn
 def test_a_non_approval_action_may_record_its_bucket_optionally(conn):
     """`granted` on an eligibility item takes no bucket at all, and takes
     one, of any value in the closed set, exactly as given when it does."""
-    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    # One shared governance decision for both tickets below: deciding the
+    # same trust-profile subject twice in one test would leave two
+    # unsuperseded heads for the same slot and actor, forking activation.
+    governed = _governed_ticket_fields(conn)
+    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now(), **governed)
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="eligibility")
     queue.act(conn, item_id=item_id, action="granted", actor=ABHISHEK)
     assert record.get(conn, "queue_item", item_id)["active_attention_bucket"] is None
 
-    ticket_id2 = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    ticket_id2 = record.insert(conn, "ticket", state="intake", opened_at=record.now(), **governed)
     item_id2 = queue.open_item(conn, ticket_id=ticket_id2, kind="eligibility")
     queue.act(conn, item_id=item_id2, action="granted", actor=ABHISHEK, bucket="unknown")
     assert record.get(conn, "queue_item", item_id2)["active_attention_bucket"] == "unknown"

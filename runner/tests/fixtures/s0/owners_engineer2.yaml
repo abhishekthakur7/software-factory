@@ -1,0 +1,39 @@
+# A test-only copy of the committed owners file where the ticket_engineer
+# role is held by a distinct identity, so a test can show `resolved_role`
+# names a specific role rather than the lowest-sorted one the pilot's one
+# shared identity happens to hold everywhere else.
+roles:
+  factory_owner:
+    identity: abhishek
+    responsibilities: [tiers, topology, manifests_rubrics]
+  security_approver:
+    identity: abhishek
+    responsibilities: [trust_policy, sandbox_recipes, approvals]
+  legal_data_governance_approver:
+    identity: abhishek
+    responsibilities: [trust_policy, approvals]
+  service_owner:
+    identity: abhishek
+    responsibilities: [tiers, topology]
+  sensitive_path_owner:
+    identity: abhishek
+    responsibilities: [approvals, sandbox_recipes]
+  ticket_engineer:
+    identity: engineer2
+    responsibilities: [sandbox_recipes]
+  s3_reviewer:
+    identity: abhishek
+    responsibilities: [approvals]
+  s6_reviewer:
+    identity: abhishek
+    responsibilities: [approvals]
+  outcome_recorder:
+    identity: abhishek
+    responsibilities: [incident_attribution_disposition]
+  incident_reviewer:
+    identity: abhishek
+    responsibilities: [incident_attribution_disposition]
+shared_identities:
+  - identity: abhishek
+    roles: [factory_owner, service_owner, s3_reviewer, s6_reviewer, outcome_recorder, incident_reviewer]
+    note: the ticket_engineer role is held separately by engineer2 in this fixture, so resolved_role names it specifically.

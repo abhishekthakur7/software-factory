@@ -102,6 +102,7 @@ TABLE: dict[tuple[str, str], str] = {
     # intake
     ("intake", "eligibility_granted"): "context",
     ("intake", "s0_reject"): "rejected",
+    ("intake", "s0_exclusion"): "rejected",
     ("intake", "eligibility_declined"): "rejected",
     # context
     ("context", "s1_pass"): "clarifying",
@@ -180,6 +181,7 @@ TABLE: dict[tuple[str, str], str] = {
 # here; `transitions.apply` fails loudly on one that does not.
 CLOSE_REASON: dict[str, str] = {
     "s0_reject": "rejected_at_s0",
+    "s0_exclusion": "pilot_excluded",
     "eligibility_declined": "rejected_at_s0",
     "s1_exclusion": "pilot_excluded",
     "s3_exclusion": "pilot_excluded",
