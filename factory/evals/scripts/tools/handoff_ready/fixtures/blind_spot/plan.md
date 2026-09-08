@@ -4,7 +4,9 @@ placeholder, overwritten by handoff_ready
 
 ## Risk map
 
-Widget.java is the only touched file; no reviewer beyond the size gate is named.
+| place | why |
+|---|---|
+| src/main/java/com/fixture/Widget.java | sole touched file; a fresh guard clause changes its error path |
 
 ## Size
 

@@ -75,10 +75,18 @@ SECTIONS: dict[str, tuple[str, ...]] = {
 # The plan's fixed tables: the section that owns each and its exact
 # columns. The readiness table is derived by `handoff_ready` and does not
 # count against the row ceiling; every other table is agent-authored.
+# `Rollout` carries no table of its own -- its five sub-tables, one per
+# `### ` subsection, are `PLAN_SUBTABLES["Rollout"]` instead.
 PLAN_TABLES: dict[str, tuple[str, ...]] = {
     "Readiness": ("condition", "status", "source_artefact", "hash", "waiver_id", "note"),
+    "Risk map": ("place", "why"),
+    "Alternatives": ("alternative", "rejected_because"),
     "Scope and discretion": ("path", "action", "reason"),
     "Dependencies": ("package", "from_version", "to_version", "kind", "reason"),
+    "Archaeology and characterization tests": (
+        "path", "classification", "characterization_task", "alters_captured_behaviour",
+    ),
+    "Abstraction and separate debt": ("kind", "unit", "existing", "reason"),
     "Contracts": (
         "unit", "kind", "source_declaration", "input", "output", "errors", "side_effects", "invariants",
         "authorization", "ordering_concurrency", "transaction_persistence", "compatibility",
@@ -91,11 +99,56 @@ PLAN_TABLES: dict[str, tuple[str, ...]] = {
     "Size": ("estimated_lines", "estimated_files", "basis", "justification"),
 }
 
+# `Rollout`'s five `### ` subsections and each one's exact columns.
+PLAN_SUBTABLES: dict[str, dict[str, tuple[str, ...]]] = {
+    "Rollout": {
+        "Flags": ("flag", "expected_life", "owner", "removal_condition", "cleanup_task"),
+        "Ramp": ("step", "description"),
+        "Guardrails": ("metric", "query", "critical_threshold"),
+        "Kill trigger": ("trigger", "default_response"),
+        "Log verification": ("query", "pass_pattern", "fail_pattern"),
+    },
+}
+
 READINESS_CONDITIONS: tuple[str, ...] = (
     "restatement_agreed", "questions_closed", "impact_evidence", "risk_map", "linked_sources", "size_gate",
     "reviewer_set",
 )
 READINESS_STATUSES: tuple[str, ...] = ("pass", "blind_spot", "pending")
+
+# `Scope and discretion.action`: a `discretion` row's `path` is a glob,
+# every other row's `path` is one concrete path.
+SCOPE_ACTIONS: tuple[str, ...] = ("touch", "create", "delete", "discretion")
+
+# The ten `Contracts` columns that carry a `<state>` or `<state>: <evidence>`
+# cell -- every `Contracts` column except the two identifying ones, `unit`
+# and `kind`.
+CONTRACT_FIELDS: tuple[str, ...] = PLAN_TABLES["Contracts"][2:]
+CONTRACT_STATES: tuple[str, ...] = ("unchanged", "changed", "unknown")
+
+# `Abstraction and separate debt.kind`.
+ABSTRACTION_KINDS: tuple[str, ...] = ("new_shared_abstraction", "widened_shared_function", "new_utility")
+
+# `Test strategy.size` and `.action`.
+TEST_SIZES: tuple[str, ...] = ("small", "medium", "large")
+TEST_ACTIONS: tuple[str, ...] = ("add", "change", "remove")
+
+_CONTRACT_CELL_RE = re.compile(r"^(unchanged|changed|unknown)(?:\s*:\s*(.+))?$")
+
+
+def contract_cell(cell: str | None) -> tuple[str, str | None]:
+    """Parse a `Contracts` field cell into `(state, evidence)`; `evidence` is `None` when the cell carries none.
+
+    A bare state (`unchanged`) or `<state>: <evidence or decision>` both
+    parse; anything else -- an empty cell, free prose with no leading
+    state word -- raises, since every state-bearing cell must commit to
+    one of the three states before a reader can trust it.
+    """
+    match = _CONTRACT_CELL_RE.match((cell or "").strip())
+    if not match:
+        raise ArtefactError(f"contract cell {cell!r} does not parse to a state")
+    state, evidence = match.group(1), match.group(2)
+    return state, (evidence.strip() or None) if evidence else None
 
 # The brief's tables, by owning section. Sections not named here are
 # prose. `Final tier` is written by the S1 driver from the counts the
@@ -132,6 +185,7 @@ FORCED_CATEGORIES: tuple[str, ...] = (
 PENDING_MARKER = "pending answer"
 
 _HEADING = re.compile(r"^## (.+?)\s*$")
+_SUBHEADING = re.compile(r"^### (.+?)\s*$")
 _TABLE_SEPARATOR = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
 
 
@@ -192,6 +246,34 @@ class Section:
     def prose(self) -> str:
         """The section body with every table line removed."""
         return "\n".join(line for line in self.body.splitlines() if not line.lstrip().startswith("|")).strip()
+
+    def subsections(self) -> tuple["Section", ...]:
+        """Every `### ` subsection inside this section's body, in file order.
+
+        Only `Rollout` carries these today (one per rollout sub-table); a
+        section with no `### ` heading has none, and text before the first
+        one belongs to the section's own prose, not a subsection.
+        """
+        subs: list[Section] = []
+        title: str | None = None
+        lines: list[str] = []
+        for line in self.body.splitlines():
+            match = _SUBHEADING.match(line)
+            if match:
+                if title is not None:
+                    subs.append(Section(title, "\n".join(lines).strip("\n")))
+                title, lines = match.group(1), []
+            elif title is not None:
+                lines.append(line)
+        if title is not None:
+            subs.append(Section(title, "\n".join(lines).strip("\n")))
+        return tuple(subs)
+
+    def subsection(self, title: str) -> "Section | None":
+        for sub in self.subsections():
+            if sub.title == title:
+                return sub
+        return None
 
 
 @dataclass(frozen=True)
