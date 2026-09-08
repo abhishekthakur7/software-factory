@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import cli, gates, git_trees, record, schema, transitions
+from runner import cli, gates, git_trees, manifest, record, schema, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.stages import run_stage
@@ -83,7 +83,11 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     """
     conn = connect(db_path)
     ticket_id = record.insert(
-        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash="m1", tier_final="light",
+        conn, "ticket", state="intake", opened_at=record.now(),
+        # The real committed manifest hash, not a placeholder: S2 now
+        # invokes a real (fixture) agent, and every stage past S0 refuses
+        # an invocation whose pin does not match it.
+        factory_manifest_hash=manifest.current_hash(), tier_final="light",
         # A real pilot-eligible pair, since S0's lookups now reject rather
         # than stub-pass an unresolvable service or ticket type.
         service="fixture-project", ticket_type="small_feature",

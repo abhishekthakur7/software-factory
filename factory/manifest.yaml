@@ -35,7 +35,7 @@ files:
   - path: factory/rubrics/S1.md
     content_hash: 47cb2314d2b46354c7b1c58fe6e7c6ec7bf4621aba53dea2a205c8dc4798558b
   - path: factory/rubrics/S2.md
-    content_hash: f3251fff130e6b0dd283fe7c26b6e1bcc5c7d5983b0c78e18f314a966b9f9fa7
+    content_hash: 512deb213bd5d5f27de8bde937046344dcebe9c6af6e46bec2e627d85e3205ed
   - path: factory/rubrics/S3.md
     content_hash: d31ac630930a995ab074525f47fc02bff4f06aebd67c4564e39c0b6ea58c359d
   - path: factory/rubrics/S4.md
@@ -51,11 +51,16 @@ files:
   - path: factory/evals/agents/S1/fixtures/ok/S1.md
     content_hash: 7878803ae0bb57408744c036b46c8a6bc507de83773b4b8b76a6b65f982782d0
   - path: factory/evals/agents/S2/eval.yaml
-    content_hash: c70edae03807e4611c1d9844f14f4bf300220206a834fd2a1c4d6f7d36859ccd
+    content_hash: 76f67d6a0ea4d6b2cafa439c402f1cafe0900f767034aa5d65c18264dbfb2b30
   - path: factory/evals/agents/S2/fixtures/missing_front_matter/S2.md
     content_hash: a2c54613d8c96f459db5ccb96b93ac3c675cbe691f970a24e5a317895ae471ee
   - path: factory/evals/agents/S2/fixtures/ok/S2.md
     content_hash: 0e78685449f86e0a5ea192c6d3ba0986baa952efc521d283334c86a81aec9446
+    content_hash: 50b29a3d4fee98f32a7802e77848561d6b6a201e6c42bd9e4b50a0d79f739ea4
+  - path: factory/evals/agents/S2/fixtures/question_round/out/questions.yaml
+    content_hash: d4c1d492399b755a43eb2b5d8033ed84c8acf93ff64cfd4ebe6cfbe61d919904
+  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/questions.yaml
+    content_hash: 61212039f11ee9bc451fc3346584cae64fb405c595491438b37d1009daf2a4b4
   - path: factory/evals/agents/S3/eval.yaml
     content_hash: f1a6c0b8d508974ee691b732f193b92a3c728bdf8ae7f7771dcbaed5039834b3
   - path: factory/evals/agents/S3/fixtures/missing_front_matter/S3.md
@@ -117,11 +122,19 @@ files:
   - path: factory/evals/rubrics/S1/fixtures/ok/S1.md
     content_hash: 47cb2314d2b46354c7b1c58fe6e7c6ec7bf4621aba53dea2a205c8dc4798558b
   - path: factory/evals/rubrics/S2/eval.yaml
-    content_hash: ef3ea67d09cfc03c873ed62e7a33d07bd473d25c52da3868d862648a2cbcbe97
+    content_hash: bfc6cc04c7125abde063319027584589299a45412f57db2215ac9c908d05dcfd
   - path: factory/evals/rubrics/S2/fixtures/missing_front_matter/S2.md
     content_hash: 932d107e5267f21a836780d02d1cdb0028b7783a944c70322b476e34a637a264
   - path: factory/evals/rubrics/S2/fixtures/ok/S2.md
     content_hash: f3251fff130e6b0dd283fe7c26b6e1bcc5c7d5983b0c78e18f314a966b9f9fa7
+  - path: factory/evals/rubrics/S2/fixtures/r_s2_5_grader_pass/human_verdict.yaml
+    content_hash: a735a2ebaa72fc85c439f6003ecad037ee8b3e00aaf2b3d034790a73bb9c11f3
+  - path: factory/evals/rubrics/S2/fixtures/r_s2_5_grader_fail/human_verdict.yaml
+    content_hash: 44da37fc3abb2281b24737f64f04c37d95fef0604d8a057221576812343a4e43
+  - path: factory/evals/rubrics/S2/fixtures/r_s2_14_grader_pass/human_verdict.yaml
+    content_hash: 621a74ef180ae7c297a79699d7ee7f6450fbb5e0b3c9a8fcad3f4dd38d2c7250
+  - path: factory/evals/rubrics/S2/fixtures/r_s2_14_grader_fail/human_verdict.yaml
+    content_hash: 42945b437f90116538647c1675b22b920dfa47cbe42cad9f5fe0c35ebf050f90
   - path: factory/evals/rubrics/S3/eval.yaml
     content_hash: a89ca9d95b09c3391e8f9dea819247e5f9ae91dbb521d6ce18ad4f1102917fb1
   - path: factory/evals/rubrics/S3/fixtures/missing_front_matter/S3.md

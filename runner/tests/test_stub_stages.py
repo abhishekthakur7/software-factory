@@ -104,14 +104,10 @@ def test_s1_stub_writes_a_brief_and_passes_to_clarifying(conn, tmp_path):
     assert artefact_registry.latest(conn, ticket_id, "brief") is not None
 
 
-def test_s2_stub_writes_criteria_and_passes_to_planning(conn, tmp_path):
-    """the real S2 stub driver writes and registers a
-    `criteria` artefact and its pass moves clarifying -> planning."""
-    ticket_id = _ticket_in(conn, "clarifying")
-    outcome = run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
-    assert outcome == "pass"
-    assert record.get(conn, "ticket", ticket_id)["state"] == "planning"
-    assert artefact_registry.latest(conn, ticket_id, "criteria") is not None
+# S2 is no longer a stub: its question and assumption half is exercised
+# end to end in test_s2_questions.py (test_s2_walk_...), including the
+# clarifying -> planning pass this module's other stub tests each cover
+# for their own still-stub stage.
 
 
 def test_s3_stub_writes_a_plan_and_passes_to_plan_review(conn, tmp_path):
