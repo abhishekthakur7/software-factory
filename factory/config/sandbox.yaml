@@ -1,0 +1,32 @@
+# The thin sandbox, Milestone A's execution boundary for R-I-14: a
+# launcher-built process environment and a per-run out/results split, with
+# no OS-enforced policy, no loopback proxy, and no copy-on-write copies yet
+# (those land before Milestone B). `runner/launcher.py` reads this file to
+# build the invocation child's environment; `runner/envelope.py` hashes it,
+# together with the resolved allowlist, into every run's `sandbox_digest`.
+policies:
+  thin:
+    description: >
+      Milestone A's thin sandbox policy: an environment allowlist and a
+      per-role credential rule, enforced by the launcher rather than by an
+      OS-level boundary.
+    # Names the child may inherit from the launching process's own
+    # environment; nothing else crosses, whatever else the launching
+    # process happens to have set.
+    env_allowlist:
+      - PATH
+      - HOME
+      - LANG
+      - LC_ALL
+      - TMPDIR
+      - JAVA_HOME
+      - JDK_HOME
+    # Which sandbox role receives the scoped runtime key runtime.yaml
+    # names by role (agent), and which receives none of any kind (build).
+    credential_roles:
+      agent: runtime_key
+      build: null
+    # Started as the child's only local server when the role is `agent`
+    # and this executable exists on the allowlisted PATH; otherwise the
+    # launcher records that no server started rather than failing the run.
+    codegraph_command: [codegraph, serve, --stdio]

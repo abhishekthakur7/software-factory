@@ -1,0 +1,9 @@
+# Bounded record fields (PRD section 2.2, D42). Created here for the
+# tool-result inline limit; a later ticket adds this same file's
+# fix-round cap entry.
+tool_result_inline:
+  max_lines: 200
+  max_bytes: 8192
+  excerpt_head_lines: 40
+  excerpt_tail_lines: 20
+  excerpt_max_bytes_per_end: 4096

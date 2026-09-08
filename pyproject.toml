@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Trusted control plane of the software factory: the factory command, its stage drivers and the run record"
 requires-python = ">=3.13"
 dependencies = [
+    "cursor-sdk==1.0.31",
     "pyyaml>=6.0",
 ]
 

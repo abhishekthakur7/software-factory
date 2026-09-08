@@ -1,0 +1,16 @@
+# The approved runtime adapters and their exact package versions and
+# model lists (D42 "Initial-version tooling", call 48). A model absent
+# from an adapter's `models` list is refused before an invocation starts;
+# route authority for the runtime key comes from `trust-profile.yaml`,
+# never from this file -- `key_role` only names which environment
+# variable the launcher fills for the `agent` sandbox role.
+adapters:
+  cursor_sdk:
+    package: cursor-sdk
+    version: "1.0.31"
+    # The worker's argv, run inside the sandbox; the launcher appends the
+    # envelope path as this command's last argument.
+    command: [python3, -m, runner.adapters.cursor_sdk_worker]
+    models:
+      - claude-sonnet-5
+    key_role: CURSOR_API_KEY

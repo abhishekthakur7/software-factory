@@ -1,0 +1,14 @@
+{
+  "model_resolved": "claude-sonnet-5",
+  "provider_request_id": "req-pricetable",
+  "status": "ok",
+  "tokens_in": 2000000,
+  "tokens_out": 500000,
+  "duration_ms": 9000,
+  "cost": null,
+  "currency": null,
+  "cost_basis": null,
+  "cost_settled_at": null,
+  "reasoning_summary": null,
+  "tool_calls": []
+}

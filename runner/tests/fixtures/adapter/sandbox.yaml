@@ -1,0 +1,12 @@
+# A test copy of factory/config/sandbox.yaml, adding the one
+# test-only environment name (FIXTURE_ADAPTER_CASE) that selects which
+# canned JSON document fixture_worker.py prints; a nonexistent codegraph
+# command keeps codegraph-start deterministic (never found) regardless of
+# whether the real binary happens to be installed on the test host.
+policies:
+  thin:
+    env_allowlist: [PATH, HOME, TMPDIR, FIXTURE_ADAPTER_CASE, FIXTURE_ADAPTER_PAYLOAD_PATH]
+    credential_roles:
+      agent: runtime_key
+      build: null
+    codegraph_command: [factory-test-fixture-codegraph-not-installed]

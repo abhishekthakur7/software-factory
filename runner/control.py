@@ -17,7 +17,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from runner import queue, record, run_ledger, tags, transitions
+from runner import launcher, queue, record, run_ledger, tags, transitions
 from runner.paths import RUNS_DIR
 
 
@@ -94,16 +94,21 @@ def resume(conn: sqlite3.Connection, ticket_id: int, *, actor: str, runs_dir: Pa
     return queue.act(conn, item_id=item["id"], action="resume", actor=actor, runs_dir=runs_dir)
 
 
-def stop(conn: sqlite3.Connection, ticket_id: int, *, actor: str, fm_id: str, note: str | None = None) -> str:
+def stop(
+    conn: sqlite3.Connection, ticket_id: int, *, actor: str, fm_id: str, note: str | None = None,
+    runs_dir: Path = RUNS_DIR,
+) -> str:
     """Finish every open stage run `aborted_human`, escalate the ticket, and open one `escalation` item.
 
     Unlike every other command here, `stop` never checks `live_run`: it is
     the one command a live run does not refuse, since it is what ends one.
     The escalation item's `ref` names the last run stopped, so a human
-    resuming it lands back on the stage that was interrupted. A later
-    ticket adds killing the launcher's child process; that is one call
-    added at the point each run finishes below, once a launcher exists to
-    call it on.
+    resuming it lands back on the stage that was interrupted. Before each
+    run finishes, this kills the launcher's child process named at
+    `runs/tickets/<id>/runs/<run>/results/child.pid`, if one is still
+    alive -- a run with no such file (a script-only stub, or one that
+    never reached the launcher) has nothing to kill, which is not an
+    error.
     """
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
@@ -117,6 +122,8 @@ def stop(conn: sqlite3.Connection, ticket_id: int, *, actor: str, fm_id: str, no
     for row in open_runs:
         if row["reasoning_summary"] is None and note is not None:
             run_ledger.record_reasoning_summary(conn, row["id"], note)
+        run_dir = runs_dir / "tickets" / str(ticket_id) / "runs" / str(row["id"])
+        launcher.terminate_child(run_dir)
         run_ledger.finish(conn, row["id"], "aborted_human")
     transitions.apply(conn, ticket_id, "escalate")
     tags.tag(conn, target=f"ticket:{ticket_id}", kind="escalation", fm_id=fm_id, actor=actor, note=note)

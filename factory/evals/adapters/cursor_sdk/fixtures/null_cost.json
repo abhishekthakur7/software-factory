@@ -1,0 +1,14 @@
+{
+  "model_resolved": "claude-sonnet-5",
+  "provider_request_id": "req-null",
+  "status": "ok",
+  "tokens_in": null,
+  "tokens_out": null,
+  "duration_ms": null,
+  "cost": null,
+  "currency": null,
+  "cost_basis": null,
+  "cost_settled_at": null,
+  "reasoning_summary": null,
+  "tool_calls": []
+}

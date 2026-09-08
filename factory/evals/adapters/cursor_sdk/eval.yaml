@@ -1,0 +1,21 @@
+subject: runner/adapters/cursor_sdk.py
+cases:
+  - name: settled
+    fixture: fixtures/settled.json
+    expected_outcome: pass
+    expected_cost_basis: provider_settled
+  - name: runtime_estimate
+    fixture: fixtures/runtime_estimate.json
+    expected_outcome: pass
+    expected_cost_basis: runtime_estimate
+  - name: price_table
+    fixture: fixtures/price_table.json
+    expected_outcome: pass
+    expected_cost_basis: price_table_estimate
+  - name: null_cost
+    fixture: fixtures/null_cost.json
+    expected_outcome: pass
+    expected_cost_basis: unavailable
+  - name: silent_fallback
+    fixture: fixtures/silent_fallback.json
+    expected_outcome: infrastructure_failure
