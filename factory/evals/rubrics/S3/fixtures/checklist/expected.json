@@ -1,0 +1,16 @@
+[
+  {"rubric_line_id": "R-S1-2:grader", "subject_item_key": "brief"},
+  {"rubric_line_id": "R-S1-3:grader", "subject_item_key": "brief"},
+  {"rubric_line_id": "R-S1-6:grader", "subject_item_key": "brief"},
+  {"rubric_line_id": "R-S1-11:grader", "subject_item_key": "brief"},
+  {"rubric_line_id": "R-S2-1:grader", "subject_item_key": "AC-1"},
+  {"rubric_line_id": "R-S2-1:grader", "subject_item_key": "AC-2"},
+  {"rubric_line_id": "R-S2-2:grader", "subject_item_key": "AC-1"},
+  {"rubric_line_id": "R-S2-2:grader", "subject_item_key": "AC-2"},
+  {"rubric_line_id": "R-S2-10:grader", "subject_item_key": "criteria"},
+  {"rubric_line_id": "R-S2-5:grader", "subject_item_key": "1"},
+  {"rubric_line_id": "R-S2-5:grader", "subject_item_key": "2"},
+  {"rubric_line_id": "R-S2-14:grader", "subject_item_key": "1"},
+  {"rubric_line_id": "R-S2-14:grader", "subject_item_key": "2"},
+  {"rubric_line_id": "R-CK-1:grader", "subject_item_key": "Widget.compute"}
+]
