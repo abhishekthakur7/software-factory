@@ -1,0 +1,14 @@
+diff --git a/src/main/java/com/fixture/Widget.java b/src/main/java/com/fixture/Widget.java
+index 111..222 100644
+--- a/src/main/java/com/fixture/Widget.java
++++ b/src/main/java/com/fixture/Widget.java
+@@ -1,1 +1,1 @@
+-old
++new
+diff --git a/src/main/java/com/fixture/Unrelated.java b/src/main/java/com/fixture/Unrelated.java
+index 111..222 100644
+--- a/src/main/java/com/fixture/Unrelated.java
++++ b/src/main/java/com/fixture/Unrelated.java
+@@ -1,1 +1,1 @@
+-old
++new

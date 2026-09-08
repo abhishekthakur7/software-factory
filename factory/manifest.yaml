@@ -693,3 +693,19 @@ stages:
       sandbox_policy: thin
       toolchain:
         jdk: '17'
+  - path: factory/evals/scripts/checks/scope_diff/eval.yaml
+    content_hash: 085f370414feb7712fdf1f3f99ee3787fe88f624f661922835860eda48ce4e7a
+  - path: factory/evals/scripts/checks/scope_diff/fixtures/discretion_glob/diff.txt
+    content_hash: 4f18f026058970738e984189cfeb92c1c4cfad969b56de661a89c1f287921e57
+  - path: factory/evals/scripts/checks/scope_diff/fixtures/discretion_glob/plan.md
+    content_hash: e78f731045a04a878d5074af5e1318e2ad903628a8e02183842f757d1fb026a4
+  - path: factory/evals/scripts/checks/scope_diff/fixtures/in_scope/diff.txt
+    content_hash: c48744e535cba028221b3da468637b68fca8fba36184fdafd1a49c8c93468230
+  - path: factory/evals/scripts/checks/scope_diff/fixtures/in_scope/plan.md
+    content_hash: ddb703e0889a62e82ec81d78944a5456ad50d428266aeec821fb0da10065fdf1
+  - path: factory/evals/scripts/checks/scope_diff/fixtures/out_of_scope/diff.txt
+    content_hash: b3db3bd22a20419511e1d9b9d03f0e39b626a886eacc3bde25ce5cf9d9d98bf8
+  - path: factory/evals/scripts/checks/scope_diff/fixtures/out_of_scope/plan.md
+    content_hash: a913c141fd38bfe12d6058ed8c345591c31289a90977de91ef4893d5340881d0
+  - path: factory/scripts/checks/scope_diff
+    content_hash: 86a02d36c93ef7a46ccd1fba57c7897c3ae43ed14a6d33c707ec49f17f6ab08e

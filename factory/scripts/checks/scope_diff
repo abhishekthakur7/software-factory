@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Scope diff: files touched by a diff against the plan's own scope table.
+
+Standalone: no import of `runner`, no subprocess, no network, no git and
+no checkout argument -- the result comes from the diff text and the plan
+text alone, so a caller never has to trust a model to police scope. A
+path counts as in scope when it is listed verbatim under `touch`,
+`create` or `delete` in the plan's `Scope and discretion` table, or when
+it matches one of that table's `discretion` rows as a glob
+(`fnmatch`). Everything else the diff touches is out of scope.
+"""
+import argparse
+import fnmatch
+import json
+import re
+from pathlib import Path
+
+_DIFF_GIT_LINE = re.compile(r"^diff --git a/(?P<a>\S+) b/(?P<b>\S+)$")
+
+
+def _extract_section(text: str, title: str) -> str:
+    match = re.search(rf"^## {re.escape(title)}[ \t]*$", text, re.MULTILINE)
+    if not match:
+        return ""
+    rest = text[match.end():]
+    next_heading = re.search(r"^## ", rest, re.MULTILINE)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
+def _parse_pipe_table(section_text: str) -> list[dict[str, str]]:
+    lines = [line for line in section_text.splitlines() if line.lstrip().startswith("|")]
+    if len(lines) < 2:
+        return []
+    header = [cell.strip() for cell in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[2:]:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        cells += [""] * (len(header) - len(cells))
+        rows.append(dict(zip(header, cells)))
+    return rows
+
+
+def _scope_rows(plan_path: Path) -> list[dict[str, str]]:
+    return _parse_pipe_table(_extract_section(plan_path.read_text(), "Scope and discretion"))
+
+
+def _diff_paths(diff_text: str) -> list[str]:
+    """Every path a unified diff touches, from its `diff --git a/... b/...` headers.
+
+    A rename or a deletion still names its `b/` side path except when the
+    file was removed entirely, in which case the `a/` side is the only
+    surviving name -- `git diff` prints `+++ /dev/null` there, so we fall
+    back to the `a/` path whenever the `b/` path also reads as absent.
+    """
+    paths: list[str] = []
+    for line in diff_text.splitlines():
+        match = _DIFF_GIT_LINE.match(line)
+        if not match:
+            continue
+        paths.append(match.group("b") or match.group("a"))
+    return paths
+
+
+def _scope_paths_and_globs(rows: list[dict[str, str]]) -> tuple[set[str], list[str]]:
+    explicit: set[str] = set()
+    globs: list[str] = []
+    for row in rows:
+        path = (row.get("path") or "").strip()
+        if not path:
+            continue
+        if row.get("action") == "discretion":
+            globs.append(path)
+        else:
+            explicit.add(path)
+    return explicit, globs
+
+
+def _in_scope(path: str, explicit: set[str], globs: list[str]) -> bool:
+    return path in explicit or any(fnmatch.fnmatch(path, pattern) for pattern in globs)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="scope_diff")
+    parser.add_argument("--diff", required=True, type=Path)
+    parser.add_argument("--plan", required=True, type=Path)
+    args = parser.parse_args(argv)
+
+    rows = _scope_rows(args.plan)
+    explicit, globs = _scope_paths_and_globs(rows)
+
+    touched = _diff_paths(args.diff.read_text())
+    in_scope = sorted({p for p in touched if _in_scope(p, explicit, globs)})
+    out_of_scope = sorted({p for p in touched if not _in_scope(p, explicit, globs)})
+
+    result = "fail" if out_of_scope else "pass"
+    print(json.dumps({"result": result, "out_of_scope": out_of_scope, "in_scope": in_scope}, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
