@@ -1,0 +1,5 @@
+{
+  "ticket": {"id": 504, "title": "malformed inputs", "service": "fixture-project", "ticket_type": "small_feature", "tier": "standard"},
+  "checks": [],
+  "diff_path": "diff.patch"
+}

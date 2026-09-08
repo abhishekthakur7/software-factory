@@ -244,23 +244,40 @@ def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
     queue.act(conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
 
 
-def _grant_packet_approval(conn, ticket_id, tmp_path, *, content_hash):
-    """Seed a review evidence tuple and effective reviewer set, then approve it -- which itself
-    authors the ticket's `pr_create` outbox intent once its quorum is satisfied."""
-    slots = json.dumps(
-        [{"source_rule": "review:1", "role": "s6_reviewer", "min_count": 1, "distinct_from": [], "resolved": True}]
-    )
-    reviewer_set_id = record.insert(
-        conn, "reviewer_set", ticket_id=ticket_id, kind="effective", content_hash=f"effective-{ticket_id}", slots=slots,
-    )
-    record.insert(
-        conn, "evidence_tuple", kind="review", ticket_id=ticket_id,
-        content_hash=content_hash, effective_reviewer_set_id=reviewer_set_id, created_at=record.now(),
-    )
-    item_id = queue.open_item(
-        conn, ticket_id=ticket_id, kind="packet_approval", reviewer_set_id=reviewer_set_id, approval_subject_hash=content_hash,
-    )
-    queue.act(conn, item_id=item_id, action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
+def _grant_packet_approval(conn, ticket_id, tmp_path):
+    """Approve the real `packet_approval` item the real S6 driver opened -- pre-approving every
+    other slot ABHISHEK also fills on the review tuple's effective reviewer set first, the same
+    shape `_grant_plan_approval` uses for the plan gate: this walk's own CODEOWNERS rule and its
+    planned/final-reviewer roles all resolve to the same person, so `queue.act`'s own "approve"
+    call must be left exactly one slot to resolve. Reaching quorum this way is what itself
+    authors the ticket's `pr_create` outbox intent."""
+    item = conn.execute(
+        "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'packet_approval' AND resolved_at IS NULL "
+        "ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    review_tuple = conn.execute(
+        "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'review' ORDER BY id DESC LIMIT 1", (ticket_id,)
+    ).fetchone()
+    reviewer_set = record.get(conn, "reviewer_set", item["reviewer_set_id"])
+    owners_obj = owners.load_owners()
+    first_slot_seen = False
+    for slot_json in json.loads(reviewer_set["slots"] or "[]"):
+        slot = Slot.from_json(slot_json)
+        fills = (slot.role is not None and owners_obj.roles.get(slot.role, {}).get("identity") == ABHISHEK) or slot.owner == ABHISHEK
+        if not fills:
+            continue
+        if not first_slot_seen:
+            first_slot_seen = True
+            continue  # `queue.act`'s own "approve" call resolves this one
+        approvals.record_approval(
+            conn, gate="review", subject_hash=review_tuple["content_hash"], slot_id=slot.slot_id, actor_identity=ABHISHEK,
+            role=slot.role or "owner", decision="approve", authority_policy_hash=owners.authority_policy_hash(),
+            membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash=f"att-{slot.slot_id}",
+            ticket_id=ticket_id,
+        )
+
+    queue.act(conn, item_id=item["id"], action="approve", actor=ABHISHEK, bucket="under_2m", runs_dir=tmp_path)
     conn.commit()  # `create_intent` never commits; the caller owns the transaction.
 
 
@@ -414,7 +431,7 @@ def _run_walk(tmp_path) -> WalkResult:
     cli.advance(conn, ticket_id, tmp_path)  # checks_gate: both S5 and S6 passed
     assert record.get(conn, "ticket", ticket_id)["state"] == "review"
 
-    _grant_packet_approval(conn, ticket_id, tmp_path, content_hash="review-subject-1")
+    _grant_packet_approval(conn, ticket_id, tmp_path)
     cli.advance(conn, ticket_id, tmp_path)  # reconciles the pr_create intent, then review_quorum_reconciled
 
     manifest_hash_after = _manifest_hash()

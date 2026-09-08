@@ -1,0 +1,9 @@
+subject: factory/scripts/tools/pr_body_assemble
+owner: abhishek
+cases:
+  - name: full_ordered_pr_body
+    fixture: fixtures/full
+    expect: ok
+  - name: malformed_inputs_missing_keys
+    fixture: fixtures/malformed
+    expect: error

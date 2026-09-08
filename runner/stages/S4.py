@@ -282,8 +282,48 @@ def _valid_deviation(item) -> bool:
     return all(isinstance(item[field], str) for field in ("plan_item", "plan_said", "agent_did", "why"))
 
 
+def _record_base_test_deviations(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, *, plan_text: str, base_sha: str | None,
+    worktree: Path, head_sha: str, diff_text: str,
+) -> None:
+    """A `deviation` row for every base-test file this hand-back's diff touches, authorized or not.
+
+    Written unconditionally at hand-back -- before any round-level refusal
+    decision a caller makes afterwards -- since the review tuple's
+    deviation-set hash is taken at the S5 preflight and a row inserted
+    after it would make the tuple stale. An authorized row names the
+    criterion or task its `Test strategy` row cites and that row's
+    `proves` text; an unauthorized one records the literal `unplanned` so
+    the evidence table can still show what happened.
+    """
+    touched = _diff_touched_paths(diff_text)
+    if not touched or not base_sha:
+        return
+    catalogue = recipes.load_catalogue()
+    globs = _all_test_globs(catalogue)
+    rows = _test_strategy_rows(plan_text)
+    for path in touched:
+        if not _is_test_path(path, globs):
+            continue
+        if not _existed_at(worktree, base_sha, path):
+            continue  # a test this ticket added itself; never a base-test change
+        authorizing = _authorized_base_test_row(path, rows)
+        if authorizing is not None:
+            plan_item = authorizing.get("criteria") or authorizing.get("test") or "unplanned"
+            plan_said = authorizing.get("proves") or ""
+        else:
+            plan_item, plan_said = "unplanned", "not listed in the test strategy"
+        action = "deleted" if not _existed_at(worktree, head_sha, path) else "edited"
+        record.insert(
+            conn, "deviation", ticket_id=ticket["id"], stage_run_id=stage_run_id,
+            plan_item=plan_item, plan_said=plan_said, agent_did=f"{action} {path}",
+            why="base test change recorded by the runner", kind="judgment", contract_change=0,
+        )
+
+
 def record_handback(
     conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, out_dir: Path, *, runs_dir: Path = RUNS_DIR,
+    plan_text: str | None = None, base_sha: str | None = None,
 ) -> str | tuple[str, str]:
     """Read `out/handback.json`, validate its deviation set, commit the worktree, and record what it says.
 
@@ -291,7 +331,10 @@ def record_handback(
     `worktree_path`, the `deviation` rows -- happens only after validation
     passes; a missing file, a missing `deviations` key, or one row outside
     the 2.2 schema returns before any of it, so a structural failure never
-    leaves a partial hand-back behind.
+    leaves a partial hand-back behind. `plan_text`/`base_sha`, when given,
+    add the runner's own base-test-change deviation rows over this hand-
+    back's own diff -- both a task run and a fix round pass them, since
+    either kind of run may touch an authorized base test.
     """
     handback_path = Path(out_dir) / "handback.json"
     if not handback_path.is_file():
@@ -332,6 +375,12 @@ def record_handback(
             conn, "deviation", ticket_id=ticket["id"], stage_run_id=stage_run_id,
             plan_item=item["plan_item"], plan_said=item["plan_said"], agent_did=item["agent_did"],
             why=item["why"], kind=item["kind"], contract_change=1 if item["contract_change"] else 0,
+        )
+    if plan_text is not None and base_sha:
+        diff_text = _git_diff(Path(ticket["worktree_path"]), ticket["head_sha"], head_sha)
+        _record_base_test_deviations(
+            conn, ticket, stage_run_id, plan_text=plan_text, base_sha=base_sha,
+            worktree=Path(ticket["worktree_path"]), head_sha=head_sha, diff_text=diff_text,
         )
 
     # `binding.deviation_set_hash` recomputes over the rows just inserted,
@@ -399,7 +448,10 @@ def run(
         return result.outcome, result.failure_kind
 
     out_dir = _child_out_dir(runs_dir, ticket_id, result.stage_run_id)
-    handback_result = record_handback(conn, ticket, stage_run_id, out_dir, runs_dir=runs_dir)
+    handback_result = record_handback(
+        conn, ticket, stage_run_id, out_dir, runs_dir=runs_dir,
+        plan_text=Path(plan_artefact["path"]).read_text(), base_sha=plan_tuple["base_sha"],
+    )
     outcome, _ = handback_result if isinstance(handback_result, tuple) else (handback_result, None)
     if outcome != "pass" or task is None:
         return handback_result
@@ -810,9 +862,10 @@ def _check_fix_round_diff(
     A changed test file the plan's `Test strategy` table does not list
     with `action` `change`/`remove`, and that already existed at the
     ticket's base, is refused outright; one that did not exist at base is
-    a test this ticket itself added, always allowed. Every authorized
-    change is recorded as its own `deviation` row naming the authorizing
-    criterion.
+    a test this ticket itself added, always allowed. `record_handback`
+    already wrote this round's own base-test-change `deviation` rows,
+    authorized or not, before this refusal check ever runs -- this
+    function only decides whether the round as a whole passes.
     """
     touched = _diff_touched_paths(diff_text)
     if not touched:
@@ -831,20 +884,12 @@ def _check_fix_round_diff(
             continue
         if not _existed_at(worktree, base_sha, path):
             continue  # a test this ticket added itself; never restricted
-        authorizing = _authorized_base_test_row(path, rows)
-        if authorizing is None:
+        if _authorized_base_test_row(path, rows) is None:
             _record_check_result(
                 conn, stage_run_id, check_name="fix_round_scope", passed=False,
                 detail=f"changed base test {path!r} is not listed in the plan's Test strategy table",
             )
             return "fail", "verification"
-        record.insert(
-            conn, "deviation", ticket_id=ticket["id"], stage_run_id=stage_run_id,
-            plan_item=(authorizing.get("criteria") or authorizing.get("test") or ""),
-            plan_said=f"Test strategy: {authorizing.get('test')} ({authorizing.get('action')})",
-            agent_did=f"changed base test {path}", why=f"authorized by {authorizing.get('criteria') or authorizing.get('test')}",
-            kind="judgment", contract_change=0,
-        )
     _record_check_result(conn, stage_run_id, check_name="fix_round_scope", passed=True, detail="ok")
     return None
 
@@ -927,8 +972,11 @@ def _execute_fix_round(
     if result.outcome != "pass":
         return result.outcome, result.failure_kind
 
+    plan_text = Path(plan_artefact["path"]).read_text()
     out_dir = _child_out_dir(runs_dir, ticket_id, result.stage_run_id)
-    handback_result = record_handback(conn, ticket, stage_run_id, out_dir, runs_dir=runs_dir)
+    handback_result = record_handback(
+        conn, ticket, stage_run_id, out_dir, runs_dir=runs_dir, plan_text=plan_text, base_sha=plan_tuple["base_sha"],
+    )
     outcome, _ = handback_result if isinstance(handback_result, tuple) else (handback_result, None)
     if outcome != "pass":
         return handback_result
@@ -936,7 +984,6 @@ def _execute_fix_round(
     after_ticket = record.get(conn, "ticket", ticket_id)
     worktree = Path(after_ticket["worktree_path"])
     diff_text = _git_diff(worktree, before_head, after_ticket["head_sha"])
-    plan_text = Path(plan_artefact["path"]).read_text()
 
     round_failure = _check_fix_round_diff(
         conn, ticket, stage_run_id, plan_text=plan_text, base_sha=plan_tuple["base_sha"], worktree=worktree,

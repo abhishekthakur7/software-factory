@@ -1,0 +1,1 @@
+{"ran": [{"class": "com.fixture.WidgetTest", "method": "computes"}], "failed": [{"class": "com.fixture.WidgetTest", "method": "computes"}]}

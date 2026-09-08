@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Assemble the local `packet` artefact from `packet_inputs.json`, script-only, in charter order.
+
+The packet opens with tuple identity and freshness, then one evidence
+table, the plan's own narrative sections, and the exact branch diff last.
+Every table row and prose line is copied from the inputs file the S6
+driver wrote from registered artefacts and database rows -- this script
+authors nothing of its own. `packet_render.py`, beside this script, holds
+the section-building logic shared with `pr_body_assemble`.
+"""
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import packet_render
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="packet_assemble")
+    parser.add_argument("--inputs", required=True, type=Path)
+    parser.add_argument("--out", required=True, type=Path)
+    args = parser.parse_args(argv)
+
+    try:
+        data = packet_render.load_inputs(args.inputs)
+        text = packet_render.render(data, include_diff=True)
+    except (packet_render.PacketInputError, OSError, KeyError, TypeError) as exc:
+        print(f"packet_assemble: {exc}", file=sys.stderr)
+        return 1
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(text)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

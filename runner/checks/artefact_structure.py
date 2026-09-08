@@ -23,13 +23,15 @@ from typing import NamedTuple
 
 from runner import artefacts
 
-# Tables checked by document kind: only a kind an agent actually files
-# tables under gets one; `packet` carries none yet (its real fixed content
-# is a later ticket's placeholder is a plain prose kind for now).
+# Tables checked by document kind. `packet` is script-assembled rather
+# than agent prose, but its one evidence table still carries a fixed
+# column set the structure check enforces like any other; `pr_body` skips
+# this since it shares the packet's own script and inputs.
 KIND_TABLES: dict[str, dict[str, tuple[str, ...]]] = {
     "brief": artefacts.BRIEF_TABLES,
     "criteria": artefacts.CRITERIA_TABLES,
     "plan": artefacts.PLAN_TABLES,
+    "packet": artefacts.PACKET_TABLES,
 }
 
 # The fixed tables allowed to carry zero rows: an empty dependency list is

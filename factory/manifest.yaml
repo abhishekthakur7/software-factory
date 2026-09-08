@@ -397,7 +397,43 @@ files:
   - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/evals/scripts/checks/base_test_diff/eval.yaml
-    content_hash: 478f1864bae7886fc27b65f2b69dcd72ba661fbf12dea7f8362a103c6974958d
+    content_hash: f3db0c24f8d78fdc25a804986de2f1daf7f4f51f42c2287ece78f97857207fcd
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/base/src/test/java/com/fixture/WidgetTest.java
+    content_hash: 80e9ae1ee4881fad410f6771321fa120bbdc3bf6f222d43fe37e9aa81082046a
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/head/src/test/java/com/fixture/WidgetTest.java
+    content_hash: e7fb7c756f24c5bd973a40b24c018a6fe54028ede2765a7eba84124e480f170c
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/plan.md
+    content_hash: 31b2440781b21b12c9b03c18be645735d398196a8a0598d0d4152f47090f1ff0
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/tests_base.json
+    content_hash: d8f9f411a7ebb5bd2625ae58729d13c5f1a6bddd3666a3994b28521e20951482
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/tests_head.json
+    content_hash: d8f9f411a7ebb5bd2625ae58729d13c5f1a6bddd3666a3994b28521e20951482
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/tests_head_in_base.json
+    content_hash: 064f8820f9fd95105b9bd16cabcd7f87e6af9fd5274e952fd5079cd39bf83659
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_exempt/base/src/test/java/com/fixture/WidgetTest.java
+    content_hash: 80e9ae1ee4881fad410f6771321fa120bbdc3bf6f222d43fe37e9aa81082046a
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_exempt/head/src/test/java/com/fixture/WidgetTest.java
+    content_hash: e7fb7c756f24c5bd973a40b24c018a6fe54028ede2765a7eba84124e480f170c
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_exempt/plan.md
+    content_hash: 2d5fd9e68fff42e720d5780230251b1b9e896616b81e3ecfd7b4f7c0f607231f
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_exempt/tests_base.json
+    content_hash: d8f9f411a7ebb5bd2625ae58729d13c5f1a6bddd3666a3994b28521e20951482
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_exempt/tests_head.json
+    content_hash: d8f9f411a7ebb5bd2625ae58729d13c5f1a6bddd3666a3994b28521e20951482
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_exempt/tests_head_in_base.json
+    content_hash: f9f33d9a2ff820c3986a29f87a2c7bdd0c3b893fa1dc7c5123c6634e4fa83399
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_pass/base/src/test/java/com/fixture/WidgetTest.java
+    content_hash: 80e9ae1ee4881fad410f6771321fa120bbdc3bf6f222d43fe37e9aa81082046a
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_pass/head/src/test/java/com/fixture/WidgetTest.java
+    content_hash: e7fb7c756f24c5bd973a40b24c018a6fe54028ede2765a7eba84124e480f170c
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_pass/plan.md
+    content_hash: 31b2440781b21b12c9b03c18be645735d398196a8a0598d0d4152f47090f1ff0
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_pass/tests_base.json
+    content_hash: d8f9f411a7ebb5bd2625ae58729d13c5f1a6bddd3666a3994b28521e20951482
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_pass/tests_head.json
+    content_hash: d8f9f411a7ebb5bd2625ae58729d13c5f1a6bddd3666a3994b28521e20951482
+  - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_pass/tests_head_in_base.json
+    content_hash: 8e4590d478de0f8e5f840a50023834572a3f9620efdcbfc64dafd44457815fe4
   - path: factory/evals/scripts/checks/base_test_diff/fixtures/deleted_unplanned/base/src/test/java/com/fixture/WidgetTest.java
     content_hash: 171aaf121cc034958c52e4aae9356f9c18c3e742089fcdb4630a739874cc22f5
   - path: factory/evals/scripts/checks/base_test_diff/fixtures/deleted_unplanned/plan.md
@@ -660,6 +696,30 @@ files:
     content_hash: 59670e1529850c153ee4e09bc2533e429b1f3cfac92cc516d54bcacee61eb767
   - path: factory/evals/scripts/tools/manifest_hash/fixtures/valid/factory/manifest.yaml
     content_hash: 1546cff7c8e72fe3f384407b4c024c267b8d540c45f5381b2f5384e6f5f16a9c
+  - path: factory/evals/scripts/tools/packet_assemble/eval.yaml
+    content_hash: b92159fad6dfc624a7edb41431c54bf620a580e97fdc34cc770208b06545066a
+  - path: factory/evals/scripts/tools/packet_assemble/fixtures/full/diff.patch
+    content_hash: e019891a0c8601b1faabe7bb0fca74b927d8e387bbc39b60682bab787ec95228
+  - path: factory/evals/scripts/tools/packet_assemble/fixtures/full/packet_inputs.json
+    content_hash: db8365a6db77d1e00392d25ebaf75e650943010e86abd12b5c461e618be8dd4b
+  - path: factory/evals/scripts/tools/packet_assemble/fixtures/impact_blind_spot/diff.patch
+    content_hash: 8c367680c90e7622c52c4b7109fa166920174657019726cbe7a579c3b1cc5d09
+  - path: factory/evals/scripts/tools/packet_assemble/fixtures/impact_blind_spot/packet_inputs.json
+    content_hash: c6c8abce2151a3b9c904d49dab4d199fe5c419644f2cb5057647abdb85e5a5e3
+  - path: factory/evals/scripts/tools/packet_assemble/fixtures/malformed/packet_inputs.json
+    content_hash: 13dacbe30bd3e86e45e9fde9105772d20b68725b59f4dee1d5add8fa006ccaa5
+  - path: factory/evals/scripts/tools/packet_assemble/fixtures/unplanned_test/diff.patch
+    content_hash: 635726495d21031ecc2e024fa1fc739e6b626024ca24e103a6cb541b95d5825a
+  - path: factory/evals/scripts/tools/packet_assemble/fixtures/unplanned_test/packet_inputs.json
+    content_hash: efd1bc820282d7033930c77c41b150dd949ca6b198174e7c272aaf37bc9b57b9
+  - path: factory/evals/scripts/tools/pr_body_assemble/eval.yaml
+    content_hash: 1ea54a175face25da7ea733f144a01c320320092e90fdbd4505a2501fcd665bc
+  - path: factory/evals/scripts/tools/pr_body_assemble/fixtures/full/diff.patch
+    content_hash: e019891a0c8601b1faabe7bb0fca74b927d8e387bbc39b60682bab787ec95228
+  - path: factory/evals/scripts/tools/pr_body_assemble/fixtures/full/packet_inputs.json
+    content_hash: db8365a6db77d1e00392d25ebaf75e650943010e86abd12b5c461e618be8dd4b
+  - path: factory/evals/scripts/tools/pr_body_assemble/fixtures/malformed/packet_inputs.json
+    content_hash: 13dacbe30bd3e86e45e9fde9105772d20b68725b59f4dee1d5add8fa006ccaa5
   - path: factory/evals/scripts/tools/purge/eval.yaml
     content_hash: 402286c510caa25ee59581e8f74525af1bd95d56cca1bfa8ca263892de4fb4a3
   - path: factory/evals/scripts/tools/purge/fixtures/expired/export/manifest.json
@@ -749,7 +809,7 @@ files:
   - path: factory/rubrics/checklists/split-patterns.md
     content_hash: 1749b53eae8ff703a88ac0656147d930e2fa65f5f1111a4814aa15419d99c3d1
   - path: factory/scripts/checks/base_test_diff
-    content_hash: 3972a133e3ec4e403c1f9c29c62cdc787322352d178b3f9f0ef02f79ae915c81
+    content_hash: 2250696ca4bdaf9644fa86ae31381e9637d1089581a9c063ce302a00c8c3d164
   - path: factory/scripts/checks/behavior_contract_evidence
     content_hash: ca5b9071e23c1ad589ee308f081451202b077bc162f91d2251641b9c6a848e91
   - path: factory/scripts/checks/impact_scan
@@ -776,6 +836,12 @@ files:
     content_hash: 2dcab55c228cfdb9b5c58b535f5748d1142e3c10c3ddf9ede4ae1650a497c139
   - path: factory/scripts/tools/manifest_hash
     content_hash: 7fb498e68e92256527387b161ed9bc7e30e831000d4bb13f5415e67e725e62a2
+  - path: factory/scripts/tools/packet_assemble
+    content_hash: 8ec2cdd6eb66a62790adbc68710ada93d0cca3d3f155ea40403b4c53d8e6b349
+  - path: factory/scripts/tools/packet_render.py
+    content_hash: 5c15acf6c6b7dbfcbb44e5b69433231ca76fdebdd9cf83ace74d39b6e5a9bd3f
+  - path: factory/scripts/tools/pr_body_assemble
+    content_hash: c3e248a3c494451fbbaa45b49e537604ec5787e3015f55a36e2a27bdfe4193f1
   - path: factory/scripts/tools/purge
     content_hash: 93378255d683cb066539447e54c221949adec4b40aaedae50db04187fe83fe25
   - path: factory/scripts/tools/reindex
