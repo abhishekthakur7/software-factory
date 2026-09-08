@@ -289,7 +289,7 @@ files:
   - path: factory/evals/rubrics/S2/fixtures/r_s2_5_grader_pass/human_verdict.yaml
     content_hash: a735a2ebaa72fc85c439f6003ecad037ee8b3e00aaf2b3d034790a73bb9c11f3
   - path: factory/evals/rubrics/S3/eval.yaml
-    content_hash: a89ca9d95b09c3391e8f9dea819247e5f9ae91dbb521d6ce18ad4f1102917fb1
+    content_hash: 9392cc6179d45649a2a9f0726195ffb356803a9aa2518c55e4ff62a933e4b892
   - path: factory/evals/rubrics/S3/fixtures/missing_front_matter/S3.md
     content_hash: 4cba7669b435c786dcbcbd05ae92a1b33dc607ffac1a38ba3305cedf16948be7
   - path: factory/evals/rubrics/S3/fixtures/ok/S3.md
@@ -527,7 +527,7 @@ files:
   - path: factory/rubrics/S2.md
     content_hash: 70319b9be7d3e95cdc1f5364e10858f7e8daf0c59b5593eb01fd30f95267f249
   - path: factory/rubrics/S3.md
-    content_hash: d31ac630930a995ab074525f47fc02bff4f06aebd67c4564e39c0b6ea58c359d
+    content_hash: 37a058b295c8d1c2f07c757b900644bdc1f4ff181698c73a5fcc9212c0d58384
   - path: factory/rubrics/S4.md
     content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
   - path: factory/rubrics/S5.md
@@ -574,6 +574,56 @@ files:
     content_hash: 7ea55a0125a73c5d307643b61d3adb4e5fc3770ba1b5c7fd4185766764436fb1
   - path: factory/skills/shared/codegraph-lookup.md
     content_hash: f4c6b1018bd39e49ba7e093053ea35830c7da7e933715d28c517409bba0eb5f0
+  - path: factory/evals/rubrics/S3/fixtures/abstraction_ok/plan.md
+    content_hash: 3731674dfaf2cd5e541c0e64a82ebbfd3673320b77ec3b047c5dcb9441ed3d48
+  - path: factory/evals/rubrics/S3/fixtures/abstraction_reject/plan.md
+    content_hash: efb58e941feec94ef35b9c0c0bc728ca1577d58fe442385e6721bc0b55a68a7f
+  - path: factory/evals/rubrics/S3/fixtures/alternatives_ok/plan.md
+    content_hash: 25d3f9a2f27e901368154e98dff17b18f1570c1cc3d2c46b4c24bdd703776552
+  - path: factory/evals/rubrics/S3/fixtures/alternatives_reject/plan.md
+    content_hash: ff0c18cf4bc7f3d030f00e08977da306bc4d3652e3ecf3c38fe6db9ac540dd98
+  - path: factory/evals/rubrics/S3/fixtures/archaeology_ok/brief.md
+    content_hash: fa7f3a7894ef9e47d236ce642afa08a08847bb42605d11b8f7c256d605a7a4a5
+  - path: factory/evals/rubrics/S3/fixtures/archaeology_ok/plan.md
+    content_hash: 2b4c0875df4be2dfe41d20afeae10688e90f4d4f812c253176e501bacd64ec24
+  - path: factory/evals/rubrics/S3/fixtures/archaeology_reject/brief.md
+    content_hash: fa7f3a7894ef9e47d236ce642afa08a08847bb42605d11b8f7c256d605a7a4a5
+  - path: factory/evals/rubrics/S3/fixtures/archaeology_reject/plan.md
+    content_hash: 06f15ded89d6e686a14646fd5fc263ce8f20aaeaf28bcd0e36e0f436637d1bca
+  - path: factory/evals/rubrics/S3/fixtures/contracts_ok/plan.md
+    content_hash: b46090a1061fac87268e6a76402677092159e0afd5f3e21e36f4bc79eecc260f
+  - path: factory/evals/rubrics/S3/fixtures/contracts_reject/plan.md
+    content_hash: 63b5a75a40d7bbea9d96a7b3b1dc37662f432be6dfc9e81f4a8df75ea0972633
+  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-10.yaml
+    content_hash: 787362e86c7ee87e97d0119ef95e98d25da6ede5c0b4b8e17ab36eb73dada00a
+  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-2.yaml
+    content_hash: d3844cf4082c1cad78d42e57daea0925815ff22afd44517dce0adff982277a37
+  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-3.yaml
+    content_hash: 57c51d5512d7a87d4675ec22324a2c5cd0e4ea21d9d060d514610286f05221bb
+  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-5.yaml
+    content_hash: 94598dbf1a0ac2530b76559e2e21c8f2b255cfd04918aeef58cea29927e6d06b
+  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-6.yaml
+    content_hash: 42ded186177f61aee524a8fe4f0c39a1c11f4672317a72e8d54053a0436485da
+  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-9.yaml
+    content_hash: aefd64509153204697e534241159358fcb3d9a6f3a0d06acc9b26d4699a758f0
+  - path: factory/evals/rubrics/S3/fixtures/no_behaviour_change_ok/plan.md
+    content_hash: ae602a1dd93d7994f1e44dd25e39b8fdb9943795858682f5809e35ed67ec0eea
+  - path: factory/evals/rubrics/S3/fixtures/no_behaviour_change_reject/plan.md
+    content_hash: 50319968a206e406884d353c77abb5a43c5481b8b9be4331042c6e7fcc6f96b0
+  - path: factory/evals/rubrics/S3/fixtures/rollout_ok/plan.md
+    content_hash: 138d178b8c2639956ce169b4c0a337903082e784fbac8acbd2571d3a57764ed5
+  - path: factory/evals/rubrics/S3/fixtures/rollout_reject/plan.md
+    content_hash: 0fb61085db5bcdbb051a3c569a22f00f0b571592d997d5908e7045a94c50a7cf
+  - path: factory/evals/rubrics/S3/fixtures/test_strategy_ok/criteria.md
+    content_hash: cf0b375109bbc1140b6a58d8e5ef1ba4cd54094b239fc4765d11afa2a9022c4b
+  - path: factory/evals/rubrics/S3/fixtures/test_strategy_ok/plan.md
+    content_hash: 6284a00c9a186896273c5fc8a05da84095b749f1beb15d5cf465a56f67930e93
+  - path: factory/evals/rubrics/S3/fixtures/test_strategy_reject/criteria.md
+    content_hash: cf0b375109bbc1140b6a58d8e5ef1ba4cd54094b239fc4765d11afa2a9022c4b
+  - path: factory/evals/rubrics/S3/fixtures/test_strategy_reject/plan.md
+    content_hash: bccb02efb602c3b9ea10576db117acbf699d8e014f01c090664fe7a2d58941c3
+  - path: factory/evals/scripts/checks/risk_map/fixtures/human_verdict/R-S3-11.yaml
+    content_hash: 4ea5efc6231832f8092d3971e0a58d6265e3412681dc8ecdd9c633d33de6e180
 stages:
   S0:
     default:
