@@ -29,8 +29,9 @@ KIND_TABLES: dict[str, dict[str, tuple[str, ...]]] = {
 # omitted.
 _EMPTY_TABLE_ALLOWED: frozenset[tuple[str, str]] = frozenset({("plan", "Dependencies")})
 
-# The three sections a reviewer must be able to read without scrolling
-# (R-S3-14); `first_page_lines` names how far "the first page" reaches.
+# The three sections a reviewer must be able to read without scrolling to
+# decide whether to open the rest; `first_page_lines` names how far "the
+# first page" reaches.
 _FIRST_PAGE_SECTIONS: tuple[str, ...] = ("Intent and scrutiny", "Readiness", "Risk map")
 
 # Shell interpolation and redirection a typed `validation_args` cell must
