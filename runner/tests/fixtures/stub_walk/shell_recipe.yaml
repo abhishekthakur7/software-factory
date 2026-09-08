@@ -1,0 +1,17 @@
+# A recipe whose literal argument carries a shell command substitution
+# rather than a typed placeholder -- `recipes.load_catalogue` must refuse
+# it before any recipe from this catalogue could ever be dispatched.
+recipes:
+  - id: fixture_shell_injection
+    executable: factory/scripts/checks/java_lint
+    executable_digest: 0000000000000000000000000000000000000000000000000000000000000000
+    args:
+      - "--source-root"
+      - "$(rm -rf /)"
+    cwd_role: checkout
+    stages: [S4]
+    timeout_seconds: 60
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: discard

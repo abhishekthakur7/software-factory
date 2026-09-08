@@ -1,0 +1,14 @@
+# Every table the continuous `intake` -> `pr_opened` stub walk in
+# `test_stub_walk.py` writes at least one row to, for the walk's own
+# every-table-carries-rows assertion.
+tables:
+  - ticket
+  - stage_run
+  - queue_item
+  - artefact
+  - evidence_tuple
+  - reviewer_set
+  - approval_record
+  - external_write
+  - guard_decision
+  - tag

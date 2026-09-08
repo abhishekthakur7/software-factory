@@ -368,6 +368,11 @@ def act(
     if item["resolved_at"] is not None:
         raise ActionRefused(f"queue item {item_id} is already resolved")
     if item["ticket_id"] is not None:
+        # Deferred import: `control` imports this module for `resume`'s own
+        # `queue.act` call, so importing it back at module scope would cycle.
+        from runner import control
+        if control.live_run(conn, item["ticket_id"]) is not None:
+            raise ActionRefused(control.live_run_refusal(item["ticket_id"]))
         outbox.reconcile_pending(conn, item["ticket_id"], runs_dir=runs_dir)
 
     kind = item["kind"]
