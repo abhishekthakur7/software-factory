@@ -120,7 +120,10 @@ def test_killed_stage_run_restarted_produces_no_duplicate_row_for_the_attempt(co
     """R-O-1: a stage_run killed mid-execution restarts through `factory advance`
     as `infrastructure_failure`/`expired_lease`, with a fresh attempt + 1 and
     no second row for the killed attempt."""
-    ticket_id = _ticket_in(conn, "context", service="fixture-project", factory_manifest_hash=manifest.current_hash())
+    ticket_id = _ticket_in(
+        conn, "context", service="fixture-project", ticket_type="small_feature", tier_provisional="standard",
+        factory_manifest_hash=manifest.current_hash(),
+    )
     _give_real_base(conn, tmp_path, ticket_id)
     dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="S1", lease_seconds=-1)
     conn.commit()
@@ -270,10 +273,16 @@ def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monk
     """R-O-1: for every stage S0 to S6, killing its run and rerunning `factory
     advance` completes with no duplicate stage_run row for the killed attempt."""
     spec = PER_STAGE[stage]
-    # S1 is now a real, agent-invoking driver: it refuses to invoke
-    # without a manifest pin, which every other stage under test here
-    # (still stubs or script-only) does not need.
-    extra_fields = {"service": "fixture-project", "factory_manifest_hash": manifest.current_hash()} if stage == "S1" else {}
+    # S1 is a real, agent-invoking driver: it needs the fields S0 stamps
+    # (service, type, provisional tier) and the manifest pin eligibility
+    # writes, which the stub and script-only stages under test do not.
+    extra_fields = (
+        {
+            "service": "fixture-project", "ticket_type": "small_feature", "tier_provisional": "standard",
+            "factory_manifest_hash": manifest.current_hash(),
+        }
+        if stage == "S1" else {}
+    )
     ticket_id = _ticket_in(conn, spec["state"], **extra_fields)
     for prior_stage in spec.get("prior_passes", []):
         prior_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=prior_stage)

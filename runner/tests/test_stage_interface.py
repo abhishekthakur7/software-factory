@@ -64,7 +64,7 @@ def _source_repo_with_pom(tmp_path):
 def _s1_ready_ticket(conn, tmp_path, state="context"):
     """A ticket at `state`, cloned from a real worktree and pinned, eligible to invoke a real S1."""
     ticket_id = _ticket_in(
-        conn, state, service="fixture-project", tier_provisional="standard",
+        conn, state, service="fixture-project", ticket_type="small_feature", tier_provisional="standard",
         factory_manifest_hash=manifest.current_hash(),
     )
     source = _source_repo_with_pom(tmp_path)

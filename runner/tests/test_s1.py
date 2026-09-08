@@ -498,3 +498,15 @@ def test_must_reject_reindex_when_codegraph_is_absent_from_path(monkeypatch):
     payload = json.loads(result.stdout)
     assert payload["ok"] is False
     assert payload["reason"]
+
+
+def test_must_reject_a_ticket_that_reaches_s1_without_s0_stamped_fields(conn, tmp_path, monkeypatch):
+    """R-S1-8: the final-tier rule has no floor without a provisional tier, so a ticket missing S0's stamps is refused structurally, never guessed."""
+    ticket_id = _ready_ticket(conn, tmp_path, tier_provisional=None)
+    outcome, stage_run_id = _run_s1_fixture(conn, tmp_path, ticket_id, "ok", monkeypatch=monkeypatch)
+    assert outcome == ("fail", "structural")
+    row = conn.execute(
+        "SELECT result FROM check_result WHERE stage_run_id = ? AND check_name = 'ticket_lookups'", (stage_run_id,)
+    ).fetchone()
+    assert row["result"] == "fail"
+    assert record.get(conn, "ticket", ticket_id)["tier_final"] is None

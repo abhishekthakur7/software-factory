@@ -118,6 +118,14 @@ def run(
     from runner.stages import S0, invoke_agent  # local: avoids the package __init__ import cycle
 
     ticket_id = ticket["id"]
+    if ticket["tier_provisional"] is None or ticket["ticket_type"] is None or not ticket["service"]:
+        # S0 stamps these before eligibility; a ticket here without them
+        # never had a valid intake, so the tier rule has no floor to
+        # raise from and the run refuses rather than guessing one.
+        _record_check(conn, stage_run_id, checks_brief.Finding(
+            "ticket_lookups", "fail", "ticket lacks the service, ticket type or provisional tier S0 stamps",
+        ))
+        return ("fail", "structural")
     worktree = Path(ticket["worktree_path"])
     project_config = _project_config()
     vendor_path = vendor_path if vendor_path is not None else _default_vendor_path(repo_root, project_config)
