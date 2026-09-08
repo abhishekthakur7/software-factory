@@ -647,7 +647,7 @@ files:
   - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/plan.md
     content_hash: dc6481bd70d4ff9c94fec95a9f1c5e95adf3960bbf7dac4beff3de217e056e59
   - path: factory/scripts/checks/behavior_contract_evidence
-    content_hash: c31e944d71e2352f9f2c4e2fa6caf1c55d45015d89ad72c915fbaa4b155c2984
+    content_hash: ca5b9071e23c1ad589ee308f081451202b077bc162f91d2251641b9c6a848e91
   - path: factory/scripts/checks/source_declaration_diff
     content_hash: 5ce0b73d7cb9b9494b3b490070c881e299834ae82e00cc232f7c1c486b196ae1
   - path: factory/evals/scripts/checks/base_test_diff/eval.yaml
