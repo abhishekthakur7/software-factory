@@ -7,3 +7,53 @@ cases:
   - name: missing_front_matter
     fixture: fixtures/missing_front_matter
     expect: reject
+  # The cases below exercise the plan the agent leaves in this same
+  # fixture's out/plan.md through the general artefact structure check,
+  # not `load_definition` -- `expect` deliberately never reads "ok"/
+  # "reject" so the generic agent-definition walk above leaves them
+  # alone; `runner/tests/test_s3_structure.py` walks them instead,
+  # checking `out/plan.md` against `runner.checks.artefact_structure`
+  # and asserting the named rule fires.
+  - name: plan_ok
+    fixture: fixtures/ok
+    expect: plan_structural_ok
+  - name: plan_missing_table_column
+    fixture: fixtures/missing_table_column
+    expect: plan_structural_reject
+    rule: bad_table_columns
+  - name: plan_free_shell_command
+    fixture: fixtures/free_shell_command
+    expect: plan_structural_reject
+    rule: shell_in_validation_args
+  - name: plan_unregistered_recipe
+    fixture: fixtures/unregistered_recipe
+    expect: plan_structural_reject
+    rule: unregistered_recipe
+  - name: plan_prose_only_task
+    fixture: fixtures/prose_only_task
+    expect: plan_structural_reject
+    rule: empty_table
+  - name: plan_dangling_ac_id
+    fixture: fixtures/dangling_ac_id
+    expect: plan_structural_reject
+    rule: dangling_ac_id
+  - name: plan_unserved_criterion
+    fixture: fixtures/unserved_criterion
+    expect: plan_structural_reject
+    rule: unserved_criterion
+  - name: plan_unflagged_task
+    fixture: fixtures/unflagged_task
+    expect: plan_structural_reject
+    rule: unflagged_task
+  - name: plan_over_ceiling_prose
+    fixture: fixtures/over_ceiling_prose
+    expect: plan_structural_reject
+    rule: prose_over_ceiling
+  - name: plan_over_ceiling_rows
+    fixture: fixtures/over_ceiling_rows
+    expect: plan_structural_reject
+    rule: table_rows_over_ceiling
+  - name: plan_readiness_outside_first_page
+    fixture: fixtures/readiness_outside_first_page
+    expect: plan_structural_reject
+    rule: section_outside_first_page

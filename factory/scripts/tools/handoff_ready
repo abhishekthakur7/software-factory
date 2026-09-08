@@ -1,0 +1,251 @@
+#!/usr/bin/env python3
+"""Derive the plan's readiness table from its sources -- never from agent prose -- and write it into the plan.
+
+Standalone: no import of `runner`. One row per fixed condition key, each
+read from exactly one source: the criteria's own agreement-check table
+(`restatement_agreed`), the question and assumption exports plus the
+plan's own `Assumptions` section (`questions_closed`), the brief's impact
+rows (`impact_evidence`), the attached risk-map JSON plus the plan's own
+`Risk map` section (`risk_map`), the brief's linked sources
+(`linked_sources`), the plan's own `Size` table against the tier threshold
+(`size_gate`), and the derived reviewer-set JSON (`reviewer_set`). A
+condition passes only when its source says so; anything else is
+`pending`, or `blind_spot` when a waiver id was supplied for it on the
+command line. Local pipe-table reading and writing duplicates the small
+subset `runner.artefacts` needs elsewhere -- a script here never imports
+the trusted control plane's own code.
+"""
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+from pathlib import Path
+
+import yaml
+
+CONDITIONS: tuple[str, ...] = (
+    "restatement_agreed", "questions_closed", "impact_evidence", "risk_map", "linked_sources", "size_gate",
+    "reviewer_set",
+)
+READINESS_COLUMNS: tuple[str, ...] = ("condition", "status", "source_artefact", "hash", "waiver_id", "note")
+
+_TRUE_STRINGS = frozenset({"yes", "true", "1"})
+
+
+def _truthy(value) -> bool:
+    return str(value or "").strip().lower() in _TRUE_STRINGS
+
+
+def _repo_root() -> Path:
+    result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit("not inside a git repository; pass --tiers-config explicitly")
+    return Path(result.stdout.strip())
+
+
+def _extract_section(text: str, title: str) -> str:
+    match = re.search(rf"^## {re.escape(title)}[ \t]*$", text, re.MULTILINE)
+    if not match:
+        return ""
+    rest = text[match.end():]
+    next_heading = re.search(r"^## ", rest, re.MULTILINE)
+    return rest[: next_heading.start()] if next_heading else rest
+
+
+def _parse_pipe_table(section_text: str) -> list[dict[str, str]]:
+    lines = [line for line in section_text.splitlines() if line.lstrip().startswith("|")]
+    if len(lines) < 2:
+        return []
+    header = [cell.strip() for cell in lines[0].strip().strip("|").split("|")]
+    rows = []
+    for line in lines[2:]:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        cells += [""] * (len(header) - len(cells))
+        rows.append(dict(zip(header, cells)))
+    return rows
+
+
+def _render_table(columns: tuple[str, ...], rows: list[dict[str, str]]) -> str:
+    header = "| " + " | ".join(columns) + " |"
+    separator = "|" + "|".join("---" for _ in columns) + "|"
+    body = [
+        "| " + " | ".join(str(row.get(column, "")).replace("|", "\\|") for column in columns) + " |"
+        for row in rows
+    ]
+    return "\n".join([header, separator, *body])
+
+
+def _replace_section(text: str, title: str, new_body: str) -> str:
+    heading = f"## {title}"
+    # trailing "[ \t]*" (never "\s*") is deliberate: "\s" matches a
+    # newline too, so a greedy "\s*$" would swallow the blank line after
+    # the heading and shift `start` past it, doubling the blank line this
+    # function inserts before the rendered table.
+    match = re.search(rf"^{re.escape(heading)}[ \t]*$", text, re.MULTILINE)
+    if not match:
+        raise SystemExit(f"plan has no {heading!r} section to write the readiness table into")
+    start = match.end()
+    rest = text[start:]
+    next_heading = re.search(r"^## ", rest, re.MULTILINE)
+    end = start + (next_heading.start() if next_heading else len(rest))
+    return f"{text[:start]}\n\n{new_body}\n\n{text[end:].lstrip(chr(10))}"
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _sha256_file(path: Path) -> str:
+    return _sha256_bytes(Path(path).read_bytes())
+
+
+def _table_digest(rows: list[dict]) -> str:
+    return _sha256_bytes(json.dumps(rows, sort_keys=True, separators=(",", ":")).encode())
+
+
+def _restatement_agreed(criteria_text: str) -> tuple[str, str]:
+    rows = _parse_pipe_table(_extract_section(criteria_text, "Agreement check"))
+    if not rows:
+        return "pending", "no agreement-check rows"
+    if all(_truthy(row.get("agreed")) for row in rows):
+        return "pass", f"{len(rows)} criterion/criteria agreed"
+    return "pending", "not every criterion is agreed"
+
+
+def _questions_closed(questions: list[dict], assumptions: list[dict], plan_text: str) -> tuple[str, str]:
+    open_blocking = [q for q in questions if q.get("state") == "open" and _truthy(q.get("blocking"))]
+    assumptions_section = _extract_section(plan_text, "Assumptions")
+    missing = [a for a in assumptions if str(a.get("id")) not in assumptions_section]
+    if not open_blocking and not missing:
+        return "pass", "no open blocking questions; every accepted assumption is in the plan"
+    reasons = []
+    if open_blocking:
+        reasons.append(f"{len(open_blocking)} open blocking question(s)")
+    if missing:
+        reasons.append(f"{len(missing)} accepted assumption(s) missing from the plan")
+    return "pending", "; ".join(reasons)
+
+
+def _impact_evidence(brief_text: str, waiver_id: str | None) -> tuple[str, str, str]:
+    rows = _parse_pipe_table(_extract_section(brief_text, "Impact evidence"))
+    unknown = [row for row in rows if (row.get("coverage") or "").strip() == "unknown"]
+    if not unknown:
+        return "pass", f"{len(rows)} impact row(s), none unknown", ""
+    if waiver_id:
+        return "blind_spot", f"{len(unknown)} unknown-coverage row(s)", waiver_id
+    return "pending", f"{len(unknown)} unknown-coverage row(s) with no waiver", ""
+
+
+def _risk_map_condition(risk_map_doc: dict, plan_text: str) -> tuple[str, str]:
+    candidates = risk_map_doc.get("candidates") or []
+    risk_section = _extract_section(plan_text, "Risk map").strip()
+    if candidates and risk_section:
+        return "pass", f"{len(candidates)} candidate(s) attached; plan risk map present"
+    if not candidates:
+        return "pending", "risk-map artefact carries no candidates"
+    return "pending", "plan's Risk map section is empty"
+
+
+def _linked_sources(brief_text: str) -> tuple[str, str]:
+    rows = _parse_pipe_table(_extract_section(brief_text, "Linked sources"))
+    if not rows:
+        return "pending", "no linked sources"
+    if all((row.get("date") or "").strip() for row in rows):
+        return "pass", f"{len(rows)} linked source(s), each dated"
+    return "pending", "a linked source is missing its date"
+
+
+def _threshold(tiers_path: Path, tier: str) -> int:
+    doc = yaml.safe_load(Path(tiers_path).read_text())
+    return doc["size_gate"][tier]
+
+
+def _size_gate_condition(plan_text: str, *, tier: str, tiers_path: Path) -> tuple[str, str, list[dict]]:
+    size_rows = _parse_pipe_table(_extract_section(plan_text, "Size"))
+    threshold = _threshold(tiers_path, tier)
+    lines = sum(int(row.get("estimated_lines") or 0) for row in size_rows)
+    justification = next((row.get("justification", "").strip() for row in size_rows if (row.get("justification") or "").strip()), "")
+    if lines <= threshold:
+        return "pass", f"{lines} estimated lines within the {threshold}-line threshold", size_rows
+    if justification:
+        return "pass", f"{lines} lines over threshold but justified: {justification}", size_rows
+    return "pending", f"{lines} lines over the {threshold}-line threshold with no justification", size_rows
+
+
+def _reviewer_set_condition(slots: list[dict]) -> tuple[str, str]:
+    if not slots:
+        return "pending", "no reviewer slots named"
+    names = ", ".join(f"{slot.get('role') or slot.get('slot_id')}: {slot.get('owner')}" for slot in slots)
+    return "pass", names
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="handoff_ready")
+    parser.add_argument("--plan", required=True, type=Path)
+    parser.add_argument("--criteria", required=True, type=Path)
+    parser.add_argument("--brief", required=True, type=Path)
+    parser.add_argument("--questions", required=True, type=Path)
+    parser.add_argument("--assumptions", required=True, type=Path)
+    parser.add_argument("--risk-map", required=True, type=Path)
+    parser.add_argument("--reviewer-set", required=True, type=Path)
+    parser.add_argument("--tier", required=True)
+    parser.add_argument("--tiers-config", type=Path, default=None)
+    parser.add_argument("--waiver", action="append", default=[], help="condition=waiver_id, repeatable")
+    parser.add_argument("--in-place", action="store_true")
+    args = parser.parse_args(argv)
+
+    waivers = dict(item.split("=", 1) for item in args.waiver)
+    tiers_path = args.tiers_config or (_repo_root() / "factory" / "config" / "tiers.yaml")
+
+    plan_text = args.plan.read_text()
+    criteria_text = args.criteria.read_text()
+    brief_text = args.brief.read_text()
+    questions = json.loads(args.questions.read_text())
+    assumptions = json.loads(args.assumptions.read_text())
+    risk_map_doc = json.loads(args.risk_map.read_text())
+    reviewer_slots = json.loads(args.reviewer_set.read_text())
+
+    criteria_hash = _sha256_bytes(criteria_text.encode())
+    brief_hash = _sha256_bytes(brief_text.encode())
+    question_set_hash = _sha256_bytes(
+        json.dumps({"questions": questions, "assumptions": assumptions}, sort_keys=True).encode()
+    )
+    risk_map_hash = _sha256_file(args.risk_map)
+    reviewer_set_hash = _sha256_file(args.reviewer_set)
+
+    rows: list[dict[str, str]] = []
+
+    status, note = _restatement_agreed(criteria_text)
+    rows.append({"condition": "restatement_agreed", "status": status, "source_artefact": "criteria", "hash": criteria_hash, "waiver_id": "", "note": note})
+
+    status, note = _questions_closed(questions, assumptions, plan_text)
+    rows.append({"condition": "questions_closed", "status": status, "source_artefact": "question_set", "hash": question_set_hash, "waiver_id": "", "note": note})
+
+    status, note, waiver_id = _impact_evidence(brief_text, waivers.get("impact_evidence"))
+    rows.append({"condition": "impact_evidence", "status": status, "source_artefact": "brief", "hash": brief_hash, "waiver_id": waiver_id, "note": note})
+
+    status, note = _risk_map_condition(risk_map_doc, plan_text)
+    rows.append({"condition": "risk_map", "status": status, "source_artefact": "risk_map", "hash": risk_map_hash, "waiver_id": "", "note": note})
+
+    status, note = _linked_sources(brief_text)
+    rows.append({"condition": "linked_sources", "status": status, "source_artefact": "brief", "hash": brief_hash, "waiver_id": "", "note": note})
+
+    status, note, size_rows = _size_gate_condition(plan_text, tier=args.tier, tiers_path=tiers_path)
+    rows.append({"condition": "size_gate", "status": status, "source_artefact": "plan:Size", "hash": _table_digest(size_rows), "waiver_id": "", "note": note})
+
+    status, note = _reviewer_set_condition(reviewer_slots)
+    rows.append({"condition": "reviewer_set", "status": status, "source_artefact": "reviewer_set", "hash": reviewer_set_hash, "waiver_id": "", "note": note})
+
+    table_text = _render_table(READINESS_COLUMNS, rows)
+    new_text = _replace_section(plan_text, "Readiness", table_text)
+
+    if args.in_place:
+        args.plan.write_text(new_text)
+    else:
+        print(new_text, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,6 @@
+{
+  "candidates": [
+    {"path": "a.txt", "commits": 2, "top_author_share": 1.0, "size_bytes": 13, "churn_size_score": 26, "named": true, "reason": "top_decile_churn_size"},
+    {"path": "b.txt", "commits": 1, "top_author_share": 1.0, "size_bytes": 6, "churn_size_score": 6, "named": false, "reason": null}
+  ]
+}

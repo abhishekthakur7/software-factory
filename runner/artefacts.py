@@ -77,7 +77,7 @@ SECTIONS: dict[str, tuple[str, ...]] = {
 # count against the row ceiling; every other table is agent-authored.
 PLAN_TABLES: dict[str, tuple[str, ...]] = {
     "Readiness": ("condition", "status", "source_artefact", "hash", "waiver_id", "note"),
-    "Scope": ("path", "action", "reason"),
+    "Scope and discretion": ("path", "action", "reason"),
     "Dependencies": ("package", "from_version", "to_version", "kind", "reason"),
     "Contracts": (
         "unit", "kind", "source_declaration", "input", "output", "errors", "side_effects", "invariants",
@@ -151,23 +151,43 @@ class Section:
     def is_empty(self) -> bool:
         return not self.body.strip()
 
-    def tables(self) -> list[list[dict[str, str]]]:
-        """Every pipe table in the section, each as a list of row dicts keyed by its header cells."""
-        found: list[list[dict[str, str]]] = []
+    def _table_blocks(self) -> list[list[str]]:
+        blocks: list[list[str]] = []
         block: list[str] = []
         for line in [*self.body.splitlines(), ""]:
             if line.lstrip().startswith("|"):
                 block.append(line)
                 continue
             if block:
-                found.append(parse_table(block))
+                blocks.append(block)
                 block = []
-        return found
+        return blocks
+
+    def tables(self) -> list[list[dict[str, str]]]:
+        """Every pipe table in the section, each as a list of row dicts keyed by its header cells."""
+        return [parse_table(block) for block in self._table_blocks()]
 
     def table(self) -> list[dict[str, str]] | None:
         """The section's first table, or None when it carries none."""
         tables = self.tables()
         return tables[0] if tables else None
+
+    def table_header(self) -> tuple[str, ...] | None:
+        """The section's first table's column names, or None when it carries no table.
+
+        `table()`'s row dicts lose the header entirely when a table has zero
+        data rows (an explicitly empty table, allowed for a handful of
+        fixed tables) -- a structure check that must still validate that
+        table's exact columns needs the header on its own, independent of
+        row count.
+        """
+        blocks = self._table_blocks()
+        if not blocks:
+            return None
+        rows = [line for line in blocks[0] if line.strip()]
+        if len(rows) < 2 or not _TABLE_SEPARATOR.match(rows[1]):
+            raise ArtefactError("a pipe table needs a header row and a separator row")
+        return tuple(_split_cells(rows[0]))
 
     def prose(self) -> str:
         """The section body with every table line removed."""

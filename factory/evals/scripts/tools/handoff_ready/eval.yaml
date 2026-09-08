@@ -1,0 +1,39 @@
+subject: factory/scripts/tools/handoff_ready
+owner: factory_owner
+cases:
+  - name: all_pass
+    fixture: fixtures/all_pass
+    tier: standard
+    waivers: {}
+    expect:
+      restatement_agreed: pass
+      questions_closed: pass
+      impact_evidence: pass
+      risk_map: pass
+      linked_sources: pass
+      size_gate: pass
+      reviewer_set: pass
+  - name: mixed_pending
+    fixture: fixtures/mixed_pending
+    tier: standard
+    waivers: {}
+    expect:
+      restatement_agreed: pending
+      questions_closed: pending
+      impact_evidence: pending
+      risk_map: pending
+      linked_sources: pending
+      size_gate: pending
+      reviewer_set: pending
+  - name: blind_spot
+    fixture: fixtures/blind_spot
+    tier: standard
+    waivers: {impact_evidence: W-1}
+    expect:
+      restatement_agreed: pass
+      questions_closed: pass
+      impact_evidence: blind_spot
+      risk_map: pass
+      linked_sources: pass
+      size_gate: pass
+      reviewer_set: pass

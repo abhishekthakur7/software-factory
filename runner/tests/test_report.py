@@ -15,8 +15,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import cli, gates, git_trees, manifest, record, schema, transitions
+from runner import artefact_registry, cli, gates, git_trees, manifest, record, schema, transitions
 from runner.db import connect
+from runner.fs import write_text
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.stages import run_stage
 
@@ -60,6 +61,30 @@ def _git(args, cwd, env=None):
         ["git", "-c", "commit.gpgsign=false", *args], cwd=cwd, env=full_env,
         capture_output=True, text=True, check=True,
     )
+
+
+# S1/S2 stay stub in this walk (their placeholder brief/criteria carry no
+# `## ` sections at all); S3 is real and needs a genuine brief (risk_map's
+# touched-area candidates, handoff_ready's linked sources and impact
+# evidence) to plan against and pass structurally.
+_WALK_BRIEF_TEXT = """## Touched area candidates
+
+| path | reason |
+|---|---|
+| README.md | the file this ticket's plan touches |
+
+## Linked sources
+
+| source | date |
+|---|---|
+| JIRA-123 | 2026-01-01 |
+
+## Impact evidence
+
+| direction | dependency | method | source | mapping | owner | coverage | blind_spots |
+|---|---|---|---|---|---|---|---|
+| outbound | svc-x | import_scan | pom.xml | mapping.yaml | abhishek | authoritative | none |
+"""
 
 
 def _source_repo(tmp_path):
@@ -106,8 +131,9 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
     transitions.apply(conn, ticket_id, gates.intake_gate(conn, record.get(conn, "ticket", ticket_id)))
-    # `intake_gate` pins the real manifest hash above; the now-real S1
-    # also needs a real worktree to run its impact scan over.
+    # `intake_gate` pins the real manifest hash above. The checkout is
+    # cloned before S1 so S1's impact scan and S3's risk map both find a
+    # real worktree.
     source = _source_repo(tmp_path)
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
@@ -120,7 +146,30 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
-    run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+
+    brief_path = tmp_path / "walk_brief.md"
+    write_text(brief_path, _WALK_BRIEF_TEXT)
+    prior_brief = artefact_registry.latest(conn, ticket_id, "brief")
+    artefact_registry.register(
+        conn, ticket_id=ticket_id, kind="brief", path=brief_path,
+        supersedes=prior_brief["id"] if prior_brief is not None else None,
+    )
+    criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
+    prior_criteria = artefact_registry.latest(conn, ticket_id, "criteria")
+    artefact_registry.register(
+        conn, ticket_id=ticket_id, kind="criteria", path=criteria_path,
+        supersedes=prior_criteria["id"] if prior_criteria is not None else None,
+    )
+
+    # Serves the S3 agent invocation the committed "ok" plan fixture --
+    # the same one `runner/tests/test_s3_structure.py` drives directly --
+    # so this walk's real S3 driver has a plan it can pass structurally.
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out")
+    try:
+        s3_outcome = run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+    finally:
+        os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
+    assert s3_outcome == "pass", f"S3 must pass for this walk to reach later stages, got {s3_outcome!r}"
 
     record.insert(
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
