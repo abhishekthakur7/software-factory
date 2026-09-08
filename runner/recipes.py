@@ -34,6 +34,9 @@ CWD_ROLES = ("checkout", "base", "head", "scratch")
 NETWORK_POLICIES = ("none",)
 OUTPUT_RETENTIONS = ("keep", "discard")
 TEST_LEVELS = ("unit", "integration", "end_to_end")
+# What a recipe checks, so the regression-only rule and the fix-round route
+# can tell a lint or compile diagnostic from a test result without parsing ids.
+RECIPE_KINDS = ("lint", "compile", "test", "other")
 PLACEHOLDER_TYPES = ("path", "string", "int")
 
 REQUIRED_FIELDS = (
@@ -48,6 +51,7 @@ REQUIRED_FIELDS = (
     "env_allowlist",
     "network",
     "output_retention",
+    "kind",
 )
 
 # Shell interpolation ($, $(...), `...`), redirection (>, <, >>, |), and a
@@ -75,6 +79,7 @@ class Recipe:
     executable_digest: str
     args: tuple  # each element is a literal str or an ArgPlaceholder
     cwd_role: str
+    kind: str
     stages: tuple[str, ...]
     timeout_seconds: int
     expected_exit_codes: tuple[int, ...]
@@ -144,10 +149,15 @@ def _parse_recipe(entry: object) -> Recipe:
     output_retention = entry["output_retention"]
     if output_retention not in OUTPUT_RETENTIONS:
         raise RecipeError(f"recipe {recipe_id!r} has unknown output_retention {output_retention!r}")
+    kind = entry["kind"]
+    if kind not in RECIPE_KINDS:
+        raise RecipeError(f"recipe {recipe_id!r} has unknown kind {kind!r}")
 
     level, test_globs = None, None
     if "level" in entry or "test_globs" in entry:
         level = entry.get("level")
+        if kind != "test":
+            raise RecipeError(f"recipe {recipe_id!r} carries a test level but is of kind {kind!r}")
         if level not in TEST_LEVELS:
             raise RecipeError(f"recipe {recipe_id!r} is a test recipe with an invalid level {level!r}")
         raw_globs = entry.get("test_globs")
@@ -161,6 +171,7 @@ def _parse_recipe(entry: object) -> Recipe:
         executable_digest=entry["executable_digest"],
         args=_parse_args(entry["args"], recipe_id),
         cwd_role=cwd_role,
+        kind=kind,
         stages=tuple(entry["stages"]),
         timeout_seconds=int(entry["timeout_seconds"]),
         expected_exit_codes=tuple(entry["expected_exit_codes"]),

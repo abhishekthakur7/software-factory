@@ -37,3 +37,8 @@ test_mix:
   small: 80
   medium: 15
   large: 5
+
+# Fix rounds a ticket may take after a red machine-only S5 result; each
+# round runs inside the per-ticket S4 budget.
+fix_rounds:
+  max_per_ticket: 2

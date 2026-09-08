@@ -19,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, artefacts, binding, canonical, git_trees, record, schema
+from runner import artefact_registry, artefacts, binding, canonical, git_trees, record, run_ledger, schema, transitions
 from runner.fs import write_text
 from runner.paths import PROJECT_CONFIG, RUNS_DIR
 from runner.run_ledger import budget as stage_budget, s4_per_ticket_budget
@@ -323,3 +323,23 @@ def run(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_d
 
     out_dir = _child_out_dir(runs_dir, ticket_id, result.stage_run_id)
     return record_handback(conn, ticket, stage_run_id, out_dir, runs_dir=runs_dir)
+
+
+def run_next(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR, validation_only: bool = False,
+) -> str:
+    """Open one S4 run, drive it, finish it, and apply `s4_pass` when a non-validation run's hand-back passes.
+
+    `run_stage` delegates here instead of opening the row itself because
+    an S4 row names the plan task it executes, and those columns are
+    written at insert. A `validation_only` run is recorded with no state
+    change, as the state table says.
+    """
+    run_kind = "validation_only" if validation_only else "task"
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket["id"], stage="S4", run_kind=run_kind)
+    result = run(conn, ticket, stage_run_id, runs_dir)
+    outcome, failure_kind = result if isinstance(result, tuple) else (result, None)
+    run_ledger.finish(conn, stage_run_id, outcome, failure_kind=failure_kind)
+    if outcome == "pass" and not validation_only:
+        transitions.apply(conn, ticket["id"], PASS_EVENT)
+    return outcome

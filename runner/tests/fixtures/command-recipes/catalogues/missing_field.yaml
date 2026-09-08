@@ -6,6 +6,7 @@ recipes:
     executable_digest: "0000000000000000000000000000000000000000000000000000000000000000"
     args: []
     cwd_role: scratch
+    kind: other
     stages: [S4]
     expected_exit_codes: [0]
     env_allowlist: []

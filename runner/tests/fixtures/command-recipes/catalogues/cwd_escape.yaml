@@ -9,6 +9,7 @@ recipes:
     args:
       - {placeholder: target, type: path}
     cwd_role: scratch
+    kind: other
     stages: [S4]
     timeout_seconds: 5
     expected_exit_codes: [0]

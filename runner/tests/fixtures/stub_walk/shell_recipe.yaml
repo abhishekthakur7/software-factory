@@ -9,6 +9,7 @@ recipes:
       - "--source-root"
       - "$(rm -rf /)"
     cwd_role: checkout
+    kind: other
     stages: [S4]
     timeout_seconds: 60
     expected_exit_codes: [0]

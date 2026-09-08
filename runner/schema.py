@@ -100,6 +100,7 @@ FAILURE_KINDS: tuple[str, ...] = (
     "structural",
     "expired_lease",
     "stale_binding",
+    "recipe_binding",
 )
 
 # The cost-provenance basis, shared by stage_run and utility_run.
@@ -214,6 +215,7 @@ UTILITY_KINDS: tuple[str, ...] = (
     "fixture_replay",
     "improvement",
     "refused_request",
+    "gate",
     "other",
 )
 

@@ -20,6 +20,7 @@ recipes:
       - "--out"
       - "out/lint-classes"
     cwd_role: checkout
+    kind: lint
     stages: [S4, S5]
     timeout_seconds: 60
     expected_exit_codes: [0]
@@ -38,6 +39,7 @@ recipes:
       - "--out"
       - "out/compile-classes"
     cwd_role: checkout
+    kind: compile
     stages: [S4, S5]
     timeout_seconds: 60
     expected_exit_codes: [0]
@@ -62,6 +64,7 @@ recipes:
       - "--out"
       - "out/unit-classes"
     cwd_role: checkout
+    kind: test
     stages: [S4, S5]
     timeout_seconds: 90
     expected_exit_codes: [0]
@@ -88,6 +91,7 @@ recipes:
       - "--out"
       - "out/integration-classes"
     cwd_role: checkout
+    kind: test
     stages: [S5]
     timeout_seconds: 90
     expected_exit_codes: [0]
@@ -114,6 +118,7 @@ recipes:
       - "--out"
       - "out/e2e-classes"
     cwd_role: checkout
+    kind: test
     stages: [S5]
     timeout_seconds: 90
     expected_exit_codes: [0]

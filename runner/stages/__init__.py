@@ -1,5 +1,8 @@
 """`run_stage`: the one path from "run this ticket's next stage" to a recorded `stage_run`.
 
+S4 is the one stage whose run rows the driver opens itself (see
+`S4.run_next`); `run_stage` still owns every refusal for it.
+
 Refusal comes before anything else: a missing ticket
 or an unknown stage name is refused before any `stage_run` exists, as a
 `utility_run` of kind `refused_request`; a known stage invoked from the
@@ -63,6 +66,13 @@ def run_stage(
         )
         run_ledger.finish(conn, stage_run_id, "refused")
         return "refused"
+
+    # S4 opens its own rows: its unit of execution is the plan task, and
+    # the columns that name one (`plan_item`, `plan_tuple_id`,
+    # `verification_attempt`) are written at insert, so only the driver that
+    # knows which task is next can open the row.
+    if stage == "S4":
+        return S4.run_next(conn, ticket, runs_dir=runs_dir, validation_only=validation_only)
 
     stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=stage, run_kind=run_kind)
     driver = DRIVERS[stage]

@@ -13,7 +13,7 @@ from runner.paths import RUNS_DIR
 from runner.schema import ddl
 
 # Bumped by later tickets when they extend or migrate the schema.
-USER_VERSION = 15
+USER_VERSION = 16
 
 _BUSY_TIMEOUT_MS = 5000
 
