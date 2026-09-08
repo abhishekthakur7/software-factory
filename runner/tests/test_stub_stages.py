@@ -233,7 +233,10 @@ def _implementing_ticket_with_plan_inputs(conn, tmp_path):
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
         base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-implementing",
     )
-    plan_path = Path(__file__).parent / "fixtures" / "s4_handoff" / "plan.md"
+    # The S3 "ok" fixture's own one-task plan, not the shared two-task
+    # `s4_handoff/plan.md`: S4 opens one fresh `stage_run` per plan task,
+    # so a single `run_stage` call only finishes a one-task plan.
+    plan_path = FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out" / "plan.md"
     artefact_registry.register(conn, ticket_id=ticket_id, kind="plan", path=plan_path)
     criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)

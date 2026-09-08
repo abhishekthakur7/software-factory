@@ -22,7 +22,11 @@ HANDBACK_REJECT_CASES = [c for c in EVAL_SPEC["cases"] if c.get("expect") == "ha
 assert HANDBACK_OK_CASES and HANDBACK_REJECT_CASES
 
 FIXTURES = Path(__file__).parent / "fixtures" / "s4_handoff"
-PLAN_TEXT = (FIXTURES / "plan.md").read_text()
+# The S3 "ok" fixture's own one-task plan, not the shared two-task
+# `s4_handoff/plan.md`: S4 now opens one fresh `stage_run` per plan task,
+# so a hand-back walk that expects a single `run_stage` call to finish the
+# whole plan needs a plan with exactly one task.
+PLAN_TEXT = (FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out" / "plan.md").read_text()
 CRITERIA_TEXT = (Path(__file__).parent / "fixtures" / "s3" / "criteria.md").read_text()
 
 _COMMIT_ENV = {
