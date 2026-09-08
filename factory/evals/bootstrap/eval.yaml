@@ -82,6 +82,7 @@ tickets:
   - rubrics/S3
   - scripts/tools/packet_assemble
   T-A-33: []
+  T-A-34: []
   T-A-35:
   - adapters/cursor_sdk
   - rubrics/S0

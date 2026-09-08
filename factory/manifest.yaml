@@ -370,12 +370,16 @@ files:
     content_hash: a86c91022e92f12dbdeec57fdef97ba699d335bfa2b4e9e813c61da30efcb667
   - path: factory/evals/bootstrap/T-A-33/plan.md
     content_hash: fce742d7c1e32d0651006da4a61f82f4569def157f12b071a73f17499f2991a2
+  - path: factory/evals/bootstrap/T-A-34/brief.md
+    content_hash: 8f8fd976ee033d79dd7f0a8587d42d2ca247d797402d7d04a2666f1c3df07535
+  - path: factory/evals/bootstrap/T-A-34/plan.md
+    content_hash: 17ac537a1504571f3227d43b35bc16e2247ea9c1859796468e174573d01fc4ea
   - path: factory/evals/bootstrap/T-A-35/brief.md
     content_hash: d3386b69b1732881f4208c02b3790d0fd292cbe18851f7429c498aaacfe633d3
   - path: factory/evals/bootstrap/T-A-35/plan.md
     content_hash: 8b05b814ae92fc2f64456204eb0c75fefd688be568cc33f0adf93c8e1b7f4d62
   - path: factory/evals/bootstrap/eval.yaml
-    content_hash: d193a737ae57b950a6a97aebb33ab3a34e80b5327056c927b1932fc4ec091f07
+    content_hash: bc78e24496efb84afc6a35892d839e7557600bc5d141f96d27b04ecae3158042
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml
