@@ -24,7 +24,11 @@ call. `reconcile_pending` is what every state-advancing command calls
 first: it resolves the ticket's `sending` rows by asking the deliverer
 what it already knows before touching anything `pending`, so a row a
 crashed attempt left ambiguous is never raced against a fresh one under
-the same key.
+the same key. `_dispatch_pending` repeats the base-freshness check one
+last time, right before ever calling `dispatch`, for a `pr_create`/
+`pr_update` row that reaches that point: a target that moved after S5
+preflight approved the candidate supersedes the intent instead of ever
+reaching the deliverer.
 """
 import json
 import sqlite3
@@ -33,7 +37,7 @@ from typing import Mapping
 
 import yaml
 
-from runner import approvals, artefact_registry, canonical, guard, owners, record, trust_profile
+from runner import approvals, artefact_registry, canonical, freshness, guard, owners, record, trust_profile
 from runner.deliverers import deliverer_for
 from runner.deliverers.stub import Receipt, RemoteRefused
 from runner.fs import write_text
@@ -491,6 +495,7 @@ def _fail(conn: sqlite3.Connection, write_id: int, reason: str) -> None:
 
 def _dispatch_pending(
     conn: sqlite3.Connection, write: sqlite3.Row, *, runs_dir: Path, profile_path: Path, owners_path: Path, now,
+    project_path: Path = DEFAULT_PROJECT_CONFIG,
 ) -> None:
     """A `pending` row: reconcile a `pr_create`/`pr_update` against the remote before ever sending it.
 
@@ -499,8 +504,11 @@ def _dispatch_pending(
     existing branch at neither the expected prior head nor the desired one
     fails the row without ever calling the deliverer, so an unexpected
     remote head is never overwritten. Anything else -- no branch yet, or
-    one already at the expected head -- proceeds to `dispatch`, which is
-    the only path that ever calls the deliverer.
+    one already at the expected head -- repeats the `BEFORE_DISPATCH`
+    freshness check immediately before `dispatch`, which is the only path
+    that ever calls the deliverer: a stale result supersedes the row with
+    no call to the deliverer at all, since a receipt over stale evidence
+    would be worse than no receipt.
     """
     operation = write["operation"]
     if operation not in PR_OPERATIONS:
@@ -531,6 +539,15 @@ def _dispatch_pending(
         if current_head != ticket["last_remote_head_sha"]:
             _fail(conn, write["id"], "unexpected_remote_head")
             return
+
+    fresh = freshness.check(
+        conn, write["ticket_id"], boundary=freshness.BEFORE_DISPATCH,
+        target_branch=freshness.target_branch(project_path), runs_dir=runs_dir,
+    )
+    if not fresh.fresh:
+        record.update(conn, "external_write", write["id"], state="superseded", last_error="; ".join(fresh.reasons))
+        conn.commit()
+        return
 
     dispatch(conn, write["id"], runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path, now=now)
 

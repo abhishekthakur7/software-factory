@@ -1,0 +1,22 @@
+# A ticket commit and a target-branch commit that both change the same
+# lines of the same file: rebasing the ticket branch onto the moved target
+# must conflict, and `refresh_base` must abort it rather than resolve it.
+seed:
+  shared.txt: |
+    line one
+    line two
+    line three
+ticket_commit:
+  message: "S4 work changes the shared line"
+  files:
+    shared.txt: |
+      line one
+      changed by the ticket branch
+      line three
+target_commit:
+  message: "target branch changes the same shared line"
+  files:
+    shared.txt: |
+      line one
+      changed by the target branch
+      line three

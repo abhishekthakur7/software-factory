@@ -9,18 +9,67 @@ consistent. Fixture families under `fixtures/state_table/` back the
 gate-derived transitions; a small loader below inserts their rows through `record.insert`, resolving `$name` references
 to a previously inserted row's id.
 """
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
 
-from runner import gates, record, tickets, transitions
+from runner import gates, git_trees, record, tickets, transitions
 from runner.db import connect
 from runner.stages import run_stage
 from runner.state_table import TERMINAL_STATES
 from runner.transitions import TransitionRefused
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "state_table"
+
+_COMMIT_ENV = {
+    "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+    "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+}
+
+
+def _git(args, cwd, env=None):
+    full_env = {**os.environ, **env} if env else None
+    return subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", *args], cwd=cwd, env=full_env,
+        capture_output=True, text=True, check=True,
+    )
+
+
+def _source_repo(tmp_path):
+    repo = tmp_path / "source-repo"
+    repo.mkdir()
+    _git(["init", "-q"], cwd=repo)
+    _git(["checkout", "-q", "-b", "main"], cwd=repo)
+    (repo / "README.md").write_text("seed\n")
+    _git(["add", "-A"], cwd=repo)
+    _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
+    return repo
+
+
+def _plan_review_ticket(conn, tmp_path):
+    """A ticket cloned from a real repository, sitting in `plan_review`
+    with a plan tuple and quorum that match its real, fetchable base --
+    `plan_review_gate` now runs the real `BEFORE_S4` freshness check, so a
+    bare ticket with a hand-written `base_sha` string can no longer stand
+    in for one at this gate."""
+    source = _source_repo(tmp_path)
+    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    runs_dir = tmp_path / "runs"
+    trees = git_trees.clone_for_ticket(
+        conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=runs_dir,
+    )
+    record.update(conn, "ticket", ticket_id, state="plan_review")
+    record.insert(
+        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
+        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-1",
+    )
+    record.insert(
+        conn, "approval_record", ticket_id=ticket_id, gate="plan", decision="approve", subject_hash="plan-subject-1",
+    )
+    return ticket_id, source, runs_dir
 
 
 @pytest.fixture
@@ -182,22 +231,26 @@ def test_planning_s3_exclusion_moves_to_rejected(conn):
 # --- plan_review -----------------------------------
 
 
-def test_plan_review_quorum_and_freshness_moves_to_implementing(conn):
+def test_plan_review_quorum_and_freshness_moves_to_implementing(conn, tmp_path):
     """full plan quorum plus base/target-head equality moves plan_review -> implementing."""
-    refs = load_scenario(conn, "quorum", "plan_quorum")
-    ticket = record.get(conn, "ticket", refs["ticket"])
-    event = gates.plan_review_gate(conn, ticket)
+    ticket_id, _source, runs_dir = _plan_review_ticket(conn, tmp_path)
+    ticket = record.get(conn, "ticket", ticket_id)
+    event = gates.plan_review_gate(conn, ticket, runs_dir=runs_dir)
     assert event == "plan_quorum_fresh"
-    assert transitions.apply(conn, refs["ticket"], event) == "implementing"
+    assert transitions.apply(conn, ticket_id, event) == "implementing"
 
 
-def test_plan_review_stale_base_withholds_the_gate_and_permits_only_human_action(conn):
+def test_plan_review_stale_base_withholds_the_gate_and_permits_only_human_action(conn, tmp_path):
     """a stale plan base never advances the gate on its own;
     only a recorded refresh_base or send-back moves the ticket."""
-    refs = load_scenario(conn, "plan_subject", "stale_at_plan_review")
-    ticket = record.get(conn, "ticket", refs["ticket"])
-    assert gates.plan_review_gate(conn, ticket) is None
-    assert transitions.apply(conn, refs["ticket"], "refresh_base") == "context"
+    ticket_id, source, runs_dir = _plan_review_ticket(conn, tmp_path)
+    (source / "README.md").write_text("target moved\n")
+    _git(["add", "-A"], cwd=source)
+    _git(["commit", "-q", "-m", "target moved"], cwd=source, env=_COMMIT_ENV)
+
+    ticket = record.get(conn, "ticket", ticket_id)
+    assert gates.plan_review_gate(conn, ticket, runs_dir=runs_dir) is None
+    assert transitions.apply(conn, ticket_id, "refresh_base") == "context"
 
 
 @pytest.mark.parametrize(

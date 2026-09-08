@@ -13,7 +13,7 @@ The build order inside each milestone of `docs/design/milestones.md` section 3, 
 |---|---|---|---|---|
 | A, walking skeleton | [tickets/A.md](tickets/A.md) | 35 | 89 | Draft v0.1 |
 | AB, boundary and connection | [tickets/AB.md](tickets/AB.md) | 11 | 13 | Draft v0.1 |
-| B, pilot | tickets/B.md | | 5 | Not written |
+| B, pilot | [tickets/B.md](tickets/B.md) | 5 | 5 | Draft v0.1 |
 
 ## Ticket format
 

@@ -5,6 +5,7 @@ that a context measure can never be selected as primary.
 """
 import importlib.machinery
 import importlib.util
+import os
 import re
 import sqlite3
 import subprocess
@@ -14,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import cli, gates, record, schema, transitions
+from runner import cli, gates, git_trees, record, schema, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.stages import run_stage
@@ -47,6 +48,34 @@ def _apply_seed(conn: sqlite3.Connection, seed_path) -> None:
     conn.commit()
 
 
+_COMMIT_ENV = {
+    "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+    "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+}
+
+
+def _git(args, cwd, env=None):
+    full_env = {**os.environ, **env} if env else None
+    return subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", *args], cwd=cwd, env=full_env,
+        capture_output=True, text=True, check=True,
+    )
+
+
+def _source_repo(tmp_path):
+    """A trivial one-file git repository on the real project config's target
+    branch, so the freshness checks the walk now passes through (the
+    plan-review gate and S5 preflight) find a real, matching target head."""
+    repo = tmp_path / "source-repo"
+    repo.mkdir()
+    _git(["init", "-q"], cwd=repo)
+    _git(["checkout", "-q", "-b", "main"], cwd=repo)
+    (repo / "README.md").write_text("seed\n")
+    _git(["add", "-A"], cwd=repo)
+    _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
+    return repo
+
+
 def _build_completed_walk(db_path, tmp_path) -> None:
     """Walk one ticket S0 through `merged` with the real stub stages and
     transitions (see `test_stub_stages.py`), then layer on the rows the
@@ -54,8 +83,7 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     """
     conn = connect(db_path)
     ticket_id = record.insert(
-        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash="m1",
-        target_base_sha="base1", base_sha="base1", tier_final="light",
+        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash="m1", tier_final="light",
     )
     run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
@@ -65,16 +93,22 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
     run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
 
+    source = _source_repo(tmp_path)
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+
     record.insert(
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
-        base_sha="base1", target_base_sha="base1", content_hash="plan_subject_1",
+        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan_subject_1",
     )
     record.insert(
         conn, "approval_record", ticket_id=ticket_id, gate="plan", subject_hash="plan_subject_1",
         decision="approve", role="engineer", active_attention_bucket="under_2m",
     )
     ticket = record.get(conn, "ticket", ticket_id)
-    transitions.apply(conn, ticket_id, gates.plan_review_gate(conn, ticket))
+    transitions.apply(
+        conn, ticket_id, gates.plan_review_gate(conn, ticket, runs_dir=tmp_path)
+    )
 
     run_stage(conn, ticket_id, "S4", runs_dir=tmp_path)
     s4_run_id = conn.execute(

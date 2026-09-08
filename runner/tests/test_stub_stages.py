@@ -6,12 +6,14 @@ Every stub run here is given `tmp_path` as its runs root, so the artefact
 each driver writes and registers lands there rather than under the real
 repository's `runs/`, which no test touches.
 """
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
 
-from runner import artefact_registry, gates, record, transitions
+from runner import artefact_registry, gates, git_trees, record, transitions
 from runner.db import connect
 from runner.definitions import DefinitionError, load_definition
 from runner.paths import FACTORY_DIR
@@ -29,6 +31,48 @@ def conn(tmp_path):
 
 def _ticket_in(conn, state, **fields):
     return record.insert(conn, "ticket", state=state, opened_at=record.now(), **fields)
+
+
+_COMMIT_ENV = {
+    "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+    "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+}
+
+
+def _git(args, cwd, env=None):
+    full_env = {**os.environ, **env} if env else None
+    return subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", *args], cwd=cwd, env=full_env,
+        capture_output=True, text=True, check=True,
+    )
+
+
+def _source_repo(tmp_path):
+    repo = tmp_path / "source-repo"
+    repo.mkdir()
+    _git(["init", "-q"], cwd=repo)
+    _git(["checkout", "-q", "-b", "main"], cwd=repo)
+    (repo / "README.md").write_text("seed\n")
+    _git(["add", "-A"], cwd=repo)
+    _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
+    return repo
+
+
+def _checks_ticket_with_fresh_base(conn, tmp_path):
+    """A ticket cloned from a real repository, sitting in `checks` with a
+    plan tuple that matches its base -- S5's preflight now fetches the
+    real target branch, so a ticket with no git trees at all can no longer
+    stand in for one running S5."""
+    source = _source_repo(tmp_path)
+    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now())
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    record.update(conn, "ticket", ticket_id, state="checks")
+    record.insert(
+        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
+        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-checks",
+    )
+    return ticket_id
 
 
 def test_s0_stub_runs_and_the_eligibility_gate_moves_intake_to_context(conn, tmp_path):
@@ -92,7 +136,7 @@ def test_s5_and_s6_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tm
     """the real S5 and S6 stub drivers each run (writing
     `check_evidence` and `packet` artefacts) without leaving `checks` on
     their own; only once both have passed does the checks gate fire."""
-    ticket_id = _ticket_in(conn, "checks")
+    ticket_id = _checks_ticket_with_fresh_base(conn, tmp_path)
     s5_outcome = run_stage(conn, ticket_id, "S5", runs_dir=tmp_path)
     assert s5_outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
