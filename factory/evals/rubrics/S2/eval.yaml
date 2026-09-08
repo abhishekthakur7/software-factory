@@ -1,4 +1,5 @@
 subject: factory/rubrics/S2.md
+owner: factory_owner
 cases:
   - name: ok
     fixture: fixtures/ok
@@ -6,3 +7,20 @@ cases:
   - name: missing_front_matter
     fixture: fixtures/missing_front_matter
     expect: reject
+  # The four cases below seed a `human_verdict` document for each bootstrap-
+  # checklist grader line the rubric carries (R-S2-5, R-S2-14), one passing
+  # and one failing example apiece, until a calibrated grader records these
+  # for real. `expect` names the seeded verdict, not a definition-conformance
+  # outcome, so the generic ok/reject walk skips these on `expect` alone.
+  - name: r_s2_5_grader_pass
+    fixture: fixtures/r_s2_5_grader_pass
+    expect: pass
+  - name: r_s2_5_grader_fail
+    fixture: fixtures/r_s2_5_grader_fail
+    expect: fail
+  - name: r_s2_14_grader_pass
+    fixture: fixtures/r_s2_14_grader_pass
+    expect: pass
+  - name: r_s2_14_grader_fail
+    fixture: fixtures/r_s2_14_grader_fail
+    expect: fail

@@ -1,0 +1,17 @@
+# One malformed candidate: no `reasoning`, no `affects`, and only one real
+# option -- the fixture the driver's gate-failure path resolves against.
+- text: "Should the retry backoff use a fixed delay?"
+  reasoning: ""
+  affects: ""
+  options:
+    - text: "none of these"
+      consequence: "If nobody answers, the retry keeps its current fixed delay."
+  default_option: 0
+  consequential: false
+  hard_to_reverse: false
+  blocking: false
+  sensitive: false
+  rank_inputs:
+    impact: 0.2
+    uncertainty: 0.2
+  raised_by_answer: null

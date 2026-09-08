@@ -6,3 +6,14 @@ cases:
   - name: missing_front_matter
     fixture: fixtures/missing_front_matter
     expect: reject
+  # The two cases below are not agent-definition conformance fixtures (no
+  # top-level .md file): `expect` here is the S2 driver's own outcome over
+  # the fixture's `out/questions.yaml`, read directly by
+  # runner/tests/test_s2_questions.py rather than by the generic
+  # definition-conformance walk, which only looks at "ok"/"reject".
+  - name: question_round
+    fixture: fixtures/question_round
+    expect: blocked
+  - name: gate_rejected
+    fixture: fixtures/gate_rejected
+    expect: fail

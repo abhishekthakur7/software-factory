@@ -1,0 +1,12 @@
+# A seeded human_verdict document for the R-S2-5 grader line: the
+# question's reasoning names a source that does mention the fact asked
+# about, so the judgment holds and the verdict is pass.
+rubric_line_id: "R-S2-5:grader"
+subject_item_key: "question:token-lifetime-default"
+verdict: pass
+note: >-
+  Reasoning cites the login service's session config, which the reviewer
+  confirmed states no default token lifetime -- the fact the question
+  asks about.
+reviewer_identity: abhishek
+reviewer_role: factory_owner
