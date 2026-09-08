@@ -78,8 +78,11 @@ trigger`), `Scope and discretion.action` in the closed set, and every
   trigger` row and `Contracts` cells in both `state` and `state: evidence`
   form, so it clears `plan_rubric.check` with zero findings).
 - `runner/tests/test_s3_rubric.py` (new), `runner/tests/test_risk_map.py`
-  (new); `runner/tests/test_s3_structure.py` untouched beyond what the
-  new fixtures already exercise through its existing parametrized walks.
+  (new); `runner/tests/test_s3_structure.py` extended with six new-table
+  structural tests (`bad_scope_action`, `bad_contract_cell`, a missing
+  `Rollout` subsection, an empty `Kill trigger`, an empty `Risk map`, and
+  the empty-`Alternatives`-is-allowed case), each a `.replace()` against
+  the `ok` fixture text in the file's own established idiom.
 - `factory/manifest.yaml` refreshed after every `factory/` change.
 
 ## Rows covered

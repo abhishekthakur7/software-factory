@@ -17,8 +17,9 @@
 | 11 | Scripted edits: the new tables added to every S3 agent/handoff-ready plan fixture; the `ok` fixture gets real rows clearing every script rule with zero findings. | `factory/evals/agents/S3/fixtures/*/out/plan.md`, `factory/evals/scripts/tools/handoff_ready/fixtures/*/plan.md` | `test_ok_plan_fixture_passes_the_structure_check`, the driver-run tests, still green |
 | 12 | `test_s3_rubric.py`: the fourteen eval-fixture pairs, isolated per-clause assertions for the criteria a pair alone can't isolate, the rubric file's own shape, the seeded human_verdict fixtures, and one real `run_stage` proving check order and the exclusion route. | `runner/tests/test_s3_rubric.py` | criteria 1-24 and the two design decisions |
 | 13 | `test_risk_map.py`: the churn-window repository, the window-exclusion and named-reason assertions, `risk_map_places`'s floor logic, the seeded human_verdict fixture. | `runner/tests/test_risk_map.py` | criteria 25-29 |
-| 14 | Manifest hashes refreshed after every `factory/` change, committed before each test run that goes through a driver. | `factory/manifest.yaml` | `test_manifest_hash.py`; every driver-run test |
-| 15 | This ticket's own brief and plan. | `docs/build/T-A-26/brief.md`, `docs/build/T-A-26/plan.md` | reviewed by the human, not a test |
+| 14 | Six new `.replace()`-against-the-`ok`-fixture tests for the structural rules T-A-25's own test file had no rule to cover yet: `bad_scope_action`, `bad_contract_cell`, a missing `Rollout` subsection, an empty `Kill trigger`, an empty `Risk map`, and empty `Alternatives` being allowed. | `runner/tests/test_s3_structure.py` | the new-table structural rules, in the file's own idiom |
+| 15 | Manifest hashes refreshed after every `factory/` change, committed before each test run that goes through a driver. | `factory/manifest.yaml` | `test_manifest_hash.py`; every driver-run test |
+| 16 | This ticket's own brief and plan. | `docs/build/T-A-26/brief.md`, `docs/build/T-A-26/plan.md` | reviewed by the human, not a test |
 
 ## Test strategy
 
