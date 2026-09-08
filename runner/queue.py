@@ -676,6 +676,27 @@ def abandon(
     return f"ticket {ticket_id}: abandoned"
 
 
+def resolve_by_waiver(conn: sqlite3.Connection, item: sqlite3.Row, waiver_id: int) -> None:
+    """Resolve a `red_check` item as `waived`, on behalf of the covering waiver's own actor.
+
+    `waived` names no entry in `ACTIONS`, so `act` never accepts it from a
+    human; this is the only path that writes it, called by
+    `runner.waivers.issue` immediately after a review-tuple waiver leaves
+    its stage run's every blocking result `pass` or validly waived. The
+    resolving actor is the waiver's own `actor_identity`, not a
+    separately supplied one, since it is the waiver -- not a person
+    acting on the queue -- that resolves the item.
+    """
+    waiver = record.get(conn, "waiver", waiver_id)
+    if waiver is None:
+        raise ActionRefused(f"no such waiver: {waiver_id}")
+    owners_obj = owners.load_owners()
+    _resolve(
+        conn, item, actor=waiver["actor_identity"], action="waived", note=f"waiver:{waiver_id}",
+        bucket=None, owners_obj=owners_obj,
+    )
+
+
 def _eligibility_context(conn: sqlite3.Connection, ticket: sqlite3.Row, owners_obj: owners.Owners) -> list[str]:
     lines = [
         f"  trust profile hash: {ticket['trust_profile_hash']}",

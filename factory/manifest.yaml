@@ -44,6 +44,8 @@ files:
     content_hash: ead3cce3050dc53e9813b1a09aca41117f2c2d0719f6be67929258e28ff7c88d
   - path: factory/config/trust-profile.yaml
     content_hash: f7087e2418fe862598a0197b62716799862474a8a723048c7b5b1da57cfe9443
+  - path: factory/config/waiver-policy.yaml
+    content_hash: 5946acc82e75dcd4686e797cdfed0a465940ab66897dbd8c817f00e8619ef59c
   - path: factory/evals/adapters/cursor_sdk/eval.yaml
     content_hash: 85c0ea32bbe8de73b0d7165583bf09224653340bd3ce371008306b818948818d
   - path: factory/evals/adapters/cursor_sdk/fixtures/null_cost.json

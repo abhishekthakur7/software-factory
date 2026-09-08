@@ -1,4 +1,4 @@
-"""The `factory` command: `advance`, `run`, `show`, `pause`, `resume`, `stop`, `queue`, `act`, `abandon`, `refresh-base`, `migrate-manifest`, `export`, `import`, `purge`, `tag`, `report`.
+"""The `factory` command: `advance`, `run`, `show`, `pause`, `resume`, `stop`, `queue`, `act`, `abandon`, `refresh-base`, `migrate-manifest`, `export`, `import`, `purge`, `tag`, `waive`, `report`.
 
 Each verb is a thin wrapper over an in-process function so tests (and any
 later API) can call the function directly without going through argument
@@ -12,6 +12,7 @@ from pathlib import Path
 
 from runner import (
     control, export, freshness, gates, manifest, outbox, queue, record, refresh_base, run_ledger, tags, transitions,
+    waivers,
 )
 from runner.db import connect
 from runner.paths import FACTORY_DIR, RUNS_DIR
@@ -34,17 +35,26 @@ def _due_stage(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
     ticket sits in that state: being there with a passing run means a
     send-back, so it runs again. A stage whose pass stays in the state (S0,
     S5, S6) is due only until its latest run has passed; after that the
-    state's gate decides.
+    state's gate decides. S5 is the one exception: a latest run that did
+    not pass outright still counts as not due once every blocking result
+    it left is validly waived (`runner.waivers.cleared`), since rerunning
+    it would write fresh `check_result` rows no waiver names and make the
+    ticket's binding stale rather than cleared.
     """
     for stage in _STAGES_OF_STATE.get(ticket["state"], []):
         if DRIVERS[stage].PASS_EVENT is not None:
             return stage
         latest = conn.execute(
-            "SELECT outcome FROM stage_run WHERE ticket_id = ? AND stage = ? ORDER BY id DESC LIMIT 1",
+            "SELECT id, outcome FROM stage_run WHERE ticket_id = ? AND stage = ? ORDER BY id DESC LIMIT 1",
             (ticket["id"], stage),
         ).fetchone()
-        if latest is None or latest["outcome"] != "pass":
+        if latest is None:
             return stage
+        if latest["outcome"] == "pass":
+            continue
+        if stage == "S5" and waivers.cleared(conn, latest["id"]):
+            continue
+        return stage
     return None
 
 
@@ -182,6 +192,29 @@ def report(
     return result.stdout
 
 
+def waive(
+    conn: sqlite3.Connection,
+    *,
+    ticket_id: int,
+    policy_id: str,
+    check_result_id: int | None,
+    human_verdict_id: int | None,
+    actor: str,
+    reason: str,
+    scope: str,
+    controls: str,
+    evidence: list[int],
+    expires_at: str,
+) -> str:
+    """Issue a waiver over a seeded `blind_spot` and report its id."""
+    waiver_id = waivers.issue(
+        conn, ticket_id=ticket_id, policy_id=policy_id, check_result_id=check_result_id,
+        human_verdict_id=human_verdict_id, actor=actor, reason=reason, scope=scope,
+        compensating_controls=controls, evidence_ids=evidence, expires_at=expires_at,
+    )
+    return f"waiver {waiver_id}: issued"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="factory")
     parser.add_argument("--db", type=Path, default=RUNS_DIR / "factory.sqlite")
@@ -256,6 +289,18 @@ def main(argv: list[str] | None = None) -> int:
     tag_parser.add_argument("--resolves", type=int)
     tag_parser.add_argument("--resolution-evidence")
 
+    waive_parser = subparsers.add_parser("waive")
+    waive_parser.add_argument("--ticket", type=int, required=True, dest="ticket_id")
+    waive_parser.add_argument("--policy", required=True, dest="policy_id")
+    waive_parser.add_argument("--check-result", type=int, dest="check_result_id")
+    waive_parser.add_argument("--verdict", type=int, dest="human_verdict_id")
+    waive_parser.add_argument("--actor", required=True)
+    waive_parser.add_argument("--reason", required=True)
+    waive_parser.add_argument("--scope", required=True)
+    waive_parser.add_argument("--controls", required=True)
+    waive_parser.add_argument("--evidence", required=True)
+    waive_parser.add_argument("--expires", required=True, dest="expires_at")
+
     report_parser = subparsers.add_parser("report")
     report_parser.add_argument("--manifest-hash", default=None)
     report_parser.add_argument("--window-days", type=int, default=30)
@@ -315,6 +360,14 @@ def main(argv: list[str] | None = None) -> int:
                 conn, target=args.target, kind=args.kind, fm_id=args.fm,
                 actor=args.actor, note=args.note, severity=args.severity,
                 resolves_tag_id=args.resolves, resolution_evidence_ref=args.resolution_evidence,
+            ))
+        elif args.verb == "waive":
+            evidence = [int(item) for item in args.evidence.split(",")] if args.evidence else []
+            print(waive(
+                conn, ticket_id=args.ticket_id, policy_id=args.policy_id,
+                check_result_id=args.check_result_id, human_verdict_id=args.human_verdict_id,
+                actor=args.actor, reason=args.reason, scope=args.scope, controls=args.controls,
+                evidence=evidence, expires_at=args.expires_at,
             ))
         elif args.verb == "report":
             print(
