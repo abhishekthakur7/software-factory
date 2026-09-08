@@ -69,7 +69,7 @@ def _seed_item(conn, kind: str) -> tuple[int, int]:
             conn, "question", ticket_id=ticket_id, stage="S2", round=1, rank=1,
             options='[{"label": "A", "consequence": "does A"}]', default_option=0, state="open",
         )
-        kwargs["ref"] = str(question_id)
+        kwargs["ref"] = f"question:{question_id}"
     elif kind == "escalation":
         stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail")
         kwargs["ref"] = f"stage_run:{stage_run_id}"

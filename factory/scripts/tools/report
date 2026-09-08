@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""The measure report: the only reader of the record's measure views.
+
+Standalone by design, like `manifest_hash`: no import of `runner`, so the
+report a human reads never has to load agent-reachable code to produce it.
+Every number on the report comes from a named SQL view over the record
+(never a raw table read here), the primary panel is printed unranked in
+the views' own table order, context measures are pulled into their own
+labelled block, and a measure whose view returns nothing prints a status
+and a reason instead of a number.
+
+`PRIMARY_MEASURES` and `CONTEXT_MEASURES` are the one table driving both
+panels: (title, view name, grouping columns). Adding a measure is adding a
+row here, never a second formatting path per measure.
+"""
+import argparse
+import sqlite3
+import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+# (title, view name, grouping columns shown first on each line). Order is
+# the Measure computations table's own order -- printed unranked, never
+# resorted by value.
+PRIMARY_MEASURES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("revisions per ticket after plan approval, by failure mode", "v_revisions_per_ticket_by_fm", ("ticket_id", "fm_id")),
+    ("questions surfaced per ticket, by tier", "v_questions_per_ticket", ("ticket_id", "tier")),
+    ("share shown with a default", "v_default_shown_share", ()),
+    ("share where the default was accepted when shown", "v_default_accepted_share", ()),
+    ("queue latency at S2, S3, S6, by tier", "v_queue_latency_by_stage_tier", ("stage", "tier")),
+    ("active attention at S3 and S6, by tier and outcome", "v_active_attention_by_stage_tier_outcome", ("stage", "tier", "decision", "bucket")),
+    ("share of generated tests kept after review", "v_generated_test_kept_share", ()),
+    ("share of plans approved without redirect", "v_plan_approved_no_redirect_share", ()),
+    ("production incidents attributable to factory changes", "v_production_incidents_attributable", ("record_type",)),
+    ("share of S3 and S6 decisions needing reconstruction", "v_reconstruction_share_by_gate", ("gate", "tier", "role", "decision")),
+    ("escalations per ticket from S4", "v_escalations_per_ticket", ("ticket_id",)),
+    ("index entries found stale per ticket", "v_stale_index_entries_per_ticket", ("ticket_id",)),
+    ("share of stage runs passing on the first attempt, by stage and tier", "stage_reliability_view", ("stage", "tier")),
+)
+
+# Cost, tickets-closed-per-window, and non-structural touchpoints: available
+# only as context, never to a scorer, grader, or benchmark.
+CONTEXT_MEASURES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("factory completions and external outcomes per window", "v_ctx_completions_outcomes_per_window", ("ticket_id",)),
+    ("cost per ticket, by stage and tier", "v_ctx_cost_per_ticket", ("ticket_id", "stage", "tier")),
+    ("non-structural touchpoints per ticket, by tier", "v_ctx_non_structural_touchpoints", ("ticket_id", "tier")),
+    ("fix rounds per ticket", "v_ctx_fix_rounds_per_ticket", ("ticket_id",)),
+    ("tool calls and tool-result bytes per stage run, by stage and tier", "v_ctx_tool_calls_bytes_per_stage_run", ("stage_run_id", "stage", "tier")),
+)
+
+
+def primary_measures() -> tuple[tuple[str, str, tuple[str, ...]], ...]:
+    """The primary panel's driving table, exposed for callers that need the data rather than the text."""
+    return PRIMARY_MEASURES
+
+
+def context_measures() -> tuple[tuple[str, str, tuple[str, ...]], ...]:
+    """The context block's driving table, exposed for callers that need the data rather than the text."""
+    return CONTEXT_MEASURES
+
+
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="report")
+    parser.add_argument("--db", type=Path, required=True)
+    parser.add_argument("--manifest-hash", default=None)
+    parser.add_argument("--window-days", type=int, default=30)
+    parser.add_argument("--until", default=None, help="ISO-8601 UTC instant; defaults to now")
+    return parser.parse_args(argv)
+
+
+def _window(window_days: int, until: str | None) -> tuple[datetime, datetime]:
+    end = datetime.fromisoformat(until) if until else datetime.now(UTC)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=UTC)
+    return end - timedelta(days=window_days), end
+
+
+def _fetch(conn: sqlite3.Connection, view: str, manifest_hash: str | None) -> list[sqlite3.Row]:
+    """Every row of `view`, filtered to `manifest_hash` in Python when the view carries that column."""
+    rows = conn.execute(f"SELECT * FROM {view}").fetchall()
+    if manifest_hash is None or not rows:
+        return rows
+    if "manifest_hash" not in rows[0].keys():
+        return rows
+    return [row for row in rows if row["manifest_hash"] == manifest_hash]
+
+
+def _in_window(row: sqlite3.Row, since: datetime, until: datetime, *columns: str) -> bool:
+    for column in columns:
+        value = row[column] if column in row.keys() else None
+        if value is None:
+            continue
+        at = datetime.fromisoformat(value)
+        if at.tzinfo is None:
+            at = at.replace(tzinfo=UTC)
+        if since <= at <= until:
+            return True
+    return False
+
+
+def _format_row(row: sqlite3.Row) -> str:
+    return ", ".join(f"{key}={row[key]!r}" for key in row.keys())
+
+
+def _measure_block(
+    conn: sqlite3.Connection,
+    title: str,
+    view: str,
+    manifest_hash: str | None,
+    since: datetime,
+    until: datetime,
+    *,
+    label: str | None = None,
+) -> list[str]:
+    prefix = f"[{label}] " if label else ""
+    lines = [f"{prefix}{title} (view: {view}, window: {since.isoformat()} to {until.isoformat()})"]
+    rows = _fetch(conn, view, manifest_hash)
+    if view == "v_ctx_completions_outcomes_per_window":
+        rows = [r for r in rows if _in_window(r, since, until, "factory_completed_at", "closed_at")]
+    if not rows:
+        lines.append(f"{prefix}  status: unavailable")
+        lines.append(f"{prefix}  reason: no {view} rows for the given manifest and window scope")
+        return lines
+    for row in rows:
+        lines.append(f"{prefix}  {_format_row(row)}")
+    return lines
+
+
+def render_header(db_path: Path, since: datetime, until: datetime, manifest_hashes: list[str]) -> list[str]:
+    spans = ", ".join(manifest_hashes) if manifest_hashes else "none observed in this window"
+    return [
+        f"database: {db_path}",
+        f"window: {since.isoformat()} to {until.isoformat()}",
+        f"manifest hashes spanned: {spans}",
+        "",
+    ]
+
+
+def render_primary_panel(
+    conn: sqlite3.Connection, manifest_hash: str | None, since: datetime, until: datetime
+) -> list[str]:
+    lines = ["primary measures (unranked)"]
+    for title, view, _columns in PRIMARY_MEASURES:
+        lines.extend(_measure_block(conn, title, view, manifest_hash, since, until))
+    return lines
+
+
+def render_context_block(
+    conn: sqlite3.Connection, manifest_hash: str | None, since: datetime, until: datetime
+) -> list[str]:
+    lines = ["context (not a primary measure or rubric-line score)"]
+    for title, view, _columns in CONTEXT_MEASURES:
+        lines.extend(_measure_block(conn, title, view, manifest_hash, since, until, label="context"))
+    return lines
+
+
+def _manifest_hashes_spanned(conn: sqlite3.Connection, since: datetime, until: datetime) -> list[str]:
+    rows = conn.execute(
+        "SELECT DISTINCT manifest_hash FROM v_ticket_manifest_cohorts "
+        "WHERE manifest_hash IS NOT NULL "
+        "AND (first_run_started_at IS NULL OR first_run_started_at <= ?) "
+        "AND (last_run_started_at IS NULL OR last_run_started_at >= ?) "
+        "ORDER BY manifest_hash",
+        (until.isoformat(), since.isoformat()),
+    ).fetchall()
+    return [row["manifest_hash"] for row in rows]
+
+
+def generate(
+    conn: sqlite3.Connection,
+    *,
+    db_path: Path,
+    manifest_hash: str | None,
+    window_days: int,
+    until: str | None,
+) -> str:
+    since, end = _window(window_days, until)
+    lines = render_header(db_path, since, end, _manifest_hashes_spanned(conn, since, end))
+    lines.extend(render_primary_panel(conn, manifest_hash, since, end))
+    lines.append("")
+    lines.extend(render_context_block(conn, manifest_hash, since, end))
+    lines.append("")
+    lines.append("the proposal schema is absent in this version")
+    return "\n".join(lines) + "\n"
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    if not args.db.exists():
+        print(f"cannot open database {args.db}: no such file", file=sys.stderr)
+        return 1
+    conn = sqlite3.connect(str(args.db))
+    conn.row_factory = sqlite3.Row
+    try:
+        required = {view for _, view, _ in PRIMARY_MEASURES} | {view for _, view, _ in CONTEXT_MEASURES}
+        existing = {
+            row["name"]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        }
+        missing = required - existing
+        if missing:
+            print(f"database is missing required view(s): {sorted(missing)}", file=sys.stderr)
+            return 1
+        sys.stdout.write(
+            generate(
+                conn,
+                db_path=args.db,
+                manifest_hash=args.manifest_hash,
+                window_days=args.window_days,
+                until=args.until,
+            )
+        )
+    finally:
+        conn.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

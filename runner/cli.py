@@ -1,18 +1,22 @@
-"""The `factory` command: `advance`, `run`, `show`.
+"""The `factory` command: `advance`, `run`, `show`, `queue`, `act`, `abandon`, `tag`, `report`.
 
 Each verb is a thin wrapper over an in-process function so tests (and any
-later API) can call `advance`/`run`/`show` directly without going through
-argument parsing at all.
+later API) can call the function directly without going through argument
+parsing at all.
 """
 import argparse
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 
 from runner import gates, queue, record, tags, transitions
 from runner.db import connect
-from runner.paths import RUNS_DIR
+from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
 from runner.state_table import STAGE_STATE
+
+REPORT_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "report"
 
 # Stages grouped by the state they run from, in run order (S5 before S6
 # in `checks`), so `advance` can ask "which stage is due here?".
@@ -80,6 +84,25 @@ def show(conn: sqlite3.Connection, ticket_id: int) -> str:
     return "\n".join(lines)
 
 
+def report(
+    db_path: Path,
+    *,
+    manifest_hash: str | None = None,
+    window_days: int = 30,
+    until: str | None = None,
+) -> str:
+    """Run the report script over `db_path` and return its stdout as text."""
+    argv = [sys.executable, str(REPORT_SCRIPT), "--db", str(db_path), "--window-days", str(window_days)]
+    if manifest_hash is not None:
+        argv += ["--manifest-hash", manifest_hash]
+    if until is not None:
+        argv += ["--until", until]
+    result = subprocess.run(argv, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "report script failed")
+    return result.stdout
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="factory")
     parser.add_argument("--db", type=Path, default=RUNS_DIR / "factory.sqlite")
@@ -124,6 +147,11 @@ def main(argv: list[str] | None = None) -> int:
     tag_parser.add_argument("--note")
     tag_parser.add_argument("--severity")
 
+    report_parser = subparsers.add_parser("report")
+    report_parser.add_argument("--manifest-hash", default=None)
+    report_parser.add_argument("--window-days", type=int, default=30)
+    report_parser.add_argument("--until", default=None)
+
     args = parser.parse_args(argv)
     # The run tree lives beside the database: one root holds every piece of
     # run state, so pointing `--db` elsewhere moves the artefacts with it.
@@ -152,6 +180,16 @@ def main(argv: list[str] | None = None) -> int:
                 conn, target=args.target, kind=args.kind, fm_id=args.fm,
                 actor=args.actor, note=args.note, severity=args.severity,
             ))
+        elif args.verb == "report":
+            print(
+                report(
+                    args.db,
+                    manifest_hash=args.manifest_hash,
+                    window_days=args.window_days,
+                    until=args.until,
+                ),
+                end="",
+            )
         conn.commit()
     finally:
         conn.close()

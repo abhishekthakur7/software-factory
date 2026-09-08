@@ -181,10 +181,11 @@ def _record_decision(
 
 
 def _answer(conn: sqlite3.Connection, item: sqlite3.Row, *, action: str, actor: str, option: int | None, note: str | None) -> None:
-    question_id = int(item["ref"])
-    question = record.get(conn, "question", question_id)
+    table, _, raw_id = (item["ref"] or "").partition(":")
+    question = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
     if question is None:
-        raise ActionRefused(f"question item {item['id']} names no such question: {question_id}")
+        raise ActionRefused(f"question item {item['id']} names no question: {item['ref']!r}")
+    question_id = question["id"]
     if action == "answer":
         resolution_kind, chosen = "chosen_option", option if option is not None else question["default_option"]
     else:

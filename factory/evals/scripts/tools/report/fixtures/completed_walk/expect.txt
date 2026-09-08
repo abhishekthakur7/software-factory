@@ -1,0 +1,6 @@
+primary measures (unranked)
+share of stage runs passing on the first attempt, by stage and tier
+[context] cost per ticket, by stage and tier
+[context] fix rounds per ticket
+context (not a primary measure or rubric-line score)
+the proposal schema is absent in this version

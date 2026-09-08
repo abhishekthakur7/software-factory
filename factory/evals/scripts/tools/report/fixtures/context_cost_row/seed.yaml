@@ -1,0 +1,16 @@
+- table: ticket
+  fields:
+    title: cost ticket
+    factory_manifest_hash: m1
+- table: stage_run
+  fields:
+    ticket_id: 1
+    stage: S4
+    tier: light
+    manifest_hash: m1
+    attempt: 1
+    run_kind: task
+    outcome: pass
+    cost: 12.5
+    currency: USD
+    cost_basis: provider_settled
