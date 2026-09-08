@@ -317,6 +317,49 @@ def _governed_ticket_fields(conn) -> dict:
     }
 
 
+def test_an_unknown_compatibility_field_on_a_public_unit_re_triggers_pilot_exclusion(tmp_path):
+    """design decision: S1's discovered-excluded-scope route reopens at S3 for a public unit's unknown compatibility,
+    since the runner cannot itself judge whether the contract genuinely changed."""
+    conn = connect(tmp_path / "factory.sqlite")
+    source = _source_repo(tmp_path)
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
+        tier_final="light", **_governed_ticket_fields(conn),
+    )
+    trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
+    git_trees.record_head(conn, ticket_id, trees.worktree)
+    record.update(conn, "ticket", ticket_id, state="planning")
+
+    brief_path = tmp_path / "s3_brief.md"
+    write_text(brief_path, _S3_BRIEF_TEXT)
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief_path)
+    criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
+
+    ok_plan = (FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out" / "plan.md").read_text()
+    public_unknown_plan = ok_plan.replace(
+        "| Widget.compute | function | unchanged: Widget.java:42 | changed: added a negative-input guard | unchanged | "
+        "changed: raises a typed error for negative input | unchanged | unchanged | unchanged | unchanged | "
+        "unchanged | unchanged |",
+        "| Widget.compute | public function | unchanged: Widget.java:42 | changed: added a negative-input guard | "
+        "unknown | changed: raises a typed error for negative input | unchanged | unchanged | unchanged | unchanged | "
+        "unchanged | unknown |",
+    )
+    assert public_unknown_plan != ok_plan  # the replacement actually matched the fixture's current contents
+    out_dir = tmp_path / "patched_out"
+    write_text(out_dir / "plan.md", public_unknown_plan)
+
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(out_dir)
+    try:
+        outcome = run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+    finally:
+        os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
+    assert outcome == "fail"
+    assert record.get(conn, "ticket", ticket_id)["state"] == "rejected"
+    assert record.get(conn, "ticket", ticket_id)["close_reason"] == "pilot_excluded"
+    conn.close()
+
+
 def test_plan_rubric_check_result_lands_between_artefact_structure_and_size_gate(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     source = _source_repo(tmp_path)
