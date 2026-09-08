@@ -78,87 +78,87 @@ files:
     content_hash: e4ef03ef0835ce206e7802cb044cd8b4a48363811e647df9ee67ce55d3b87664
   - path: factory/evals/agents/S2/eval.yaml
     content_hash: 445d4f6dc0b985fdfc9bd7aa6e75e91bf408781f3bd8fb62f45ecd379848eed6
-  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/by_input/AC-1.1/restatement.md
     content_hash: aa7a06e03870b9833ab61fffaa43341822de07e2c6f4688abf941de74777c6e7
-  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/by_input/AC-1.2/restatement.md
     content_hash: 67715fae6e60f01daabd71f6aeddeb25a7f9d9467b0406fadfe0f342591373c7
-  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/by_input/AC-1.3/restatement.md
     content_hash: aa7a06e03870b9833ab61fffaa43341822de07e2c6f4688abf941de74777c6e7
   - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/criteria.md
     content_hash: ebf5597005fdfae3005e01bd5b68d003cfa862375e035523edc599624977c983
-  - path: factory/evals/agents/S2/fixtures/criteria_clean/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_clean/out/by_input/AC-1.1/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/criteria_clean/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_clean/out/by_input/AC-1.2/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/criteria_clean/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_clean/out/by_input/AC-1.3/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
   - path: factory/evals/agents/S2/fixtures/criteria_clean/out/criteria.md
     content_hash: bc2e95afe2295232104670890e493a4017d6da70d0aa5a4421186d9e33a3d48c
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-1.1/restatement.md
     content_hash: 466bf02b62336bfbeed87ff7856c556f98a15d5c4d73cf3e4f0dac5c09be1757
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-1.2/restatement.md
     content_hash: 466bf02b62336bfbeed87ff7856c556f98a15d5c4d73cf3e4f0dac5c09be1757
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-1.3/restatement.md
     content_hash: 466bf02b62336bfbeed87ff7856c556f98a15d5c4d73cf3e4f0dac5c09be1757
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/by_input/AC-2.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-2.1/restatement.md
     content_hash: a247ac395b7181f3d8941af1316a40cf9c1989eb19fc3ea5a99504d09469e6f0
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/by_input/AC-2.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-2.2/restatement.md
     content_hash: a247ac395b7181f3d8941af1316a40cf9c1989eb19fc3ea5a99504d09469e6f0
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/by_input/AC-2.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-2.3/restatement.md
     content_hash: a247ac395b7181f3d8941af1316a40cf9c1989eb19fc3ea5a99504d09469e6f0
   - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/criteria.md
     content_hash: 0cd4021fb015d54c5ef0b62d90dcf55f0c1672fb9f9c1fd3cda7b7f9e3d10e6f
   - path: factory/evals/agents/S2/fixtures/criteria_id_conflict/out/criteria.md
     content_hash: 223dda6671d21f7069d45a753593d21ad273fa624e396720a6d4cc7f210f070f
-  - path: factory/evals/agents/S2/fixtures/criteria_open_category/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/by_input/AC-1.1/restatement.md
     content_hash: f1114542a27da6af7ce66fae5d073d8dd176bfa855b75fd3409f01468cb588bb
-  - path: factory/evals/agents/S2/fixtures/criteria_open_category/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/by_input/AC-1.2/restatement.md
     content_hash: f1114542a27da6af7ce66fae5d073d8dd176bfa855b75fd3409f01468cb588bb
-  - path: factory/evals/agents/S2/fixtures/criteria_open_category/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/by_input/AC-1.3/restatement.md
     content_hash: f1114542a27da6af7ce66fae5d073d8dd176bfa855b75fd3409f01468cb588bb
   - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/criteria.md
     content_hash: 65867442e81b039e0f437148268de0ff0ace034427096e0bb8cab86ed2d1cc39
-  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/by_input/AC-1.1/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/by_input/AC-1.2/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/by_input/AC-1.3/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
   - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/criteria.md
     content_hash: ec0f4035f10fb68b64ed48b6c9171e80949d05846197600d26108bdfd6d14de7
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/by_input/AC-1.1/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/by_input/AC-1.2/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/by_input/AC-1.3/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
   - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/criteria.md
     content_hash: ec0f4035f10fb68b64ed48b6c9171e80949d05846197600d26108bdfd6d14de7
   - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/questions.yaml
     content_hash: dad377265bf2ae974921eb27d3c49547a68a8e8d9e352a1b55cae8278bafb69b
-  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/by_input/AC-1.1/restatement.md
     content_hash: 361eb381928acb25afdb1a76a29d5409dba79fa3370fefe6015f1f94e5c72d44
-  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/by_input/AC-1.2/restatement.md
     content_hash: 361eb381928acb25afdb1a76a29d5409dba79fa3370fefe6015f1f94e5c72d44
-  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/by_input/AC-1.3/restatement.md
     content_hash: 361eb381928acb25afdb1a76a29d5409dba79fa3370fefe6015f1f94e5c72d44
   - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/criteria.md
     content_hash: b7351771dfa7c46298a6646291220b2b734de69bacc2e0c2da310fbb2f34b7f3
   - path: factory/evals/agents/S2/fixtures/criteria_unformalisable/out/criteria.md
     content_hash: c3c3135d0acb0b207ab8c36a79603f7ea972bc6b730f5ea20f4cf34c5534d492
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.1/restatement.md
     content_hash: 462ad3eabbcdad0b506341064de0f240ea932814939853fbc077ef68aeb5d3aa
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.2/restatement.md
     content_hash: 462ad3eabbcdad0b506341064de0f240ea932814939853fbc077ef68aeb5d3aa
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.3/restatement.md
     content_hash: 462ad3eabbcdad0b506341064de0f240ea932814939853fbc077ef68aeb5d3aa
   - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/criteria.md
     content_hash: 48c734b5a7d2f6acef1489a0603ec550c82cbbae25f5ee9fbb8501752be5dccb
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/by_input/AC-1.1/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/by_input/AC-1.2/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/by_input/AC-1.3/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
   - path: factory/evals/agents/S2/fixtures/gate_rejected/out/criteria.md
     content_hash: bc2e95afe2295232104670890e493a4017d6da70d0aa5a4421186d9e33a3d48c
@@ -168,11 +168,11 @@ files:
     content_hash: a2c54613d8c96f459db5ccb96b93ac3c675cbe691f970a24e5a317895ae471ee
   - path: factory/evals/agents/S2/fixtures/ok/S2.md
     content_hash: 0e78685449f86e0a5ea192c6d3ba0986baa952efc521d283334c86a81aec9446
-  - path: factory/evals/agents/S2/fixtures/question_round/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/S2/fixtures/question_round/out/by_input/AC-1.1/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/question_round/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/S2/fixtures/question_round/out/by_input/AC-1.2/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/question_round/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/S2/fixtures/question_round/out/by_input/AC-1.3/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
   - path: factory/evals/agents/S2/fixtures/question_round/out/criteria.md
     content_hash: bc2e95afe2295232104670890e493a4017d6da70d0aa5a4421186d9e33a3d48c

@@ -221,7 +221,7 @@ def _unformalisable_candidate(ac_id: str, source: str) -> dict:
         "affects": f"criterion {ac_id}'s formal restatement",
         "options": [
             {"text": "Rewrite the source wording and restate it next round", "consequence": "It is restated once its wording is clarified."},
-            {"text": "Drop it from this ticket's scope", "consequence": "It is removed from scope and not implemented."},
+            {"text": "Drop it from scope", "consequence": "It is removed from scope and not implemented."},
             {"text": "none of these", "consequence": "If nobody answers, this run stays blocked until a human decides."},
         ],
         "default_option": None,
@@ -246,7 +246,7 @@ def _ambiguous_candidate(ac_id: str, source: str) -> dict:
         "affects": f"criterion {ac_id}'s exact behavior",
         "options": [
             {"text": "The most literal reading of the source wording", "consequence": "The plan proceeds on the literal reading."},
-            {"text": "A different reading, stated in the answer", "consequence": "The plan proceeds on the reading given in the answer."},
+            {"text": "A different reading, given below", "consequence": "The plan proceeds on the reading given in the response."},
             {"text": "none of these", "consequence": "If nobody answers, the plan proceeds on the most literal reading as a working default."},
         ],
         "default_option": 2,
@@ -285,7 +285,7 @@ def _contradiction_candidate(ac_id: str, other_id: str | None) -> dict:
 
 
 def _uncovered_candidate(region: str) -> dict:
-    named_region = region or "this part of the ticket source"
+    named_region = region or "this part of the source wording"
     return {
         "text": f"No criterion covers {named_region}. Should it be included in scope?",
         "reasoning": "The restatement pass found no acceptance criterion whose source text addresses this region.",
@@ -309,7 +309,7 @@ def _uncovered_candidate(region: str) -> dict:
 
 def _category_open_candidate(category: str) -> dict:
     return {
-        "text": f'The "{category}" aspect of this ticket has not been resolved. How should it be handled?',
+        "text": f'The "{category}" aspect of this work has not been resolved. How should it be handled?',
         "reasoning": f'The forced-category checklist left "{category}" open with no resolution.',
         "affects": f"the {category} aspect of this ticket's scope",
         "options": [
