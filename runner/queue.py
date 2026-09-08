@@ -520,7 +520,77 @@ def _item_block(conn: sqlite3.Connection, item: sqlite3.Row, owners_obj: owners.
         lines.append(f"  outcome: {item['action']}")
     if item["kind"] == "eligibility" and ticket is not None:
         lines.extend(_eligibility_context(conn, ticket, owners_obj))
+    if item["kind"] == "escalation":
+        lines.extend(f"  {key}: {value}" for key, value in escalation_context(conn, item).items())
     return lines
+
+
+# The S4 run kinds that are an actual execution attempt; `validation_only`
+# is the runner's script-only verification pass after one, so on its own
+# it stands for "a verification ran".
+_S4_EXECUTION_KINDS = frozenset({"task", "fix_round"})
+_S4_VERIFICATION_KIND = "validation_only"
+
+
+def _s4_progress(conn: sqlite3.Connection, ticket_id: int) -> dict:
+    """The highest passing S4 task attempt, the execution count and the verification count of the ticket's S4 history."""
+    rows = conn.execute(
+        "SELECT attempt, run_kind, outcome FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id",
+        (ticket_id,),
+    ).fetchall()
+    completed = [row["attempt"] for row in rows if row["run_kind"] in _S4_EXECUTION_KINDS and row["outcome"] == "pass"]
+    return {
+        "last_completed_task": completed[-1] if completed else None,
+        "execution_count": sum(1 for row in rows if row["run_kind"] in _S4_EXECUTION_KINDS),
+        "verification_count": sum(1 for row in rows if row["run_kind"] == _S4_VERIFICATION_KIND),
+    }
+
+
+def escalation_context(conn: sqlite3.Connection, item: sqlite3.Row) -> dict:
+    """What an `escalation` item carries, derived from the record its `ref` points at.
+
+    The stage run's reason (the latest failed runner check recorded on
+    it), its own reasoning summary, the artefacts registered under it,
+    the ticket's current binding (latest evidence tuple) if one exists,
+    the stage's prior-attempt failure history, and for S4 the last
+    completed task, execution count and verification count. An item
+    whose `ref` names no stage run yields an empty mapping.
+    """
+    ref = item["ref"] or ""
+    if not ref.startswith("stage_run:"):
+        return {}
+    stage_run = record.get(conn, "stage_run", int(ref.split(":", 1)[1]))
+    if stage_run is None:
+        return {}
+    reason = conn.execute(
+        "SELECT summary FROM check_result WHERE stage_run_id = ? AND source = 'runner' AND result = 'fail' "
+        "ORDER BY id DESC LIMIT 1",
+        (stage_run["id"],),
+    ).fetchone()
+    binding = conn.execute(
+        "SELECT id FROM evidence_tuple WHERE ticket_id = ? ORDER BY id DESC LIMIT 1", (stage_run["ticket_id"],)
+    ).fetchone()
+    context = {
+        "reason": reason["summary"] if reason is not None else None,
+        "reasoning_summary": stage_run["reasoning_summary"],
+        "registered_outputs": [
+            row["id"] for row in conn.execute(
+                "SELECT id FROM artefact WHERE stage_run_id = ? ORDER BY id", (stage_run["id"],)
+            ).fetchall()
+        ],
+        "binding_evidence_tuple_id": binding["id"] if binding is not None else None,
+        "failure_history": [
+            {"attempt": row["attempt"], "outcome": row["outcome"], "failure_kind": row["failure_kind"]}
+            for row in conn.execute(
+                "SELECT attempt, outcome, failure_kind FROM stage_run "
+                "WHERE ticket_id = ? AND stage = ? AND id < ? ORDER BY id",
+                (stage_run["ticket_id"], stage_run["stage"], stage_run["id"]),
+            ).fetchall()
+        ],
+    }
+    if stage_run["stage"] == "S4":
+        context.update(_s4_progress(conn, stage_run["ticket_id"]))
+    return context
 
 
 def list_queue(

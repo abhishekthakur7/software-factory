@@ -16,27 +16,17 @@ timeout; this function only re-checks what has already settled.
 `abort` finishes an already-open `stage_run` `aborted_budget`, the same
 way `control.stop` finishes one `aborted_human`: no new `stage_run` is
 opened, `stage_run.attempt` and `verification_attempt` are left exactly as
-they were, so nothing here ever consumes a verification slot. The
-escalation record itself has nowhere else to live -- `queue_item.note` is
-a one-time field a human can only set by resolving the item, and this is
-the runner escalating on its own -- so the reasoning summary, registered
-outputs, current binding, and failure history all land as one JSON object
-on the aborted run's own `reasoning_summary`, the mutable free-text field
-the `escalation` item's `ref` (`stage_run:<id>`) already points a reader
-at.
+they were, so nothing here ever consumes a verification slot. The reason
+is recorded as one failed runner `check_result` on the aborted run, the
+same shape a stale base or a manifest migration leaves; the `escalation`
+item's content (reasoning summary, registered outputs, current binding,
+failure history, S4 progress) is derived from the record when the queue
+shows the item (`queue.escalation_context`), never stored as a second
+copy and never written over the agent's own reasoning summary.
 """
-import json
 import sqlite3
 
-from runner import queue, record, run_ledger, transitions
-
-# The run_kind values that represent an actual S4 execution attempt versus
-# its script-only verification pass; RUN_KINDS' third member,
-# validation_only, is deliberately not carried by any real agent
-# invocation, so it stands for "a verification ran" on its own.
-_S4_EXECUTION_KINDS = frozenset({"task", "fix_round"})
-_S4_VERIFICATION_KIND = "validation_only"
-
+from runner import canonical, queue, record, run_ledger, transitions
 
 def _descendant_ids(conn: sqlite3.Connection, root_id: int) -> list[int]:
     """`root_id` plus every `stage_run` recorded under it, at any depth, via `parent_run_id`."""
@@ -121,49 +111,6 @@ def check_before_invocation(
     return None
 
 
-def _s4_progress(conn: sqlite3.Connection, ticket_id: int) -> dict:
-    """`last_completed_task`, `execution_count`, and `verification_count` across this ticket's S4 history."""
-    rows = conn.execute(
-        "SELECT attempt, run_kind, outcome FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id",
-        (ticket_id,),
-    ).fetchall()
-    completed_tasks = [row["attempt"] for row in rows if row["run_kind"] in _S4_EXECUTION_KINDS and row["outcome"] == "pass"]
-    return {
-        "last_completed_task": completed_tasks[-1] if completed_tasks else None,
-        "execution_count": sum(1 for row in rows if row["run_kind"] in _S4_EXECUTION_KINDS),
-        "verification_count": sum(1 for row in rows if row["run_kind"] == _S4_VERIFICATION_KIND),
-    }
-
-
-def _escalation_note(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run: sqlite3.Row, *, reason: str) -> str:
-    outputs = [
-        row["id"] for row in conn.execute(
-            "SELECT id FROM artefact WHERE stage_run_id = ? ORDER BY id", (stage_run["id"],)
-        ).fetchall()
-    ]
-    binding = conn.execute(
-        "SELECT id FROM evidence_tuple WHERE ticket_id = ? ORDER BY id DESC LIMIT 1", (ticket["id"],)
-    ).fetchone()
-    failure_history = [
-        {"attempt": row["attempt"], "outcome": row["outcome"], "failure_kind": row["failure_kind"]}
-        for row in conn.execute(
-            "SELECT attempt, outcome, failure_kind FROM stage_run "
-            "WHERE ticket_id = ? AND stage = ? AND id < ? ORDER BY id",
-            (ticket["id"], stage_run["stage"], stage_run["id"]),
-        ).fetchall()
-    ]
-    payload = {
-        "reason": reason,
-        "reasoning_summary": stage_run["reasoning_summary"],
-        "registered_outputs": outputs,
-        "binding_evidence_tuple_id": binding["id"] if binding is not None else None,
-        "failure_history": failure_history,
-    }
-    if stage_run["stage"] == "S4":
-        payload.update(_s4_progress(conn, ticket["id"]))
-    return json.dumps(payload, sort_keys=True)
-
-
 def abort(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, *, reason: str) -> None:
     """Finish `stage_run_id` `aborted_budget`, escalate the ticket, and open one `escalation` item over it.
 
@@ -177,8 +124,17 @@ def abort(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, *, r
     if stage_run is None:
         raise LookupError(f"no such stage_run: {stage_run_id}")
     run_ledger.finish(conn, stage_run_id, "aborted_budget")
-    note = _escalation_note(conn, ticket, stage_run, reason=reason)
-    record.update(conn, "stage_run", stage_run_id, reasoning_summary=note)
+    row = {
+        "stage_run_id": stage_run_id,
+        "check_name": "budget",
+        "check_tier": "blocking",
+        "source": "runner",
+        "result": "fail",
+        "summary": reason,
+        "canonical_serialization_version": canonical.SERIALIZATION_VERSION,
+    }
+    row["content_hash"] = canonical.content_hash(row)
+    record.insert(conn, "check_result", **row)
     transitions.apply(conn, ticket["id"], "escalate")
     queue.open_item(
         conn, ticket_id=ticket["id"], kind="escalation", stage=stage_run["stage"], tier=stage_run["tier"],

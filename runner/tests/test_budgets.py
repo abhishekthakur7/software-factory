@@ -9,7 +9,6 @@ committed tier budgets, which are generous enough that only a deliberate
 timeout or a deliberately pre-seeded family trips them.
 """
 import hashlib
-import json
 import os
 import shutil
 import subprocess
@@ -19,7 +18,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import budgets, manifest, record, run_ledger, stages, tickets
+from runner import budgets, manifest, queue, record, run_ledger, stages, tickets
 from runner.adapters import cursor_sdk
 from runner.db import connect
 
@@ -241,7 +240,14 @@ def test_cursor_sdk_invoke_aborts_before_launching_when_s4_cumulative_budget_is_
 # ---- the escalation note: reasoning summary, outputs, binding, failure history, S4 progress (criterion 16) ----
 
 
-def test_abort_writes_the_escalation_note_with_outputs_binding_and_failure_history(conn):
+def _open_escalation_item(conn, ticket_id):
+    return conn.execute(
+        "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'escalation' AND resolved_at IS NULL", (ticket_id,)
+    ).fetchone()
+
+
+def test_abort_leaves_the_agents_reasoning_summary_alone_and_the_escalation_item_carries_the_derived_context(conn):
+    """The escalation item's reason, binding, failure history and S4 progress are derived from the record; the agent's own summary is not overwritten."""
     ticket_id = _ticket_in(conn, "implementing")
     record.insert(
         conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task",
@@ -258,7 +264,8 @@ def test_abort_writes_the_escalation_note_with_outputs_binding_and_failure_histo
 
     run = record.get(conn, "stage_run", run_id)
     assert run["outcome"] == "aborted_budget"
-    note = json.loads(run["reasoning_summary"])
+    assert run["reasoning_summary"] is None
+    note = queue.escalation_context(conn, _open_escalation_item(conn, ticket_id))
     assert note["reason"] == "exceeded the per-ticket S4 token budget"
     assert note["binding_evidence_tuple_id"] == binding_id
     assert note["failure_history"] == [{"attempt": 1, "outcome": "fail", "failure_kind": "implementation"}]
@@ -283,7 +290,7 @@ def test_abort_reports_the_last_completed_task_and_verification_count_for_s4(con
 
     budgets.abort(conn, ticket, run_id, reason="over budget")
 
-    note = json.loads(record.get(conn, "stage_run", run_id)["reasoning_summary"])
+    note = queue.escalation_context(conn, _open_escalation_item(conn, ticket_id))
     assert note["last_completed_task"] == 2
     assert note["execution_count"] == 3  # attempts 1, 2 (both pass/fail-irrelevant task/fix_round rows), and the aborted 3
     assert note["verification_count"] == 2

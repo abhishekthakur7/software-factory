@@ -230,16 +230,17 @@ builder's `runner/manifest.py`. It builds criteria 6, 7, 8 and 11-19.
   ticket's whole `S4` history (every `stage_run` with `stage = 'S4'`,
   family boundaries aside) to `run_ledger.s4_per_ticket_budget(tier)`.
   `abort(conn, ticket, stage_run_id, *, reason)` finishes an
-  already-open `stage_run` `aborted_budget`, writes one JSON escalation
-  note (reasoning summary, registered outputs, the ticket's latest
-  `evidence_tuple` id if one exists, the stage's prior-attempt failure
-  history, and, for `S4`, `last_completed_task`/`execution_count`/
-  `verification_count`) onto that run's own `reasoning_summary` --
-  `queue_item.note` is a one-time field only a human resolving the item
-  can set, so the escalation item's `ref` (`stage_run:<id>`) is the only
-  place left for the runner's own note -- then applies `escalate` and
-  opens one `escalation` queue item, the same shape `control.stop` and
-  `refresh_base`'s conflict path already use.
+  already-open `stage_run` `aborted_budget`, records the reason as one
+  failed runner `check_result` on that run (the shape a stale base and a
+  manifest migration already use), then applies `escalate` and opens one
+  `escalation` queue item, the same shape `control.stop` and
+  `refresh_base`'s conflict path already use. What the item carries
+  (reason, the agent's own reasoning summary, registered outputs, the
+  ticket's latest `evidence_tuple` id if one exists, the stage's
+  prior-attempt failure history, and for `S4` `last_completed_task`/
+  `execution_count`/`verification_count`) is derived from the record by
+  `queue.escalation_context` when the queue lists the item, never stored
+  as a second copy.
 - **`runner/adapters/cursor_sdk.py`** calls `budgets.check_before_invocation`
   immediately after opening its own `stage_run` and before building the
   envelope or launching anything; a non-`None` reason calls `budgets.abort`
@@ -267,13 +268,16 @@ R-I-4's model-check and pin clauses (criteria 6-8) and R-I-6 in full
   fires at all (`queue.act`'s `granted` action alone is not enough
   without a passing `S0` run too) -- pinning where the event is decided
   keeps the write and the decision inseparable.
-- **The escalation note is JSON on the aborted run's own
-  `reasoning_summary`**, not `queue_item.note`: `queue_item`'s one-time
-  resolution columns (`note` included) are written exactly once, by a
-  human resolving the item through `queue.act`, and a budget abort is the
-  runner escalating on its own, before any human has looked at it. The
-  `escalation` item's `ref` already points a reader at `stage_run:<id>`,
-  so the note lands exactly where that pointer leads.
+- **The escalation item's content is derived, not stored.** `queue_item`'s
+  one-time resolution columns (`note` included) are written exactly once,
+  by a human resolving the item, and `stage_run.reasoning_summary` is the
+  agent's own capped self-report, so neither may carry the runner's
+  escalation content. The item's `ref` points at `stage_run:<id>`; every
+  field the item must carry already exists on that run, its artefacts,
+  the ticket's evidence tuples and the stage's earlier runs, so
+  `queue.escalation_context` reads them when `factory queue` shows the
+  item, and the only new row an abort writes is the reason, as a failed
+  runner `check_result` on the run.
 - **No `tags.tag` call on budget abort.** `refresh_base`'s own conflict
   path -- the codebase's other system-triggered escalation -- opens its
   `escalation` item and applies `escalate` with no tag at all; every
