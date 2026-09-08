@@ -110,7 +110,8 @@ def _kill_and_restart(conn, ticket_id, stage, tmp_path):
     assert dead_row["outcome"] == "infrastructure_failure"
     assert dead_row["failure_kind"] == "expired_lease"
     rows = conn.execute(
-        "SELECT outcome FROM stage_run WHERE ticket_id = ? AND stage = ? ORDER BY id", (ticket_id, stage)
+        "SELECT outcome FROM stage_run WHERE ticket_id = ? AND stage = ? AND parent_run_id IS NULL ORDER BY id",
+        (ticket_id, stage)
     ).fetchall()
     assert rows[-1]["outcome"] == "pass"
     assert sum(1 for row in rows if row["outcome"] == "infrastructure_failure") == 1
@@ -290,10 +291,12 @@ def test_a_kill_at_every_stage_leaves_no_duplicate_attempt(walk):
     """criterion 15: across the whole walk, every stage `S0`-`S6` was
     killed once and restarted with exactly one fresh, passing attempt --
     proven inline by `_kill_and_restart` during the walk itself; this test
-    pins that every stage was actually exercised that way."""
+    pins that every stage was actually exercised that way. Attempts only:
+    a real stage's agent invocations are child rows under the attempt."""
     for stage in ("S0", "S1", "S2", "S3", "S4", "S5", "S6"):
         rows = walk.conn.execute(
-            "SELECT outcome FROM stage_run WHERE ticket_id = ? AND stage = ?", (walk.ticket_id, stage)
+            "SELECT outcome FROM stage_run WHERE ticket_id = ? AND stage = ? AND parent_run_id IS NULL",
+            (walk.ticket_id, stage)
         ).fetchall()
         outcomes = [row["outcome"] for row in rows]
         assert outcomes.count("infrastructure_failure") == 1, stage
