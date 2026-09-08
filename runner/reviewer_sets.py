@@ -294,19 +294,11 @@ class Derivation:
     waivable: bool
 
 
-def derive_actual(
-    conn: sqlite3.Connection,
-    *,
-    ticket_id: int,
-    repo_path: Path,
-    target_base_sha: str,
-    changed_paths: list[str],
-    owners: Owners,
-    sensitive_paths: dict[str, str],
-    authority_policy_hash: str,
-    membership_snapshot_hash: str,
-) -> Derivation:
-    """Derive the actual reviewer set for `changed_paths` from CODEOWNERS at `target_base_sha`.
+def _match_paths(
+    codeowners: Codeowners, changed_paths: list[str], *, owners: Owners, sensitive_paths: dict[str, str],
+    flag_unmatched: bool = True,
+) -> tuple[list[Slot], list[str], bool]:
+    """The `(slots, unresolved, sensitive)` a diff's paths derive against `codeowners` and `sensitive_paths`.
 
     Ownership and sensitivity are two separate questions. For ownership
     CODEOWNERS wins: a path it covers takes its owners from there, and the
@@ -314,15 +306,16 @@ def derive_actual(
     does not cover. Sensitivity is decided for every path by the mapping
     alone, whoever owns it, since a repository-wide `*` rule must never
     hide that a diff touched an authentication or payments directory. A
-    path neither source claims blocks the same way an unresolved owner
-    does, since nobody has been assigned to review it. One `Slot` is
-    recorded per `(rule, owner)` match, so a rule naming several owners
-    counts quorum against each individually; a sensitive path's slots
-    carry the `sensitive_path_owner` role. The row is written before this
-    function returns, so its id is available for `effective_set` and
-    `is_current` even when the derivation is blocked.
+    path neither source claims is unresolved the same way an owner that
+    fails to resolve is, since nobody has been assigned to review it --
+    `flag_unmatched=False` (the planned derivation's own case) skips that:
+    a plan's intended scope naming no CODEOWNERS-covered or sensitive path
+    simply adds nothing, since the real, later diff is what actually must
+    resolve every touched path, not the plan's own forecast of it. One
+    `Slot` is recorded per `(rule, owner)` match, so a rule naming several
+    owners counts quorum against each individually; a sensitive path's
+    slots carry the `sensitive_path_owner` role.
     """
-    codeowners = read_codeowners(repo_path, target_base_sha)
     slots: list[Slot] = []
     unresolved: list[str] = []
     sensitive = False
@@ -336,8 +329,9 @@ def derive_actual(
             glob, handle = sensitive_match
             matches = [(f"sensitive_paths:{glob}", glob, None, handle)]
         else:
-            slots.append(Slot(source_rule=f"unmatched:{path}", matched_path=path, min_count=1, resolved=False))
-            unresolved.append(path)
+            if flag_unmatched:
+                slots.append(Slot(source_rule=f"unmatched:{path}", matched_path=path, min_count=1, resolved=False))
+                unresolved.append(path)
             continue
         sensitive = sensitive or sensitive_match is not None
         for source_rule, pattern, precedence, handle in matches:
@@ -356,12 +350,40 @@ def derive_actual(
             if not slot.resolved:
                 unresolved.append(slot.owner)
 
+    return slots, unresolved, sensitive
+
+
+def _routes_for(*, sensitive: bool, unresolved: list[str]) -> tuple[bool, tuple[str, ...]]:
     if sensitive:
-        blocked, routes = True, _SENSITIVE_ROUTES
-    elif unresolved:
-        blocked, routes = True, _NON_SENSITIVE_UNRESOLVED_ROUTES
-    else:
-        blocked, routes = False, ()
+        return True, _SENSITIVE_ROUTES
+    if unresolved:
+        return True, _NON_SENSITIVE_UNRESOLVED_ROUTES
+    return False, ()
+
+
+def derive_actual(
+    conn: sqlite3.Connection,
+    *,
+    ticket_id: int,
+    repo_path: Path,
+    target_base_sha: str,
+    changed_paths: list[str],
+    owners: Owners,
+    sensitive_paths: dict[str, str],
+    authority_policy_hash: str,
+    membership_snapshot_hash: str,
+) -> Derivation:
+    """Derive the actual reviewer set for `changed_paths` from CODEOWNERS at `target_base_sha`.
+
+    Raises `LookupError` (from `read_codeowners`) when the repository
+    carries no CODEOWNERS file at all -- an actual, real-diff derivation
+    has nothing to fall back to. The row is written before this function
+    returns, so its id is available for `effective_set` and `is_current`
+    even when the derivation is blocked.
+    """
+    codeowners = read_codeowners(repo_path, target_base_sha)
+    slots, unresolved, sensitive = _match_paths(codeowners, changed_paths, owners=owners, sensitive_paths=sensitive_paths)
+    blocked, routes = _routes_for(sensitive=sensitive, unresolved=unresolved)
 
     row = _reviewer_set_row(
         ticket_id=ticket_id,
@@ -380,6 +402,73 @@ def derive_actual(
     return Derivation(
         id=row_id,
         slots=tuple(slots),
+        blocked=blocked,
+        unresolved=tuple(sorted(set(unresolved))),
+        sensitive=sensitive,
+        routes=routes,
+        waivable=False,
+    )
+
+
+def derive_planned(
+    conn: sqlite3.Connection,
+    *,
+    ticket_id: int,
+    repo_path: Path,
+    target_base_sha: str,
+    changed_paths: list[str],
+    owners: Owners,
+    sensitive_paths: dict[str, str],
+    authority_policy_hash: str,
+    membership_snapshot_hash: str,
+) -> Derivation:
+    """Derive the planned reviewer set from the plan's own `Scope and discretion` paths.
+
+    Shares `_match_paths` with `derive_actual` -- the same CODEOWNERS and
+    sensitive-path matching over a path list -- with two differences: the
+    Initial pilot's own fixed S3 slot (`s3_reviewer_role`, owned by
+    `owners.yaml`'s `s3_reviewer`) is always included, on top of whatever
+    CODEOWNERS or the sensitive-path map add, since Initial always needs a
+    human S3 reviewer even for a plan that touches nothing either source
+    covers; and a repository with no CODEOWNERS file at all contributes no
+    CODEOWNERS-derived slot rather than raising, since a plan's own
+    intended scope is not itself evidence that the repository must carry
+    that file the way a real, already-happened diff is.
+    """
+    try:
+        codeowners = read_codeowners(repo_path, target_base_sha)
+    except LookupError:
+        # No CODEOWNERS file anywhere in the repo: an empty rule set, not a
+        # skipped match -- `_match_paths` still runs below, so the
+        # sensitive-path mapping (which owes nothing to CODEOWNERS) is
+        # still consulted regardless of whether the file exists.
+        codeowners = Codeowners(path=None, blob_sha=None, rules=())
+    slots, unresolved, sensitive = _match_paths(
+        codeowners, changed_paths, owners=owners, sensitive_paths=sensitive_paths, flag_unmatched=False,
+    )
+
+    pilot_identity = owners.roles["s3_reviewer"]["identity"]
+    pilot_slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=pilot_identity, min_count=1)
+    all_slots = [pilot_slot, *slots]
+    blocked, routes = _routes_for(sensitive=sensitive, unresolved=unresolved)
+
+    row = _reviewer_set_row(
+        ticket_id=ticket_id,
+        kind="planned",
+        subject_hash=_subject_hash(changed_paths, target_base_sha),
+        base_sha=target_base_sha,
+        path_set_hash=_path_set_hash(changed_paths),
+        codeowners_path=codeowners.path,
+        codeowners_blob_sha=codeowners.blob_sha,
+        sensitive_path_hash=canonical.content_hash({"sensitive_paths": sensitive_paths}),
+        owner_config_hash=authority_policy_hash,
+        membership_snapshot_hash=membership_snapshot_hash,
+        slots=json.dumps([slot.to_json() for slot in all_slots]),
+    )
+    row_id = record.insert(conn, "reviewer_set", **row)
+    return Derivation(
+        id=row_id,
+        slots=tuple(all_slots),
         blocked=blocked,
         unresolved=tuple(sorted(set(unresolved))),
         sensitive=sensitive,

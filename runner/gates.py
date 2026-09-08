@@ -27,7 +27,7 @@ import sqlite3
 from pathlib import Path
 from typing import Callable
 
-from runner import approvals, freshness, manifest, questions, record
+from runner import approvals, binding, freshness, manifest, plan_tuple, record
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
@@ -47,20 +47,21 @@ def _latest_passed(conn: sqlite3.Connection, ticket_id: int, stage: str) -> bool
     return run is not None and run["outcome"] == "pass"
 
 
-def _quorum(conn: sqlite3.Connection, ticket_id: int, gate: str, subject_hash: str | None) -> bool:
-    """At least one approving `approval_record` bound to this exact subject.
+def _any_open_question(conn: sqlite3.Connection, ticket_id: int) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM question WHERE ticket_id = ? AND state = 'open' LIMIT 1", (ticket_id,)
+    ).fetchone() is not None
 
-    "At least one" is the thin quorum; the real per-role minimum count and
-    identity-separation computation replaces this body later.
-    """
-    if subject_hash is None:
-        return False
-    row = conn.execute(
-        "SELECT 1 FROM approval_record WHERE ticket_id = ? AND gate = ? "
-        "AND decision = 'approve' AND subject_hash = ? LIMIT 1",
-        (ticket_id, gate, subject_hash),
+
+def _planned_slots(conn: sqlite3.Connection, plan_row: sqlite3.Row) -> list[Slot]:
+    reviewer_set = conn.execute(
+        "SELECT * FROM reviewer_set WHERE ticket_id = ? AND kind = 'planned' AND content_hash = ? "
+        "ORDER BY id DESC LIMIT 1",
+        (plan_row["ticket_id"], plan_row["planned_reviewer_set_hash"]),
     ).fetchone()
-    return row is not None
+    if reviewer_set is None:
+        return []
+    return [Slot.from_json(item) for item in json.loads(reviewer_set["slots"] or "[]")]
 
 
 def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
@@ -78,19 +79,33 @@ def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path
 
 
 def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
-    """Full plan quorum plus the real `BEFORE_S4` freshness check admits to implementing.
+    """Full plan quorum, a still-current plan subject, plus the real `BEFORE_S4` freshness check admits to implementing.
 
     A stale base withholds this event rather than firing a redirect of its
     own (see `state_table`); `refresh_base` and the send-backs are applied
     by the caller that records the human's decision, never derived here.
-    An open blocking question also withholds it: approval can proceed
-    once every remaining question is answered or its assumption is
-    explicitly accepted, never while one still owes a human a decision.
+    Any open question -- not only a blocking one -- also withholds it:
+    approval can proceed once every question is answered or its
+    assumption is explicitly accepted, never while one still owes a human
+    a decision. Quorum is evaluated over the plan tuple's own planned
+    reviewer set, the same slots the checklist's approval bound; a plan
+    tuple that `plan_tuple.derive_components` no longer matches -- a
+    changed answer, artefact, verdict, waiver, or any other bound field --
+    withholds the event too, since an approval recorded against a
+    superseded subject satisfies nothing.
     """
-    if questions.open_blocking(conn, ticket["id"]):
+    if _any_open_question(conn, ticket["id"]):
         return None
-    plan_tuple = _latest(conn, "evidence_tuple", ticket["id"], kind="plan")
-    if plan_tuple is None or not _quorum(conn, ticket["id"], "plan", plan_tuple["content_hash"]):
+    plan_row = _latest(conn, "evidence_tuple", ticket["id"], kind="plan")
+    if plan_row is None:
+        return None
+    current = plan_tuple.derive_components(conn, ticket)
+    if not binding.plan_tuple_currency(conn, plan_row["id"], current).current:
+        return None
+    quorum = approvals.evaluate(
+        conn, gate="plan", subject_hash=plan_row["content_hash"], slots=_planned_slots(conn, plan_row),
+    )
+    if not quorum.satisfied:
         return None
     fresh = freshness.check(
         conn, ticket["id"], boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,

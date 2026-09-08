@@ -225,6 +225,11 @@ def main(argv: list[str] | None = None) -> int:
     act_parser.add_argument("--severity")
     act_parser.add_argument("--option", type=int)
     act_parser.add_argument("--tier")
+    act_parser.add_argument("--line")
+    act_parser.add_argument("--key")
+    act_parser.add_argument("--verdict")
+    act_parser.add_argument("--evidence")
+    act_parser.add_argument("--waiver", type=int)
 
     abandon_parser = subparsers.add_parser("abandon")
     abandon_parser.add_argument("ticket_id", type=int)
@@ -284,11 +289,13 @@ def main(argv: list[str] | None = None) -> int:
         elif args.verb == "queue":
             print(queue.list_queue(conn, include_resolved=args.show_all))
         elif args.verb == "act":
+            evidence = [int(item) for item in args.evidence.split(",")] if args.evidence else None
             print(queue.act(
                 conn, item_id=args.item_id, action=args.action, actor=args.actor,
                 bucket=args.bucket, note=args.note, to=args.to, fm_id=args.fm,
                 category=args.category, severity=args.severity, option=args.option,
-                tier=args.tier, runs_dir=runs_dir,
+                tier=args.tier, line=args.line, key=args.key, verdict=args.verdict,
+                evidence=evidence, waiver=args.waiver, runs_dir=runs_dir,
             ))
         elif args.verb == "abandon":
             print(queue.abandon(
