@@ -13,11 +13,11 @@ def test_state_table_lives_outside_factory_with_plausible_states():
     assert "intake" in state_table.STATES
     assert "merged" in state_table.STATES
     assert len(state_table.STATES) == 14
-    # Every state named as a transition target must itself be a real state,
-    # otherwise the table could route a ticket into a state that doesn't exist.
-    assert set(state_table.TRANSITIONS) == set(state_table.STATES)
-    for sources in state_table.TRANSITIONS.values():
-        assert sources <= set(state_table.STATES)
+    # Every state a transition starts from or lands in must itself be a real
+    # state, otherwise the table could route a ticket into one that doesn't exist.
+    states = set(state_table.STATES)
+    for (from_state, _event), to_state in state_table.TABLE.items():
+        assert from_state in states and to_state in states
 
 
 def test_anti_goals_lives_outside_factory_with_eleven_entries():

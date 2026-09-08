@@ -1,0 +1,8 @@
+subject: factory/rubrics/S6.md
+cases:
+  - name: ok
+    fixture: fixtures/ok
+    expect: ok
+  - name: missing_front_matter
+    fixture: fixtures/missing_front_matter
+    expect: reject

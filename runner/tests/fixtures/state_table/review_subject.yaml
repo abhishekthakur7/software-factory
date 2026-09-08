@@ -1,0 +1,59 @@
+# The review-side gate scenarios: a stale review tuple (the same
+# "withholds rather than redirects" policy as plan_subject.yaml), an
+# unresolved reviewer_set slot, and the outbox intent states review_gate
+# reads: a superseded intent routes back to checks, a pending one waits.
+stale:
+  ticket:
+    - as: ticket
+      state: checks
+      target_base_sha: base-head-4
+      branch: feature/four
+  evidence_tuple:
+    - as: review_tuple
+      kind: review
+      ticket_id: $ticket
+      base_sha: base-head-old
+      target_base_sha: base-head-old
+      content_hash: review-subject-4
+
+new_reviewer_slot:
+  ticket:
+    - as: ticket
+      state: checks
+  reviewer_set:
+    - ticket_id: $ticket
+      kind: actual
+      slots: '[{"role": "security", "resolved": false}]'
+
+superseded_intent:
+  ticket:
+    - as: ticket
+      state: review
+  evidence_tuple:
+    - as: review_tuple
+      kind: review
+      ticket_id: $ticket
+      content_hash: review-subject-5
+  external_write:
+    - ticket_id: $ticket
+      state: superseded
+      review_approval_subject_hash: review-subject-5
+
+pending_intent:
+  ticket:
+    - as: ticket
+      state: review
+  evidence_tuple:
+    - as: review_tuple
+      kind: review
+      ticket_id: $ticket
+      content_hash: review-subject-6
+  approval_record:
+    - ticket_id: $ticket
+      gate: review
+      decision: approved
+      subject_hash: review-subject-6
+  external_write:
+    - ticket_id: $ticket
+      state: pending
+      review_approval_subject_hash: review-subject-6

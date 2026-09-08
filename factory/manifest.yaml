@@ -12,3 +12,152 @@ files:
     content_hash: ab6b9a76c122d28764b39facdf412e5f76990f746c76c65e25c04867d18859b9
   - path: factory/evals/scripts/tools/manifest_hash/fixtures/missing_content_hash/factory/manifest.yaml
     content_hash: e4b4ad2a679cd1d6c43a224ba7cf0ad8cd9fe544a22dd5a319d18d703d18385b
+  - path: factory/agents/S1.md
+    content_hash: 4b347107e6d1fbac7359de3d7ef995524ffc03b24fc4b65650c393a493f9f6be
+  - path: factory/agents/S2.md
+    content_hash: 526f2e57ae0aefec2d527bf9a2614fbbd8236e632f7758ff2cf570b66ecfbfee
+  - path: factory/agents/S3.md
+    content_hash: e8b8839fbbee6a0121a0be531c3163671e734f949af35836da92405f13b52c99
+  - path: factory/agents/S4.md
+    content_hash: a2b909b8729a2a61ea018c7ad61adaa6c97b25af54a5ba398aa943c9854928cd
+  - path: factory/skills/S1.md
+    content_hash: 0fa333a1dbfb58b7d9640e082b5fda6f1ced7dc67ca83ffd021f0cb21dcdc342
+  - path: factory/skills/S2.md
+    content_hash: daf6f09415b3e4946186ad06f8bd7e5b564df77b8fb08ef507a0e956671f7988
+  - path: factory/skills/S3.md
+    content_hash: be4650a5c4cff8390be61cbe67e0a314d9352fd6007d8fb1c35a896bbf7005f4
+  - path: factory/skills/S4.md
+    content_hash: d829a63a6333f7043f624e0575f5132082b3825864cb09bde7fc8d10056a762e
+  - path: factory/rubrics/S0.md
+    content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
+  - path: factory/rubrics/S1.md
+    content_hash: 47cb2314d2b46354c7b1c58fe6e7c6ec7bf4621aba53dea2a205c8dc4798558b
+  - path: factory/rubrics/S2.md
+    content_hash: f3251fff130e6b0dd283fe7c26b6e1bcc5c7d5983b0c78e18f314a966b9f9fa7
+  - path: factory/rubrics/S3.md
+    content_hash: d31ac630930a995ab074525f47fc02bff4f06aebd67c4564e39c0b6ea58c359d
+  - path: factory/rubrics/S4.md
+    content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
+  - path: factory/rubrics/S5.md
+    content_hash: 4f189dcd43d6ade4842c5be3fe7b01075556415e99365f39ee3c40aa0388e41f
+  - path: factory/rubrics/S6.md
+    content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
+  - path: factory/evals/agents/S1/eval.yaml
+    content_hash: 263913f1fa9470b25917ad28cea9d52ccabafd0dfafb4a9507885bcb207c28c6
+  - path: factory/evals/agents/S1/fixtures/missing_front_matter/S1.md
+    content_hash: 23639892fef58f689b91e81c055299768550c89459e76d3d86758a1e56c59495
+  - path: factory/evals/agents/S1/fixtures/ok/S1.md
+    content_hash: 4b347107e6d1fbac7359de3d7ef995524ffc03b24fc4b65650c393a493f9f6be
+  - path: factory/evals/agents/S2/eval.yaml
+    content_hash: 772392bdae490f8e0291589d792eff96f5e0a9ead775a6b714c71f2c47bc9173
+  - path: factory/evals/agents/S2/fixtures/missing_front_matter/S2.md
+    content_hash: a2c54613d8c96f459db5ccb96b93ac3c675cbe691f970a24e5a317895ae471ee
+  - path: factory/evals/agents/S2/fixtures/ok/S2.md
+    content_hash: 526f2e57ae0aefec2d527bf9a2614fbbd8236e632f7758ff2cf570b66ecfbfee
+  - path: factory/evals/agents/S3/eval.yaml
+    content_hash: 521033df020954fdb4db2efb13fb67fed93ceb24383a9f40daa76c5ceb716e13
+  - path: factory/evals/agents/S3/fixtures/missing_front_matter/S3.md
+    content_hash: b9676847c33c7f408a5c1ac9ad84bab7944f06ef52e81c563fa2578058a26159
+  - path: factory/evals/agents/S3/fixtures/ok/S3.md
+    content_hash: e8b8839fbbee6a0121a0be531c3163671e734f949af35836da92405f13b52c99
+  - path: factory/evals/agents/S4/eval.yaml
+    content_hash: 56d305e98a8b5b2d486cf4226cc547d7dfb185e15d31a37f0579ccf5c50be060
+  - path: factory/evals/agents/S4/fixtures/missing_front_matter/S4.md
+    content_hash: e67482fb1f02ed7f2e06199e55eb45e08a755010caeb509aa4848fc5c7788951
+  - path: factory/evals/agents/S4/fixtures/ok/S4.md
+    content_hash: a2b909b8729a2a61ea018c7ad61adaa6c97b25af54a5ba398aa943c9854928cd
+  - path: factory/evals/skills/S1/eval.yaml
+    content_hash: fe8e664bbf0e7222aba9fcf2dfba4fec34863d430d8df2992dd1cbb365564dbc
+  - path: factory/evals/skills/S1/fixtures/missing_front_matter/S1.md
+    content_hash: b4a1518292c805fb471417b6f1ffc113ff29b602b36d44e03628c77407c3197d
+  - path: factory/evals/skills/S1/fixtures/ok/S1.md
+    content_hash: 0fa333a1dbfb58b7d9640e082b5fda6f1ced7dc67ca83ffd021f0cb21dcdc342
+  - path: factory/evals/skills/S2/eval.yaml
+    content_hash: 42ce45cf8a7933a5b551d7abc2a4c41df4b0b7d9783a3734c8ab7cf32418b4f3
+  - path: factory/evals/skills/S2/fixtures/missing_front_matter/S2.md
+    content_hash: 75c45b03ed10a32d2213998139ec0a0191981fb6bcd76d09cfaafe373e4c4ff8
+  - path: factory/evals/skills/S2/fixtures/ok/S2.md
+    content_hash: daf6f09415b3e4946186ad06f8bd7e5b564df77b8fb08ef507a0e956671f7988
+  - path: factory/evals/skills/S3/eval.yaml
+    content_hash: 7d62a29650642e97bb4d2c66070a9169f4f714b935713967cd8a77c2f4f0c086
+  - path: factory/evals/skills/S3/fixtures/missing_front_matter/S3.md
+    content_hash: 7dde0c65214f6b2c04d8a2221845ffe582cce1c21def83d0232bd8c5bc25767c
+  - path: factory/evals/skills/S3/fixtures/ok/S3.md
+    content_hash: be4650a5c4cff8390be61cbe67e0a314d9352fd6007d8fb1c35a896bbf7005f4
+  - path: factory/evals/skills/S4/eval.yaml
+    content_hash: 1c59d39b5b4ccf6bbab45d77b8a045ff346350fd9a8b8026b3172aad315a45c3
+  - path: factory/evals/skills/S4/fixtures/missing_front_matter/S4.md
+    content_hash: fc95f11cc283cf6bcf68dc38ad3fda4a71889c7bfcb95c24a43d19d9e05d1b50
+  - path: factory/evals/skills/S4/fixtures/ok/S4.md
+    content_hash: d829a63a6333f7043f624e0575f5132082b3825864cb09bde7fc8d10056a762e
+  - path: factory/evals/rubrics/S0/eval.yaml
+    content_hash: 31be1bfce9ec7c895de19ae8222a81bde0432064783424789e0cb620d1577021
+  - path: factory/evals/rubrics/S0/fixtures/missing_front_matter/S0.md
+    content_hash: bc0756c86edad30ed7eea846b43057ad1d81d2105823e31c6d0f5246aec0e50c
+  - path: factory/evals/rubrics/S0/fixtures/ok/S0.md
+    content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
+  - path: factory/evals/rubrics/S1/eval.yaml
+    content_hash: afd660a76c4069c4aeec19d1d929584d412de4ddd1fa085aa9c7eb133c9f9a1a
+  - path: factory/evals/rubrics/S1/fixtures/missing_front_matter/S1.md
+    content_hash: e74a1a9ef3f638b26843d2ac07b06a8c38434b92b7febb9a772de3c5aaf2543f
+  - path: factory/evals/rubrics/S1/fixtures/ok/S1.md
+    content_hash: 47cb2314d2b46354c7b1c58fe6e7c6ec7bf4621aba53dea2a205c8dc4798558b
+  - path: factory/evals/rubrics/S2/eval.yaml
+    content_hash: ef3ea67d09cfc03c873ed62e7a33d07bd473d25c52da3868d862648a2cbcbe97
+  - path: factory/evals/rubrics/S2/fixtures/missing_front_matter/S2.md
+    content_hash: 932d107e5267f21a836780d02d1cdb0028b7783a944c70322b476e34a637a264
+  - path: factory/evals/rubrics/S2/fixtures/ok/S2.md
+    content_hash: f3251fff130e6b0dd283fe7c26b6e1bcc5c7d5983b0c78e18f314a966b9f9fa7
+  - path: factory/evals/rubrics/S3/eval.yaml
+    content_hash: a89ca9d95b09c3391e8f9dea819247e5f9ae91dbb521d6ce18ad4f1102917fb1
+  - path: factory/evals/rubrics/S3/fixtures/missing_front_matter/S3.md
+    content_hash: 4cba7669b435c786dcbcbd05ae92a1b33dc607ffac1a38ba3305cedf16948be7
+  - path: factory/evals/rubrics/S3/fixtures/ok/S3.md
+    content_hash: d31ac630930a995ab074525f47fc02bff4f06aebd67c4564e39c0b6ea58c359d
+  - path: factory/evals/rubrics/S4/eval.yaml
+    content_hash: 507e6398768d7d41b97416d002be97d50686f701371449f24139d1966aac51d0
+  - path: factory/evals/rubrics/S4/fixtures/missing_front_matter/S4.md
+    content_hash: 78fc7633b15a9ba817ef94035e28ce5a4e41e1675cc89bd914b4382db73d840e
+  - path: factory/evals/rubrics/S4/fixtures/ok/S4.md
+    content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
+  - path: factory/evals/rubrics/S5/eval.yaml
+    content_hash: 3aa6ea81c03f6a92e06744276d7ee8b7ea312deb34e9807be9c7a0ef059e9aef
+  - path: factory/evals/rubrics/S5/fixtures/missing_front_matter/S5.md
+    content_hash: 406d59ec074168a082737c8234a8122d2336b4fec319fefef26deac651c000bf
+  - path: factory/evals/rubrics/S5/fixtures/ok/S5.md
+    content_hash: 4f189dcd43d6ade4842c5be3fe7b01075556415e99365f39ee3c40aa0388e41f
+  - path: factory/evals/rubrics/S6/eval.yaml
+    content_hash: f9eac70badf55c28cf7e16a286ea02b6b2ca3fb7e3ba9f53be7ac8cb888cb13b
+  - path: factory/evals/rubrics/S6/fixtures/missing_front_matter/S6.md
+    content_hash: d074772c30e456cd1ef3d2c808555a264971a92d525bf8b342d77b30bdcfc88f
+  - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
+    content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
+stages:
+  S0:
+    agent: null
+    skill: null
+    rubric: factory/rubrics/S0.md
+  S1:
+    agent: factory/agents/S1.md
+    skill: factory/skills/S1.md
+    rubric: factory/rubrics/S1.md
+  S2:
+    agent: factory/agents/S2.md
+    skill: factory/skills/S2.md
+    rubric: factory/rubrics/S2.md
+  S3:
+    agent: factory/agents/S3.md
+    skill: factory/skills/S3.md
+    rubric: factory/rubrics/S3.md
+  S4:
+    agent: factory/agents/S4.md
+    skill: factory/skills/S4.md
+    rubric: factory/rubrics/S4.md
+  S5:
+    agent: null
+    skill: null
+    rubric: factory/rubrics/S5.md
+  S6:
+    agent: null
+    skill: null
+    rubric: factory/rubrics/S6.md

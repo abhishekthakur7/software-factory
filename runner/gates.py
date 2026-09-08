@@ -1,0 +1,126 @@
+"""The gate states: `intake`, `plan_review`, `checks`, `review`.
+
+Each function derives at most one event from rows already recorded in the
+database and returns it, or returns `None` when no rule fires: the ticket
+is then waiting on a human, and `factory advance` says so rather than
+guessing. This is the thin form later work replaces: real quorum and
+reviewer-set derivation, plan and review tuple construction, and freshness
+checks that fetch a real branch head all read the same rows this module
+reads, with the actual computation in place of a stored equality check.
+
+None of these functions writes anything; the caller applies the returned
+event through `transitions.apply`.
+"""
+import json
+import sqlite3
+from typing import Callable
+
+
+def _latest(conn: sqlite3.Connection, table: str, ticket_id: int, **where) -> sqlite3.Row | None:
+    clauses = ["ticket_id = ?"]
+    params: list = [ticket_id]
+    for column, value in where.items():
+        clauses.append(f"{column} = ?")
+        params.append(value)
+    query = f"SELECT * FROM {table} WHERE {' AND '.join(clauses)} ORDER BY id DESC LIMIT 1"
+    return conn.execute(query, params).fetchone()
+
+
+def _latest_passed(conn: sqlite3.Connection, ticket_id: int, stage: str) -> bool:
+    run = _latest(conn, "stage_run", ticket_id, stage=stage)
+    return run is not None and run["outcome"] == "pass"
+
+
+def _quorum(conn: sqlite3.Connection, ticket_id: int, gate: str, subject_hash: str | None) -> bool:
+    """At least one approved `approval_record` bound to this exact subject.
+
+    "At least one" is the thin quorum; the real per-role minimum count and
+    identity-separation computation replaces this body later.
+    """
+    if subject_hash is None:
+        return False
+    row = conn.execute(
+        "SELECT 1 FROM approval_record WHERE ticket_id = ? AND gate = ? "
+        "AND decision = 'approved' AND subject_hash = ? LIMIT 1",
+        (ticket_id, gate, subject_hash),
+    ).fetchone()
+    return row is not None
+
+
+def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+    """A declined eligibility item rejects; a granted one admits once S0 has passed."""
+    item = _latest(conn, "queue_item", ticket["id"], kind="eligibility")
+    if item is None:
+        return None
+    if item["action"] == "declined":
+        return "eligibility_declined"
+    if item["action"] == "granted" and _latest_passed(conn, ticket["id"], "S0"):
+        return "eligibility_granted"
+    return None
+
+
+def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+    """Full plan quorum plus base and target-head equality admits to implementing.
+
+    A stale base withholds this event rather than firing a redirect of its
+    own (see `state_table`); `refresh_base` and the send-backs are applied
+    by the caller that records the human's decision, never derived here.
+    """
+    plan_tuple = _latest(conn, "evidence_tuple", ticket["id"], kind="plan")
+    if plan_tuple is None or not _quorum(conn, ticket["id"], "plan", plan_tuple["content_hash"]):
+        return None
+    fresh = (
+        plan_tuple["base_sha"] == ticket["target_base_sha"]
+        and plan_tuple["target_base_sha"] == ticket["target_base_sha"]
+    )
+    return "plan_quorum_fresh" if fresh else None
+
+
+def _reviewer_set_has_unresolved_slot(reviewer_set: sqlite3.Row) -> bool:
+    slots = json.loads(reviewer_set["slots"]) if reviewer_set["slots"] else []
+    return any(not slot.get("resolved", True) for slot in slots)
+
+
+def checks_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+    """A new or unresolved reviewer slot returns to planning; otherwise S5 and S6 both passed admits to review.
+
+    A stale review base, like plan_review's stale base, withholds this
+    event rather than firing a redirect; only `refresh_base` and the
+    send-backs move the ticket away from a stale binding.
+    """
+    reviewer_set = _latest(conn, "reviewer_set", ticket["id"])
+    if reviewer_set is not None and _reviewer_set_has_unresolved_slot(reviewer_set):
+        return "checks_new_reviewer_slot"
+    if _latest_passed(conn, ticket["id"], "S5") and _latest_passed(conn, ticket["id"], "S6"):
+        return "checks_pass_to_review"
+    return None
+
+
+def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
+    """Full review quorum plus a reconciled receipt opens the pull request; a superseded intent routes back to checks.
+
+    The state table routes a pre-dispatch mismatch to checks, planning or
+    context "as applicable"; which applies is the outbox's reconciliation,
+    which arrives later. Until then every superseded intent routes to
+    checks, and the planning and context routes are applied only by a
+    caller that decides them.
+    """
+    review_tuple = _latest(conn, "evidence_tuple", ticket["id"], kind="review")
+    write = _latest(conn, "external_write", ticket["id"])
+    if write is None:
+        return None
+    if write["state"] == "reconciled" and review_tuple is not None and _quorum(
+        conn, ticket["id"], "review", review_tuple["content_hash"]
+    ):
+        return "review_quorum_reconciled"
+    if write["state"] == "superseded":
+        return "review_predispatch_mismatch_to_checks"
+    return None
+
+
+GATES: dict[str, Callable[[sqlite3.Connection, sqlite3.Row], str | None]] = {
+    "intake": intake_gate,
+    "plan_review": plan_review_gate,
+    "checks": checks_gate,
+    "review": review_gate,
+}

@@ -1,0 +1,18 @@
+# Full review quorum plus a reconciled outbox receipt ().
+reconciled:
+  ticket:
+    - as: ticket
+      state: review
+  evidence_tuple:
+    - as: review_tuple
+      kind: review
+      ticket_id: $ticket
+      content_hash: review-subject-8
+  approval_record:
+    - ticket_id: $ticket
+      gate: review
+      decision: approved
+      subject_hash: review-subject-8
+  external_write:
+    - ticket_id: $ticket
+      state: reconciled
