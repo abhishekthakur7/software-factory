@@ -523,9 +523,9 @@ files:
   - path: factory/rubrics/S0.md
     content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
   - path: factory/rubrics/S1.md
-    content_hash: a577dafe89f364ef0b8d9b1368907f30f553885962d37f280e247d69f0ab05b3
+    content_hash: 34fd4f4004d18fb1525ef90dc4f04ea3f0b97484016c115326308c43cc7ea31f
   - path: factory/rubrics/S2.md
-    content_hash: 87dfee4faf027605aa277c7b87b44bd39696b0935587317dc34e99928a31f080
+    content_hash: 70319b9be7d3e95cdc1f5364e10858f7e8daf0c59b5593eb01fd30f95267f249
   - path: factory/rubrics/S3.md
     content_hash: d31ac630930a995ab074525f47fc02bff4f06aebd67c4564e39c0b6ea58c359d
   - path: factory/rubrics/S4.md

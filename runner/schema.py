@@ -117,6 +117,10 @@ COST_BASES: tuple[str, ...] = (
 # output on replay -- only that the envelope itself is complete.
 REPLAYABILITY: tuple[str, ...] = ("exact", "best_effort")
 
+# deviation.kind's closed set: a deliberate departure from the approved plan,
+# or an error the hand-back admits to.
+DEVIATION_KINDS: tuple[str, ...] = ("judgment", "error")
+
 # guard_decision.decision's closed set.
 GUARD_DECISIONS: tuple[str, ...] = ("allow", "redact", "deny")
 
@@ -528,7 +532,7 @@ TABLES: tuple[Table, ...] = (
             Column("plan_said", "TEXT"),
             Column("agent_did", "TEXT"),
             Column("why", "TEXT"),
-            Column("kind", "TEXT"),
+            Column("kind", "TEXT", values=DEVIATION_KINDS),
             Column("contract_change", "INTEGER"),
         ),
     ),

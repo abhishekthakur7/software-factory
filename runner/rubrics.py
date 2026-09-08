@@ -5,20 +5,29 @@ A stage's rubric (`factory/rubrics/S<n>.md`) is hand-written: front matter
 `COLUMNS`, one row per rubric line. A PRD requirement row that is both a
 script check and a grader judgment appears as two lines, one per half,
 so a line id is `<row>:<half>` and is stable for as long as the row id is
-(retired ids are never reused). `checklist` marks a grader line that the
-bootstrap checklist stands in for until calibrated graders exist; its
-`judgment` is the pass-or-fail sentence a human reviewer applies. The
-line id set derived here is what the checklist assembler expects every
-`human_verdict` to cover, so a rubric edit changes that expected set
-through this one parser rather than through a second copy of the table.
+(retired ids are never reused). `subject` names what one instance of the
+line judges: the stage's artefact as a whole, or one repeated item inside
+it (an `AC-n` criterion, a question, a contracts-table unit), so the
+checklist assembler can expand a line into its `(line, subject item)`
+instances without a second table saying which lines repeat. `checklist`
+marks a grader line that the bootstrap checklist stands in for until
+calibrated graders exist; its `judgment` is the pass-or-fail sentence a
+human reviewer applies. The line id set derived here is what the
+checklist assembler expects every `human_verdict` to cover, so a rubric
+edit changes that expected set through this one parser rather than
+through a second copy of the table.
 """
 from dataclasses import dataclass
 from pathlib import Path
 
 from runner import artefacts, definitions
 
-COLUMNS: tuple[str, ...] = ("line", "row", "half", "checklist", "judgment")
+COLUMNS: tuple[str, ...] = ("line", "row", "half", "subject", "checklist", "judgment")
 HALVES: tuple[str, ...] = ("script", "grader")
+# What one instance of a line judges: the whole artefact, or one repeated
+# item inside it, keyed by that item's own id (`AC-n`, a question id, a
+# contracts-table unit).
+SUBJECT_KINDS: tuple[str, ...] = ("artefact", "criterion", "question", "contract_unit")
 
 
 class RubricError(ValueError):
@@ -30,6 +39,7 @@ class Line:
     id: str
     row: str
     half: str
+    subject: str
     checklist: bool
     judgment: str
 
@@ -64,6 +74,8 @@ def load(path: Path) -> tuple[Line, ...]:
             raise RubricError(f"{path}: line {line_id!r} has half {half!r}, expected one of {HALVES}")
         if line_id != f"{row_id}:{half}":
             raise RubricError(f"{path}: line id {line_id!r} must be {row_id}:{half}")
+        if row["subject"] not in SUBJECT_KINDS:
+            raise RubricError(f"{path}: line {line_id!r} has subject {row['subject']!r}, expected one of {SUBJECT_KINDS}")
         if line_id in seen:
             raise RubricError(f"{path}: duplicate rubric line {line_id!r}")
         if not row["judgment"]:
@@ -72,7 +84,7 @@ def load(path: Path) -> tuple[Line, ...]:
         checklist = _to_bool(row["checklist"], path=path, line_id=line_id)
         if checklist and half != "grader":
             raise RubricError(f"{path}: line {line_id!r} is a script line and cannot be a checklist line")
-        lines.append(Line(id=line_id, row=row_id, half=half, checklist=checklist, judgment=row["judgment"]))
+        lines.append(Line(id=line_id, row=row_id, half=half, subject=row["subject"], checklist=checklist, judgment=row["judgment"]))
     return tuple(lines)
 
 

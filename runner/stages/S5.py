@@ -17,6 +17,19 @@ from runner.stages._common import run_stub
 ARTEFACT_KIND = "check_evidence"
 PASS_EVENT = None
 
+# The blocking-tier checks S5 runs at this milestone, in the order they
+# run after the preflight and the project's own recipes at base and head.
+# The S4 hand-off names this list as the check policies the implementer
+# will face, so the two never disagree about what S5 enforces.
+CHECK_ORDER: tuple[str, ...] = (
+    "size_gate",
+    "scope_diff",
+    "source_declaration_diff",
+    "behavior_contract_evidence",
+    "regression_only",
+    "base_test_diff",
+)
+
 
 def run(
     conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_dir: Path = RUNS_DIR,
