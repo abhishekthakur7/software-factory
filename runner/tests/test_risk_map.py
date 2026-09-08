@@ -138,7 +138,6 @@ def test_the_top_decile_and_no_clear_owner_entries_are_named_for_different_reaso
     assert by_path["quiet.txt"]["named"] is False
 
 
-# --- the plan's own Risk map table against the computed candidate count ---
 
 
 def test_the_plan_names_at_least_one_place_per_computed_candidate_when_that_is_fewer_than_the_configured_floor():
@@ -159,7 +158,6 @@ def test_must_reject_a_named_place_with_an_empty_why():
     assert any(f.rule == "risk_map_places" for f in findings)
 
 
-# --- the seeded human_verdict scenario for the risk-map grader line ---
 
 
 def test_the_seeded_human_verdict_fixture_names_its_rubric_line_and_a_fail_verdict():

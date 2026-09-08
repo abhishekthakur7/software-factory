@@ -31,9 +31,6 @@ SENSITIVE_PATHS = yaml.safe_load((REVIEWER_SETS_FIXTURES / "sensitive-paths.yaml
 PILOT_IDENTITY = OWNERS.roles["s3_reviewer"]["identity"]  # "alice", this fixture's single-person pilot
 
 CHECKLIST_FIXTURE_DIR = FACTORY_DIR / "evals" / "rubrics" / "S3" / "fixtures" / "checklist"
-S1_RUBRIC = FACTORY_DIR / "rubrics" / "S1.md"
-S2_RUBRIC = FACTORY_DIR / "rubrics" / "S2.md"
-OK_RUBRIC_PATHS = (S1_RUBRIC, S2_RUBRIC, CHECKLIST_FIXTURE_DIR / "rubric_ok.md")
 
 ABHISHEK = "abhishek"  # the real, committed owners.yaml's own single pilot identity
 
@@ -115,11 +112,10 @@ def _register_checklist_artefacts(conn, ticket_id) -> None:
 def _complete_checklist(conn, ticket_id, item_id, *, actor=ABHISHEK) -> None:
     ticket = record.get(conn, "ticket", ticket_id)
     plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
-    for instance in checklist.expected_instances(conn, ticket, rubric_paths=OK_RUBRIC_PATHS):
+    for instance in checklist.expected_instances(conn, ticket):
         queue.act(
             conn, item_id=item_id, action="verdict", actor=actor, line=instance.rubric_line_id,
             key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]],
-            rubric_paths=OK_RUBRIC_PATHS,
         )
 
 
@@ -147,7 +143,6 @@ def _planned_ticket_with_complete_checklist(conn, tmp_path, *, slots=None) -> tu
     return ticket_id, item_id
 
 
-# --- the planned reviewer-set derivation ----------
 
 
 def test_derive_planned_always_includes_the_pilot_slot_plus_codeowners_slots(tmp_path):
@@ -219,7 +214,6 @@ def test_s3_scope_paths_takes_touch_create_delete_and_a_discretion_glob_contribu
     assert S3._scope_paths(plan_text) == ["src/a.py", "src/b.py", "src/c.py"]
 
 
-# --- the checklist's completing verdict creates the plan tuple ----------
 
 
 def test_the_completing_verdict_creates_a_plan_tuple_whose_hash_is_recomputable_and_current(tmp_path):
@@ -235,7 +229,6 @@ def test_the_completing_verdict_creates_a_plan_tuple_whose_hash_is_recomputable_
     assert binding.plan_tuple_currency(conn, row["id"], plan_tuple.derive_components(conn, ticket)).current
 
 
-# --- full quorum over every required slot, distinct actors ----------
 
 
 def test_partial_quorum_over_two_required_slots_withholds_the_gate(tmp_path):
@@ -279,7 +272,6 @@ def test_identity_separation_violation_withholds_quorum_even_with_a_row_on_each_
     assert gates.plan_review_gate(conn, ticket, runs_dir=tmp_path) is None
 
 
-# --- the trusted fetch immediately before the transition ----------
 
 
 def test_plan_review_gate_withholds_the_event_when_the_target_branch_has_moved(tmp_path):
@@ -300,7 +292,6 @@ def test_plan_review_gate_withholds_the_event_when_the_target_branch_has_moved(t
     assert gates.plan_review_gate(conn, ticket, runs_dir=tmp_path) is None
 
 
-# --- the pilot's one S3 slot, and sensitive scope excludes ----------
 
 
 def test_derive_planned_marks_a_sensitive_scope_path_and_offers_only_its_routes(tmp_path):
@@ -364,7 +355,6 @@ def test_a_plan_scope_touching_a_sensitive_path_applies_the_pilot_exclusion(tmp_
     assert len(failed) == 1
 
 
-# --- head_sha is not a bound field ----------
 
 
 def test_an_s4_hand_backs_head_sha_change_alone_leaves_the_plan_tuple_current(tmp_path):
@@ -379,7 +369,6 @@ def test_an_s4_hand_backs_head_sha_change_alone_leaves_the_plan_tuple_current(tm
     assert currency.changed == ()
 
 
-# --- an unresolved question blocks a satisfied subject ----------
 
 
 def test_an_open_question_withholds_the_gate_even_with_full_approval(tmp_path):
@@ -393,7 +382,6 @@ def test_an_open_question_withholds_the_gate_even_with_full_approval(tmp_path):
     assert gates.plan_review_gate(conn, ticket, runs_dir=tmp_path) is None
 
 
-# --- each bound field, changed alone, requires a new subject ----------
 
 
 PLAN_FIELD_OVERRIDES = {name: f"changed-{name}" for name in binding.PLAN_COMPONENT_FIELDS}
@@ -414,7 +402,6 @@ def test_a_changed_bound_field_alone_makes_the_tuple_no_longer_current(tmp_path,
     assert field_name in currency.changed
 
 
-# --- approval expiry requires fresh full quorum ----------
 
 
 def test_an_expired_approval_requires_a_fresh_one_on_the_same_subject(tmp_path):

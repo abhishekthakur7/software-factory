@@ -63,7 +63,6 @@ def _pairs(instances) -> set[tuple[str, str]]:
     return {(i.rubric_line_id, i.subject_item_key) for i in instances}
 
 
-# --- the expected instance set --------------------------------------------
 
 
 def test_expected_instances_matches_the_fixtures_own_expected_set(tmp_path):
@@ -84,7 +83,6 @@ def test_expected_instances_reflects_the_tickets_current_membership(tmp_path):
     assert len(instances) == len(EXPECTED) + 2  # R-S2-5 and R-S2-14 each gain one more question key
 
 
-# --- missing and duplicate rejection ---------------------------------------
 
 
 def test_a_duplicate_rubric_line_and_subject_pairing_is_rejected(tmp_path):
@@ -152,7 +150,6 @@ def test_a_fully_verdicted_checklist_is_reported_complete(tmp_path):
     assert not status.missing and not status.unwaived_blind_spots and not status.failed
 
 
-# --- what a human_verdict binds --------------------------------------------
 
 
 def test_a_recorded_verdict_binds_the_stage_appropriate_subject_artefact_and_evidence(tmp_path):
@@ -227,7 +224,6 @@ def test_a_correction_verdict_is_a_newer_row_and_the_newest_one_wins(tmp_path):
     assert verdict_set[0]["verdict"] == "pass"
 
 
-# --- pass requires evidence -------------------------------------------------
 
 
 def test_must_reject_a_pass_verdict_with_no_evidence(tmp_path):
@@ -282,12 +278,11 @@ def test_must_reject_an_instance_outside_the_expected_set(tmp_path):
         )
 
 
-# --- a fail verdict sends the ticket back -----------------------------------
 
 
 @pytest.mark.parametrize(
     "rubric_line_id, expected_state",
-    [("R-S1-2:grader", "context"), ("R-S2-1:grader", "clarifying"), ("R-CK-1:grader", "planning")],
+    [("R-S1-2:grader", "context"), ("R-S2-1:grader", "clarifying"), ("R-S3-2:grader", "planning")],
 )
 def test_a_fail_verdict_sends_the_ticket_back_to_the_lines_own_stage(tmp_path, rubric_line_id, expected_state):
     """R-S3-20: a `fail` verdict on an S1/S2/S3-stage line returns the ticket to that stage's
@@ -295,7 +290,7 @@ def test_a_fail_verdict_sends_the_ticket_back_to_the_lines_own_stage(tmp_path, r
     conn = _conn(tmp_path)
     ticket_id = _ticket_with_fixture(conn, tmp_path, state="plan_review")
     ticket = record.get(conn, "ticket", ticket_id)
-    instances = checklist.expected_instances(conn, ticket, rubric_paths=OK_RUBRIC_PATHS)
+    instances = checklist.expected_instances(conn, ticket)
     instance = next(i for i in instances if i.rubric_line_id == rubric_line_id)
     identity = "abhishek"
     slot = json.dumps([{"source_rule": "s3_reviewer_role", "role": "s3_reviewer", "owner": identity, "min_count": 1, "distinct_from": [], "resolved": True}])
@@ -305,7 +300,6 @@ def test_a_fail_verdict_sends_the_ticket_back_to_the_lines_own_stage(tmp_path, r
     queue.act(
         conn, item_id=item_id, action="verdict", actor=identity, line=instance.rubric_line_id,
         key=instance.subject_item_key, verdict="fail", fm_id="FM-15", note="does not hold", runs_dir=tmp_path,
-        rubric_paths=OK_RUBRIC_PATHS,
     )
 
     assert record.get(conn, "ticket", ticket_id)["state"] == expected_state
@@ -320,7 +314,7 @@ def test_must_reject_a_fail_verdict_with_no_failure_mode_id(tmp_path):
     conn = _conn(tmp_path)
     ticket_id = _ticket_with_fixture(conn, tmp_path, state="plan_review")
     ticket = record.get(conn, "ticket", ticket_id)
-    instances = checklist.expected_instances(conn, ticket, rubric_paths=OK_RUBRIC_PATHS)
+    instances = checklist.expected_instances(conn, ticket)
     instance = instances[0]
     identity = "abhishek"
     slot = json.dumps([{"source_rule": "s3_reviewer_role", "role": "s3_reviewer", "owner": identity, "min_count": 1, "distinct_from": [], "resolved": True}])
@@ -329,11 +323,10 @@ def test_must_reject_a_fail_verdict_with_no_failure_mode_id(tmp_path):
     with pytest.raises(queue.ActionRefused):
         queue.act(
             conn, item_id=item_id, action="verdict", actor=identity, line=instance.rubric_line_id,
-            key=instance.subject_item_key, verdict="fail", runs_dir=tmp_path, rubric_paths=OK_RUBRIC_PATHS,
+            key=instance.subject_item_key, verdict="fail", runs_dir=tmp_path,
         )
 
 
-# --- blind spot blocking and waiver relief ----------------------------------
 
 
 def test_an_unwaived_blind_spot_blocks_completeness(tmp_path):
@@ -401,7 +394,6 @@ def test_an_expired_waiver_leaves_the_blind_spot_unwaived(tmp_path):
     assert status.unwaived_blind_spots == (instance,)
 
 
-# --- the canonical verdict set feeds the plan tuple -------------------------
 
 
 def test_checklist_hash_changes_with_the_expected_set_and_verdict_set_changes_with_a_correction(tmp_path):

@@ -306,7 +306,6 @@ def _act_verdict(
     waiver: int | None,
     fm_id: str | None,
     note: str | None,
-    rubric_paths,
 ) -> bool:
     """Record one `human_verdict` for `item`; return whether the item itself resolves.
 
@@ -329,7 +328,7 @@ def _act_verdict(
         raise ActionRefused(f"verdict must be one of {sorted(checklist.VERDICTS)}")
 
     ticket = record.get(conn, "ticket", item["ticket_id"])
-    expected = checklist.expected_instances(conn, ticket, rubric_paths=rubric_paths)
+    expected = checklist.expected_instances(conn, ticket)
     instance = next((i for i in expected if i.rubric_line_id == line and i.subject_item_key == key), None)
     if instance is None:
         raise ActionRefused(f"no expected checklist instance for line {line!r} key {key!r}")
@@ -344,7 +343,7 @@ def _act_verdict(
     checklist.record_verdict(
         conn, ticket=ticket, item=item, instance=instance, verdict=verdict,
         evidence_ids=list(evidence or []), waiver_id=waiver, reviewer_identity=actor,
-        reviewer_role=slot.role or "owner", note=note, rubric_paths=rubric_paths,
+        reviewer_role=slot.role or "owner", note=note,
     )
 
     if verdict == "fail":
@@ -492,7 +491,6 @@ def act(
     waiver: int | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
     runs_dir: Path = RUNS_DIR,
-    rubric_paths=None,
 ) -> str:
     """Record a human decision on `item_id` and, where the action permits it, apply its effect.
 
@@ -503,14 +501,8 @@ def act(
     for an `eligibility` item -- an invalid governance state. A
     `control_event` is recorded and returns without resolving the item;
     every other action settles the item's resolution columns before
-    returning. `rubric_paths`, a `verdict` action only, defaults to the
-    real pinned rubrics (`checklist.DEFAULT_RUBRIC_PATHS`); a test may
-    substitute its own small rubric file for a stage whose real one is
-    still a stub.
+    returning.
     """
-    from runner import checklist
-
-    rubric_paths = rubric_paths if rubric_paths is not None else checklist.DEFAULT_RUBRIC_PATHS
     item = record.get(conn, "queue_item", item_id)
     if item is None:
         raise LookupError(f"no such queue item: {item_id}")
@@ -560,7 +552,7 @@ def act(
         # may still have other instances outstanding.
         resolves = _act_verdict(
             conn, item, actor=actor, owners_obj=owners_obj, line=line, key=key, verdict=verdict,
-            evidence=evidence, waiver=waiver, fm_id=fm_id, note=note, rubric_paths=rubric_paths,
+            evidence=evidence, waiver=waiver, fm_id=fm_id, note=note,
         )
         if not resolves:
             return f"queue item {item_id}: verdict recorded"
