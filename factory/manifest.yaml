@@ -768,7 +768,7 @@ files:
   - path: factory/evals/agents/S4/fixtures/ok/out/handback.json
     content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
   - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
-    content_hash: 4d198f3b4aef350a47412f964e31ca62221f82788136fda6bd7fa1819ae4ec24
+    content_hash: 71b174c836aaac1871745b19280f7dc833578ff988a0cf09871cb816e51ac9cc
   - path: factory/evals/rubrics/S3/fixtures/checklist/brief.md
     content_hash: 64cd4add246672442f90dc25f05b2d941d1d62c9721127c81a6774fa50cd436b
   - path: factory/evals/rubrics/S3/fixtures/checklist/criteria.md
