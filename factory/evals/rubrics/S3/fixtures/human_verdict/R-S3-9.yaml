@@ -1,0 +1,5 @@
+# A seeded human_verdict scenario for the R-S3-9 grader line.
+rubric_line_id: "R-S3-9:grader"
+subject: "Test strategy row WidgetTest, action add, proves: 'adds coverage'."
+verdict: fail
+reason: the stated proves value names no AC-n criterion and no specific assertion the test's action checks

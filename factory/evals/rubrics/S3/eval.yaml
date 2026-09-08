@@ -1,4 +1,5 @@
 subject: factory/rubrics/S3.md
+owner: abhishek
 cases:
   - name: ok
     fixture: fixtures/ok
@@ -6,3 +7,63 @@ cases:
   - name: missing_front_matter
     fixture: fixtures/missing_front_matter
     expect: reject
+  # The fourteen cases below drive runner.checks.plan_rubric.check directly
+  # against a plan fixture (plus a brief and/or criteria fixture where the
+  # rule needs one); runner/tests/test_s3_rubric.py reads them, not the
+  # generic ok/reject definition walk above.
+  - name: alternatives_ok
+    fixture: fixtures/alternatives_ok
+    expect: ok
+    rule: rejected_alternative_reason
+  - name: alternatives_reject
+    fixture: fixtures/alternatives_reject
+    expect: reject
+    rule: rejected_alternative_reason
+  - name: abstraction_ok
+    fixture: fixtures/abstraction_ok
+    expect: ok
+    rule: shared_abstraction_cited
+  - name: abstraction_reject
+    fixture: fixtures/abstraction_reject
+    expect: reject
+    rule: shared_abstraction_cited
+  - name: archaeology_ok
+    fixture: fixtures/archaeology_ok
+    expect: ok
+    rule: archaeology_carried
+  - name: archaeology_reject
+    fixture: fixtures/archaeology_reject
+    expect: reject
+    rule: archaeology_carried
+  - name: no_behaviour_change_ok
+    fixture: fixtures/no_behaviour_change_ok
+    expect: ok
+    rule: no_behaviour_change_isolated
+  - name: no_behaviour_change_reject
+    fixture: fixtures/no_behaviour_change_reject
+    expect: reject
+    rule: no_behaviour_change_isolated
+  - name: contracts_ok
+    fixture: fixtures/contracts_ok
+    expect: ok
+    rule: contracts_declared
+  - name: contracts_reject
+    fixture: fixtures/contracts_reject
+    expect: reject
+    rule: contracts_declared
+  - name: test_strategy_ok
+    fixture: fixtures/test_strategy_ok
+    expect: ok
+    rule: test_strategy_typed
+  - name: test_strategy_reject
+    fixture: fixtures/test_strategy_reject
+    expect: reject
+    rule: test_strategy_typed
+  - name: rollout_ok
+    fixture: fixtures/rollout_ok
+    expect: ok
+    rule: rollout_structured
+  - name: rollout_reject
+    fixture: fixtures/rollout_reject
+    expect: reject
+    rule: rollout_structured
