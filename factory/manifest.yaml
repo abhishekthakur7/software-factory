@@ -532,7 +532,7 @@ files:
   - path: factory/rubrics/S4.md
     content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
   - path: factory/rubrics/S5.md
-    content_hash: 4f189dcd43d6ade4842c5be3fe7b01075556415e99365f39ee3c40aa0388e41f
+    content_hash: f35092223b152048aa32090251410c512c154de0442c8dc183c7aa492c1d30f9
   - path: factory/rubrics/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/rubrics/checklists/forced-categories.md
