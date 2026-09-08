@@ -6,8 +6,10 @@ whichever of `BRIEF_TABLES`/`CRITERIA_TABLES`/`PLAN_TABLES` applies, and,
 for the `criteria` kind, the EARS-form, example-concreteness, and
 forced-category rules a criteria version carries on top; for the `plan`
 kind, the extra rules a plan carries on top -- length ceilings, first-page
-placement, typed validation recipes instead of free-form shell, and
-two-way `AC-n` traceability against the criteria artefact. A `Finding`
+placement, typed validation recipes instead of free-form shell, two-way
+`AC-n` traceability against the criteria artefact, the `Rollout` section's
+five `### ` subsections, `Scope and discretion.action`'s closed value set,
+and every `Contracts` field cell parsing to a state. A `Finding`
 names the rule that failed and enough detail to find it in the text; an
 empty list is a pass. Nothing here writes to the database or the
 filesystem -- a caller turns findings into a `check_result` row and an
@@ -34,8 +36,20 @@ KIND_TABLES: dict[str, dict[str, tuple[str, ...]]] = {
 # itself the finding ("nothing changed"), written explicitly rather than
 # omitted; an empty agreement check is what a version with no formalised
 # or provisional criterion legitimately looks like (every criterion
-# unformalisable, restated by no children at all).
-_EMPTY_TABLE_ALLOWED: frozenset[tuple[str, str]] = frozenset({("plan", "Dependencies"), ("criteria", "Agreement check")})
+# unformalisable, restated by no children at all); a plan naming no
+# rejected alternative, no non-self-evident code, and no new abstraction
+# legitimately leaves those three empty too. `Risk map` is deliberately
+# absent from this set: R-S3-11 always names at least one place.
+_EMPTY_TABLE_ALLOWED: frozenset[tuple[str, str]] = frozenset({
+    ("plan", "Dependencies"), ("plan", "Alternatives"), ("plan", "Archaeology and characterization tests"),
+    ("plan", "Abstraction and separate debt"), ("criteria", "Agreement check"),
+})
+
+# `Rollout`'s five sub-tables allowed to carry zero rows: a ticket with no
+# flag, no ramp, no guardrail, or no log-verification query legitimately
+# leaves that sub-table header-only. `Kill trigger` is excluded: R-S3-10
+# always names one, with rollback as its default response.
+_ROLLOUT_EMPTY_ALLOWED: frozenset[str] = frozenset({"Flags", "Ramp", "Guardrails", "Log verification"})
 
 # The three sections a reviewer must be able to read without scrolling to
 # decide whether to open the rest; `first_page_lines` names how far "the
@@ -261,6 +275,68 @@ def _check_criteria(artefact: artefacts.Artefact) -> list[Finding]:
     return findings
 
 
+def _check_rollout(artefact: artefacts.Artefact) -> list[Finding]:
+    """`Rollout` carries no table of its own -- each of its five `### ` subsections does (R-S3-10).
+
+    A `Rollout` section with no `### ` subsection at all is prose-only,
+    the same `missing_table` finding a flat table's absence would be.
+    """
+    findings: list[Finding] = []
+    section = artefact.section("Rollout")
+    if section is None or section.is_pending():
+        return findings  # already reported by _check_sections
+    subsections = {sub.title: sub for sub in section.subsections()}
+    if not subsections:
+        findings.append(Finding("missing_table", "Rollout"))
+        return findings
+    for name, columns in artefacts.PLAN_SUBTABLES["Rollout"].items():
+        sub = subsections.get(name)
+        if sub is None:
+            findings.append(Finding("missing_table", f"Rollout.{name}"))
+            continue
+        try:
+            header = sub.table_header()
+        except artefacts.ArtefactError as exc:
+            findings.append(Finding("malformed_table", f"Rollout.{name}: {exc}"))
+            continue
+        if header is None:
+            findings.append(Finding("missing_table", f"Rollout.{name}"))
+            continue
+        if header != columns:
+            findings.append(Finding("bad_table_columns", f"Rollout.{name}: {header}"))
+        rows = sub.table() or []
+        if not rows and name not in _ROLLOUT_EMPTY_ALLOWED:
+            findings.append(Finding("empty_table", f"Rollout.{name}"))
+    return findings
+
+
+def _check_scope_actions(artefact: artefacts.Artefact) -> list[Finding]:
+    findings: list[Finding] = []
+    section = artefact.section("Scope and discretion")
+    if section is None or section.is_pending():
+        return findings
+    for row in section.table() or []:
+        action = (row.get("action") or "").strip()
+        if action not in artefacts.SCOPE_ACTIONS:
+            findings.append(Finding("bad_scope_action", f"{row.get('path')}: {action!r}"))
+    return findings
+
+
+def _check_contract_cells(artefact: artefacts.Artefact) -> list[Finding]:
+    """Every `Contracts` field cell parses to one of the three states (R-S3-7); semantic completeness is `plan_rubric`'s."""
+    findings: list[Finding] = []
+    section = artefact.section("Contracts")
+    if section is None or section.is_pending():
+        return findings
+    for row in section.table() or []:
+        for field in artefacts.CONTRACT_FIELDS:
+            try:
+                artefacts.contract_cell(row.get(field))
+            except artefacts.ArtefactError:
+                findings.append(Finding("bad_contract_cell", f"{row.get('unit')}.{field}: {row.get(field)!r}"))
+    return findings
+
+
 def _check_readiness(artefact: artefacts.Artefact) -> list[Finding]:
     findings: list[Finding] = []
     section = artefact.section("Readiness")
@@ -319,4 +395,7 @@ def check(
             findings += _check_ceilings(artefact, tier=tier, limits=limits, text=text)
         findings += _check_tasks_and_traceability(artefact, criteria_text=criteria_text, catalogue=catalogue)
         findings += _check_readiness(artefact)
+        findings += _check_rollout(artefact)
+        findings += _check_scope_actions(artefact)
+        findings += _check_contract_cells(artefact)
     return findings
