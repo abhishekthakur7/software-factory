@@ -209,7 +209,7 @@ def test_must_reject_guard_decision_edit_in_place(tmp_path):
 def test_must_reject_reviewer_set_edit_in_place(tmp_path):
     """an existing reviewer-set row cannot be edited in place."""
     conn = _open(tmp_path)
-    reviewer_set_id = record.insert(conn, "reviewer_set", kind="plan", subject_hash="h1")
+    reviewer_set_id = record.insert(conn, "reviewer_set", kind="planned", subject_hash="h1")
 
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
@@ -220,7 +220,7 @@ def test_must_reject_reviewer_set_edit_in_place(tmp_path):
 def test_must_reject_approval_record_edit_in_place(tmp_path):
     """an existing approval record cannot be edited in place."""
     conn = _open(tmp_path)
-    approval_id = record.insert(conn, "approval_record", gate="plan_approval", decision="approve")
+    approval_id = record.insert(conn, "approval_record", gate="plan", decision="approve")
 
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(

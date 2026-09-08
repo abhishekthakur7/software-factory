@@ -32,7 +32,7 @@ def _latest_passed(conn: sqlite3.Connection, ticket_id: int, stage: str) -> bool
 
 
 def _quorum(conn: sqlite3.Connection, ticket_id: int, gate: str, subject_hash: str | None) -> bool:
-    """At least one approved `approval_record` bound to this exact subject.
+    """At least one approving `approval_record` bound to this exact subject.
 
     "At least one" is the thin quorum; the real per-role minimum count and
     identity-separation computation replaces this body later.
@@ -41,7 +41,7 @@ def _quorum(conn: sqlite3.Connection, ticket_id: int, gate: str, subject_hash: s
         return False
     row = conn.execute(
         "SELECT 1 FROM approval_record WHERE ticket_id = ? AND gate = ? "
-        "AND decision = 'approved' AND subject_hash = ? LIMIT 1",
+        "AND decision = 'approve' AND subject_hash = ? LIMIT 1",
         (ticket_id, gate, subject_hash),
     ).fetchone()
     return row is not None

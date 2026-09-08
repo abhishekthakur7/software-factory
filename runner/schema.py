@@ -110,6 +110,22 @@ COST_BASES: tuple[str, ...] = (
     "unavailable",
 )
 
+# guard_decision.decision's closed set.
+GUARD_DECISIONS: tuple[str, ...] = ("allow", "redact", "deny")
+
+# approval_record.gate's closed set: the four gates an approval can bind.
+APPROVAL_GATES: tuple[str, ...] = ("trust_profile", "plan", "review", "graduation")
+
+# approval_record.decision's closed set.
+APPROVAL_DECISIONS: tuple[str, ...] = ("approve", "reject", "redirect")
+
+# reviewer_set.kind's closed set: the planned set from the plan's path table,
+# the actual set from the exact diff, and the effective merge of the two.
+REVIEWER_SET_KINDS: tuple[str, ...] = ("planned", "actual", "effective")
+
+# evidence_tuple.kind's closed set.
+EVIDENCE_TUPLE_KINDS: tuple[str, ...] = ("plan", "review")
+
 # utility_run.kind's closed set: work that is not itself a ticket stage.
 UTILITY_KINDS: tuple[str, ...] = (
     "setup",
@@ -472,7 +488,7 @@ TABLES: tuple[Table, ...] = (
             Column("rule_set_hash", "TEXT"),
             Column("allowed_content_digest", "TEXT"),
             Column("sanitizer_rule_id", "TEXT"),
-            Column("decision", "TEXT"),
+            Column("decision", "TEXT", values=GUARD_DECISIONS),
             Column("reason_codes", "TEXT"),
             Column("redacted_artefact_id", "INTEGER", references="artefact.id"),
             Column("created_at", "TEXT"),
@@ -485,7 +501,7 @@ TABLES: tuple[Table, ...] = (
         (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
-            Column("kind", "TEXT"),
+            Column("kind", "TEXT", values=REVIEWER_SET_KINDS),
             Column("subject_hash", "TEXT"),
             Column("base_sha", "TEXT"),
             Column("head_sha", "TEXT"),
@@ -508,7 +524,7 @@ TABLES: tuple[Table, ...] = (
         (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
-            Column("gate", "TEXT"),
+            Column("gate", "TEXT", values=APPROVAL_GATES),
             Column("subject_hash", "TEXT"),
             Column("evidence_tuple_id", "INTEGER", references="evidence_tuple.id"),
             Column("evidence_tuple_hash", "TEXT"),
@@ -522,7 +538,7 @@ TABLES: tuple[Table, ...] = (
             Column("role", "TEXT"),
             Column("authority_policy_hash", "TEXT"),
             Column("membership_snapshot_hash", "TEXT"),
-            Column("decision", "TEXT"),
+            Column("decision", "TEXT", values=APPROVAL_DECISIONS),
             Column("attestation_version", "TEXT"),
             Column("attestation_hash", "TEXT"),
             Column("evidence_ids", "TEXT"),
@@ -568,7 +584,7 @@ TABLES: tuple[Table, ...] = (
         "evidence_tuple",
         (
             _id(),
-            Column("kind", "TEXT"),
+            Column("kind", "TEXT", values=EVIDENCE_TUPLE_KINDS),
             Column("ticket_id", "INTEGER", references="ticket.id"),
             Column("target_base_sha", "TEXT"),
             Column("manifest_hash", "TEXT"),

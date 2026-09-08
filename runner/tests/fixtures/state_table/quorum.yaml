@@ -1,5 +1,5 @@
 # Full plan quorum plus base/target-head equality: one
-# approved approval_record bound to the plan tuple's own content hash.
+# approving approval_record bound to the plan tuple's own content hash.
 plan_quorum:
   ticket:
     - as: ticket
@@ -16,5 +16,5 @@ plan_quorum:
   approval_record:
     - ticket_id: $ticket
       gate: plan
-      decision: approved
+      decision: approve
       subject_hash: plan-subject-1

@@ -51,7 +51,7 @@ pending_intent:
   approval_record:
     - ticket_id: $ticket
       gate: review
-      decision: approved
+      decision: approve
       subject_hash: review-subject-6
   external_write:
     - ticket_id: $ticket

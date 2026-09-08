@@ -19,7 +19,7 @@ stale_at_plan_review:
   approval_record:
     - ticket_id: $ticket
       gate: plan
-      decision: approved
+      decision: approve
       subject_hash: plan-subject-2
 
 stale_at_implementing:
@@ -38,5 +38,5 @@ stale_at_implementing:
   approval_record:
     - ticket_id: $ticket
       gate: plan
-      decision: approved
+      decision: approve
       subject_hash: plan-subject-3
