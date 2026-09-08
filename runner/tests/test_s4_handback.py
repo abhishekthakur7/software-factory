@@ -12,6 +12,7 @@ import yaml
 
 from runner import artefact_registry, binding, git_trees, manifest, record, run_ledger, schema
 from runner.db import connect
+from runner.tests import support
 from runner.paths import FACTORY_DIR
 from runner.stages import run_stage
 
@@ -63,25 +64,20 @@ def _source_repo(tmp_path) -> Path:
 def _ready_ticket(conn, tmp_path, **ticket_fields) -> int:
     """A ticket in `implementing` with a real worktree, a bound plan tuple, and a registered plan/criteria."""
     ticket_id = record.insert(
-        conn, "ticket", state="implementing", opened_at=record.now(),
+        conn, "ticket", trust_profile_hash=support.TRUST_PROFILE_HASH, trust_approval_set_hash=support.TRUST_APPROVAL_SET_HASH, state="implementing", opened_at=record.now(),
         service="fixture-project", ticket_type="small_feature", tier_provisional="standard",
         factory_manifest_hash=manifest.current_hash(), **ticket_fields,
     )
     source = _source_repo(tmp_path)
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
-    record.insert(
-        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id, created_at=record.now(),
-        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash=f"plan-subject-{ticket_id}",
-        plan_hash="plan-hash-1", criteria_hash="criteria-hash-1",
-        current_assumption_set_hash="assumption-set-hash-1", semantic_checklist_hash="checklist-hash-1",
-    )
     plan_path = tmp_path / f"plan-{ticket_id}.md"
     plan_path.write_text(PLAN_TEXT)
     artefact_registry.register(conn, ticket_id=ticket_id, kind="plan", path=plan_path)
     criteria_path = tmp_path / f"criteria-{ticket_id}.md"
     criteria_path.write_text(CRITERIA_TEXT)
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
+    support.approve_current_plan(conn, ticket_id)
     return ticket_id
 
 

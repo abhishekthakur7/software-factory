@@ -207,3 +207,13 @@ deviations (a later ticket); a live, out-of-band "human stopped a
 running invocation" scenario for S4 specifically (the existing
 `control.stop` mechanism is untouched and has no dedicated test suite of
 its own in this codebase to extend).
+
+## Amended on merge
+
+The pre-invocation revalidation now re-derives all three of the row's
+conditions before every task, not freshness alone: the plan tuple's
+currency against the record, plan quorum with expiry over the planned
+reviewer set, and the trusted fetch of the target base. The test seeders
+build a real, approved current tuple through `runner/tests/support.py`
+instead of a hand-seeded row, and the vendor classpath is read from the
+configured vendor directory with no environment override.

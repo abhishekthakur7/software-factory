@@ -15,6 +15,7 @@ from runner import artefact_registry, git_trees, manifest, record, run_ledger
 from runner.checks import red_route
 from runner.checks.red_route import CheckOutcome, RecipeOutcome, Route
 from runner.db import connect
+from runner.tests import support
 from runner.paths import FACTORY_DIR
 from runner.stages import S4, run_stage
 
@@ -118,23 +119,20 @@ def _source_repo(tmp_path: Path) -> Path:
 
 def _ready_ticket(conn, tmp_path, *, plan_text: str = PLAN_TEXT) -> int:
     ticket_id = record.insert(
-        conn, "ticket", state="implementing", opened_at=record.now(),
+        conn, "ticket", trust_profile_hash=support.TRUST_PROFILE_HASH, trust_approval_set_hash=support.TRUST_APPROVAL_SET_HASH, state="implementing", opened_at=record.now(),
         service="fixture-project", ticket_type="small_feature", tier_provisional="standard",
         factory_manifest_hash=manifest.current_hash(),
     )
     source = _source_repo(tmp_path)
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
-    record.insert(
-        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id, created_at=record.now(),
-        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash=f"plan-subject-{ticket_id}",
-    )
     plan_path = tmp_path / f"plan-{ticket_id}.md"
     plan_path.write_text(plan_text)
     artefact_registry.register(conn, ticket_id=ticket_id, kind="plan", path=plan_path)
     criteria_path = tmp_path / f"criteria-{ticket_id}.md"
     criteria_path.write_text(CRITERIA_TEXT)
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
+    support.approve_current_plan(conn, ticket_id)
     return ticket_id
 
 

@@ -28,8 +28,8 @@ from pathlib import Path
 import yaml
 
 from runner import (
-    artefact_registry, artefacts, binding, canonical, freshness, git_trees, queue, record, recipes, run_ledger,
-    schema, tags, transitions,
+    approvals, artefact_registry, artefacts, binding, canonical, freshness, git_trees, plan_tuple, queue, record,
+    recipes, reviewer_sets, run_ledger, schema, tags, transitions,
 )
 from runner.checks import red_route
 from runner.fs import write_text
@@ -52,12 +52,6 @@ CONTROL_CATEGORY = "execution_boundary"
 
 LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 SCOPE_DIFF_SCRIPT = FACTORY_DIR / "scripts" / "checks" / "scope_diff"
-
-# A test-only escape hatch matching the fixture worker's own env-var
-# seams (`FIXTURE_ADAPTER_OUT_DIR`, ...): a test that needs a real,
-# materialised vendor classpath sets this rather than requiring every
-# validation-phase test to write into the repository's own `runs/` tree.
-VENDOR_CLASSPATH_ENV = "FIXTURE_VENDOR_CLASSPATH"
 
 # The `handback.json` deviation item's exact key set -- one-to-one with
 # the `deviation` table's own agent-facing columns (`id`, `ticket_id`, and
@@ -421,18 +415,28 @@ def run(
     return _validate_task(conn, ticket, stage_run_id, task, runs_dir=runs_dir)
 
 
-def _revalidate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path) -> freshness.Freshness | None:
-    """The one condition worth re-deriving on every attempt: is the target base still what the plan was bound to.
+def _revalidate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path) -> str | None:
+    """Why no agent may start right now, or None: the plan subject, its quorum, and the target base are re-derived before every task.
 
-    Plan-tuple currency, plan quorum, and trust-profile activation are
-    each already enforced once, authoritatively -- currency and quorum at
-    `gates.plan_review_gate` immediately before the ticket ever reaches
-    `implementing`, trust activation at eligibility -- and nothing a task
-    attempt does can move any of those bound rows again. The target
-    branch can move at any moment, from outside the ticket entirely, so a
-    fresh fetch-and-compare here is the one check that earns its place on
-    every attempt rather than only once.
+    The plan-review gate checked all three once before the ticket entered
+    `implementing`, but an approval can expire between two tasks, a bound
+    row can be superseded, and the target branch can move at any moment
+    from outside the ticket, so every attempt re-derives them from the
+    record rather than trusting the earlier gate. The freshness check is
+    last because it is the one that writes a `check_result` row of its
+    own; the other two refusals are recorded on the stale-binding run.
     """
+    plan_row = _latest_plan_tuple(conn, ticket["id"])
+    if plan_row is None:
+        return "no plan tuple is recorded for this ticket"
+    currency = binding.plan_tuple_currency(conn, plan_row["id"], plan_tuple.derive_components(conn, ticket))
+    if not currency.current:
+        return f"plan subject changed: {', '.join(currency.changed)}"
+    quorum = approvals.evaluate(
+        conn, gate="plan", subject_hash=plan_row["content_hash"], slots=_planned_slots(conn, plan_row),
+    )
+    if not quorum.satisfied:
+        return f"plan quorum no longer holds: {', '.join(quorum.reasons)}"
     fresh = freshness.check(
         conn, ticket["id"], boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,
     )
@@ -448,10 +452,32 @@ def _open_red_check_if_none_open(conn: sqlite3.Connection, ticket_id: int, *, re
         queue.open_item(conn, ticket_id=ticket_id, kind="red_check", ref=ref)
 
 
-def _record_stale_binding(conn: sqlite3.Connection, ticket: sqlite3.Row, stale: freshness.Freshness) -> str:
+def _planned_slots(conn: sqlite3.Connection, plan_row: sqlite3.Row) -> list[reviewer_sets.Slot]:
+    row = conn.execute(
+        "SELECT slots FROM reviewer_set WHERE ticket_id = ? AND kind = 'planned' AND content_hash = ? "
+        "ORDER BY id DESC LIMIT 1",
+        (plan_row["ticket_id"], plan_row["planned_reviewer_set_hash"]),
+    ).fetchone()
+    if row is None:
+        return []
+    return [reviewer_sets.Slot.from_json(item) for item in json.loads(row["slots"] or "[]")]
+
+
+def _record_stale_binding(conn: sqlite3.Connection, ticket: sqlite3.Row, stale: str | freshness.Freshness) -> str:
+    """One `fail`/`stale_binding` run with a null verification attempt, and one open `red_check` naming the reason.
+
+    A freshness refusal already wrote its own `check_result`; a plan-subject
+    or quorum refusal is recorded here on the stale run itself, so the
+    `red_check` item always has a row to point at.
+    """
     stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket["id"], stage="S4", run_kind="task")
+    if isinstance(stale, freshness.Freshness):
+        check_result_id = stale.check_result_id
+    else:
+        _record_check_result(conn, stage_run_id, check_name="stale_binding", passed=False, detail=stale)
+        check_result_id = conn.execute("SELECT MAX(id) FROM check_result").fetchone()[0]
     run_ledger.finish(conn, stage_run_id, "fail", failure_kind="stale_binding")
-    _open_red_check_if_none_open(conn, ticket["id"], ref=f"check_result:{stale.check_result_id}")
+    _open_red_check_if_none_open(conn, ticket["id"], ref=f"check_result:{check_result_id}")
     return "fail"
 
 
@@ -576,9 +602,6 @@ def _project_config() -> dict:
 
 
 def _vendor_classpath(project: dict) -> str:
-    override = os.environ.get(VENDOR_CLASSPATH_ENV)
-    if override is not None:
-        return override
     vendor = project.get("vendor")
     vendor_dir = (REPO_ROOT / vendor) if vendor else None
     if vendor_dir is None or not vendor_dir.is_dir():

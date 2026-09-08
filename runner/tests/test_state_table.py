@@ -19,6 +19,7 @@ import yaml
 
 from runner import approvals, artefact_registry, artefacts, gates, git_trees, manifest, owners, plan_tuple, record, tickets, transitions
 from runner.db import connect
+from runner.tests import support
 from runner.paths import FACTORY_DIR
 from runner.reviewer_sets import Slot
 from runner.stages import run_stage
@@ -111,16 +112,12 @@ def _implementing_ticket_with_plan_inputs(conn, tmp_path):
     """A ticket in `implementing` with a real worktree, manifest pin, and a bound plan tuple for a real S4 run."""
     source = _source_repo(tmp_path)
     ticket_id = record.insert(
-        conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
+        conn, "ticket", trust_profile_hash=support.TRUST_PROFILE_HASH, trust_approval_set_hash=support.TRUST_APPROVAL_SET_HASH, state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
         tier_final="standard",
     )
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
     record.update(conn, "ticket", ticket_id, state="implementing")
-    record.insert(
-        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
-        base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash="plan-subject-implementing",
-    )
     # The S3 "ok" fixture's own one-task plan, not the shared two-task
     # `s4_handoff/plan.md`: S4 opens one fresh `stage_run` per plan task,
     # so a single `run_stage` call only finishes a one-task plan.
@@ -131,6 +128,7 @@ def _implementing_ticket_with_plan_inputs(conn, tmp_path):
     artefact_registry.register(
         conn, ticket_id=ticket_id, kind="criteria", path=S3_FIXTURES_DIR / "criteria.md",
     )
+    support.approve_current_plan(conn, ticket_id)
     return ticket_id
 
 
