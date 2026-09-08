@@ -223,7 +223,16 @@ def _run_walk(tmp_path) -> WalkResult:
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
-    _kill_and_restart(conn, ticket_id, "S2", tmp_path)
+    # S2's criteria half needs a real out/criteria.md; `criteria_clean`
+    # carries one formalised criterion with agreeing restatements and no
+    # open questions, so both the killed and the fresh attempt pass.
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
+        FACTORY_DIR / "evals" / "agents" / "S2" / "fixtures" / "criteria_clean" / "out"
+    )
+    try:
+        _kill_and_restart(conn, ticket_id, "S2", tmp_path)
+    finally:
+        del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "planning"
     # The real S3 plans against a brief and a criteria artefact: the
     # fixture pair test_report's walk uses, and the committed "ok" plan.

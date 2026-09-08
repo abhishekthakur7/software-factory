@@ -24,3 +24,30 @@ cases:
   - name: r_s2_14_grader_fail
     fixture: fixtures/r_s2_14_grader_fail
     expect: fail
+  - name: r_s2_1_grader_pass
+    fixture: fixtures/r_s2_1_grader_pass
+    expect: pass
+  - name: r_s2_1_grader_fail
+    fixture: fixtures/r_s2_1_grader_fail
+    expect: fail
+  - name: r_s2_2_grader_pass
+    fixture: fixtures/r_s2_2_grader_pass
+    expect: pass
+  - name: r_s2_2_grader_fail
+    fixture: fixtures/r_s2_2_grader_fail
+    expect: fail
+  - name: r_s2_10_grader_pass
+    fixture: fixtures/r_s2_10_grader_pass
+    expect: pass
+  - name: r_s2_10_grader_fail
+    fixture: fixtures/r_s2_10_grader_fail
+    expect: fail
+  # The two cases below are the script-level EARS-form and example fixtures
+  # (R-S2-1, R-S2-2): read directly by runner/tests/test_s2_criteria.py
+  # rather than by the generic ok/reject walk.
+  - name: ears_form_concrete
+    fixture: fixtures/ears_form/concrete.md
+    expect: structural_ok
+  - name: ears_form_not_concrete
+    fixture: fixtures/ears_form/not_concrete.md
+    expect: structural_reject

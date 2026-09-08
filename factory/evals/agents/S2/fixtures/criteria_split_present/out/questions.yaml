@@ -1,0 +1,27 @@
+# A consequential split proposal naming the business-rule-variations
+# pattern: the account types differ in how the summary is computed, so
+# this is the split rule's own candidate, not a runner-derived one.
+- text: "The monthly summary covers several account types with different rules. Should the first slice cover only the standard account type?"
+  reasoning: >-
+    Checked the reporting module's existing account-type handling; each
+    type applies a different summarisation rule, so this is a
+    business-rule variations split.
+  affects: "which account types the first slice's summary covers"
+  options:
+    - text: "Ship the standard account type first, others in later slices"
+      consequence: "The first slice covers the standard account type only; the others follow as separate slices."
+    - text: "Ship every account type in one slice"
+      consequence: "The full multi-type summary ships as one larger slice."
+    - text: "none of these"
+      consequence: "If nobody answers, the first slice covers the standard account type only, matching the business-rule variations pattern."
+  default_option: 2
+  consequential: true
+  consequential_reason: "changes the rollout order and which account types launch first"
+  hard_to_reverse: false
+  hard_to_reverse_reason: "a later slice can still add the remaining account types"
+  blocking: false
+  sensitive: false
+  rank_inputs:
+    impact: 0.6
+    uncertainty: 0.4
+  raised_by_answer: null

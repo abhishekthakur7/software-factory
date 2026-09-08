@@ -271,6 +271,23 @@ def assumption_log_hash(conn: sqlite3.Connection, ticket_id: int) -> str:
     return canonical.content_hash({"assumptions": subject})
 
 
+def open_blocking(conn: sqlite3.Connection, ticket_id: int, *, stage: str | None = None) -> list[int]:
+    """Every open, blocking `question` id of `ticket_id`, optionally narrowed to one `stage`.
+
+    The one place a driver or a gate asks "is this ticket still waiting on
+    a human decision that must not be skipped": a non-empty result holds a
+    stage's exit in place and withholds `plan_review_gate`'s event, so a
+    reviewer can never approve a plan while its ticket still owes an
+    answer.
+    """
+    query = "SELECT id FROM question WHERE ticket_id = ? AND blocking = 1 AND state = 'open'"
+    params: list = [ticket_id]
+    if stage is not None:
+        query += " AND stage = ?"
+        params.append(stage)
+    return [row["id"] for row in conn.execute(query, params).fetchall()]
+
+
 def dependents_invalidated(conn: sqlite3.Connection, ticket_id: int) -> list[dict]:
     """Every already-recorded artefact, evidence tuple, and approval whose recorded assumption-log hash is now stale.
 
