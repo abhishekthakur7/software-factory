@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import gates, outbox, queue, record, tags, transitions
+from runner import gates, outbox, queue, record, run_ledger, tags, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -47,11 +47,18 @@ def _due_stage(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
 
 
 def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR) -> str:
-    """Run the stage due in the ticket's state, else evaluate its gate, else report the wait."""
+    """Reconcile the outbox, expire dead leases, then run the stage due in the ticket's state, else evaluate its gate, else report the wait.
+
+    Outbox reconciliation runs before lease expiry, and both run before
+    any due-stage or gate logic: a restart must never advance ticket state
+    on evidence a crashed attempt left ambiguous or a dead run still holds
+    a lease over.
+    """
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
         return f"no such ticket: {ticket_id}"
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
+    run_ledger.expire_dead_runs(conn, ticket_id)
     stage = _due_stage(conn, ticket)
     if stage is not None:
         return f"ticket {ticket_id}: {stage} {run_stage(conn, ticket_id, stage, runs_dir=runs_dir)}"

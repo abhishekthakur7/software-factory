@@ -1,0 +1,17 @@
+# A ticket sitting in `checks` (S5 due) with a pending `digest` intent,
+# used to prove restart reconciles the outbox before it ever touches a
+# dead lease or opens a fresh stage attempt.
+ticket:
+  source_kind: fixture
+  title: fixture crash-recovery ticket
+  state: checks
+  base_sha: base-sha-1
+  target_base_sha: base-sha-1
+  branch: feature/fixture-crash-recovery
+  head_sha: head-sha-1
+
+digest_payload:
+  tier: T2
+  item_kind: send_back
+  age: 3d
+  command: x

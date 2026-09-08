@@ -133,7 +133,7 @@ files:
   - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/config/tiers.yaml
-    content_hash: ae65addb28bd84bb1985ba72f32b99809fee15f3c1e10fad16720ccc69765ef4
+    content_hash: 238a0bf2e384156ff6612617c980a382d3c1556464e36ac797bba2383f486424
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/trust-profile.yaml

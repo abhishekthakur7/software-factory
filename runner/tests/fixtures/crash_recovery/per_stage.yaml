@@ -1,0 +1,20 @@
+# The state each stage runs from, and any stage that must already have a
+# passing run before the named stage becomes due. S5 and S6 both run from
+# `checks`; `factory advance` only reaches S6 once an S5 pass already
+# exists, so S6's entry seeds one.
+stages:
+  S0:
+    state: intake
+  S1:
+    state: context
+  S2:
+    state: clarifying
+  S3:
+    state: planning
+  S4:
+    state: implementing
+  S5:
+    state: checks
+  S6:
+    state: checks
+    prior_passes: [S5]

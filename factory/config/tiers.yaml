@@ -39,3 +39,8 @@ s4_per_ticket:
 # Default lease length the run ledger gives a freshly opened or renewed run.
 leases:
   seconds: 300
+
+# An agent's self-reported reasoning summary is unverified content, so its
+# length is capped rather than left to grow without bound.
+reasoning_summary:
+  max_words: 200

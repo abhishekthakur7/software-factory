@@ -66,6 +66,49 @@ def process_alive(identity: str | None) -> bool:
     return process_identity(pid) == identity
 
 
+def expire_dead_runs(conn: sqlite3.Connection, ticket_id: int, *, now: str | None = None) -> list[int]:
+    """Finish every still-open `stage_run`/`utility_run` of `ticket_id` whose lease has lapsed and process is gone.
+
+    A row is left alone unless both conditions hold: its lease expired
+    before `now` (a live run whose lease has simply not renewed yet stays
+    open) and `process_alive` says the process that opened or last
+    renewed it no longer exists (a slow but live run is never expired out
+    from under itself). Every match finishes as `infrastructure_failure`;
+    `finish` itself already applies `failure_kind` only to a `stage_run`,
+    so one call site covers both tables. Registered artefacts and the
+    ticket's own fields are never touched here -- expiry only closes the
+    dead run's own row.
+    """
+    now = now or record.now()
+    expired: list[int] = []
+    for table in ("stage_run", "utility_run"):
+        rows = conn.execute(
+            f"SELECT id, process_identity FROM {table} "
+            "WHERE ticket_id = ? AND outcome IS NULL AND lease_expires_at < ?",
+            (ticket_id, now),
+        ).fetchall()
+        for row in rows:
+            if process_alive(row["process_identity"]):
+                continue
+            finish(conn, row["id"], "infrastructure_failure", failure_kind="expired_lease", table=table)
+            expired.append(row["id"])
+    return expired
+
+
+def record_reasoning_summary(conn: sqlite3.Connection, run_id: int, text: str) -> str:
+    """Store at most `tiers.yaml`'s `reasoning_summary.max_words` words of `text` on the run, and return them.
+
+    Words are whitespace-split and rejoined with single spaces, so the cap
+    is on word count, not character count; an agent's self-report is
+    truncated rather than refused, since the point is a bounded record,
+    not a rejected run.
+    """
+    max_words = _tiers_config()["reasoning_summary"]["max_words"]
+    capped = " ".join(text.split()[:max_words])
+    record.update(conn, "stage_run", run_id, reasoning_summary=capped)
+    return capped
+
+
 def _next_attempt(conn: sqlite3.Connection, ticket_id: int, stage: str) -> int:
     """The count of this ticket's prior `stage_run` rows for `stage`, plus one."""
     prior = conn.execute(

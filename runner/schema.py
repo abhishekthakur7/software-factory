@@ -296,7 +296,9 @@ TABLES: tuple[Table, ...] = (
             Column("recipe_set_hash", "TEXT"),
             Column("inputs", "TEXT"),
             Column("outputs", "TEXT"),
-            Column("reasoning_summary", "TEXT"),
+            # The agent's self-report arrives when the run ends, so it is
+            # settled after the row exists, capped by tiers.yaml on write.
+            Column("reasoning_summary", "TEXT", mutable=True),
             Column("tokens_in", "INTEGER"),
             Column("tokens_out", "INTEGER"),
             Column("cost", "REAL", once="cost_settled_at"),

@@ -27,7 +27,7 @@ ALLOWED_COLUMNS = {
     },
     "stage_run": {
         "outcome", "failure_kind", "started_at", "heartbeat_at",
-        "lease_expires_at", "ended_at",
+        "lease_expires_at", "ended_at", "reasoning_summary",
         "cost", "currency", "cost_basis", "pricing_table_hash", "cost_settled_at",
         "updated_at",
     },
