@@ -67,9 +67,6 @@ def test_running_the_sync_again_over_the_real_repository_changes_nothing():
     assert changes == []
 
 
-# ---- the plan-text-to-eval-directory derivation itself ----
-
-
 def test_eval_dirs_exercised_keeps_only_paths_that_resolve_to_a_real_eval_directory():
     valid = {"rubrics/S3", "scripts/checks/size_gate"}
     plan_text = (

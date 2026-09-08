@@ -65,9 +65,6 @@ def _build_synthetic_factory(tmp_path):
     return root
 
 
-# ---- the real tree, and a matching synthetic tree, both pass ----
-
-
 def test_the_real_factory_tree_passes_the_completeness_walk():
     """R-F-2: every eval directory `expected_eval_dirs` derives from the committed `factory/`
     tree is owned and carries a real, non-empty fixture."""
@@ -80,9 +77,6 @@ def test_a_fully_built_synthetic_tree_passes(tmp_path):
     root = _build_synthetic_factory(tmp_path)
     dirs = walk(root)
     assert len(dirs) == 7
-
-
-# ---- expected_eval_dirs derivation ----
 
 
 def test_expected_eval_dirs_names_one_directory_per_kind(tmp_path):
@@ -113,9 +107,6 @@ def test_a_shared_module_with_a_suffix_names_no_eval_directory_of_its_own(tmp_pa
     dirs = expected_eval_dirs(root)
     assert (root / "evals" / "scripts" / "tools" / "shared_helper.py") not in dirs
     assert (root / "evals" / "scripts" / "tools" / "shared_helper") not in dirs
-
-
-# ---- must-reject: each rejection mutates exactly one eval directory ----
 
 
 def test_must_reject_a_missing_eval_directory(tmp_path):
@@ -171,8 +162,6 @@ def test_a_real_ticket_export_case_with_a_recorded_redaction_review_is_accepted(
     check(eval_dir)  # raises on failure; no exception is the assertion
 
 
-# ---- the manifest itself refuses an empty case list for a referenced stage rubric ----
-
 _VALID_MANIFEST_FIXTURE = REPO_ROOT / "runner" / "tests" / "fixtures" / "manifest" / "valid" / "factory"
 
 
@@ -216,9 +205,6 @@ def test_manifest_load_over_a_fixture_root_skips_the_eval_dir_check(tmp_path):
 
     m = manifest.load(root / "factory" / "manifest.yaml")  # REPO_ROOT is untouched, so the guard skips
     assert set(m.stages) == set(manifest.STAGES)
-
-
-# ---- the helpers manifest.py calls to locate a referenced eval directory ----
 
 
 def test_eval_dir_for_file_maps_agent_skill_and_rubric_paths():
