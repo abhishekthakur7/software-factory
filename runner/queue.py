@@ -367,6 +367,8 @@ def act(
         raise LookupError(f"no such queue item: {item_id}")
     if item["resolved_at"] is not None:
         raise ActionRefused(f"queue item {item_id} is already resolved")
+    if item["ticket_id"] is not None:
+        outbox.reconcile_pending(conn, item["ticket_id"], runs_dir=runs_dir)
 
     kind = item["kind"]
     if action not in _allowed_actions(kind):
@@ -399,7 +401,7 @@ def act(
     elif action == "send_back":
         _send_back(conn, item, actor=actor, to=to, fm_id=fm_id, note=note)
     elif action == "abandon":
-        abandon(conn, item["ticket_id"], actor=actor, fm_id=fm_id, note=note)
+        abandon(conn, item["ticket_id"], actor=actor, fm_id=fm_id, note=note, runs_dir=runs_dir)
     elif action == "request_changes":
         _request_changes(conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, fm_id=fm_id, note=note)
     elif action == "resume":
@@ -413,12 +415,18 @@ def act(
     return f"queue item {item_id}: resolved with {action}"
 
 
-def abandon(conn: sqlite3.Connection, ticket_id: int, *, actor: str, fm_id: str, note: str | None = None) -> str:
+def abandon(
+    conn: sqlite3.Connection, ticket_id: int, *, actor: str, fm_id: str, note: str | None = None,
+    runs_dir: Path = RUNS_DIR,
+) -> str:
     """Abandon `ticket_id`: a state transition, an `abandoned` tag, and a `not_deployed` coverage record.
 
     Used both by `factory abandon`, which names no queued item, and by
     `act`'s own `abandon` action, which resolves the item separately.
+    Pending external writes reconcile first, as before every other
+    state-advancing command.
     """
+    outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
     transitions.apply(conn, ticket_id, "abandon")
     tags.tag(conn, target=f"ticket:{ticket_id}", kind="abandoned", fm_id=fm_id, actor=actor, note=note)
     record.insert(

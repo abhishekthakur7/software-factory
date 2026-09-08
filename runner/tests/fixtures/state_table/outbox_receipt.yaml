@@ -1,18 +1,38 @@
-# Full review quorum plus a reconciled outbox receipt ().
+# Full review quorum plus a reconciled outbox receipt whose stored remote
+# head and payload digest match what the row wanted published.
 reconciled:
   ticket:
     - as: ticket
       state: review
+  reviewer_set:
+    - as: effective_set
+      ticket_id: $ticket
+      kind: effective
+      content_hash: effective-reviewer-set-8
+      slots: '[{"source_rule": "owners", "role": "s6_reviewer"}]'
   evidence_tuple:
     - as: review_tuple
       kind: review
       ticket_id: $ticket
       content_hash: review-subject-8
+      effective_reviewer_set_id: $effective_set
   approval_record:
     - ticket_id: $ticket
       gate: review
       decision: approve
       subject_hash: review-subject-8
+      slot_id: "s6_reviewer||owners"
+      role: s6_reviewer
+      actor_identity: reviewer-1
+  artefact:
+    - as: receipt_artefact
+      ticket_id: $ticket
+      kind: receipt
+      path: "fixture:reconciled_receipt.json"
   external_write:
     - ticket_id: $ticket
       state: reconciled
+      remote_identity: "fixture-project#8"
+      desired_remote_head_sha: head-sha-reconciled-8
+      payload_digest: payload-digest-8
+      receipt_artefact_id: $receipt_artefact

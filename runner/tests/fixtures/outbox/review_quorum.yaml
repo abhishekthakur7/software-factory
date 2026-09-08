@@ -1,0 +1,7 @@
+# The one reviewer slot review quorum is evaluated over, and the actor
+# whose approval satisfies it -- one slot, one approver, mirroring the
+# pilot's single-reviewer authority (`owners.yaml`'s `s6_reviewer` role).
+slot:
+  source_rule: owners
+  role: s6_reviewer
+actor: reviewer-1

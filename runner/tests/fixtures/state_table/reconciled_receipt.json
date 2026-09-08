@@ -1,0 +1,9 @@
+{
+  "remote_identity": "fixture-project#8",
+  "remote_pr_identity": "fixture-project#8",
+  "remote_head_sha": "head-sha-reconciled-8",
+  "body_hash": "body-hash-8",
+  "payload_digest": "payload-digest-8",
+  "idempotency_key": "key-8",
+  "created_at": "2026-01-01T00:00:00+00:00"
+}

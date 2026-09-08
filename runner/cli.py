@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import gates, queue, record, tags, transitions
+from runner import gates, outbox, queue, record, tags, transitions
 from runner.db import connect
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -51,6 +51,7 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
         return f"no such ticket: {ticket_id}"
+    outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
     stage = _due_stage(conn, ticket)
     if stage is not None:
         return f"ticket {ticket_id}: {stage} {run_stage(conn, ticket_id, stage, runs_dir=runs_dir)}"
@@ -64,6 +65,8 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
 
 def run(conn: sqlite3.Connection, ticket_id: int, stage: str, runs_dir: Path = RUNS_DIR) -> str:
     """Run the named stage for `ticket_id`; `run_stage` refuses and records a stage its state does not precede."""
+    if record.get(conn, "ticket", ticket_id) is not None:
+        outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
     return run_stage(conn, ticket_id, stage, runs_dir=runs_dir)
 
 
@@ -174,7 +177,9 @@ def main(argv: list[str] | None = None) -> int:
                 runs_dir=runs_dir,
             ))
         elif args.verb == "abandon":
-            print(queue.abandon(conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note))
+            print(queue.abandon(
+                conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note, runs_dir=runs_dir,
+            ))
         elif args.verb == "tag":
             print(tags.tag(
                 conn, target=args.target, kind=args.kind, fm_id=args.fm,

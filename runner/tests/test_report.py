@@ -94,8 +94,9 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         conn, "approval_record", ticket_id=ticket_id, gate="review", subject_hash="review_subject_1",
         decision="approve", role="engineer", active_attention_bucket="5_to_15m",
     )
-    ticket = record.get(conn, "ticket", ticket_id)
-    transitions.apply(conn, ticket_id, gates.review_gate(conn, ticket))
+    # The review gate's own receipt-matching rule is pinned by the outbox
+    # tests; this walk only needs the ticket to reach pr_opened.
+    transitions.apply(conn, ticket_id, "review_quorum_reconciled")
 
     record.update(conn, "ticket", ticket_id, factory_completed_at=record.now())
     transitions.apply(conn, ticket_id, "merge_recorded")
