@@ -8,6 +8,7 @@ call order and the byte-identity between what it wrote and what got
 registered.
 """
 import hashlib
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -123,6 +124,47 @@ def test_handoff_ready_writes_a_row_for_every_condition_key(case):
     for row in rows:
         assert row["status"] == case["expect"][row["condition"]]
         assert row["hash"], f"{row['condition']} carries no hash"
+
+
+# --- risk_map: churn, ownership concentration, and size, attached as a plan input (R-S3-11) ---
+
+RISK_MAP = FACTORY_DIR / "scripts" / "checks" / "risk_map"
+RISK_MAP_EVAL_DIR = FACTORY_DIR / "evals" / "scripts" / "checks" / "risk_map"
+RISK_MAP_SPEC = yaml.safe_load((RISK_MAP_EVAL_DIR / "eval.yaml").read_text())
+
+
+def _churn_repo(tmp_path):
+    """`a.txt`: two commits from one author, thirteen bytes at HEAD; `b.txt`: one commit,
+    six bytes -- matching `fixtures/churn/expected.json` exactly (see that fixture's eval.yaml
+    comment for why the repository is built here instead of committed)."""
+    repo = tmp_path / "churn-repo"
+    repo.mkdir()
+    _git(["init", "-q"], repo)
+    _git(["checkout", "-q", "-b", "main"], repo)
+    (repo / "a.txt").write_text("hello\n")
+    (repo / "b.txt").write_text("world\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-q", "-m", "init"], repo)
+    (repo / "a.txt").write_text("hello\nhello2\n")
+    _git(["commit", "-qam", "touch a"], repo)
+    return repo
+
+
+@pytest.mark.parametrize("case", RISK_MAP_SPEC["cases"], ids=[c["name"] for c in RISK_MAP_SPEC["cases"]])
+def test_risk_map_scores_and_names_candidates_from_a_real_repository(tmp_path, case):
+    fixture = RISK_MAP_EVAL_DIR / case["fixture"]
+    repo = _churn_repo(tmp_path)
+    result = subprocess.run(
+        [
+            str(RISK_MAP), "--checkout", str(repo), "--branch", case["branch"],
+            "--candidates", str(fixture / "candidates.txt"), "--months", str(case["months"]),
+            "--min-share", str(case["min_share"]),
+        ],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    expected = json.loads((RISK_MAP_EVAL_DIR / case["expected"]).read_text())
+    assert json.loads(result.stdout) == expected
 
 
 # --- missing/pending readiness rows fail the structure check (R-S3-21) ---
