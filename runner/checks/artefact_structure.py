@@ -39,7 +39,7 @@ KIND_TABLES: dict[str, dict[str, tuple[str, ...]]] = {
 # unformalisable, restated by no children at all); a plan naming no
 # rejected alternative, no non-self-evident code, and no new abstraction
 # legitimately leaves those three empty too. `Risk map` is deliberately
-# absent from this set: R-S3-11 always names at least one place.
+# absent from this set: a risk map always names at least one place.
 _EMPTY_TABLE_ALLOWED: frozenset[tuple[str, str]] = frozenset({
     ("plan", "Dependencies"), ("plan", "Alternatives"), ("plan", "Archaeology and characterization tests"),
     ("plan", "Abstraction and separate debt"), ("criteria", "Agreement check"),
@@ -47,8 +47,8 @@ _EMPTY_TABLE_ALLOWED: frozenset[tuple[str, str]] = frozenset({
 
 # `Rollout`'s five sub-tables allowed to carry zero rows: a ticket with no
 # flag, no ramp, no guardrail, or no log-verification query legitimately
-# leaves that sub-table header-only. `Kill trigger` is excluded: R-S3-10
-# always names one, with rollback as its default response.
+# leaves that sub-table header-only. `Kill trigger` is excluded: a
+# rollout always names one, with rollback as its default response.
 _ROLLOUT_EMPTY_ALLOWED: frozenset[str] = frozenset({"Flags", "Ramp", "Guardrails", "Log verification"})
 
 # The three sections a reviewer must be able to read without scrolling to
@@ -276,7 +276,7 @@ def _check_criteria(artefact: artefacts.Artefact) -> list[Finding]:
 
 
 def _check_rollout(artefact: artefacts.Artefact) -> list[Finding]:
-    """`Rollout` carries no table of its own -- each of its five `### ` subsections does (R-S3-10).
+    """`Rollout` carries no table of its own -- each of its five `### ` subsections does.
 
     A `Rollout` section with no `### ` subsection at all is prose-only,
     the same `missing_table` finding a flat table's absence would be.
@@ -323,7 +323,7 @@ def _check_scope_actions(artefact: artefacts.Artefact) -> list[Finding]:
 
 
 def _check_contract_cells(artefact: artefacts.Artefact) -> list[Finding]:
-    """Every `Contracts` field cell parses to one of the three states (R-S3-7); semantic completeness is `plan_rubric`'s."""
+    """Every `Contracts` field cell parses to one of the three states; semantic completeness is `plan_rubric`'s."""
     findings: list[Finding] = []
     section = artefact.section("Contracts")
     if section is None or section.is_pending():

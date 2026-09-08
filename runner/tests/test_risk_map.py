@@ -113,7 +113,7 @@ def _run(case: dict, repo: Path) -> dict:
 
 @pytest.mark.parametrize("case", EVAL_SPEC["churn_window_cases"], ids=[c["name"] for c in EVAL_SPEC["churn_window_cases"]])
 def test_churn_window_scoring_matches_the_seeded_expectation(tmp_path, case):
-    """criteria 25, 26: the churn window is computed from git, per candidate, before any agent runs."""
+    """R-S3-11: the churn window is computed from git, per candidate, before any agent runs."""
     repo = _churn_window_repo(tmp_path)
     payload = _run(case, repo)
     expected = json.loads((EVAL_DIR / case["expected"]).read_text())
@@ -121,7 +121,7 @@ def test_churn_window_scoring_matches_the_seeded_expectation(tmp_path, case):
 
 
 def test_a_commit_outside_the_window_is_excluded_from_the_count_not_merely_unnamed(tmp_path):
-    """criterion 25: the window filters the whole walk (`--since-as-filter`), not just the top-decile ranking."""
+    """R-S3-11: the window filters the whole walk (`--since-as-filter`), not just the top-decile ranking."""
     case = next(c for c in EVAL_SPEC["churn_window_cases"] if c["name"] == "churn_window")
     payload = _run(case, _churn_window_repo(tmp_path))
     old = next(c for c in payload["candidates"] if c["path"] == "old.txt")
@@ -129,7 +129,7 @@ def test_a_commit_outside_the_window_is_excluded_from_the_count_not_merely_unnam
 
 
 def test_the_top_decile_and_no_clear_owner_entries_are_named_for_different_reasons(tmp_path):
-    """criterion 27: churn-times-size ranking and the ownership-share floor are independent named-entry rules."""
+    """R-S3-11: churn-times-size ranking and the ownership-share floor are independent named-entry rules."""
     case = next(c for c in EVAL_SPEC["churn_window_cases"] if c["name"] == "churn_window")
     payload = _run(case, _churn_window_repo(tmp_path))
     by_path = {c["path"]: c for c in payload["candidates"]}
@@ -138,7 +138,7 @@ def test_the_top_decile_and_no_clear_owner_entries_are_named_for_different_reaso
     assert by_path["quiet.txt"]["named"] is False
 
 
-# --- criterion 28: the plan's own Risk map table against the computed candidate count (R-S3-11) ---
+# --- the plan's own Risk map table against the computed candidate count ---
 
 
 def test_the_plan_names_at_least_one_place_per_computed_candidate_when_that_is_fewer_than_the_configured_floor():
@@ -159,7 +159,7 @@ def test_must_reject_a_named_place_with_an_empty_why():
     assert any(f.rule == "risk_map_places" for f in findings)
 
 
-# --- criterion 29: the R-S3-11 grader line's seeded human_verdict scenario ---
+# --- the seeded human_verdict scenario for the risk-map grader line ---
 
 
 def test_the_seeded_human_verdict_fixture_names_its_rubric_line_and_a_fail_verdict():

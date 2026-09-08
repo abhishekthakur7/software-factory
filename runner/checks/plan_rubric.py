@@ -1,9 +1,9 @@
-"""The plan rubric's script-half findings: one function per S3 rubric row, over an already-parsed plan.
+"""The plan rubric's script-half findings: one function per plan-rubric row, over an already-parsed plan.
 
 `artefact_structure.check` gates the plan's shape -- fixed sections, fixed
 table columns, every `Contracts` cell parsing to a state; this module gates
-what those tables *say*, the deterministic half of each R-S3-2 .. R-S3-11
-rubric row (the grader half is a human judgment the bootstrap checklist
+what those tables *say*, the deterministic half of each rubric row that
+carries one (the grader half is a human judgment the bootstrap checklist
 carries until a calibrated grader exists). A `Finding` never reports
 `"pass"`: an empty list from `check` is a pass, `"fail"` blocks the plan
 the same way a structural finding does, and `"blind_spot"` records
@@ -22,7 +22,7 @@ from runner import artefacts
 
 # `Test strategy.size` maps onto the project's three test-level recipes
 # one for one; a `large` row needs a registered `end_to_end` recipe before
-# it may be planned at all (R-S3-9).
+# it may be planned at all.
 SIZE_TO_LEVEL: dict[str, str] = {"small": "unit", "medium": "integration", "large": "end_to_end"}
 
 _TRUE_STRINGS = frozenset({"yes", "true", "1"})
@@ -54,7 +54,7 @@ def _rows(artefact: artefacts.Artefact, section_title: str) -> list[dict[str, st
 
 
 def rejected_alternative_reason(plan: artefacts.Artefact) -> list[Finding]:
-    """R-S3-2: every `Alternatives` row names both what it was and why, and the reason is not the name restated."""
+    """Every `Alternatives` row names both what it was and why, and the reason is not the name restated."""
     findings: list[Finding] = []
     for row in _rows(plan, "Alternatives"):
         alternative = (row.get("alternative") or "").strip()
@@ -70,7 +70,7 @@ def rejected_alternative_reason(plan: artefacts.Artefact) -> list[Finding]:
 
 
 def shared_abstraction_cited(plan: artefacts.Artefact) -> list[Finding]:
-    """R-S3-3/R-S3-6: a new abstraction cites its search before it is proposed."""
+    """A new abstraction cites its search before it is proposed."""
     findings: list[Finding] = []
     for row in _rows(plan, "Abstraction and separate debt"):
         kind = (row.get("kind") or "").strip()
@@ -94,7 +94,7 @@ def shared_abstraction_cited(plan: artefacts.Artefact) -> list[Finding]:
 
 
 def archaeology_carried(plan: artefacts.Artefact, *, brief: artefacts.Artefact) -> list[Finding]:
-    """R-S3-4: the brief's classification survives into the plan, unexplained/contradictory code gets a characterization test."""
+    """The brief's classification survives into the plan; unexplained/contradictory code gets a characterization test."""
     findings: list[Finding] = []
     plan_rows = _rows(plan, "Archaeology and characterization tests")
     by_path = {row.get("path"): row for row in plan_rows if row.get("path")}
@@ -122,7 +122,7 @@ def archaeology_carried(plan: artefacts.Artefact, *, brief: artefacts.Artefact) 
 
 
 def no_behaviour_change_isolated(plan: artefacts.Artefact) -> list[Finding]:
-    """R-S3-5: a flagged task is its own tested task; a plan mixing flagged and unflagged tasks needs the human's named exception."""
+    """A flagged task is its own tested task; a plan mixing flagged and unflagged tasks needs the human's named exception."""
     findings: list[Finding] = []
     tasks = _rows(plan, "Tasks")
     tests = _rows(plan, "Test strategy")
@@ -142,7 +142,7 @@ def no_behaviour_change_isolated(plan: artefacts.Artefact) -> list[Finding]:
 
 
 def contracts_declared(plan: artefacts.Artefact, *, questions: list[dict]) -> list[Finding]:
-    """R-S3-7: every field parses to a state; `changed` needs evidence or a consequential question; `unknown` is an accepted blind spot."""
+    """Every field parses to a state; `changed` needs evidence or a consequential question; `unknown` is an accepted blind spot."""
     findings: list[Finding] = []
     any_consequential_question = any(_truthy(q.get("consequential")) for q in questions)
     for row in _rows(plan, "Contracts"):
@@ -164,7 +164,7 @@ def contracts_declared(plan: artefacts.Artefact, *, questions: list[dict]) -> li
 def test_strategy_typed(
     plan: artefacts.Artefact, *, criteria_text: str | None, catalogue: dict, project_recipes: list[str],
 ) -> list[Finding]:
-    """R-S3-9: typed size/action, a `change`/`remove` row names its authority, a `large` row needs a registered end-to-end recipe."""
+    """Typed size/action, a `change`/`remove` row names its authority, a `large` row needs a registered end-to-end recipe."""
     findings: list[Finding] = []
     no_behaviour_change_ids = {row.get("id") for row in _rows(plan, "Tasks") if _truthy(row.get("no_behaviour_change"))}
     known_ac_ids: set[str] = set()
@@ -197,7 +197,7 @@ def test_strategy_typed(
 
 
 def test_mix_report(plan: artefacts.Artefact, *, limits: dict) -> str:
-    """The plan's `add`-row test counts against `limits.yaml`'s `test_mix` target, as one information line -- never a finding (R-S3-9)."""
+    """The plan's `add`-row test counts against `limits.yaml`'s `test_mix` target, as one information line -- never a finding."""
     add_rows = [row for row in _rows(plan, "Test strategy") if (row.get("action") or "").strip() == "add"]
     counts = {size: sum(1 for row in add_rows if (row.get("size") or "").strip() == size) for size in artefacts.TEST_SIZES}
     total = sum(counts.values())
@@ -210,7 +210,7 @@ def test_mix_report(plan: artefacts.Artefact, *, limits: dict) -> str:
 
 
 def rollout_structured(plan: artefacts.Artefact, *, limits: dict) -> list[Finding]:
-    """R-S3-10: every flag's five cells, guardrails within the section 8 limit, one rollback kill trigger, both log patterns."""
+    """Every flag's five cells, guardrails within the section 8 limit, one rollback kill trigger, both log patterns."""
     findings: list[Finding] = []
     section = plan.section("Rollout")
     if section is None:
@@ -244,7 +244,7 @@ def rollout_structured(plan: artefacts.Artefact, *, limits: dict) -> list[Findin
 
 
 def risk_map_places(plan: artefacts.Artefact, *, limits: dict, risk_map_candidate_count: int) -> list[Finding]:
-    """R-S3-11: at least the section 8 named-places floor, or one per computed candidate when the risk map names fewer; every `why` filled."""
+    """At least the section 8 named-places floor, or one per computed candidate when the risk map names fewer; every `why` filled."""
     findings: list[Finding] = []
     rows = _rows(plan, "Risk map")
     configured = limits["risk_map"]["named_places"]
