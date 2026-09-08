@@ -574,6 +574,18 @@ files:
     content_hash: 7ea55a0125a73c5d307643b61d3adb4e5fc3770ba1b5c7fd4185766764436fb1
   - path: factory/skills/shared/codegraph-lookup.md
     content_hash: f4c6b1018bd39e49ba7e093053ea35830c7da7e933715d28c517409bba0eb5f0
+  - path: factory/evals/agents/S4/fixtures/empty_deviations/out/handback.json
+    content_hash: 41be7de2e70ed891fd8e260dd893fa39bd3570e608d7a91f4677e965bad32ace
+  - path: factory/evals/agents/S4/fixtures/malformed_deviations/out/handback.json
+    content_hash: d5bc322567f655f64eaf222fe5690d3cf69c0d11b10a30eb1d922d6c3b9e75eb
+  - path: factory/evals/agents/S4/fixtures/missing_deviations/out/handback.json
+    content_hash: ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356
+  - path: factory/evals/agents/S4/fixtures/no_handback/out/.gitkeep
+    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - path: factory/evals/agents/S4/fixtures/ok/out/handback.json
+    content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
+  - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
+    content_hash: 4d198f3b4aef350a47412f964e31ca62221f82788136fda6bd7fa1819ae4ec24
 stages:
   S0:
     default:
@@ -693,15 +705,3 @@ stages:
       sandbox_policy: thin
       toolchain:
         jdk: '17'
-  - path: factory/evals/agents/S4/fixtures/empty_deviations/out/handback.json
-    content_hash: 41be7de2e70ed891fd8e260dd893fa39bd3570e608d7a91f4677e965bad32ace
-  - path: factory/evals/agents/S4/fixtures/malformed_deviations/out/handback.json
-    content_hash: d5bc322567f655f64eaf222fe5690d3cf69c0d11b10a30eb1d922d6c3b9e75eb
-  - path: factory/evals/agents/S4/fixtures/missing_deviations/out/handback.json
-    content_hash: ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356
-  - path: factory/evals/agents/S4/fixtures/no_handback/out/.gitkeep
-    content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  - path: factory/evals/agents/S4/fixtures/ok/out/handback.json
-    content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
-  - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
-    content_hash: 4d198f3b4aef350a47412f964e31ca62221f82788136fda6bd7fa1819ae4ec24
