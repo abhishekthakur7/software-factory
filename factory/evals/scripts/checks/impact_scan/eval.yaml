@@ -1,4 +1,5 @@
 subject: factory/scripts/checks/impact_scan
+owner: abhishek
 cases:
   - name: authoritative
     fixture: fixtures/authoritative

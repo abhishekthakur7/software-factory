@@ -1,4 +1,5 @@
 subject: factory/scripts/tools/manifest_hash
+owner: abhishek
 cases:
   - name: valid
     fixture: fixtures/valid

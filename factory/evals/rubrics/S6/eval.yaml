@@ -1,4 +1,5 @@
 subject: factory/rubrics/S6.md
+owner: abhishek
 cases:
   - name: ok
     fixture: fixtures/ok
