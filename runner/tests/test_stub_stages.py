@@ -279,7 +279,7 @@ def _implementing_ticket_with_plan_inputs(conn, tmp_path):
     artefact_registry.register(conn, ticket_id=ticket_id, kind="plan", path=plan_path)
     criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
-    support.approve_current_plan(conn, ticket_id)
+    support.approve_current_plan(conn, ticket_id, tmp_path)
     return ticket_id
 
 

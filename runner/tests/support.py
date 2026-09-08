@@ -10,7 +10,6 @@ here rather than inventing its own approximation.
 """
 import json
 import sqlite3
-import tempfile
 from pathlib import Path
 
 from runner import approvals, artefact_registry, artefacts, owners, plan_tuple, record
@@ -23,19 +22,21 @@ TRUST_PROFILE_HASH = "trust-profile-1"
 TRUST_APPROVAL_SET_HASH = "trust-approval-set-1"
 
 
-def approve_current_plan(conn: sqlite3.Connection, ticket_id: int) -> int:
+def approve_current_plan(conn: sqlite3.Connection, ticket_id: int, scratch_dir: Path) -> int:
     """Derive and create the ticket's current plan tuple and approve it on the pilot's one S3 slot; return the tuple id.
 
     Call after every artefact the plan subject binds (brief, criteria,
     plan) is registered and the ticket's base is pinned, since the tuple
     is derived from exactly those rows. A planned reviewer set is added
     only when the ticket has none, so a test that derived a real one keeps it.
+    A ticket with no brief gets a one-section stand-in written under
+    `scratch_dir` (the test's `tmp_path`): the tuple binds a brief hash,
+    and these tests judge S4, not the brief. The stand-in is never placed
+    beside the plan, because a plan registered at a committed fixture path
+    would then leave an untracked file inside the repository.
     """
     if artefact_registry.latest(conn, ticket_id, "brief") is None:
-        # A one-section brief in a throwaway directory: the tuple binds a
-        # brief hash and these tests judge S4, not the brief. Never written
-        # beside the plan, which may be a committed eval fixture.
-        brief_path = Path(tempfile.mkdtemp(prefix="seeded-brief-")) / f"brief-{ticket_id}.md"
+        brief_path = scratch_dir / f"brief-{ticket_id}.md"
         brief_path.write_text(f"## {artefacts.SECTIONS['brief'][0]}\n\nseeded brief\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief_path)
     identity = owners.load_owners().roles["s3_reviewer"]["identity"]
