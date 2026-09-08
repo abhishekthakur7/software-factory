@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Start the factory from a clean slate: free every port it uses, stop any
+# stale factory process, sync the environment, then run the `factory`
+# command with the arguments given (`--help` when none). Killing first is
+# what makes the command never fail to start: a preview server left on a
+# port, or a hung run holding the record, cannot block it.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Ports the factory's local servers use. Only the mockup preview exists
+# today; add a port here when a server starts listening on it.
+PORTS="${PORTS:-8765}"
+
+for port in $PORTS; do
+  pids="$(lsof -ti "tcp:${port}" || true)"
+  if [ -n "$pids" ]; then
+    echo "freeing port ${port} (pids: ${pids//$'\n'/ })"
+    kill -9 $pids 2>/dev/null || true
+  fi
+done
+
+stale="$(pgrep -f 'runner\.cli|runner/cli\.py|/factory( |$)' || true)"
+if [ -n "$stale" ]; then
+  echo "stopping stale factory processes (pids: ${stale//$'\n'/ })"
+  kill -9 $stale 2>/dev/null || true
+fi
+
+uv sync --quiet
+if [ "$#" -eq 0 ]; then
+  set -- --help
+fi
+exec uv run factory "$@"
