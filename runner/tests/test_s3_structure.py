@@ -201,6 +201,67 @@ def test_a_blind_spot_readiness_row_with_no_waiver_id_counts_as_pending():
     assert any(f.rule == "pending_readiness_row" and "impact_evidence" in f.detail for f in findings)
 
 
+# the new plan tables: Rollout's five subsections, Scope and discretion's closed action set,
+# and every Contracts field cell parsing to a state
+
+def test_must_reject_a_scope_row_with_an_action_outside_the_closed_set():
+    text = _ok_plan_text().replace(
+        "| src/main/java/com/fixture/Widget.java | touch | implements the widget |",
+        "| src/main/java/com/fixture/Widget.java | modify | implements the widget |",
+    )
+    findings = _check("plan", text)
+    assert any(f.rule == "bad_scope_action" and "modify" in f.detail for f in findings)
+
+
+def test_must_reject_a_contracts_row_whose_field_cell_does_not_parse_to_a_state():
+    text = _ok_plan_text().replace(
+        "| Widget.compute | function | unchanged: Widget.java:42 | changed: added a negative-input guard | unchanged | "
+        "changed: raises a typed error for negative input | unchanged | unchanged | unchanged | unchanged | "
+        "unchanged | unchanged |",
+        "| Widget.compute | function | unchanged: Widget.java:42 | added a negative-input guard | unchanged | "
+        "changed: raises a typed error for negative input | unchanged | unchanged | unchanged | unchanged | "
+        "unchanged | unchanged |",
+    )
+    findings = _check("plan", text)
+    assert any(f.rule == "bad_contract_cell" and "input" in f.detail for f in findings)
+
+
+def test_must_reject_a_rollout_with_no_kill_trigger_row():
+    text = _ok_plan_text().replace(
+        "| Widget.compute rejects previously-accepted negative input in production | rollback the deploy and "
+        "restore the previous compute implementation |\n",
+        "",
+    )
+    findings = _check("plan", text)
+    assert any(f.rule == "empty_table" and f.detail == "Rollout.Kill trigger" for f in findings)
+
+
+def test_must_reject_a_rollout_missing_a_subsection_entirely():
+    text = _ok_plan_text().replace("### Log verification", "### Removed subsection")
+    findings = _check("plan", text)
+    assert any(f.rule == "missing_table" and f.detail == "Rollout.Log verification" for f in findings)
+
+
+def test_must_reject_an_empty_risk_map_table():
+    text = _ok_plan_text().replace(
+        "| src/main/java/com/fixture/Widget.java | sole touched file; a fresh guard clause changes its error "
+        "path, worth a reviewer's eyes even though ownership is clear |\n",
+        "",
+    )
+    findings = _check("plan", text)
+    assert any(f.rule == "empty_table" and f.detail == "Risk map" for f in findings)
+
+
+def test_an_empty_alternatives_table_is_allowed():
+    """a plan naming no rejected alternative at all is legitimate, unlike a Risk map with zero rows."""
+    text = _ok_plan_text().replace(
+        "| validate at the caller instead | leaves the library unsafe for every other caller that skips validation |\n",
+        "",
+    )
+    findings = _check("plan", text)
+    assert not any(f.rule == "empty_table" and f.detail == "Alternatives" for f in findings)
+
+
 # driver-level ordering and hash binding (R-S3-21), through a real run
 
 _COMMIT_ENV = {
