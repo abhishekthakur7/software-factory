@@ -17,7 +17,7 @@ those kinds into one verdict; an ungoverned unit-test recipe's own head result b
 directly, exactly like every other check in `CHECK_ORDER`. A run with every blocking
 result `pass` ends `pass` and leaves the state to `checks_gate`; a run with any red
 result checks whether it is confined to a set a machine can retry on its own
-(`runner.checks.red_route.classify`, built alongside this driver) and either sends the
+(`runner.checks.red_route.classify`) and either sends the
 ticket back to `implementing` for a fix round or opens one `red_check` item naming
 every red and blind-spot result together.
 """
@@ -442,7 +442,7 @@ def _apply_routing(
     cap = _limits_config()["fix_rounds"]["max_per_ticket"]
     route = classify([*recipe_outcomes, *check_outcomes], rounds_run=rounds_run, cap=cap)
 
-    if route.route == "fix_round":
+    if route.kind == "fix_round":
         _record_check_result(
             conn, stage_run_id, check_name="fix_round_route", result="pass", summary=route.reason,
             evidence_tuple_id=review_tuple_id,
