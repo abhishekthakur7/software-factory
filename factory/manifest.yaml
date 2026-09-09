@@ -33,11 +33,11 @@ files:
   - path: factory/config/runtime.yaml
     content_hash: c72a6244731f346284c50535ca35b94c7bee9ac41561cb6234499d672c455bca
   - path: factory/config/sandbox/agent-profile.sb
-    content_hash: de0020352d7b19de5ab266a10c641d56f17e0d2c237382275c86ab53a9e5e863
+    content_hash: 523385e34da0cfa3e9be6cf08abf167145e60c972e2b5ec0a2e00735fc89dbe9
   - path: factory/config/sandbox/build-profile.sb
-    content_hash: 985ba848d2f7390bef1b2d1a3991ec2097fa934eebe42fbc573a887a1661d0c6
+    content_hash: 8810ccd3e5d325bca42a0be20287a21ac2bbc2731c17d2a6de24fe6dd2577be1
   - path: factory/config/sandbox.yaml
-    content_hash: 8d9066973b6218d9ac21b4b36560f6cfd7b7702bc24426da6170d8729525b865
+    content_hash: 90e02c7ccd52bbce9db1ef23de08744cbd8b9917e1fb6ad30b8bdd4d26f8952c
   - path: factory/config/sensitive-paths.yaml
     content_hash: d6f425fafb63a7a0fc5c0e51fe676ea0d2a097a8a4a9a796acee4ecba09e76af
   - path: factory/config/service-tiers.yaml

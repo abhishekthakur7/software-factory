@@ -38,10 +38,10 @@ policies:
     os_profiles:
       agent:
         path: factory/config/sandbox/agent-profile.sb
-        digest: de0020352d7b19de5ab266a10c641d56f17e0d2c237382275c86ab53a9e5e863
+        digest: 523385e34da0cfa3e9be6cf08abf167145e60c972e2b5ec0a2e00735fc89dbe9
       build:
         path: factory/config/sandbox/build-profile.sb
-        digest: 985ba848d2f7390bef1b2d1a3991ec2097fa934eebe42fbc573a887a1661d0c6
+        digest: 8810ccd3e5d325bca42a0be20287a21ac2bbc2731c17d2a6de24fe6dd2577be1
     # The one home for an external host and port a route resolves to; a
     # stage's `proxy_allowlist` entry below names route ids, never a raw
     # host, so every stage that admits `hosted_model` agrees on where it

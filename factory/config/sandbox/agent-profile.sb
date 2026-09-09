@@ -24,7 +24,12 @@
 ; that without granting read access to sibling directories the chain
 ; passes through (this is how `factory/` stays unreadable even though it
 ; shares a parent with `.venv/` and `runner/`, both readable below).
-(allow file-read-metadata file-test-existence (path-ancestors repo-root))
+(allow file-read-metadata file-test-existence
+    (path-ancestors repo-root)
+    (path-ancestors worktree)
+    (path-ancestors run-dir)
+    (path-ancestors ticket-dir)
+    (path-ancestors tmp-dir))
 
 ; `runner`'s package finder lists REPO_ROOT itself (an editable install
 ; puts REPO_ROOT on sys.path) before it ever opens a file underneath it;

@@ -18,7 +18,14 @@
 (define cache-dir (param "CACHE_DIR"))
 (define jdk-home (param "JDK_HOME"))
 
-(allow file-read-metadata file-test-existence (path-ancestors repo-root))
+(allow file-read-metadata file-test-existence
+    (path-ancestors repo-root)
+    (path-ancestors run-dir)
+    (path-ancestors tmp-dir)
+    (path-ancestors copy-dir)
+    (path-ancestors build-dir)
+    (path-ancestors scratch-dir)
+    (path-ancestors cache-dir))
 (allow file-read* file-test-existence (literal repo-root))
 
 (allow file-read* file-test-existence
