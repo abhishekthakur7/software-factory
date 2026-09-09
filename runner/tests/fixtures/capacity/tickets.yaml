@@ -1,0 +1,33 @@
+# One ticket row per state in `runner.state_table.STATES`, title naming the
+# state. The counted-state test asserts on the total in-flight count after
+# seeding every row at once, so a wrongly counted or wrongly excluded state
+# shows up as an off-by-one rather than requiring one fixture per state.
+all_states:
+  - state: intake
+    title: capacity-intake
+  - state: rejected
+    title: capacity-rejected
+  - state: context
+    title: capacity-context
+  - state: clarifying
+    title: capacity-clarifying
+  - state: planning
+    title: capacity-planning
+  - state: plan_review
+    title: capacity-plan-review
+  - state: implementing
+    title: capacity-implementing
+  - state: checks
+    title: capacity-checks
+  - state: review
+    title: capacity-review
+  - state: pr_opened
+    title: capacity-pr-opened
+  - state: pr_checks
+    title: capacity-pr-checks
+  - state: merged
+    title: capacity-merged
+  - state: abandoned
+    title: capacity-abandoned
+  - state: escalated
+    title: capacity-escalated

@@ -25,7 +25,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from runner import approvals, artefact_registry, binding, canonical, outbox, owners, publication, record, tags, transitions
+from runner import approvals, artefact_registry, binding, canonical, capacity, outbox, owners, publication, record, tags, transitions
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
 
@@ -1027,7 +1027,12 @@ def escalation_context(conn: sqlite3.Connection, item: sqlite3.Row) -> dict:
 def list_queue(
     conn: sqlite3.Connection, *, include_resolved: bool = False, owners_path: Path = owners.DEFAULT_OWNERS_PATH,
 ) -> str:
-    """One text block per open item (every item, resolved included, with `include_resolved`)."""
+    """One text block per open item (every item, resolved included, with `include_resolved`), plus one line per ticket held at `intake` by capacity.
+
+    A ticket capacity holds at `intake` has no queue item of its own -- the
+    wait is derived from its state and the configured limit, not queued --
+    so this is the only place the queue's own listing can show it.
+    """
     owners_obj = owners.load_owners(owners_path)
     query = "SELECT * FROM queue_item"
     if not include_resolved:
@@ -1037,4 +1042,9 @@ def list_queue(
     for item in conn.execute(query).fetchall():
         blocks.extend(_item_block(conn, item, owners_obj))
         blocks.append("")
+    limit = capacity.effective_parallel_limit(conn)
+    for ticket in conn.execute("SELECT * FROM ticket WHERE state = 'intake' ORDER BY id").fetchall():
+        wait_line = capacity.wait(conn, ticket, limit)
+        if wait_line is not None:
+            blocks.append(f"ticket {ticket['id']}: {wait_line}")
     return "\n".join(blocks).rstrip("\n")
