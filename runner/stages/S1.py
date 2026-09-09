@@ -33,7 +33,7 @@ import yaml
 from runner import artefact_registry, artefacts, context_index, launcher, project, record, run_ledger
 from runner.checks import brief as checks_brief
 from runner.checks import exclusion
-from runner.fs import copy_tree, write_text
+from runner.fs import write_text
 from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
 
 ARTEFACT_KIND = "brief"
@@ -135,11 +135,12 @@ def _run_archaeology(
     Runs `archaeology` as a subprocess launch under the agent profile for
     stage S1 -- the same sandboxed boundary a real agent invocation
     crosses, so the script's own proxy call (and the credential it never
-    sees) cross it too. `factory/` and, outside S4, the ticket's real
-    worktree are both unreadable from inside that profile, so the script
-    and a worktree copy are staged into the launch's own `tmp/` first,
-    the same way a sandbox test probe is. The classification itself is
-    never trusted from the agent, the same rule `Final tier` follows.
+    sees) cross it too. `factory/` is unreadable from inside that profile,
+    so the script is staged into the launch's own `tmp/` first, the same
+    way a sandbox test probe is; the worktree itself is readable there
+    (the ticket directory is a read-only mount at every stage). The
+    classification is never trusted from the agent, the same rule
+    `Final tier` follows.
     """
     candidates = _archaeology_candidates(touched_rows)
     if not candidates:
@@ -148,15 +149,13 @@ def _run_archaeology(
     run_dir = _archaeology_run_dir(runs_dir, ticket_id, stage_run_id)
     tmp_dir = run_dir / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    repo_copy = tmp_dir / "repo"
-    copy_tree(worktree, repo_copy)
     script_copy = tmp_dir / "archaeology.py"
     write_text(script_copy, ARCHAEOLOGY_SCRIPT.read_text())
     candidates_path = tmp_dir / "candidates.json"
     write_text(candidates_path, json.dumps(candidates))
 
     argv = [
-        sys.executable, str(script_copy), "--worktree", str(repo_copy), "--candidates", str(candidates_path),
+        sys.executable, str(script_copy), "--worktree", str(worktree), "--candidates", str(candidates_path),
         "--route", ARCHAEOLOGY_ROUTE,
     ]
     if proxy_url:

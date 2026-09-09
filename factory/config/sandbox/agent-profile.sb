@@ -36,10 +36,14 @@
 
 ; What a Python process needs to boot at all: the standard library, shared
 ; frameworks, and the resolved system paths a subprocess call may touch.
+; `/opt/homebrew` is where `git` and the other command-line tools an
+; agent's `run_command` reaches live on this host; Xcode's own copies
+; under `/usr` and `/Library` are covered by the grants above.
 (allow file-read* file-test-existence
     (subpath "/usr")
     (subpath "/System")
     (subpath "/Library")
+    (subpath "/opt/homebrew")
     (subpath "/private/var/db")
     (subpath "/dev")
     (subpath "/etc")

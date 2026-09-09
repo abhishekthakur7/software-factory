@@ -260,32 +260,9 @@ def test_sandbox_yaml_names_the_atlassian_read_route_for_s1_only():
 
 # The real OS-enforced boundary (R-S1-4).
 
-def _git_reachable_inside_the_agent_sandbox(tmp_path: Path) -> bool:
-    probe = tmp_path / "git_probe.py"
-    probe.write_text(
-        "import json, subprocess\n"
-        "result = subprocess.run(['git', '--version'], capture_output=True, text=True)\n"
-        "print(json.dumps({'ok': result.returncode == 0}))\n"
-    )
-    outcome = launch_probe(tmp_path, probe, role="agent", stage="S1", ticket_dir=tmp_path / "ticket_dir")
-    return bool(outcome.get("ok"))
-
-
 def test_archaeology_runs_git_blame_and_resolves_a_classification_under_the_real_sandbox(tmp_path, fake_proxy):
     """The script runs for real under the committed, OS-enforced agent profile for stage S1 and still
-    resolves a classification through the loopback route contract (R-S1-4).
-
-    Skipped loudly when `git` cannot be exec'd from inside that profile on
-    this host: the committed `agent-profile.sb` (a different ticket's,
-    frozen) grants read/exec only under `/usr`, `/System`, `/Library`, and
-    the repository's own `runner`/`.venv`/interpreter paths -- not
-    wherever `git` happens to resolve. A host with Xcode Command Line
-    Tools installed has a working `/usr/bin/git` and this test runs for
-    real; a Homebrew-only git host (this one) does not.
-    """
-    if not _git_reachable_inside_the_agent_sandbox(tmp_path):
-        pytest.skip("git is not exec-able from inside the real agent Seatbelt profile on this host")
-
+    resolves a classification through the loopback route contract (R-S1-4)."""
     run_dir = tmp_path / "run"
     scratch = run_dir / "tmp"
     scratch.mkdir(parents=True)
