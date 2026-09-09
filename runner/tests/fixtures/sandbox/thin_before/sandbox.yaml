@@ -1,0 +1,21 @@
+# A frozen copy of the pre-OS-enforcement sandbox.yaml, kept only so
+# test_sandbox.py can prove the sandbox digest changed when the OS policy,
+# proxy allowlist, and copy-on-write shape landed. Never read by any
+# runner module at run time.
+policies:
+  thin:
+    description: >
+      A launcher-enforced environment allowlist and a per-role credential
+      rule, with no OS-level boundary.
+    env_allowlist:
+      - PATH
+      - HOME
+      - LANG
+      - LC_ALL
+      - TMPDIR
+      - JAVA_HOME
+      - JDK_HOME
+    credential_roles:
+      agent: runtime_key
+      build: null
+    codegraph_command: [codegraph, serve, --stdio]

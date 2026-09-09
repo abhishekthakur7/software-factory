@@ -1,15 +1,18 @@
-# The thin sandbox, Milestone A's execution boundary for R-I-14: a
-# launcher-built process environment and a per-run out/results split, with
-# no OS-enforced policy, no loopback proxy, and no copy-on-write copies yet
-# (those land before Milestone B). `runner/launcher.py` reads this file to
-# build the invocation child's environment; `runner/envelope.py` hashes it,
-# together with the resolved allowlist, into every run's `sandbox_digest`.
+# The enforced sandbox: an OS-level Seatbelt boundary
+# (`runner/sandbox/os_policy.py`), a loopback proxy that is the only route
+# out of it (`runner/sandbox/proxy.py`), and copy-on-write base/head
+# checkouts a build step writes into (`runner/sandbox/copies.py`).
+# `runner/launcher.py` reads this file to build the invocation child's
+# environment and to apply its OS profile; `runner/envelope.py` hashes it,
+# together with the resolved proxy allowlist and environment allowlist,
+# into every run's `sandbox_digest`.
 policies:
-  thin:
+  enforced:
     description: >
-      Milestone A's thin sandbox policy: an environment allowlist and a
-      per-role credential rule, enforced by the launcher rather than by an
-      OS-level boundary.
+      A launcher-built environment allowlist plus an OS-enforced Seatbelt
+      profile per sandbox role, a loopback proxy that is the only path to
+      the network, and copy-on-write checkouts for a build recipe to write
+      into.
     # Names the child may inherit from the launching process's own
     # environment; nothing else crosses, whatever else the launching
     # process happens to have set.
@@ -21,12 +24,44 @@ policies:
       - TMPDIR
       - JAVA_HOME
       - JDK_HOME
-    # Which sandbox role receives the scoped runtime key runtime.yaml
-    # names by role (agent), and which receives none of any kind (build).
-    credential_roles:
-      agent: runtime_key
-      build: null
+      - HTTPS_PROXY
+      - HTTP_PROXY
+      - FACTORY_PROXY_PORT
     # Started as the child's only local server when the role is `agent`
     # and this executable exists on the allowlisted PATH; otherwise the
     # launcher records that no server started rather than failing the run.
     codegraph_command: [codegraph, serve, --stdio]
+    # The Seatbelt profile each sandbox role runs under, and the digest
+    # `runner/sandbox/os_policy.digest` must reproduce from the file on
+    # disk -- a profile edited without updating this value fails the run
+    # that would use it rather than applying silently.
+    os_profiles:
+      agent:
+        path: factory/config/sandbox/agent-profile.sb
+        digest: 72b8073dfcdc2104c67431333cb1f323a755a9ee83142cef242420c442eb228b
+      build:
+        path: factory/config/sandbox/build-profile.sb
+        digest: 985ba848d2f7390bef1b2d1a3991ec2097fa934eebe42fbc573a887a1661d0c6
+    # The one home for an external host and port a route resolves to; a
+    # stage's `proxy_allowlist` entry below names route ids, never a raw
+    # host, so every stage that admits `hosted_model` agrees on where it
+    # points.
+    endpoints:
+      hosted_model:
+        host: api.cursor.sh
+        port: 443
+      registry:
+        host: pypi.org
+        port: 443
+    # Route ids the loopback proxy tunnels to, per stage; every stage
+    # absent here gets no network at all beyond the loopback proxy itself.
+    proxy_allowlist:
+      S1: [hosted_model]
+      S2: [hosted_model]
+      S3: [hosted_model]
+      S4: [hosted_model]
+      S5: [registry]
+    # Where a build step's copy-on-write checkouts live for one stage run;
+    # `runner/sandbox/copies.py` resolves the two `{...}` placeholders.
+    copies:
+      location: "runs/tickets/{ticket_id}/copies/{stage_run_id}"

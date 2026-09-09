@@ -42,7 +42,7 @@ def _entry(**overrides) -> manifest.Entry:
         shared_skills=(), rubric="factory/rubrics/S1.md", tool_allowlist=("read_file", "write_file"),
         budget_source="factory/config/tiers.yaml", budget={"tokens": 400000, "wall_clock_seconds": 1200},
         runtime_adapter="cursor_sdk", runtime_version="1.0.31", model_requested="claude-sonnet-5",
-        grader_model="claude-sonnet-5", sandbox_policy="thin", toolchain={"jdk": "17"},
+        grader_model="claude-sonnet-5", sandbox_policy="enforced", credential_roles=(), toolchain={"jdk": "17"},
         restatement_model=None, agent_hash="agenthash", skill_hash="skillhash", shared_skill_hashes=(),
         rubric_hash="rubrichash", manifest_hash="manifesthash",
     )

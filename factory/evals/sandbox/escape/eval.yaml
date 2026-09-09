@@ -1,0 +1,39 @@
+subject: the OS-enforced sandbox
+owner: abhishek
+cases:
+  - name: paths
+    fixture: fixtures/paths
+    expect: reject
+  - name: symlinks
+    fixture: fixtures/symlinks
+    expect: reject
+  - name: subprocesses
+    fixture: fixtures/subprocesses
+    expect: reject
+  - name: environment
+    fixture: fixtures/environment
+    expect: reject
+  - name: sockets
+    fixture: fixtures/sockets
+    expect: reject
+  - name: network
+    fixture: fixtures/network
+    expect: reject
+  - name: mounts
+    fixture: fixtures/mounts
+    expect: reject
+  - name: base-head-isolation
+    fixture: fixtures/base-head-isolation
+    expect: reject
+  - name: source-immutability
+    fixture: fixtures/source-immutability
+    expect: reject
+  - name: copy-disposal
+    fixture: fixtures/copy-disposal
+    expect: ok
+  - name: credentials
+    fixture: fixtures/credentials
+    expect: reject
+  - name: ok
+    fixture: fixtures/ok
+    expect: ok

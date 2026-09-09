@@ -1,36 +1,44 @@
-"""The thin sandbox: a subprocess with a launcher-built environment, an `out/`+`results/` per-run directory.
+"""The enforced sandbox: an OS-level policy, a loopback proxy, and a launcher-built environment.
 
 `launch` is the one place a runtime adapter's worker process is started.
 It builds the child's entire environment from `sandbox.yaml`'s allowlist --
 starting from an empty mapping and copying in only the allowlisted names,
 never the launching process's whole environment -- adds the scoped
-runtime key only for the `agent` role, and never a push URL or any other
-credential. `<run_dir>/out/` is where the child writes; `<run_dir>/results/`
-is written only by this module, after the child has exited, so nothing the
-child does can forge what the trusted runner records about it. A
-sandbox-integrity check runs on every launch, comparing what the child
-reported about its own environment and any files it wrote outside
-`out/` against what the sandbox actually allowed.
-
-This is the *thin* sandbox: an OS-enforced policy, the loopback proxy, and
-copy-on-write base/head copies are absent until Milestone B (R-I-14). The
-environment allowlist and the `out/`/`results/` split are the whole of
-this milestone's isolation.
+runtime key only for the `agent` role, starts a loopback proxy scoped to
+the stage's own endpoint allowlist, and wraps the child's argv under
+`runner/sandbox/os_policy.py`'s Seatbelt profile for `role` whenever the
+named policy carries one. `<run_dir>/out/` is where the child writes;
+`<run_dir>/results/` is written only by this module, after the child has
+exited, so nothing the child does can forge what the trusted runner
+records about it. A sandbox-integrity check runs on every launch,
+comparing what the child reported about its own environment and any files
+it wrote outside `out/` against what the sandbox actually allowed; the
+launcher's own `results/exit.json` separately records whether the OS
+policy was actually applied, so a test or an audit never has to infer it
+from the argv.
 """
 import json
 import os
 import shutil
 import signal
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 from runner.fs import write_text
-from runner.paths import FACTORY_DIR
+from runner.paths import FACTORY_DIR, REPO_ROOT
+from runner.sandbox import os_policy, proxy
 
 SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
+
+# The runtime-key environment name an agent sandbox receives -- the same
+# string as `credentials.ROLES`'s "runtime_key" entry, so the name a
+# sandboxed process sees is the credential's own role, not a second name
+# some other mapping would have to keep in sync with it.
+RUNTIME_KEY_ENV_NAME = "runtime_key"
 
 # macOS's own process-spawning runtime (CoreFoundation) injects these two
 # locale/encoding names into a child's environment even when `env=` names
@@ -63,6 +71,7 @@ class LaunchResult:
     stdout_json: dict | None
     stderr_text: str
     integrity: SandboxIntegrity
+    os_policy_applied: bool
 
 
 def _load_policy(policy_name: str, *, sandbox_path: Path) -> dict:
@@ -78,18 +87,25 @@ def _load_policy(policy_name: str, *, sandbox_path: Path) -> dict:
 
 def _build_child_env(
     policy: dict, role: str, *, env_source: dict[str, str], runtime_key_value: str | None,
-    out_dir: Path, envelope_path: Path | None,
+    out_dir: Path, tmp_dir: Path, envelope_path: Path | None, proxy_port: int,
 ) -> dict[str, str]:
-    """The child's whole environment: only the allowlisted names, plus the injected ones the role earns."""
+    """The child's whole environment: only the allowlisted names, plus the injected ones every launch carries."""
     allowlist = policy.get("env_allowlist", [])
     env = {name: env_source[name] for name in allowlist if name in env_source}
-    if role == "agent":
-        key_role = policy.get("credential_roles", {}).get("agent")
-        if key_role and runtime_key_value is not None:
-            env[key_role] = runtime_key_value
+    if role == "agent" and runtime_key_value is not None:
+        env[RUNTIME_KEY_ENV_NAME] = runtime_key_value
     env["FACTORY_RUN_OUT"] = str(out_dir)
     if envelope_path is not None:
         env["FACTORY_ENVELOPE_PATH"] = str(envelope_path)
+    # Overrides whatever TMPDIR the allowlist may have copied from the
+    # launching process: the sandbox profile only grants write access to
+    # this run's own scratch directory, so the child's own TMPDIR must
+    # point there too, not at the host's ambient temp directory.
+    env["TMPDIR"] = str(tmp_dir)
+    proxy_url = f"http://127.0.0.1:{proxy_port}"
+    env["HTTPS_PROXY"] = proxy_url
+    env["HTTP_PROXY"] = proxy_url
+    env["FACTORY_PROXY_PORT"] = str(proxy_port)
     return env
 
 
@@ -119,6 +135,45 @@ def _stop_codegraph(process: subprocess.Popen | None) -> None:
         process.wait(timeout=5)
     except subprocess.TimeoutExpired:
         process.kill()
+
+
+def _resolve_proxy_allowlist(policy: dict, stage: str | None) -> list[proxy.Endpoint]:
+    endpoints = policy.get("endpoints", {})
+    route_ids = policy.get("proxy_allowlist", {}).get(stage, []) if stage else []
+    return [
+        proxy.Endpoint(route_id=route_id, host=endpoints[route_id]["host"], port=endpoints[route_id]["port"])
+        for route_id in route_ids
+    ]
+
+
+def _sandbox_params(
+    *, run_dir: Path, tmp_dir: Path, ticket_dir: Path | None, worktree_path: Path | None, stage: str | None,
+    copy_dir: Path | None, build_dir: Path | None, scratch_dir: Path | None, cache_dir: Path | None,
+    jdk_home: str | None, proxy_port: int,
+) -> dict[str, str]:
+    """Every named parameter either profile file's `(param ...)` calls might read, agent or build alike.
+
+    A profile that never dereferences one of these simply never asks for
+    it; passing it anyway costs nothing (`sandbox-exec` accepts an unused
+    `-D` silently), so one builder covers both roles instead of branching
+    on which profile is about to run.
+    """
+    placeholder = str(tmp_dir)
+    return {
+        "REPO_ROOT": str(REPO_ROOT),
+        "PYTHON_ROOT": sys.base_prefix,
+        "WORKTREE": str(worktree_path) if worktree_path else placeholder,
+        "RUN_DIR": str(run_dir),
+        "TICKET_DIR": str(ticket_dir) if ticket_dir else placeholder,
+        "TMPDIR": str(tmp_dir),
+        "STAGE": stage or "",
+        "PROXY_PORT": str(proxy_port),
+        "COPY_DIR": str(copy_dir) if copy_dir else placeholder,
+        "BUILD_DIR": str(build_dir) if build_dir else placeholder,
+        "SCRATCH_DIR": str(scratch_dir) if scratch_dir else placeholder,
+        "CACHE_DIR": str(cache_dir) if cache_dir else placeholder,
+        "JDK_HOME": jdk_home or placeholder,
+    }
 
 
 def _check_integrity(
@@ -156,60 +211,88 @@ def launch(
     policy: str,
     cwd: Path,
     wall_clock_seconds: float | None,
+    stage: str | None = None,
+    ticket_dir: Path | None = None,
+    worktree_path: Path | None = None,
+    copy_dir: Path | None = None,
+    build_dir: Path | None = None,
+    scratch_dir: Path | None = None,
+    cache_dir: Path | None = None,
     env_source: dict[str, str] | None = None,
     runtime_key_value: str | None = None,
     envelope_path: Path | None = None,
     sandbox_path: Path = SANDBOX_PATH,
 ) -> LaunchResult:
-    """Run `argv` as the sandbox child: build its environment, capture its output, check its integrity.
+    """Run `argv` as the sandbox child: build its environment, apply its OS policy, check its integrity.
 
-    Creates `<run_dir>/out/` (writable from inside) and `<run_dir>/results/`
-    (written only here, after the child exits): `results/child.pid` while
-    the child runs, then `results/stdout.json`, `results/stderr.txt`, and
-    `results/exit.json`. `wall_clock_seconds=None` means no timeout is
-    enforced by this call. The child's stdout is parsed as one JSON
-    document (its last non-blank line, matching the worker contract); a
-    non-JSON or empty stdout leaves `stdout_json` `None` rather than
-    raising, since a crashed or misbehaving child is the caller's outcome
-    to classify, not this function's to refuse.
+    Creates `<run_dir>/out/` (writable from inside), `<run_dir>/tmp/`
+    (the child's own scratch directory), and `<run_dir>/results/` (written
+    only here, after the child exits): `results/child.pid` while the child
+    runs, then `results/stdout.json`, `results/stderr.txt`, and
+    `results/exit.json` (which also carries `os_policy`, whether this
+    launch's argv actually ran under a Seatbelt profile). A loopback proxy
+    scoped to `stage`'s own endpoint allowlist runs for the lifetime of the
+    child and is stopped in `finally`, whether or not the child timed out.
+    `wall_clock_seconds=None` means no timeout is enforced by this call.
+    The child's stdout is parsed as one JSON document (its last non-blank
+    line, matching the worker contract); a non-JSON or empty stdout leaves
+    `stdout_json` `None` rather than raising, since a crashed or
+    misbehaving child is the caller's outcome to classify, not this
+    function's to refuse.
     """
     env_source = env_source if env_source is not None else dict(os.environ)
     policy_doc = _load_policy(policy, sandbox_path=sandbox_path)
     run_dir = Path(run_dir)
     out_dir = run_dir / "out"
     results_dir = run_dir / "results"
+    tmp_dir = run_dir / "tmp"
     out_dir.mkdir(parents=True, exist_ok=True)
     results_dir.mkdir(parents=True, exist_ok=True)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    env = _build_child_env(
-        policy_doc, role, env_source=env_source, runtime_key_value=runtime_key_value,
-        out_dir=out_dir, envelope_path=envelope_path,
-    )
-    codegraph_process, codegraph_started = (
-        _start_codegraph(policy_doc, env, cwd) if role == "agent" else (None, False)
-    )
-
-    pid: int | None = None
-    timed_out = False
-    exit_code: int | None = None
-    stdout_text = ""
-    stderr_text = ""
+    run_proxy = proxy.start(_resolve_proxy_allowlist(policy_doc, stage))
     try:
-        process = subprocess.Popen(
-            argv, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        env = _build_child_env(
+            policy_doc, role, env_source=env_source, runtime_key_value=runtime_key_value,
+            out_dir=out_dir, tmp_dir=tmp_dir, envelope_path=envelope_path, proxy_port=run_proxy.port,
         )
-        pid = process.pid
-        write_text(results_dir / "child.pid", str(pid))
+        codegraph_process, codegraph_started = (
+            _start_codegraph(policy_doc, env, cwd) if role == "agent" else (None, False)
+        )
+
+        os_policy_applied = os_policy.profile_for(role, policy_name=policy, sandbox_path=sandbox_path) is not None
+        sandbox_argv = os_policy.wrap(
+            argv, role=role, policy_name=policy, sandbox_path=sandbox_path,
+            params=_sandbox_params(
+                run_dir=run_dir, tmp_dir=tmp_dir, ticket_dir=ticket_dir, worktree_path=worktree_path, stage=stage,
+                copy_dir=copy_dir, build_dir=build_dir, scratch_dir=scratch_dir, cache_dir=cache_dir,
+                jdk_home=env_source.get("JAVA_HOME") or env_source.get("JDK_HOME"), proxy_port=run_proxy.port,
+            ),
+        )
+
+        pid: int | None = None
+        timed_out = False
+        exit_code: int | None = None
+        stdout_text = ""
+        stderr_text = ""
         try:
-            stdout_text, stderr_text = process.communicate(timeout=wall_clock_seconds)
-            exit_code = process.returncode
-        except subprocess.TimeoutExpired:
-            process.kill()
-            stdout_text, stderr_text = process.communicate()
-            timed_out = True
-            exit_code = process.returncode
+            process = subprocess.Popen(
+                sandbox_argv, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+            pid = process.pid
+            write_text(results_dir / "child.pid", str(pid))
+            try:
+                stdout_text, stderr_text = process.communicate(timeout=wall_clock_seconds)
+                exit_code = process.returncode
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout_text, stderr_text = process.communicate()
+                timed_out = True
+                exit_code = process.returncode
+        finally:
+            _stop_codegraph(codegraph_process)
     finally:
-        _stop_codegraph(codegraph_process)
+        run_proxy.stop()
 
     stdout_json: dict | None = None
     stdout_lines = [line for line in stdout_text.splitlines() if line.strip()]
@@ -222,7 +305,10 @@ def launch(
 
     write_text(results_dir / "stdout.json", json.dumps(stdout_json))
     write_text(results_dir / "stderr.txt", stderr_text)
-    write_text(results_dir / "exit.json", json.dumps({"exit_code": exit_code, "timed_out": timed_out}))
+    write_text(
+        results_dir / "exit.json",
+        json.dumps({"exit_code": exit_code, "timed_out": timed_out, "os_policy": os_policy_applied}),
+    )
 
     integrity = _check_integrity(
         stdout_json=stdout_json, allowed_names=set(env) | _PLATFORM_INJECTED_NAMES, codegraph_started=codegraph_started,
@@ -232,7 +318,7 @@ def launch(
     return LaunchResult(
         run_dir=run_dir, out_dir=out_dir, results_dir=results_dir, pid=pid,
         timed_out=timed_out, exit_code=exit_code, stdout_json=stdout_json, stderr_text=stderr_text,
-        integrity=integrity,
+        integrity=integrity, os_policy_applied=os_policy_applied,
     )
 
 

@@ -2,11 +2,11 @@
 # test-only environment name (FIXTURE_ADAPTER_CASE) that selects which
 # canned JSON document fixture_worker.py prints; a nonexistent codegraph
 # command keeps codegraph-start deterministic (never found) regardless of
-# whether the real binary happens to be installed on the test host.
+# whether the real binary happens to be installed on the test host. No
+# `os_profiles` key: this policy stays the launcher-enforced-only shape on
+# purpose, so the adapter contract suite never pays for a real
+# `sandbox-exec` launch on every one of its many invocations.
 policies:
-  thin:
+  enforced:
     env_allowlist: [PATH, HOME, TMPDIR, FIXTURE_ADAPTER_CASE, FIXTURE_ADAPTER_PAYLOAD_PATH, FIXTURE_ADAPTER_OUT_DIR, FIXTURE_ADAPTER_WORKTREE_DIR]
-    credential_roles:
-      agent: runtime_key
-      build: null
     codegraph_command: [factory-test-fixture-codegraph-not-installed]
