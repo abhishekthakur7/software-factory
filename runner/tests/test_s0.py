@@ -430,20 +430,8 @@ def test_must_reject_override_on_a_ticket_s0_excluded(conn, tmp_path):
 
 # --- Jira intake: a fresh read's field gate, guard redaction, and credential discipline (R-S0-1) ---
 
-_FRESH_JIRA_ISSUE = {
-    "customfield_10010": "Given a user opens the export dialog, when they click export, then a file downloads.",
-    "assignee": "abhishek",
-    "parent": "FIX-0",
-    "customfield_10011": None,
-    "issuetype": "Story",
-    "estimate": 2,
-    "labels": [],
-    "summary": "Add an export button",
-    "description": "Add an export button to the ticket list toolbar.",
-    # Not in the atlassian_read route's admitted field set -- must never
-    # survive into the redacted ticket_source.
-    "reporter": "someone-else",
-}
+def _redaction_fixture_issue() -> dict:
+    return yaml.safe_load((FIXTURES_DIR / "redaction_issue.yaml").read_text())
 
 
 def test_guard_redacts_a_fresh_jira_read_into_a_faithful_ticket_source_and_sets_data_class(conn, tmp_path):
@@ -456,7 +444,7 @@ def test_guard_redacts_a_fresh_jira_read_into_a_faithful_ticket_source_and_sets_
     ticket_id = record.insert(
         conn, "ticket", state="intake", opened_at=record.now(), title="Add an export button", **fields,
     )
-    transport = FakeAtlassianTransport({"FIX-1": _FRESH_JIRA_ISSUE})
+    transport = FakeAtlassianTransport({"FIX-1": _redaction_fixture_issue()})
     stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S0")
     ticket = record.get(conn, "ticket", ticket_id)
 
@@ -487,7 +475,7 @@ def test_must_reject_when_the_jira_payload_contains_a_secret(conn, tmp_path):
     ticket_id = record.insert(
         conn, "ticket", state="intake", opened_at=record.now(), title="Add an export button", **fields,
     )
-    issue = {**_FRESH_JIRA_ISSUE, "description": f"leaked token {_SECRET_TOKEN}"}
+    issue = {**_redaction_fixture_issue(), "description": f"leaked token {_SECRET_TOKEN}"}
     transport = FakeAtlassianTransport({"FIX-1": issue})
     stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S0")
     ticket = record.get(conn, "ticket", ticket_id)

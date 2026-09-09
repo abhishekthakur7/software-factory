@@ -17,7 +17,7 @@ def _payload(name: str) -> dict:
     return yaml.safe_load((FIXTURES_DIR / f"{name}.yaml").read_text())
 
 
-# --- criterion 1: empty acceptance criteria ---
+# --- each reject reason, first hit wins (R-S0-1) ---
 
 def test_must_reject_empty_acceptance_criteria():
     finding = intake_fields.check(_payload("missing_acceptance_criteria"), field_names=FIELD_NAMES)
@@ -25,15 +25,11 @@ def test_must_reject_empty_acceptance_criteria():
     assert finding.detail == "missing acceptance criteria"
 
 
-# --- criterion 2: no named owner ---
-
 def test_must_reject_no_named_owner():
     finding = intake_fields.check(_payload("missing_owner"), field_names=FIELD_NAMES)
     assert finding.result == "fail"
     assert finding.detail == "missing owner"
 
-
-# --- criterion 3: neither a parent link nor a Confluence link ---
 
 def test_must_reject_no_parent_or_confluence_link():
     finding = intake_fields.check(_payload("missing_link"), field_names=FIELD_NAMES)
@@ -41,15 +37,13 @@ def test_must_reject_no_parent_or_confluence_link():
     assert finding.detail == "missing parent or Confluence link"
 
 
-# --- criterion 4: an Epic issue type ---
-
 def test_must_reject_epic_issue_type_with_the_reason_named():
     finding = intake_fields.check(_payload("epic"), field_names=FIELD_NAMES)
     assert finding.result == "fail"
     assert finding.detail == "needs child tickets"
 
 
-# --- criterion 5: field names come from ticket-types.yaml, the ok fixture clears every check ---
+# --- a payload clearing every check passes, reading field names from ticket-types.yaml (R-S0-1) ---
 
 def test_a_complete_payload_passes():
     finding = intake_fields.check(_payload("ok"), field_names=FIELD_NAMES)
@@ -67,7 +61,7 @@ def test_check_reads_field_names_from_ticket_types_yaml_not_a_hardcoded_mapping(
     assert finding.detail == "missing acceptance criteria"
 
 
-# --- criterion 5 (continued): S0 calls the gate before classification, writing one check_result row ---
+# --- S0 calls the gate before classification, writing one check_result row (R-S0-1) ---
 
 @pytest.fixture
 def conn(tmp_path):
