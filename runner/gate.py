@@ -9,6 +9,14 @@ call of any kind); the eval-directory completeness walk; and the
 fixtures even when a caller selects fewer tests. A change under `factory/` that does not pass this
 gate is not an adopted change, whatever branch protection the repository
 does or does not enforce.
+
+Every run also opens and finishes one `utility_run` of `kind = 'gate'` in
+the record at `--db`, `manifest_hash` set to the adoption record's hash
+(null when even that step failed, since there is then no hash to bind the
+run to) and `outcome` `pass` only when every one of the three steps
+above did: the graduation gate's acceptance-gates clause reads this row,
+never the process exit code, to ask whether the factory's own checks last
+passed.
 """
 import argparse
 import json
@@ -18,7 +26,8 @@ import sys
 from pathlib import Path
 
 from runner.fs import write_text
-from runner import evals, manifest, record
+from runner import evals, manifest, record, run_ledger
+from runner.db import connect
 from runner.paths import REPO_ROOT
 
 
@@ -72,11 +81,14 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="runner.gate")
     parser.add_argument("--tests", default=str(REPO_ROOT / "runner" / "tests"))
     parser.add_argument("--root", default=str(REPO_ROOT))
+    parser.add_argument("--db", default=None, help="record database; defaults to <root>/runs/factory.sqlite")
     parser.add_argument("--close", action="store_true", help="record local adoption only after every required check passes")
     args = parser.parse_args(argv)
     root = Path(args.root)
+    db_path = Path(args.db) if args.db else root / "runs" / "factory.sqlite"
 
     failed = False
+    current_hash = None
 
     try:
         current_hash = manifest.current_hash(root)
@@ -106,6 +118,16 @@ def main(argv=None) -> int:
     print(f"tests: {'ok' if test_rc == 0 else f'FAIL (exit code {test_rc})'}")
     if test_rc != 0:
         failed = True
+
+    conn = connect(db_path)
+    try:
+        run_id = run_ledger.open_utility_run(
+            conn, kind="gate", inputs=json.dumps({"root": str(root)}), manifest_hash=current_hash,
+        )
+        run_ledger.finish(conn, run_id, "fail" if failed else "pass", table="utility_run")
+        conn.commit()
+    finally:
+        conn.close()
 
     if args.close and not failed:
         receipt = root / "runs/adoption" / f"{current_hash}.json"

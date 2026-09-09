@@ -162,6 +162,7 @@ def open_utility_run(
     ticket_id: int | None = None,
     inputs: str | None = None,
     outputs: str | None = None,
+    manifest_hash: str | None = None,
     lease_seconds: int | None = None,
 ) -> int:
     """Insert a new `utility_run` row and return its id: lease and heartbeat started now."""
@@ -173,6 +174,7 @@ def open_utility_run(
         kind=kind,
         inputs=inputs,
         outputs=outputs,
+        manifest_hash=manifest_hash,
         process_identity=process_identity(),
         started_at=heartbeat_at,
         heartbeat_at=heartbeat_at,

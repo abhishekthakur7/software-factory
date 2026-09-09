@@ -436,8 +436,12 @@ files:
     content_hash: d754f2c0eb5061158cabdeb60e210c6f71ce73c5230f7565a148a2aa30b77827
   - path: factory/evals/bootstrap/T-B-01/plan.md
     content_hash: 8118f01c3cbfbc85d6e60848b39fd6b5eec4f0f876aaae69ee2e0b11992b2ca0
+  - path: factory/evals/bootstrap/T-B-03/brief.md
+    content_hash: 0f2991dce48ef3031b6b587cac475d663e8713f8941612517becf27fd9f56aeb
+  - path: factory/evals/bootstrap/T-B-03/plan.md
+    content_hash: 4768ffd5df0f821a816ad9404645fbf6248ffb2158ff83e90c8e423208f5f7fb
   - path: factory/evals/bootstrap/eval.yaml
-    content_hash: 98c05bc4e9d336b1b115cb726ac42928c947bf6f9383b2e32a69e150bc9bf10f
+    content_hash: 57196724879ee3acb3e958df875db5b23d3ef42ea5a31096986330375daadb13
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml

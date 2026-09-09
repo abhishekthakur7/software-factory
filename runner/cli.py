@@ -7,7 +7,7 @@ the function directly without going through argument parsing at all.
 import argparse
 from pathlib import Path
 
-from runner import export, freshness, manifest, queue, refresh_base, tags
+from runner import export, freshness, graduation, manifest, queue, refresh_base, tags
 from runner.db import connect
 from runner.operations import advance, digest_open_items, pause, report, resume, run, show, stop, waive
 from runner.paths import RUNS_DIR
@@ -130,6 +130,28 @@ def main(argv: list[str] | None = None) -> int:
     report_parser.add_argument("--window-days", type=int, default=30)
     report_parser.add_argument("--until", default=None)
 
+    graduate_parser = subparsers.add_parser("graduate")
+    graduate_subparsers = graduate_parser.add_subparsers(dest="graduate_verb", required=True)
+
+    graduate_evaluate_parser = graduate_subparsers.add_parser("evaluate")
+    graduate_evaluate_parser.add_argument("--cutoff", default=None)
+
+    graduate_approve_parser = graduate_subparsers.add_parser("approve")
+    graduate_approve_parser.add_argument("report_artefact_id", type=int)
+    graduate_approve_parser.add_argument("--actor", required=True)
+    graduate_approve_parser.add_argument("--config", required=True, dest="config_path")
+    graduate_approve_parser.add_argument("--config-hash", required=True)
+    graduate_approve_parser.add_argument("--expires", default=None, dest="expires_at")
+    graduate_approve_parser.add_argument("--note", default=None)
+
+    graduate_reject_parser = graduate_subparsers.add_parser("reject")
+    graduate_reject_parser.add_argument("report_artefact_id", type=int)
+    graduate_reject_parser.add_argument("--actor", required=True)
+    graduate_reject_parser.add_argument("--config", required=True, dest="config_path")
+    graduate_reject_parser.add_argument("--config-hash", required=True)
+    graduate_reject_parser.add_argument("--expires", default=None, dest="expires_at")
+    graduate_reject_parser.add_argument("--note", default=None)
+
     subparsers.add_parser("digest")
 
     export_parser = subparsers.add_parser("export")
@@ -216,6 +238,19 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 end="",
             )
+        elif args.verb == "graduate":
+            if args.graduate_verb == "evaluate":
+                print(graduation.evaluate(conn, cutoff=args.cutoff))
+            elif args.graduate_verb == "approve":
+                print(graduation.approve(
+                    conn, args.report_artefact_id, actor=args.actor, config_path=args.config_path,
+                    config_hash=args.config_hash, expires_at=args.expires_at, note=args.note,
+                ))
+            elif args.graduate_verb == "reject":
+                print(graduation.reject(
+                    conn, args.report_artefact_id, actor=args.actor, config_path=args.config_path,
+                    config_hash=args.config_hash, expires_at=args.expires_at, note=args.note,
+                ))
         elif args.verb == "digest":
             print(digest_open_items(conn, runs_dir))
         elif args.verb == "export":
