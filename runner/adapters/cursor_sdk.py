@@ -23,9 +23,10 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, budgets, canonical, credentials
+from runner import artefact_registry, budgets, canonical, credentials, trust_profile
 from runner import envelope as envelope_mod
 from runner import launcher, record, run_ledger, tool_results
+from runner.sandbox import proxy
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, RUNS_DIR
 
@@ -131,8 +132,11 @@ def _record_tool_calls(
     discoverable by that naming convention rather than by an extra column.
     """
     ids: list[int] = []
+    # Proxy-routed calls were numbered as they happened, during the run;
+    # the worker's own numbering starts at 1, so it continues after them.
+    seq_base = proxy.next_seq(conn, stage_run_id) - 1
     for call in tool_calls:
-        seq = call.get("seq")
+        seq = seq_base + call["seq"] if call.get("seq") is not None else None
         args = call.get("args")
         result = call.get("result")
         args_text = canonical.canonical_json(args).decode() if args is not None else None
@@ -271,6 +275,19 @@ def _settle_cost(
     return None, None, "unavailable", None
 
 
+def _route_service(
+    conn: sqlite3.Connection, *, ticket_id: int, stage_run_id: int, stage: str, run_dir: Path, inline_rule: dict,
+) -> proxy.RouteService | None:
+    """The proxy's route dispatch table for this run, or None on a database with no file behind it (an in-memory test)."""
+    db_path = conn.execute("PRAGMA database_list").fetchone()[2]
+    if not db_path:
+        return None
+    return proxy.RouteService(
+        db_path=Path(db_path), ticket_id=ticket_id, stage_run_id=stage_run_id, stage=stage, run_dir=run_dir,
+        routes=trust_profile.load_trust_profile().routes, inline_rule=inline_rule, relay=proxy.live_relay,
+    )
+
+
 def invoke(
     conn: sqlite3.Connection,
     *,
@@ -366,6 +383,12 @@ def invoke(
     locations_path = run_dir / "locations.json"
     write_text(locations_path, canonical.canonical_json(envelope_mod.locations(conn, ticket, entry, env)).decode())
 
+    limits_doc = _yaml(limits_path)
+    inline_rule = limits_doc["tool_result_inline"]
+    # The proxy records routed tool calls from its own thread through its
+    # own connection to the same file, so everything this connection has
+    # written so far is committed before the child can make a call.
+    conn.commit()
     launch_result = launcher.launch(
         run_dir=run_dir, argv=[*adapter_cfg["command"], str(envelope_path), str(locations_path)], role="agent",
         policy=entry.sandbox_policy, cwd=Path(ticket["worktree_path"]) if ticket["worktree_path"] else run_dir,
@@ -373,6 +396,7 @@ def invoke(
         runtime_key_value=runtime_key_value, runtime_key_env_name=adapter_cfg["key_role"],
         envelope_path=envelope_path, sandbox_path=sandbox_path, stage=stage, ticket_dir=Path(runs_dir) / "tickets" / str(ticket["id"]),
         worktree_path=Path(ticket["worktree_path"]) if ticket["worktree_path"] else None,
+        routes=_route_service(conn, ticket_id=ticket["id"], stage_run_id=stage_run_id, stage=stage, run_dir=run_dir, inline_rule=inline_rule),
     )
     if launch_result.timed_out:
         # Wall clock is enforced live by the launcher's own timeout, not by
@@ -391,8 +415,6 @@ def invoke(
     )
     mismatch = model_resolved is not None and entry.model_requested is not None and model_resolved != entry.model_requested
 
-    limits_doc = _yaml(limits_path)
-    inline_rule = limits_doc["tool_result_inline"]
     tool_call_ids = _record_tool_calls(
         conn, ticket_id=ticket["id"], stage_run_id=stage_run_id, tool_calls=payload.get("tool_calls") or [],
         run_dir=run_dir, inline_rule=inline_rule,

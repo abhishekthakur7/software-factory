@@ -149,7 +149,8 @@ def live_relay(endpoint: Endpoint, credential: str | None, method: str, params: 
         return exc.code, media_type, exc.read()
 
 
-def _next_seq(conn: sqlite3.Connection, stage_run_id: int) -> int:
+def next_seq(conn: sqlite3.Connection, stage_run_id: int) -> int:
+    """The next free `tool_call.seq` for the run: proxy-routed and direct calls share one sequence."""
     row = conn.execute("SELECT MAX(seq) AS m FROM tool_call WHERE stage_run_id = ?", (stage_run_id,)).fetchone()
     return (row["m"] or 0) + 1
 
@@ -184,7 +185,7 @@ def _relay_and_record(routes: RouteService, *, route_id: str, endpoint: Endpoint
     # thread, and sqlite3 connections are not safe to share across threads.
     conn = open_db(routes.db_path)
     try:
-        seq = _next_seq(conn, routes.stage_run_id)
+        seq = next_seq(conn, routes.stage_run_id)
         artefact_path = routes.run_dir / "results" / "tool_results" / f"{seq}{_extension_for(media_type)}"
         write_bytes(artefact_path, result)
         artefact_id = artefact_registry.register(

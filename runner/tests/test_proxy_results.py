@@ -306,3 +306,58 @@ def test_a_probe_writing_into_the_results_subpath_is_refused(tmp_path):
         tmp_path, FIXTURES_DIR / "write_results_probe.py", role="agent", stage="S1", ticket_dir=tmp_path / "ticket",
     )
     assert payload == {"attempted": True, "refused": True}
+
+
+def test_an_agent_invocation_hands_the_proxy_its_route_service(tmp_path, monkeypatch):
+    """`cursor_sdk.invoke` builds the run's `RouteService` over the same database file and run directory the
+    launch uses, with the trust profile's routes and the live relay, so a routed call from inside a real
+    invocation is recorded rather than refused with 404 (R-I-17)."""
+    import os
+    import sys
+
+    from runner import launcher, manifest
+    from runner.adapters import cursor_sdk
+
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(
+        conn, title="t", trust_profile_hash="tph", trust_approval_set_hash="tash", data_class="internal",
+        base_sha="base", head_sha="head", worktree_path=str(tmp_path / "worktree"),
+    )
+    (tmp_path / "worktree").mkdir()
+    ticket = record.get(conn, "ticket", ticket_id)
+    adapter_fixtures = Path(__file__).parent / "fixtures" / "adapter"
+    runtime_doc = yaml.safe_load((adapter_fixtures / "runtime.yaml").read_text())
+    runtime_doc["adapters"]["cursor_sdk"]["command"] = [sys.executable, str(adapter_fixtures / "fixture_worker.py")]
+    runtime_path = tmp_path / "runtime.yaml"
+    runtime_path.write_text(yaml.safe_dump(runtime_doc))
+    entry = manifest.Entry(
+        stage="S1", tier="standard", agent="factory/agents/S1.md", skill="factory/skills/S1.md",
+        shared_skills=(), rubric="factory/rubrics/S1.md", tool_allowlist=("read_file",),
+        budget_source="factory/config/tiers.yaml", budget={"tokens": 400000, "wall_clock_seconds": 1200},
+        runtime_adapter="cursor_sdk", runtime_version="1.0.31", model_requested="claude-sonnet-5",
+        grader_model="claude-sonnet-5", sandbox_policy="enforced", toolchain={"jdk": "17"},
+        restatement_model=None, agent_hash="a", skill_hash="s", shared_skill_hashes=(), rubric_hash="r",
+        manifest_hash="m",
+    )
+
+    seen: list = []
+    real_start = proxy.start
+
+    def _capturing_start(allowlist, routes=None):
+        seen.append(routes)
+        return real_start(allowlist, routes)
+
+    monkeypatch.setattr(launcher.proxy, "start", _capturing_start)
+    result = cursor_sdk.invoke(
+        conn, ticket=ticket, stage="S1", tier="standard", entry=entry, runs_dir=tmp_path / "runs",
+        runtime_path=runtime_path, sandbox_path=adapter_fixtures / "sandbox.yaml",
+        env_source={"PATH": os.environ.get("PATH", ""), "FIXTURE_ADAPTER_CASE": "settled"},
+    )
+    assert result.outcome == "pass"
+    [routes] = seen
+    assert isinstance(routes, proxy.RouteService)
+    assert routes.db_path == tmp_path / "factory.sqlite"
+    assert routes.stage_run_id == result.stage_run_id
+    assert routes.run_dir == tmp_path / "runs" / "tickets" / str(ticket_id) / "runs" / str(result.stage_run_id)
+    assert "atlassian_read" in routes.routes
+    assert routes.relay is proxy.live_relay
