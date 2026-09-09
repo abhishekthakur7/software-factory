@@ -197,8 +197,8 @@ def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from
     unregistered_path.write_text("never registered\n")
     artefact_id = artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=registered_path)
 
-    # criterion 16: the database-level lookup a stage driver actually calls
-    # never returns the unregistered file, no matter how it looks on disk.
+    # The database-level lookup a stage driver actually calls never
+    # returns the unregistered file, no matter how it looks on disk.
     latest = artefact_registry.latest(conn, ticket_id, "brief")
     assert latest["id"] == artefact_id
     assert latest["path"] == str(registered_path.resolve())
@@ -206,9 +206,9 @@ def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from
         "SELECT COUNT(*) FROM artefact WHERE ticket_id = ? AND path = ?", (ticket_id, str(unregistered_path.resolve()))
     ).fetchone()[0] == 0
 
-    # criterion 17: the sandbox-level mount agrees -- `locations.json` is
-    # written the same way a real invocation writes it (see
-    # `envelope.locations`), naming only the registered artefact.
+    # The sandbox-level mount agrees -- `locations.json` is written the
+    # same way a real invocation writes it (see `envelope.locations`),
+    # naming only the registered artefact.
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "locations.json").write_text(json.dumps({
