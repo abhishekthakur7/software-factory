@@ -433,7 +433,7 @@ files:
   - path: factory/evals/bootstrap/T-B-03/brief.md
     content_hash: 0f2991dce48ef3031b6b587cac475d663e8713f8941612517becf27fd9f56aeb
   - path: factory/evals/bootstrap/T-B-03/plan.md
-    content_hash: 152295a1fe3cb09414ef1d11ace8a90757d0671fae2fb81c21b174653533b52c
+    content_hash: 4768ffd5df0f821a816ad9404645fbf6248ffb2158ff83e90c8e423208f5f7fb
   - path: factory/evals/bootstrap/eval.yaml
     content_hash: abfc5d4d8ec31ddfb9f665b5ae9d4542564c1bf01757291a6f2663420c79c8b6
   - path: factory/evals/fixture-project/CODEOWNERS
