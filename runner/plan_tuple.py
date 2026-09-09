@@ -21,12 +21,14 @@ from pathlib import Path
 import yaml
 
 from runner import artefact_registry, binding, canonical, checklist, envelope, questions, record
-from runner.paths import PROJECT_CONFIG
+from runner.paths import PROJECT_CONFIG, RUNS_DIR
 
-# The sandbox policy every Milestone A stage runs under; the plan tuple
-# binds its digest the same way `runner.envelope.build` does for a stage
-# invocation's own envelope.
-SANDBOX_POLICY = "thin"
+# The sandbox policy every stage runs under; the plan tuple binds its
+# digest the same way `runner.envelope.build` does for a stage
+# invocation's own envelope, resolved for S3 -- the stage a plan tuple
+# itself belongs to.
+SANDBOX_POLICY = "enforced"
+_SANDBOX_DIGEST_STAGE = "S3"
 
 
 def _latest_hash(conn: sqlite3.Connection, ticket_id: int, kind: str) -> str | None:
@@ -99,7 +101,7 @@ def derive_components(conn: sqlite3.Connection, ticket: sqlite3.Row) -> binding.
         trust_profile_hash=ticket["trust_profile_hash"],
         trust_approval_set_hash=ticket["trust_approval_set_hash"],
         recipe_hash=envelope.recipe_set_hash(),
-        sandbox_digest=envelope.sandbox_digest(SANDBOX_POLICY),
+        sandbox_digest=envelope.sandbox_digest(SANDBOX_POLICY, stage=_SANDBOX_DIGEST_STAGE, runs_dir=RUNS_DIR),
         toolchain_digest=envelope.toolchain_digest(project.get("toolchain", {})),
         planned_reviewer_set_hash=_planned_reviewer_set_hash(conn, ticket_id),
         semantic_checklist_hash=checklist.checklist_hash(expected),

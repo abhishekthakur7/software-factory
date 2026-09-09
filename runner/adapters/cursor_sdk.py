@@ -4,24 +4,28 @@
 `Entry`, it opens the invocation's own `stage_run` (so a child sub-run
 opened with `parent_run_id` is a full row with its own lease, runtime,
 model, tokens, cost and wall clock, per R-I-2 criterion 7), checks the
-requested model against `runtime.yaml` before anything starts, builds and
-writes the R-I-15 envelope, launches the worker inside the thin sandbox
-through `runner/launcher.py`, and turns what comes back into: one
-`tool_call` row per call, registered `out/` artefacts (skipped entirely on
-a resolved-model mismatch -- "no output registered"), a settled cost
-group, and a `replayability` verdict. Every field the worker did not
-report stays null; nothing here estimates a token count, a duration, or a
-per-call usage figure.
+requested model against `runtime.yaml` before anything starts, fetches the
+scoped runtime key at the moment of launch when the stage's sandbox admits
+one, builds and writes the R-I-15 envelope, launches the worker inside the
+enforced sandbox through `runner/launcher.py`, and turns what comes back
+into: one `tool_call` row per call, registered `out/` artefacts (skipped
+entirely on a resolved-model mismatch -- "no output registered"), a
+settled cost group, and a `replayability` verdict. Every field the worker
+did not report stays null; nothing here estimates a token count, a
+duration, or a per-call usage figure.
 """
 import hashlib
 import re
 import sqlite3
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, budgets, canonical, envelope as envelope_mod, launcher, record, run_ledger
+from runner import artefact_registry, budgets, canonical, credentials
+from runner import envelope as envelope_mod
+from runner import launcher, record, run_ledger
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, RUNS_DIR
 
@@ -33,6 +37,12 @@ LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 # package version `entry.runtime_version` names -- bumped when this
 # module's behavior changes in a way that could affect a run's outcome.
 ADAPTER_VERSION = "1"
+
+# `credentials.fetch`'s own default, resolved here rather than baked into
+# `invoke`'s keyword default so a test suite can point every invocation at
+# a fake Keychain lookup by patching this one module attribute (matching
+# how `RUNTIME_PATH` above is resolved at call time, not at import).
+CREDENTIAL_RUN = subprocess.run
 
 # A model id carries an immutable build/version suffix when it names a
 # concrete pinned revision (an "@digest" pin, or a date-like build stamp
@@ -200,6 +210,19 @@ def _aborted_budget_result(
     )
 
 
+def _credential_unavailable_result(
+    *, stage_run_id: int, model_requested: str | None, envelope_hash: str, blind_spot: str,
+) -> InvocationResult:
+    """The result a `CredentialUnavailable` fetch leaves behind: a real, finished run, never a crash."""
+    return InvocationResult(
+        stage_run_id=stage_run_id, outcome="infrastructure_failure", failure_kind="infrastructure",
+        model_requested=model_requested, model_resolved=None, provider_request_id=None,
+        tokens_in=None, tokens_out=None, wall_clock_seconds=None, cost=None, currency=None,
+        cost_basis="unavailable", pricing_table_hash=None, reasoning_summary=None, tool_call_ids=(),
+        replayability="best_effort", replayability_blind_spot=blind_spot, envelope_hash=envelope_hash,
+    )
+
+
 def _classify(
     *, launch_result: launcher.LaunchResult, model_requested: str | None, model_resolved: str | None,
 ) -> tuple[str, str | None]:
@@ -267,7 +290,7 @@ def invoke(
     pricing_path: Path | None = None,
     limits_path: Path | None = None,
     sandbox_path: Path | None = None,
-    runtime_key_value: str | None = None,
+    credential_run=None,
     env_source: dict[str, str] | None = None,
 ) -> InvocationResult:
     """Run one fresh, governed agent invocation for `entry`, opening (and finishing) its own `stage_run`.
@@ -279,7 +302,8 @@ def invoke(
     `envelope.build`). The four config paths resolve to this module's
     defaults at call time, not at import, so a test suite can point every
     driver in the runner at a fixture runtime by patching the module
-    constants once.
+    constants once. `credential_run` overrides `CREDENTIAL_RUN` for one
+    call, the way the config paths override their own module constants.
     """
     runtime_path = runtime_path if runtime_path is not None else RUNTIME_PATH
     pricing_path = pricing_path if pricing_path is not None else PRICING_PATH
@@ -293,7 +317,7 @@ def invoke(
 
     env = envelope_mod.build(
         conn, ticket, entry, adapter_version=ADAPTER_VERSION, sandbox_path=sandbox_path,
-        input_artefact_ids=input_artefact_ids,
+        input_artefact_ids=input_artefact_ids, runs_dir=runs_dir,
     )
     env_hash = envelope_mod.content_hash(env)
     stage_run_id = run_ledger.open_stage_run(
@@ -321,6 +345,24 @@ def invoke(
             wall_clock_seconds=None, envelope_hash=env_hash, blind_spot="budget exceeded before invocation started",
         )
 
+    # Fetched at the moment of launch, handed to this one call, and never
+    # written to a row, an artefact, or a log: `credential_run` only exists
+    # so a test can inject a fake Keychain lookup instead of monkeypatching
+    # `credentials.fetch` itself, which would also hide a real failure path
+    # this function must classify as `infrastructure_failure`, not a crash.
+    runtime_key_value = None
+    if "runtime_key" in entry.credential_roles:
+        try:
+            runtime_key_value = credentials.fetch(
+                "runtime_key", run=credential_run if credential_run is not None else CREDENTIAL_RUN,
+            )
+        except credentials.CredentialUnavailable as exc:
+            run_ledger.finish(conn, stage_run_id, "infrastructure_failure", failure_kind="infrastructure")
+            return _credential_unavailable_result(
+                stage_run_id=stage_run_id, model_requested=entry.model_requested, envelope_hash=env_hash,
+                blind_spot=f"runtime_key unavailable: {exc}",
+            )
+
     run_dir = _run_dir(runs_dir, ticket["id"], stage_run_id)
     envelope_path = run_dir / "envelope.json"
     write_text(envelope_path, canonical.canonical_json(envelope_mod.to_dict(env)).decode())
@@ -334,6 +376,8 @@ def invoke(
         policy=entry.sandbox_policy, cwd=Path(ticket["worktree_path"]) if ticket["worktree_path"] else run_dir,
         wall_clock_seconds=entry.budget.get("wall_clock_seconds"), env_source=env_source,
         runtime_key_value=runtime_key_value, envelope_path=envelope_path, sandbox_path=sandbox_path,
+        stage=stage, ticket_dir=Path(runs_dir) / "tickets" / str(ticket["id"]),
+        worktree_path=Path(ticket["worktree_path"]) if ticket["worktree_path"] else None,
     )
     if launch_result.timed_out:
         # Wall clock is enforced live by the launcher's own timeout, not by

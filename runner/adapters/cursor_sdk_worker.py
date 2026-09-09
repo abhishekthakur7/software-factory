@@ -1,4 +1,4 @@
-"""The Cursor SDK worker: the untrusted child of one agent invocation, run inside the thin sandbox.
+"""The Cursor SDK worker: the untrusted child of one agent invocation, run inside the enforced sandbox.
 
 Reads the envelope path from `argv[1]`, drives one Cursor SDK local-runtime
 agent turn against the requested model, and prints exactly one JSON

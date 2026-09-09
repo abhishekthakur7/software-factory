@@ -1,0 +1,77 @@
+; Seatbelt profile for a recipe run (S4/S5 build steps): the same
+; deny-default skeleton as agent-profile.sb, narrowed to what a check
+; recipe needs -- its own copy, its build/scratch/cache directories, and
+; the interpreter plus JDK the recipe scripts under
+; `factory/scripts/checks/` shell out to. See agent-profile.sb's own
+; comment for why `(import "system.sb")` is required on this host.
+(version 1)
+(deny default)
+(import "system.sb")
+
+(define repo-root (param "REPO_ROOT"))
+(define python-root (param "PYTHON_ROOT"))
+(define run-dir (param "RUN_DIR"))
+(define tmp-dir (param "TMPDIR"))
+(define copy-dir (param "COPY_DIR"))
+(define build-dir (param "BUILD_DIR"))
+(define scratch-dir (param "SCRATCH_DIR"))
+(define cache-dir (param "CACHE_DIR"))
+(define jdk-home (param "JDK_HOME"))
+
+(allow file-read-metadata file-test-existence (path-ancestors repo-root))
+(allow file-read* file-test-existence (literal repo-root))
+
+(allow file-read* file-test-existence
+    (subpath "/usr")
+    (subpath "/System")
+    (subpath "/Library")
+    (subpath "/private/var/db")
+    (subpath "/dev")
+    (subpath "/etc")
+    (subpath "/private/etc"))
+
+; The recipe scripts themselves and the interpreter that runs them --
+; every recipe under `factory/scripts/checks/` is a `#!/usr/bin/env
+; python3` script (`factory/config/command-recipes.yaml`), so process-exec
+; below must reach both the script and the interpreter its shebang
+; resolves to, never an arbitrary binary on PATH.
+(allow file-read* file-test-existence
+    (subpath (string-append repo-root "/factory/scripts/checks"))
+    (subpath (string-append repo-root "/.venv"))
+    (subpath python-root)
+    (subpath jdk-home))
+
+; The copy this run checks out and builds against, and its disposable
+; build/scratch/cache directories -- all writable, since a recipe legitimately
+; edits its own copy (applying a patch, checking out a branch). What stays
+; unreachable is the *immutable checkout* the copy was cloned from: a wholly
+; separate path this profile is never given a param for, so no rule here
+; can name it.
+(allow file-read* file-write* file-test-existence
+    (subpath copy-dir)
+    (subpath build-dir)
+    (subpath scratch-dir)
+    (subpath cache-dir))
+
+(allow file-read* file-write* file-test-existence (subpath (string-append run-dir "/out")))
+(allow file-read* file-test-existence (subpath (string-append run-dir "/results")))
+(allow file-read* file-write* file-test-existence (subpath tmp-dir))
+
+(allow network-outbound (remote ip "localhost:*"))
+
+; Only the recipe script itself, the interpreter it shebangs to, the
+; system loader that resolves a shebang (`/usr/bin/env`), and the JDK a
+; recipe shells out to -- never an unscoped `run_command`, unlike the
+; agent profile.
+(allow process-exec
+    (subpath (string-append repo-root "/factory/scripts/checks"))
+    (subpath (string-append repo-root "/.venv"))
+    (subpath python-root)
+    (subpath jdk-home)
+    (literal "/usr/bin/env"))
+(allow process-fork)
+
+; No credential of any kind reaches a build sandbox; nothing here admits
+; a mach-lookup this profile doesn't already grant through `system.sb`, and
+; the launcher never injects a runtime-key environment name for this role.
+(deny mach-lookup (global-name "com.apple.SecurityServer"))

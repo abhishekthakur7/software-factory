@@ -21,7 +21,7 @@ stages:
       runtime_version: "1.0.0"
       model_requested: null
       grader_model: null
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: "17"
   S1:
@@ -36,7 +36,7 @@ stages:
       runtime_version: "1.0.0"
       model_requested: fixture-model
       grader_model: fixture-model
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: "17"
   S2:
@@ -51,7 +51,7 @@ stages:
       runtime_version: "1.0.0"
       model_requested: fixture-model
       grader_model: fixture-model
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: "17"
       restatement_model: fixture-model
@@ -67,7 +67,7 @@ stages:
       runtime_version: "1.0.0"
       model_requested: fixture-model
       grader_model: fixture-model
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: "17"
   S4:
@@ -82,7 +82,7 @@ stages:
       runtime_version: "1.0.0"
       model_requested: fixture-model
       grader_model: fixture-model
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: "17"
   S5:
@@ -97,7 +97,7 @@ stages:
       runtime_version: "1.0.0"
       model_requested: null
       grader_model: null
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: "17"
   S6:
@@ -112,7 +112,7 @@ stages:
       runtime_version: "1.0.0"
       model_requested: null
       grader_model: null
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: "17"
 sandbox_policy:

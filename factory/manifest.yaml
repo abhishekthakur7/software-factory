@@ -31,9 +31,13 @@ files:
   - path: factory/config/project.yaml
     content_hash: 6f5b4dc04354ff64653227ada29290e691b417fca97fea209cd9d25a8a6b2d40
   - path: factory/config/runtime.yaml
-    content_hash: 26be69a13d9d9a481151f609f6d43c1cc2de013fb4610ab13e1706f1303520c4
+    content_hash: c72a6244731f346284c50535ca35b94c7bee9ac41561cb6234499d672c455bca
+  - path: factory/config/sandbox/agent-profile.sb
+    content_hash: 72b8073dfcdc2104c67431333cb1f323a755a9ee83142cef242420c442eb228b
+  - path: factory/config/sandbox/build-profile.sb
+    content_hash: 985ba848d2f7390bef1b2d1a3991ec2097fa934eebe42fbc573a887a1661d0c6
   - path: factory/config/sandbox.yaml
-    content_hash: 2e22183b522cd5d99cb472384532c51aed48ebe3d0d6043f4a3f9c674c79dace
+    content_hash: 244f44c53c9cc7c7fc1d23ea07c2ec83537be06c4e5e57e1199ebcf4aa0d7d28
   - path: factory/config/sensitive-paths.yaml
     content_hash: d6f425fafb63a7a0fc5c0e51fe676ea0d2a097a8a4a9a796acee4ecba09e76af
   - path: factory/config/service-tiers.yaml
@@ -378,8 +382,12 @@ files:
     content_hash: d3386b69b1732881f4208c02b3790d0fd292cbe18851f7429c498aaacfe633d3
   - path: factory/evals/bootstrap/T-A-35/plan.md
     content_hash: 8b05b814ae92fc2f64456204eb0c75fefd688be568cc33f0adf93c8e1b7f4d62
+  - path: factory/evals/bootstrap/T-AB-01/brief.md
+    content_hash: 38b97a5fb9cfd5968f2ff3e25474cd77d0051c41199e6fe3d46fe91f6cf18c66
+  - path: factory/evals/bootstrap/T-AB-01/plan.md
+    content_hash: 73f5c3f484807d920dd1c579f81fc2d84df619c3c5c5ac8cece3979f4dc35a0b
   - path: factory/evals/bootstrap/eval.yaml
-    content_hash: bc78e24496efb84afc6a35892d839e7557600bc5d141f96d27b04ecae3158042
+    content_hash: 3401959720340677f34a178cbc7a5d96800357ab979047ad7959e1be46268c03
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml
@@ -542,6 +550,32 @@ files:
     content_hash: d074772c30e456cd1ef3d2c808555a264971a92d525bf8b342d77b30bdcfc88f
   - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
+  - path: factory/evals/sandbox/escape/eval.yaml
+    content_hash: e7d366bec670f2124882e3e73e33446a0027783f1e6c6e178d4419250a625de6
+  - path: factory/evals/sandbox/escape/fixtures/base-head-isolation/probe.py
+    content_hash: bca54c32f9546c01b212b89783465193e6640b57a7e1c4123ef4581b4ab307af
+  - path: factory/evals/sandbox/escape/fixtures/copy-disposal/probe.py
+    content_hash: 4322016d528049bc55cc71b3b888a6445ddf5510e455546571583dbf739c1afe
+  - path: factory/evals/sandbox/escape/fixtures/credentials/probe.py
+    content_hash: 5de2cf9e7e8c6d19825bcd39003e03fa9f2cda260d1179d25f0b0892c8ca9e3b
+  - path: factory/evals/sandbox/escape/fixtures/environment/probe.py
+    content_hash: f523873b918ab5506f721a9cf1dabfb2cc156ef2dcb6e64725e1580d528c77ed
+  - path: factory/evals/sandbox/escape/fixtures/mounts/probe.py
+    content_hash: a4ae88eea8ebb34db077074aa2cacf141a37d03558cca3b000759d409621e7e8
+  - path: factory/evals/sandbox/escape/fixtures/network/probe.py
+    content_hash: 2d9cfa0a8f0190c76a3be015b2fc03adb05d20ddb43ee84d95d140946f955d89
+  - path: factory/evals/sandbox/escape/fixtures/ok/probe.py
+    content_hash: 9b5c1a680a7b530b823dc749299cb52f5a03d9a96ce5b5466b7ab13bd14f4025
+  - path: factory/evals/sandbox/escape/fixtures/paths/probe.py
+    content_hash: 6eb7b7cede464c922ce4aa27e4b71189ca95d60c187a0afd2ed91cf5f90930ec
+  - path: factory/evals/sandbox/escape/fixtures/sockets/probe.py
+    content_hash: 4ba47ab661b34b40d71884c95c5614330ba61be78978dc6c94512fd256a515cb
+  - path: factory/evals/sandbox/escape/fixtures/source-immutability/probe.py
+    content_hash: 2d9b5b3990ebbe8e824d0da72ce15594e4e4f49bd08ffba7d8d2c2bfbcffdb76
+  - path: factory/evals/sandbox/escape/fixtures/subprocesses/probe.py
+    content_hash: 43fcb153e0f1ee2660367213e76f94272e2c1c483317af13c1ee30a1c6dde6e7
+  - path: factory/evals/sandbox/escape/fixtures/symlinks/probe.py
+    content_hash: 76b3d6263a37b1c91467e94a561a6d7d0e7d194c1113488d561558beb9cdd68d
   - path: factory/evals/scripts/checks/base_test_diff/eval.yaml
     content_hash: f3db0c24f8d78fdc25a804986de2f1daf7f4f51f42c2287ece78f97857207fcd
   - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/base/src/test/java/com/fixture/WidgetTest.java
@@ -1037,7 +1071,7 @@ stages:
       runtime_version: 1.0.31
       model_requested: null
       grader_model: null
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: '17'
   S1:
@@ -1055,7 +1089,7 @@ stages:
       runtime_version: 1.0.31
       model_requested: claude-sonnet-5
       grader_model: claude-sonnet-5
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: '17'
   S2:
@@ -1073,7 +1107,7 @@ stages:
       runtime_version: 1.0.31
       model_requested: claude-sonnet-5
       grader_model: claude-sonnet-5
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: '17'
       restatement_model: claude-sonnet-5
@@ -1092,7 +1126,7 @@ stages:
       runtime_version: 1.0.31
       model_requested: claude-sonnet-5
       grader_model: claude-sonnet-5
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: '17'
   S4:
@@ -1110,7 +1144,7 @@ stages:
       runtime_version: 1.0.31
       model_requested: claude-sonnet-5
       grader_model: claude-sonnet-5
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: '17'
   S5:
@@ -1125,7 +1159,7 @@ stages:
       runtime_version: 1.0.31
       model_requested: null
       grader_model: null
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: '17'
   S6:
@@ -1140,7 +1174,7 @@ stages:
       runtime_version: 1.0.31
       model_requested: null
       grader_model: null
-      sandbox_policy: thin
+      sandbox_policy: enforced
       toolchain:
         jdk: '17'
 # The one sandbox-policy entry: which OS profile each sandbox role runs

@@ -1,0 +1,88 @@
+; Seatbelt profile for an agent invocation (S1-S4): everything is denied
+; unless named below. `(import "system.sb")` is required, not decorative --
+; on this host, a `(deny default)` profile that also grants `process-exec`
+; aborts the sandboxed process outright (SIGABRT, no stderr) unless the
+; baseline mach-lookup/sysctl/dyld access `system.sb` provides is present;
+; without it the very first exec a launched process performs never
+; completes. `system.sb` grants no filesystem access under REPO_ROOT, so it
+; does not weaken the boundaries this file adds.
+(version 1)
+(deny default)
+(import "system.sb")
+
+(define repo-root (param "REPO_ROOT"))
+(define python-root (param "PYTHON_ROOT"))
+(define worktree (param "WORKTREE"))
+(define run-dir (param "RUN_DIR"))
+(define ticket-dir (param "TICKET_DIR"))
+(define tmp-dir (param "TMPDIR"))
+(define stage (param "STAGE"))
+(define proxy-port (param "PROXY_PORT"))
+
+; A resolved path's ancestor chain needs stat-only access before any of it
+; can be opened, exec'd, or even proven to exist -- `path-ancestors` grants
+; that without granting read access to sibling directories the chain
+; passes through (this is how `factory/` stays unreadable even though it
+; shares a parent with `.venv/` and `runner/`, both readable below).
+(allow file-read-metadata file-test-existence (path-ancestors repo-root))
+
+; `runner`'s package finder lists REPO_ROOT itself (an editable install
+; puts REPO_ROOT on sys.path) before it ever opens a file underneath it;
+; a `literal` grant hands back directory *names* only, not the contents of
+; siblings like `factory/` or `runs/factory.sqlite` -- opening either of
+; those still resolves under `(deny default)` since neither carries its own
+; grant below.
+(allow file-read* file-test-existence (literal repo-root))
+
+; What a Python process needs to boot at all: the standard library, shared
+; frameworks, and the resolved system paths a subprocess call may touch.
+(allow file-read* file-test-existence
+    (subpath "/usr")
+    (subpath "/System")
+    (subpath "/Library")
+    (subpath "/private/var/db")
+    (subpath "/dev")
+    (subpath "/etc")
+    (subpath "/private/etc"))
+
+; The runner package, its virtualenv, and the interpreter the virtualenv's
+; own `python3` symlink resolves to -- never REPO_ROOT itself beyond the
+; directory-listing grant above, so `factory/` and `runs/factory.sqlite`
+; stay unreadable.
+(allow file-read* file-test-existence
+    (subpath (string-append repo-root "/runner"))
+    (subpath (string-append repo-root "/.venv"))
+    (subpath python-root))
+
+; Registered inputs for this ticket, read-only: an agent proposes edits
+; inside its own worktree or `out/`, never by mutating what was handed to it.
+(allow file-read* file-test-existence (subpath ticket-dir))
+
+; The one writable destination a non-S4 invocation gets; `results/` is
+; written only by the trusted launcher, after the child has already exited.
+(allow file-read* file-write* file-test-existence (subpath (string-append run-dir "/out")))
+(allow file-read* file-test-existence (subpath (string-append run-dir "/results")))
+(allow file-read* file-write* file-test-existence (subpath tmp-dir))
+
+; Only S4's task loop edits the ticket's own worktree directly; every other
+; stage proposes changes through `out/` for the trusted runner to apply.
+(if (string=? stage "S4")
+    (allow file-read* file-write* file-test-existence (subpath worktree)))
+
+; Outbound network never leaves the loopback proxy `runner/sandbox/proxy.py`
+; starts for this run; the proxy itself enforces the per-stage endpoint
+; allowlist, so the profile only needs to admit loopback traffic at all.
+(allow network-outbound (remote ip "localhost:*"))
+
+; The agent's own `run_command` tool execs whatever the task calls for;
+; `process-fork` covers everything that forks without also exec'ing.
+(allow process-exec)
+(allow process-fork)
+
+; `com.apple.opendirectoryd.libinfo`/`com.apple.system.logger` and the rest
+; of the baseline process-bootstrap set are already granted by `system.sb`
+; above; `com.apple.SecurityServer` is not among them, so the classic
+; Keychain lookup path stays denied by the profile's own default. Deny it
+; again here anyway: an explicit record of the boundary this profile owes,
+; not a rule anything above already contradicts.
+(deny mach-lookup (global-name "com.apple.SecurityServer"))

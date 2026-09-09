@@ -14,3 +14,17 @@ adapters:
     models:
       - claude-sonnet-5
     key_role: CURSOR_API_KEY
+
+# The scoped runtime key every agent stage's sandbox may receive: never a
+# `value` field here, since `runner/credentials.py` fetches it from the
+# Keychain by `role` at the moment of launch and this file only records
+# the entitlement, not the secret itself. `scope` names the trust-profile
+# route the key is entitled to reach -- the hosted-inference endpoint the
+# loopback proxy tunnels an agent sandbox's outbound traffic to.
+runtime_key:
+  role: runtime_key
+  scope: hosted_model
+  spend_cap:
+    usd_per_month: 500
+  rotation:
+    days: 90

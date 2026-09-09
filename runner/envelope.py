@@ -125,21 +125,44 @@ def content_hash(envelope: Envelope) -> str:
     return canonical.content_hash(to_dict(envelope), exclude=frozenset())
 
 
-def sandbox_digest(policy_name: str, *, sandbox_path: Path = SANDBOX_PATH) -> str:
-    """sha256 of `sandbox_path`'s bytes plus `policy_name`'s resolved environment allowlist.
+def sandbox_digest(policy_name: str, *, sandbox_path: Path = SANDBOX_PATH, stage: str, runs_dir: Path) -> str:
+    """sha256 over every input that governs `stage`'s sandbox under `policy_name`.
 
-    Both the file bytes and the resolved list are hashed together so that a
-    policy rename or an allowlist edit each change the digest, matching the
-    R-I-15 requirement that the sandbox digest is bound into every run it
-    governed.
+    Hashes, in one canonical payload: both OS profile files' bytes, the
+    stage's resolved proxy allowlist (route/host/port triples, not just
+    route ids -- an endpoint's host or port changing must change the
+    digest too), `sandbox_path`'s own bytes, the resolved environment
+    allowlist, and the runs directory's resolved absolute location. Any of
+    these can change what a run is actually permitted to do without
+    `policy_name` itself changing, so each is bound into the digest rather
+    than left for a caller to notice drifted on its own.
     """
     doc = yaml.safe_load(Path(sandbox_path).read_text())
     policies = doc.get("policies", {}) if isinstance(doc, dict) else {}
     if policy_name not in policies:
         raise EnvelopeError(f"{sandbox_path}: no such sandbox policy {policy_name!r}")
-    allowlist = tuple(policies[policy_name].get("env_allowlist", []))
-    payload = Path(sandbox_path).read_bytes() + canonical.canonical_json(
-        {"policy": policy_name, "env_allowlist": allowlist}
+    policy = policies[policy_name]
+    allowlist = tuple(policy.get("env_allowlist", []))
+
+    endpoints = policy.get("endpoints", {})
+    route_ids = policy.get("proxy_allowlist", {}).get(stage, [])
+    proxy_triples = tuple(
+        (route_id, endpoints[route_id]["host"], endpoints[route_id]["port"]) for route_id in route_ids
+    )
+
+    profile_bytes = b"".join(
+        (REPO_ROOT / policy["os_profiles"][role]["path"]).read_bytes()
+        for role in sorted(policy.get("os_profiles", {}))
+    )
+
+    payload = (
+        Path(sandbox_path).read_bytes() + profile_bytes
+        + canonical.canonical_json({
+            "policy": policy_name,
+            "env_allowlist": allowlist,
+            "proxy_allowlist": proxy_triples,
+            "runs_dir": str(Path(runs_dir).resolve()),
+        })
     )
     return hashlib.sha256(payload).hexdigest()
 
@@ -225,7 +248,7 @@ def _named_inputs(conn: sqlite3.Connection, ticket_id: int, artefact_ids) -> tup
 
 def build(
     conn: sqlite3.Connection, ticket: sqlite3.Row, entry, *, adapter_version: str | None = None,
-    sandbox_path: Path | None = None, input_artefact_ids=None,
+    sandbox_path: Path | None = None, input_artefact_ids=None, runs_dir: Path = RUNS_DIR,
 ) -> Envelope:
     """The envelope a fresh invocation of `entry.stage` for `ticket` receives.
 
@@ -238,7 +261,7 @@ def build(
     driver knows exactly which artefacts this invocation reads (a
     restatement child reads one subject, S2 reads the source and the
     brief); left None, every latest-version artefact of the ticket is an
-    input, sorted by kind.
+    input, sorted by kind. `runs_dir` feeds `sandbox_digest` only.
     """
     project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
     toolchain = dict(entry.toolchain) if entry.toolchain else dict(project.get("toolchain", {}))
@@ -265,7 +288,10 @@ def build(
         tool_versions={name: None for name in entry.tool_allowlist},
         mcp_server_versions={},
         model_requested=entry.model_requested,
-        sandbox_digest=sandbox_digest(entry.sandbox_policy, sandbox_path=sandbox_path) if entry.sandbox_policy else None,
+        sandbox_digest=(
+            sandbox_digest(entry.sandbox_policy, sandbox_path=sandbox_path, stage=entry.stage, runs_dir=runs_dir)
+            if entry.sandbox_policy else None
+        ),
         toolchain_digest=toolchain_digest(toolchain),
         base_sha=ticket["base_sha"],
         head_sha=ticket["head_sha"],

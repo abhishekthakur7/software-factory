@@ -2,10 +2,11 @@
 
 `expected_eval_dirs` derives the full set from the files actually on disk
 under `factory/` -- one directory per agent, skill, shared skill, runtime
-adapter, `scripts/checks`/`scripts/tools` executable, and rubric -- rather
-than a hand-maintained list that drifts the moment a new file lands.
-`factory/evals/fixture-project/` and `factory/evals/bootstrap/` are never
-derived from anything under `factory/agents`, `factory/skills`,
+adapter, `scripts/checks`/`scripts/tools` executable, and rubric, plus one
+`sandbox/escape` directory when `config/sandbox/` holds OS profiles --
+rather than a hand-maintained list that drifts the moment a new file
+lands. `factory/evals/fixture-project/` and `factory/evals/bootstrap/` are
+never derived from anything under `factory/agents`, `factory/skills`,
 `factory/rubrics`, `factory/scripts`, or `runtime.yaml`'s adapters, so
 neither ever appears in the set.
 
@@ -70,6 +71,9 @@ def expected_eval_dirs(root: Path = FACTORY_DIR, runtime_path: Path | None = Non
         runtime_doc = yaml.safe_load(runtime_path.read_text()) or {}
         for adapter_name in sorted((runtime_doc.get("adapters") or {})):
             dirs.append(evals_root / "adapters" / adapter_name)
+
+    if (root / "config" / "sandbox").is_dir():
+        dirs.append(evals_root / "sandbox" / "escape")
 
     for kind in ("checks", "tools"):
         for name in _executable_names(root / "scripts" / kind):
