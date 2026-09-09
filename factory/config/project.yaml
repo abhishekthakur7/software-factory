@@ -1,21 +1,38 @@
-# The pilot project's source location, target branch, recipe set, and
-# toolchain. Both paths are relative to the repository root and land under
-# the gitignored runs/ tree: the checkout is a materialised git repository,
-# never the seed under factory/evals/fixture-project/ itself.
-name: fixture-project
-checkout: runs/sources/fixture-project
-vendor: runs/sources/fixture-project-vendor
-target_branch: main
-recipes:
-  - fixture_lint
-  - fixture_compile
-  - fixture_unit
-  - fixture_integration
-  - fixture_e2e
-impact_methods:
-  - import_scan
-toolchain:
-  jdk: "17"
+# Every project the factory admits, plus the fields shared across all of
+# them: the throwaway scratch repository the outbox publishes against
+# until a project's own repository is real, and the size gate's excluded
+# paths. `runner/project.py` is the one loader; `pilot()` returns the
+# single entry below in the same flat shape every reader used before
+# `projects` became a list.
+projects:
+  - name: fixture-project
+    # Both paths are relative to the repository root and land under the
+    # gitignored runs/ tree: the checkout is a materialised git
+    # repository, never the seed under factory/evals/fixture-project/
+    # itself.
+    checkout: runs/sources/fixture-project
+    vendor: runs/sources/fixture-project-vendor
+    target_branch: main
+    recipes:
+      - fixture_lint
+      - fixture_compile
+      - fixture_unit
+      - fixture_integration
+      - fixture_e2e
+    impact_methods:
+      - import_scan
+    toolchain:
+      jdk: "17"
+
+# A throwaway GitHub repository the outbox publishes pull requests
+# against until a project's own repository is real: `remote` stays null
+# until the owner creates it by hand, and every branch it carries starts
+# with `branch_prefix` so a stray push is unmistakably scratch state.
+scratch_repository:
+  name: soft-factory-scratch
+  branch_prefix: scratch/
+  remote: null
+
 # Excluded from the size gate's changed-line count: paths a build
 # generates rather than a human writes, and the handful of lockfile names
 # that churn constantly without representing reviewable change.

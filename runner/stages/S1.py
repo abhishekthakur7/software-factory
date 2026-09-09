@@ -29,7 +29,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, artefacts, context_index, record, run_ledger
+from runner import artefact_registry, artefacts, context_index, project, record, run_ledger
 from runner.checks import brief as checks_brief
 from runner.checks import exclusion
 from runner.fs import write_text
@@ -41,12 +41,12 @@ PASS_EVENT = "s1_pass"
 REINDEX_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "reindex"
 IMPACT_SCAN_SCRIPT = FACTORY_DIR / "scripts" / "checks" / "impact_scan"
 DEFAULT_ARTIFACT_TO_SERVICE_PATH = FACTORY_DIR / "config" / "artifact-to-service.yaml"
-DEFAULT_PROJECT_CONFIG_PATH = FACTORY_DIR / "config" / "project.yaml"
+DEFAULT_PROJECT_CONFIG_PATH = project.DEFAULT_PROJECT_CONFIG_PATH
 DEFAULT_TIERS_PATH = FACTORY_DIR / "config" / "tiers.yaml"
 
 
 def _project_config(path: Path = DEFAULT_PROJECT_CONFIG_PATH) -> dict:
-    return yaml.safe_load(Path(path).read_text())
+    return project.pilot(path=path)
 
 
 def _default_vendor_path(repo_root: Path, project_config: dict) -> Path:

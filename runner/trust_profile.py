@@ -32,8 +32,11 @@ from runner.reviewer_sets import Slot
 
 DEFAULT_TRUST_PROFILE_PATH = FACTORY_DIR / "config" / "trust-profile.yaml"
 
-# The five routes the walk crosses; `routes` must name exactly these.
-ROUTE_IDS = ("hosted_model", "governed_export_display", "github_pr", "slack_digest", "jira_feedback")
+# The routes the walk crosses; `routes` must name exactly these.
+ROUTE_IDS = (
+    "hosted_model", "governed_export_display", "github_pilot", "github_scratch", "slack_digest",
+    "jira_feedback", "atlassian_read", "baseline_read", "registry", "vulnerability_feed",
+)
 
 # Every field a route must carry: the governance terms of the route, the
 # admitted source class, and whether its deliverer is live or a stub.
@@ -44,9 +47,13 @@ ROUTE_REQUIRED_FIELDS = (
     "max_class", "deliverer",
 )
 
-# The route whose deliverer is real; every other route is a stub, since no
+# The routes whose operations field is a fixed pair: pull requests are
+# opened or updated, never anything else, on either GitHub route.
+GITHUB_ROUTE_IDS = ("github_pilot", "github_scratch")
+
+# The routes with a real deliverer; every other route is a stub, since no
 # real deliverer for it exists yet.
-LIVE_ROUTE = "hosted_model"
+LIVE_ROUTES = ("hosted_model", "atlassian_read")
 
 DIGEST_ROUTE = "slack_digest"
 DIGEST_FIELDS = ("ticket_id", "tier", "item_kind", "age", "command")
@@ -155,6 +162,11 @@ class TrustProfile:
     routes: Mapping[str, Route]
     evidence: Mapping[str, str]
     approval_slots: Mapping[str, ApprovalSlotSpec]
+    # A repository name to the classes its own content spans, joined by
+    # `repository_class` below. Optional: a repository absent here (every
+    # fixture profile that predates this field, and any repository this
+    # wave never reads Jira issues for) simply has no resolvable class.
+    repository_data_classes: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 def _load_classes(doc: Mapping) -> ClassTaxonomy:
@@ -176,6 +188,23 @@ def _load_classes(doc: Mapping) -> ClassTaxonomy:
             raise TrustProfileError(f"trust-profile.yaml: join_rules.exceptions entry is malformed: {entry!r}")
         exceptions.append(JoinException(classes=(pair[0], pair[1]), result=result))
     return ClassTaxonomy(order=tuple(order), exceptions=tuple(exceptions), default_deny=True)
+
+
+def _load_repository_data_classes(doc: Mapping, order: tuple[str, ...]) -> dict:
+    raw = doc.get("repository_data_classes")
+    if raw is None:
+        return {}
+    if not isinstance(raw, Mapping):
+        raise TrustProfileError("trust-profile.yaml: repository_data_classes must be a mapping")
+    result = {}
+    for name, classes in raw.items():
+        if not isinstance(classes, list) or not classes:
+            raise TrustProfileError(f"trust-profile.yaml: repository_data_classes.{name} must be a non-empty list")
+        unknown = [c for c in classes if c not in order]
+        if unknown:
+            raise TrustProfileError(f"trust-profile.yaml: repository_data_classes.{name} names unknown class(es) {unknown}")
+        result[name] = tuple(classes)
+    return result
 
 
 def _load_admitted_scopes(doc: Mapping) -> dict:
@@ -257,16 +286,16 @@ def _load_routes(doc: Mapping, order: tuple[str, ...], expected_rule_set_hash: s
             raise TrustProfileError(
                 f"trust-profile.yaml: {where}.rule_set_hash does not match the canonical hash of secret_rules"
             )
-        expected_deliverer = "live" if route_id == LIVE_ROUTE else "stub"
+        expected_deliverer = "live" if route_id in LIVE_ROUTES else "stub"
         if raw["deliverer"] != expected_deliverer:
             raise TrustProfileError(
                 f"trust-profile.yaml: {where}.deliverer must be {expected_deliverer!r} for this route"
             )
-        if route_id == "github_pr":
+        if route_id in GITHUB_ROUTE_IDS:
             operations = tuple(raw.get("operations", ()))
             if operations != ("pr_create", "pr_update"):
                 raise TrustProfileError(
-                    "trust-profile.yaml: routes.github_pr.operations must be [pr_create, pr_update]"
+                    f"trust-profile.yaml: {where}.operations must be [pr_create, pr_update]"
                 )
         else:
             operations = ()
@@ -339,6 +368,7 @@ def load_trust_profile(path: Path = DEFAULT_TRUST_PROFILE_PATH) -> TrustProfile:
     sanitizers = _load_sanitizers(doc, classes.order)
     evidence = _load_evidence(doc)
     approval_slots = _load_approval_slots(doc)
+    repository_data_classes = _load_repository_data_classes(doc, classes.order)
 
     profile_without_routes = TrustProfile(
         both_trust_roles_identity=identity,
@@ -349,6 +379,7 @@ def load_trust_profile(path: Path = DEFAULT_TRUST_PROFILE_PATH) -> TrustProfile:
         routes={},
         evidence=evidence,
         approval_slots=approval_slots,
+        repository_data_classes=repository_data_classes,
     )
     expected_rule_set_hash = rule_set_hash(profile_without_routes)
     routes = _load_routes(doc, classes.order, expected_rule_set_hash)
@@ -362,6 +393,7 @@ def load_trust_profile(path: Path = DEFAULT_TRUST_PROFILE_PATH) -> TrustProfile:
         routes=routes,
         evidence=evidence,
         approval_slots=approval_slots,
+        repository_data_classes=repository_data_classes,
     )
 
 
@@ -403,6 +435,14 @@ def join(profile: TrustProfile, classes: tuple[str, ...]) -> str | None:
             if frozenset(exc.classes) == frozenset(classes):
                 return exc.result
     return max(classes, key=order.index)
+
+
+def repository_class(profile: TrustProfile, name: str) -> str | None:
+    """The joined data class of `name`'s configured classes in `repository_data_classes`, or `None` when it names none."""
+    classes = profile.repository_data_classes.get(name)
+    if not classes:
+        return None
+    return join(profile, classes)
 
 
 def resolve_sanitizer(

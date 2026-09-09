@@ -18,10 +18,7 @@ import hashlib
 import sqlite3
 from pathlib import Path
 
-import yaml
-
-from runner import artefact_registry, binding, canonical, checklist, envelope, questions, record
-from runner.paths import PROJECT_CONFIG
+from runner import artefact_registry, binding, canonical, checklist, envelope, project, questions, record
 
 # The sandbox policy every Milestone A stage runs under; the plan tuple
 # binds its digest the same way `runner.envelope.build` does for a stage
@@ -52,11 +49,15 @@ def _question_resolution_set_hash(conn: sqlite3.Connection, ticket_id: int) -> s
 
 
 def _project_config() -> dict:
-    return yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    return project.pilot()
 
 
 def _project_config_hash() -> str:
-    return hashlib.sha256(Path(PROJECT_CONFIG).read_bytes()).hexdigest()
+    # The whole file's bytes, not just the pilot's own entry: any change
+    # to `project.yaml` -- another project added, the scratch repository
+    # renamed -- must invalidate a plan approved before it, the same as a
+    # change to any other bound-subject file.
+    return hashlib.sha256(Path(project.DEFAULT_PROJECT_CONFIG_PATH).read_bytes()).hexdigest()
 
 
 def _planned_reviewer_set_hash(conn: sqlite3.Connection, ticket_id: int) -> str | None:
@@ -83,7 +84,7 @@ def derive_components(conn: sqlite3.Connection, ticket: sqlite3.Row) -> binding.
     answering it, through `runner.checklist`.
     """
     ticket_id = ticket["id"]
-    project = _project_config()
+    project_cfg = _project_config()
     expected = checklist.expected_instances(conn, ticket)
     return binding.PlanComponents(
         ticket_source_hash=_ticket_source_hash(conn, ticket),
@@ -100,7 +101,7 @@ def derive_components(conn: sqlite3.Connection, ticket: sqlite3.Row) -> binding.
         trust_approval_set_hash=ticket["trust_approval_set_hash"],
         recipe_hash=envelope.recipe_set_hash(),
         sandbox_digest=envelope.sandbox_digest(SANDBOX_POLICY),
-        toolchain_digest=envelope.toolchain_digest(project.get("toolchain", {})),
+        toolchain_digest=envelope.toolchain_digest(project_cfg.get("toolchain", {})),
         planned_reviewer_set_hash=_planned_reviewer_set_hash(conn, ticket_id),
         semantic_checklist_hash=checklist.checklist_hash(expected),
         human_verdict_set_hash=binding.set_hash(checklist.verdict_set(conn, ticket_id)),

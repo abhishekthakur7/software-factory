@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, manifest, record, run_ledger, schema
+from runner import artefact_registry, manifest, project, record, run_ledger, schema
 from runner.db import connect
-from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT
+from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.stages import S4, S5
 
 FIXTURES = Path(__file__).parent / "fixtures" / "s4_handoff"
@@ -150,8 +150,8 @@ def test_handoff_carries_the_s5_check_policies_and_the_project_recipe_ids(tmp_pa
     ticket_id, _ = _ready_ticket(conn, tmp_path)
     payload = _build(conn, tmp_path, ticket_id)
     assert payload["check_policies"] == list(S5.CHECK_ORDER)
-    project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
-    assert payload["recipe_ids"] == project["recipes"]
+    project_cfg = project.pilot()
+    assert payload["recipe_ids"] == project_cfg["recipes"]
 
 
 # every task's allowed recipe ids and typed values (R-S4-1)
@@ -251,11 +251,11 @@ def test_the_task_list_recipe_set_and_budget_reconstruct_from_the_handoff_file_a
     # `project.yaml` (the "registered sandbox mounts") only -- no database,
     # no S3 stage_run transcript.
     reconstructed = json.loads(Path(handoff_artefact["path"]).read_text())
-    project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    project_cfg = project.pilot()
     tiers = yaml.safe_load((FACTORY_DIR / "config" / "tiers.yaml").read_text())
 
     assert {task["id"] for task in reconstructed["tasks"]} == {"T-1", "T-2"}
-    assert set(reconstructed["recipe_ids"]) == set(project["recipes"])
+    assert set(reconstructed["recipe_ids"]) == set(project_cfg["recipes"])
     expected_budget = dict(tiers["budgets"]["by_tier"][reconstructed["tier"]])
     expected_budget.update(tiers["budgets"].get("overrides", {}).get("S4", {}))
     assert reconstructed["budget"]["run"] == expected_budget

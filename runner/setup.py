@@ -19,12 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import yaml
-
-from runner import fs
+from runner import fs, project as project_config
 from runner.paths import FACTORY_DIR, REPO_ROOT
 
-DEFAULT_PROJECT_CONFIG = FACTORY_DIR / "config" / "project.yaml"
+DEFAULT_PROJECT_CONFIG = project_config.DEFAULT_PROJECT_CONFIG_PATH
 DEFAULT_SEED_DIR = FACTORY_DIR / "evals" / "fixture-project"
 
 # Fixed identity and timestamp for the seed commit, so materialising the
@@ -180,7 +178,7 @@ def materialise(
     generated state under `repo_root`, resolved from `project_path`'s
     `checkout`/`vendor` fields.
     """
-    config = yaml.safe_load(Path(project_path).read_text())
+    config = project_config.pilot(path=project_path)
     checkout = Path(repo_root) / config["checkout"]
     vendor = Path(repo_root) / config["vendor"]
 

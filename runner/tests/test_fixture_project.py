@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import git_trees, record, recipes, setup
+from runner import git_trees, project, record, recipes, setup
 from runner.db import connect
 from runner.paths import FACTORY_DIR
 
@@ -31,10 +31,12 @@ skip_without_jdk = pytest.mark.skipif(not HAS_JAVAC, reason="javac/jar not avail
 def _project_config(tmp_path: Path) -> Path:
     path = tmp_path / "project.yaml"
     path.write_text(yaml.safe_dump({
-        "name": "fixture-project",
-        "checkout": "runs/sources/fixture-project",
-        "vendor": "runs/sources/fixture-project-vendor",
-        "target_branch": "main",
+        "projects": [{
+            "name": "fixture-project",
+            "checkout": "runs/sources/fixture-project",
+            "vendor": "runs/sources/fixture-project-vendor",
+            "target_branch": "main",
+        }],
     }))
     return path
 
@@ -107,8 +109,8 @@ def test_vendor_directory_holds_source_and_poms_but_no_committed_jar():
 
 
 def test_project_and_recipes_name_no_registry_endpoint():
-    project_cfg = yaml.safe_load((FACTORY_DIR / "config" / "project.yaml").read_text())
-    assert "registry" not in project_cfg
+    pilot_cfg = project.pilot()
+    assert "registry" not in pilot_cfg
 
     catalogue_doc = yaml.safe_load((FACTORY_DIR / "config" / "command-recipes.yaml").read_text())
     for entry in catalogue_doc["recipes"]:

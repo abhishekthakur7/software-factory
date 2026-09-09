@@ -28,10 +28,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
-
-from runner import canonical, publication, record
-from runner.paths import PROJECT_CONFIG, RUNS_DIR
+from runner import canonical, project, publication, record
+from runner.paths import RUNS_DIR
 
 BEFORE_S4 = "before_s4"
 S5_PREFLIGHT = "s5_preflight"
@@ -56,9 +54,9 @@ def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
-def target_branch(project_path: Path = PROJECT_CONFIG) -> str:
+def target_branch(project_path: Path = project.DEFAULT_PROJECT_CONFIG_PATH) -> str:
     """The configured target branch every boundary fetches and compares against."""
-    return yaml.safe_load(Path(project_path).read_text())["target_branch"]
+    return project.pilot(path=project_path)["target_branch"]
 
 
 def fetch_target_head(repo: Path, target_branch: str) -> str:

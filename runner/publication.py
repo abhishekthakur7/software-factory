@@ -21,10 +21,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
-
-from runner import approvals, artefact_registry, canonical, owners, record, waivers
-from runner.paths import PROJECT_CONFIG
+from runner import approvals, artefact_registry, canonical, owners, project as project_config, record, waivers
 from runner.reviewer_sets import Slot
 
 
@@ -45,10 +42,12 @@ class Target:
 
 
 def _project(project_path: Path) -> dict:
-    return yaml.safe_load(Path(project_path).read_text())
+    return project_config.pilot(path=project_path)
 
 
-def publication_target(conn: sqlite3.Connection, ticket: sqlite3.Row, *, project_path: Path = PROJECT_CONFIG) -> Target:
+def publication_target(
+    conn: sqlite3.Connection, ticket: sqlite3.Row, *, project_path: Path = project_config.DEFAULT_PROJECT_CONFIG_PATH,
+) -> Target:
     """The exact destination a `pr_create`/`pr_update` intent for `ticket` would publish, hashed.
 
     `operation` is `pr_update` once the ticket already carries a PR
@@ -109,7 +108,7 @@ def _valid_review_waiver_hashes(conn: sqlite3.Connection, ticket_id: int, review
 
 
 def review_approval_subject(
-    conn: sqlite3.Connection, ticket_id: int, *, now: str | None = None, project_path: Path = PROJECT_CONFIG,
+    conn: sqlite3.Connection, ticket_id: int, *, now: str | None = None, project_path: Path = project_config.DEFAULT_PROJECT_CONFIG_PATH,
 ) -> Subject:
     """The one subject every required final-review slot must approve identically, hashed.
 
@@ -183,7 +182,7 @@ def quorum(
     *,
     now: str | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
-    project_path: Path = PROJECT_CONFIG,
+    project_path: Path = project_config.DEFAULT_PROJECT_CONFIG_PATH,
 ) -> approvals.Quorum:
     """Full review-gate quorum on the current review-approval subject, with `evaluate`'s missing authority check applied.
 

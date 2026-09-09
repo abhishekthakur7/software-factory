@@ -1,0 +1,11 @@
+# Otherwise-complete -- acceptance criteria, owner, and a parent link are
+# all present -- but the issue type is Epic, which needs child tickets
+# rather than a direct ticket.
+customfield_10010: >-
+  Given a signed-in user on the checkout page, when they click "Apply
+  discount", then the discount total updates without a page reload.
+assignee: abhishek
+parent: FIX-10
+customfield_10011: null
+issuetype: Epic
+summary: Discount system overhaul
