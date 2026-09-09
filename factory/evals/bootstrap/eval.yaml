@@ -101,3 +101,11 @@ tickets:
   - rubrics/S1
   - rubrics/S3
   - scripts/tools/archaeology
+  T-AB-06: []
+  T-AB-07:
+  - scripts/tools/digest
+  T-AB-08: []
+  T-AB-09: []
+  T-AB-10:
+  - scripts/tools/baseline_import
+  T-AB-11: []

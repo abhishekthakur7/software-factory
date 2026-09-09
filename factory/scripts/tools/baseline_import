@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Read and freeze the pre-factory baseline through the trusted readers."""
+import argparse
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from runner import baseline
+from runner.db import connect
+from runner.readers import atlassian, github
+from runner.stages import S0
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="baseline_import")
+    parser.add_argument("--db", type=Path, required=True)
+    parser.add_argument("--service", required=True)
+    parser.add_argument("--cutoff", required=True)
+    parser.add_argument("--repository", required=True)
+    parser.add_argument("--supplemental", type=Path)
+    parser.add_argument("--supplemental-cutoff")
+    args = parser.parse_args(argv)
+    if (args.supplemental is None) != (args.supplemental_cutoff is None):
+        parser.error("--supplemental and --supplemental-cutoff must be supplied together")
+    supplemental = None
+    if args.supplemental is not None:
+        try:
+            supplemental = json.loads(args.supplemental.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            parser.error(f"cannot read --supplemental JSON: {exc}")
+        if not isinstance(supplemental, list) or not all(isinstance(item, dict) for item in supplemental):
+            parser.error("--supplemental must be a JSON list of ticket objects")
+    endpoint = atlassian.endpoint()
+    if endpoint is None:
+        parser.error("no Atlassian endpoint is configured for the baseline reader")
+    conn = connect(args.db)
+    try:
+        admitted_types = set(S0.load_ticket_types())
+        cohort_id = baseline.import_baseline(
+            conn, atlassian=atlassian.AtlassianReader(atlassian.HttpTransport(endpoint)),
+            github=github.GitHubReader(github.HttpTransport()), service=args.service, admitted_types=admitted_types,
+            retrospective_cutoff=args.cutoff, supplemental=supplemental, supplemental_cutoff=args.supplemental_cutoff,
+            repository=args.repository, runs_dir=args.db.parent,
+        )
+    finally:
+        conn.close()
+    print(cohort_id)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

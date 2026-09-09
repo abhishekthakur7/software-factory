@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+"""Compare validated offline dependency evidence with an approved dependency plan.
+
+Resolution is deliberately a separate recipe. This script consumes only its
+immutable-view evidence and verifies Java imports against the jars it names,
+so a copied POM cannot masquerade as resolved dependency evidence.
+"""
+import argparse
+import hashlib
+import json
+import os
+import re
+import subprocess
+import tempfile
+import urllib.parse
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+SCHEMA_VERSION = 1
+_IMPORT = re.compile(r"(?:^|;)\s*import\s+(?P<static>static\s+)?(?P<name>[\w.]+(?:\.\*)?)\s*;", re.MULTILINE)
+
+
+class EvidenceError(ValueError):
+    """Resolver evidence cannot support a dependency-verification decision."""
+
+def _tag(element: ET.Element) -> str:
+    return element.tag.rsplit("}", 1)[-1]
+
+
+def _repository_hosts(root: Path) -> set[str]:
+    try:
+        pom = ET.parse(root / "pom.xml").getroot()
+    except (ET.ParseError, OSError) as exc:
+        raise EvidenceError(f"cannot parse head pom: {exc}") from exc
+    hosts: set[str] = set()
+    for container in pom.iter():
+        if _tag(container) not in {"repositories", "pluginRepositories"}:
+            continue
+        for repository in container:
+            if _tag(repository) not in {"repository", "pluginRepository"}:
+                continue
+            url = next((child for child in repository if _tag(child) == "url"), None)
+            if url is not None and (url.text or "").strip():
+                host = urllib.parse.urlparse((url.text or "").strip()).hostname
+                if host:
+                    hosts.add(host)
+    return hosts
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _resolved(path: Path, side: str) -> dict[str, dict[str, object]]:
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise EvidenceError(f"{side} resolution is not parseable JSON: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("schema_version") != SCHEMA_VERSION:
+        raise EvidenceError(f"{side} resolution has an unsupported schema")
+    if payload.get("result") != "pass":
+        raise EvidenceError(f"{side} resolution did not pass")
+    dependencies = payload.get("dependencies")
+    vendor_root = payload.get("vendor_root")
+    if not isinstance(dependencies, list) or not isinstance(vendor_root, str):
+        raise EvidenceError(f"{side} resolution is missing dependency evidence")
+    vendor_path = Path(vendor_root).resolve()
+    if dependencies and not vendor_path.is_dir():
+        raise EvidenceError(f"{side} resolution is missing dependency evidence")
+    resolved: dict[str, dict[str, object]] = {}
+    for item in dependencies:
+        if not isinstance(item, dict):
+            raise EvidenceError(f"{side} resolution contains a malformed dependency")
+        required = ("package", "version", "depth", "pom_path", "pom_sha256", "jar_path", "jar_sha256")
+        if any(not isinstance(item.get(key), str) for key in required if key != "depth") or not isinstance(item.get("depth"), int):
+            raise EvidenceError(f"{side} resolution contains incomplete dependency evidence")
+        package, version = item["package"], item["version"]
+        if not package or package.count(":") != 1 or not version:
+            raise EvidenceError(f"{side} resolution contains an invalid coordinate")
+        identity = f"{package}:{version}"
+        if identity in resolved:
+            raise EvidenceError(f"{side} resolution repeats {identity}")
+        pom, jar = Path(item["pom_path"]), Path(item["jar_path"])
+        if not all(path.resolve().is_relative_to(vendor_path) for path in (pom, jar)):
+            raise EvidenceError(f"{side} resolution evidence escapes its declared vendor repository")
+        if not pom.is_file() or not jar.is_file() or pom.suffix != ".pom" or jar.suffix != ".jar":
+            raise EvidenceError(f"{side} resolution evidence is missing files for {identity}")
+        if _digest(pom) != item["pom_sha256"] or _digest(jar) != item["jar_sha256"]:
+            raise EvidenceError(f"{side} resolution evidence digest mismatch for {identity}")
+        resolved[identity] = item
+    return resolved
+
+
+def _plan_rows(path: Path) -> set[tuple[str, str, str, str]]:
+    text = path.read_text()
+    section = re.search(r"^## Dependencies\s*$([\s\S]*?)(?=^## |\Z)", text, re.MULTILINE)
+    if section is None:
+        raise EvidenceError("plan has no Dependencies table")
+    lines = [line for line in section.group(1).splitlines() if line.lstrip().startswith("|")]
+    if len(lines) < 2:
+        raise EvidenceError("plan Dependencies table is malformed")
+    header = [value.strip() for value in lines[0].strip().strip("|").split("|")]
+    required = ("package", "from_version", "to_version", "kind")
+    if any(column not in header for column in required):
+        raise EvidenceError("plan Dependencies table lacks a required comparison column")
+    rows = []
+    for line in lines[2:]:
+        cells = [value.strip() for value in line.strip().strip("|").split("|")]
+        if len(cells) != len(header):
+            raise EvidenceError("plan Dependencies table has a malformed row")
+        rows.append(dict(zip(header, cells)))
+    comparisons = set()
+    for row in rows:
+        comparison = tuple(row[column] for column in required)
+        if not all(comparison):
+            raise EvidenceError("plan Dependencies table has an incomplete comparison row")
+        comparisons.add(comparison)
+    return comparisons
+
+
+def _changes(base: dict[str, dict[str, object]], head: dict[str, dict[str, object]]) -> list[dict[str, str]]:
+    versions: dict[str, tuple[str, str]] = {}
+    for identity in base:
+        package, version = identity.rsplit(":", 1)
+        if package in versions and versions[package][0] != version:
+            raise EvidenceError(f"base resolution contains multiple versions of {package}")
+        versions[package] = (version, "")
+    for identity in head:
+        package, version = identity.rsplit(":", 1)
+        old = versions.get(package, ("", ""))[0]
+        if package in versions and versions[package][1] and versions[package][1] != version:
+            raise EvidenceError(f"head resolution contains multiple versions of {package}")
+        versions[package] = (old, version)
+    changes = []
+    for package, (before, after) in sorted(versions.items()):
+        if before == after:
+            continue
+        changes.append({"package": package, "from_version": before, "to_version": after, "kind": "added" if not before else "removed" if not after else "changed"})
+    return changes
+
+
+def _pinned(version: str) -> bool:
+    return bool(version) and not any(marker in version.upper() for marker in ("SNAPSHOT", "LATEST", "RELEASE", "[", "]", "(", ")", "${"))
+
+
+def _imports(root: Path) -> set[tuple[bool, str]]:
+    found: set[tuple[bool, str]] = set()
+    for path in root.rglob("*.java"):
+        for match in _IMPORT.finditer(path.read_text(errors="replace")):
+            found.add((bool(match.group("static")), match.group("name")))
+    return found
+
+
+def _source_roots(root: Path) -> list[Path]:
+    roots = set()
+    for source in root.rglob("*.java"):
+        parts = source.parts
+        if "java" in parts:
+            roots.add(Path(*parts[:parts.index("java") + 1]))
+    return sorted(roots)
+
+
+def _unresolvable_imports(root: Path, dependencies: dict[str, dict[str, object]]) -> list[str]:
+    imports = sorted(_imports(root), key=lambda item: item[1])
+    if not imports:
+        return []
+    classpath = os.pathsep.join(str(item["jar_path"]) for item in dependencies.values())
+    source_path = os.pathsep.join(str(path) for path in _source_roots(root))
+    unresolved = []
+    with tempfile.TemporaryDirectory(prefix="dep-verify-") as temporary:
+        temporary_path = Path(temporary)
+        for index, (is_static, name) in enumerate(imports):
+            probe = temporary_path / f"ImportProbe{index}.java"
+            static = "static " if is_static else ""
+            probe.write_text(f"import {static}{name};\nclass ImportProbe{index} {{}}\n")
+            command = ["javac", "-proc:none", "-d", str(temporary_path / f"out-{index}"), "-classpath", classpath]
+            if source_path:
+                command += ["-sourcepath", source_path]
+            command.append(str(probe))
+            try:
+                completed = subprocess.run(command, capture_output=True, text=True, timeout=30)
+            except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+                raise EvidenceError(f"javac import verification is unavailable: {exc}") from exc
+            if completed.returncode:
+                unresolved.append(name)
+    return unresolved
+
+
+def _payload(result: str, changes: list[dict[str, str]], reasons: list[str]) -> None:
+    print(json.dumps({"result": result, "changes": changes, "reasons": reasons}, sort_keys=True))
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="dep_verify")
+    parser.add_argument("--base", required=True, type=Path)
+    parser.add_argument("--head", required=True, type=Path)
+    parser.add_argument("--base-resolution", required=True, type=Path)
+    parser.add_argument("--head-resolution", required=True, type=Path)
+    parser.add_argument("--plan", required=True, type=Path)
+    parser.add_argument("--allowed-registry", required=True)
+    args = parser.parse_args(argv)
+
+    try:
+        base = _resolved(args.base_resolution, "base")
+        head = _resolved(args.head_resolution, "head")
+        planned = _plan_rows(args.plan)
+        changes = _changes(base, head)
+    except EvidenceError as exc:
+        _payload("blind_spot", [], [str(exc)])
+        return 0
+    reasons = []
+    unplanned = [change for change in changes if tuple(change[key] for key in ("package", "from_version", "to_version", "kind")) not in planned]
+    if unplanned:
+        reasons.append("undeclared dependency change: " + ", ".join(item["package"] for item in unplanned))
+    unpinned = sorted({item["package"] for item in head.values() if not _pinned(item["version"])})
+    if unpinned:
+        reasons.append("forbidden unpinned resolution: " + ", ".join(unpinned))
+    try:
+        unresolved = _unresolvable_imports(args.head, head)
+    except EvidenceError as exc:
+        _payload("blind_spot", changes, [str(exc)])
+        return 0
+    if unresolved:
+        reasons.append("unresolvable import: " + ", ".join(unresolved))
+    allowed = {host.strip() for host in args.allowed_registry.split(",") if host.strip()}
+    outside = sorted(_repository_hosts(args.head) - allowed)
+    if outside:
+        reasons.append("network source outside declared registry: " + ", ".join(outside))
+    _payload("fail" if reasons else "pass", changes, reasons)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

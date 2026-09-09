@@ -17,6 +17,7 @@
 (define scratch-dir (param "SCRATCH_DIR"))
 (define cache-dir (param "CACHE_DIR"))
 (define jdk-home (param "JDK_HOME"))
+(define vendor-dir (param "VENDOR_DIR"))
 
 (allow file-read-metadata file-test-existence
     (path-ancestors repo-root)
@@ -26,6 +27,7 @@
     (path-ancestors build-dir)
     (path-ancestors scratch-dir)
     (path-ancestors cache-dir))
+(allow file-read-metadata file-test-existence (path-ancestors vendor-dir))
 (allow file-read* file-test-existence (literal repo-root))
 
 (allow file-read* file-test-existence
@@ -47,6 +49,7 @@
     (subpath (string-append repo-root "/.venv"))
     (subpath python-root)
     (subpath jdk-home))
+(allow file-read* file-test-existence (subpath vendor-dir))
 
 ; The copy this run checks out and builds against, and its disposable
 ; build/scratch/cache directories -- all writable, since a recipe legitimately

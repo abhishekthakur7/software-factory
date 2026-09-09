@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Resolve a Maven dependency closure from a declared, offline vendor repository.
+
+The resolver deliberately reads no Maven cache and starts no network client. A
+dependency is usable only when its coordinate has both the matching vendored
+POM and a materialised jar; recording their digests lets the later verifier
+refuse substituted evidence before it asks ``javac`` to resolve imports.
+"""
+import argparse
+import hashlib
+import json
+import re
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+SCHEMA_VERSION = 1
+_COORDINATE_PART = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+_UNSUPPORTED_POM_ELEMENTS = frozenset({"parent", "dependencyManagement", "profiles", "properties", "modules"})
+
+
+class ResolutionError(ValueError):
+    """The copied project cannot prove a complete offline dependency closure."""
+
+
+def _tag(element: ET.Element) -> str:
+    return element.tag.rsplit("}", 1)[-1]
+
+
+def _text(element: ET.Element, name: str) -> str:
+    child = next((child for child in element if _tag(child) == name), None)
+    return (child.text or "").strip() if child is not None else ""
+
+
+def _coordinates(pom: Path) -> list[tuple[str, str, str]]:
+    try:
+        root = ET.parse(pom).getroot()
+    except (ET.ParseError, OSError) as exc:
+        raise ResolutionError(f"cannot parse {pom}: {exc}") from exc
+    dependencies = []
+    for container in root:
+        if _tag(container) in _UNSUPPORTED_POM_ELEMENTS:
+            raise ResolutionError(f"{pom} uses unsupported Maven element {_tag(container)!r}")
+        if _tag(container) != "dependencies":
+            continue
+        for dependency in container:
+            if _tag(dependency) != "dependency":
+                raise ResolutionError(f"{pom} has an unsupported dependencies entry")
+            if any(_tag(field) not in {"groupId", "artifactId", "version"} for field in dependency):
+                raise ResolutionError(f"dependency in {pom} uses unsupported Maven fields")
+            coordinate = tuple(_text(dependency, field) for field in ("groupId", "artifactId", "version"))
+            if not all(coordinate) or any("${" in value for value in coordinate) or not _safe_coordinate(coordinate):
+                raise ResolutionError(f"dependency in {pom} must have concrete groupId, artifactId, and version")
+            dependencies.append(coordinate)
+    return dependencies
+
+
+def _safe_coordinate(coordinate: tuple[str, str, str]) -> bool:
+    group_id, artifact_id, version = coordinate
+    return (
+        all(part not in {"", ".", ".."} and _COORDINATE_PART.fullmatch(part) for part in group_id.split("."))
+        and artifact_id not in {".", ".."} and version not in {".", ".."}
+        and bool(_COORDINATE_PART.fullmatch(artifact_id)) and bool(_COORDINATE_PART.fullmatch(version))
+    )
+
+
+def _artifact_paths(vendor: Path, coordinate: tuple[str, str, str]) -> tuple[Path, Path]:
+    group_id, artifact_id, version = coordinate
+    directory = vendor.joinpath(*group_id.split("."), artifact_id, version)
+    return directory / f"{artifact_id}-{version}.pom", directory / f"{artifact_id}-{version}.jar"
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _resolve(pom: Path, vendor: Path) -> list[dict[str, object]]:
+    direct_dependencies = _coordinates(pom)
+    if not direct_dependencies:
+        return []
+    if not vendor.is_dir():
+        raise ResolutionError(f"declared vendor repository is unavailable: {vendor}")
+    vendor_root = vendor.resolve()
+    resolved: dict[tuple[str, str, str], dict[str, object]] = {}
+
+    def visit(coordinate: tuple[str, str, str], depth: int) -> None:
+        if coordinate in resolved:
+            return
+        vendor_pom, jar = _artifact_paths(vendor, coordinate)
+        if not all(path.resolve().is_relative_to(vendor_root) for path in (vendor_pom, jar)):
+            raise ResolutionError(f"vendored artifact {coordinate[0]}:{coordinate[1]}:{coordinate[2]} escapes the declared vendor repository")
+        if not vendor_pom.is_file() or not jar.is_file():
+            missing = ", ".join(str(path) for path in (vendor_pom, jar) if not path.is_file())
+            raise ResolutionError(f"vendored artifact {coordinate[0]}:{coordinate[1]}:{coordinate[2]} is incomplete: {missing}")
+        resolved[coordinate] = {
+            "package": f"{coordinate[0]}:{coordinate[1]}",
+            "version": coordinate[2],
+            "depth": depth,
+            "pom_path": str(vendor_pom.resolve()),
+            "pom_sha256": _digest(vendor_pom),
+            "jar_path": str(jar.resolve()),
+            "jar_sha256": _digest(jar),
+        }
+        for child in _coordinates(vendor_pom):
+            visit(child, depth + 1)
+
+    for direct in direct_dependencies:
+        visit(direct, 1)
+    return sorted(resolved.values(), key=lambda item: (item["package"], item["version"]))
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="dep_resolve")
+    parser.add_argument("--pom", required=True, type=Path)
+    parser.add_argument("--vendor", required=True, type=Path)
+    args = parser.parse_args(argv)
+    try:
+        dependencies = _resolve(args.pom, args.vendor)
+    except ResolutionError as exc:
+        print(json.dumps({"schema_version": SCHEMA_VERSION, "result": "fail", "dependencies": [], "reasons": [str(exc)]}, sort_keys=True))
+        return 0
+    print(json.dumps({"schema_version": SCHEMA_VERSION, "result": "pass", "vendor_root": str(args.vendor.resolve()), "dependencies": dependencies, "reasons": []}, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

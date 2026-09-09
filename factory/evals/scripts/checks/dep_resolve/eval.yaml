@@ -1,0 +1,6 @@
+subject: factory/scripts/checks/dep_resolve
+owner: abhishek
+cases:
+  - name: pinned_maven_coordinate
+    fixture: fixtures/pinned_maven_coordinate
+    expect: pass

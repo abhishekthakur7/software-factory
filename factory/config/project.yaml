@@ -19,6 +19,8 @@ projects:
       - fixture_unit
       - fixture_integration
       - fixture_e2e
+      - fixture_dependencies
+      - fixture_security
     impact_methods:
       - import_scan
     toolchain:
@@ -32,6 +34,17 @@ scratch_repository:
   name: soft-factory-scratch
   branch_prefix: scratch/
   remote: null
+
+# The owner supplies a real channel before enabling the scheduler.  Keeping
+# it null makes a populated digest fail closed instead of choosing a target.
+digest:
+  channel: null
+  cadence: daily
+  # The owner selects this name after Slack MCP tool discovery and app approval.
+  mcp_post_tool: null
+  mcp_post_arguments:
+    channel: null
+    text: null
 
 # Excluded from the size gate's changed-line count: paths a build
 # generates rather than a human writes, and the handful of lockfile names

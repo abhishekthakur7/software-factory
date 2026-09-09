@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Run local security controls declared in one pinned policy document.
+
+Each result names the configured control and its evidence. A control whose
+required source cannot be observed is a blind spot; the caller may route that
+through the declared waiver policy, but it is never silently turned into a pass.
+"""
+import argparse
+import hashlib
+import json
+import re
+from datetime import date
+from pathlib import Path
+
+import yaml
+
+CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "security-checks.yaml"
+RULES_PATH = Path(__file__).resolve().parents[2] / "config" / "security-rules.yaml"
+WAIVER_POLICY_PATH = Path(__file__).resolve().parents[2] / "config" / "waiver-policy.yaml"
+REQUIRED_CONTROLS = ("secret_scan", "static_analysis", "dependency_vulnerability", "license_policy")
+SEVERITIES = ("low", "medium", "high", "critical")
+
+
+def _source_files(root: Path):
+    return sorted(path for suffix in ("*.java", "*.py", "*.js", "*.ts") for path in root.rglob(suffix))
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _validate_suppressions(control: dict) -> list[dict]:
+    suppressions = control["suppressions"]
+    if not isinstance(suppressions, list):
+        raise ValueError(f"{control['id']}: suppressions must be a list")
+    for item in suppressions:
+        if not isinstance(item, dict) or not all(str(item.get(field, "")).strip() for field in ("rule", "owner", "expires_on")):
+            raise ValueError(f"{control['id']}: every suppression needs rule, owner, and expires_on")
+        try:
+            expires_on = date.fromisoformat(item["expires_on"])
+        except ValueError as exc:
+            raise ValueError(f"{control['id']}: suppression expires_on must be ISO-8601") from exc
+        if expires_on < date.today():
+            raise ValueError(f"{control['id']}: suppression for {item['rule']!r} expired on {item['expires_on']}")
+    return suppressions
+
+
+def _validate(config: dict, rules: dict, rules_path: Path, waiver_policy_path: Path) -> dict[str, dict]:
+    if not isinstance(config, dict):
+        raise ValueError("security configuration must be a mapping")
+    if not isinstance(rules, dict):
+        raise ValueError("security rules must be a mapping")
+    if config.get("version") != 1 or not str(config.get("waiver_policy", "")).strip():
+        raise ValueError("security configuration needs version 1 and waiver_policy")
+    if not isinstance(config.get("waiver_policy_digest"), str) or not re.fullmatch(r"[0-9a-f]{64}", config["waiver_policy_digest"]):
+        raise ValueError("security configuration needs a SHA-256 waiver_policy_digest")
+    if config["waiver_policy_digest"] != _digest(waiver_policy_path):
+        raise ValueError("security configuration waiver policy digest mismatch")
+    waiver_policy = yaml.safe_load(waiver_policy_path.read_text()) or {}
+    blind_spot_policy = config.get("blind_spot_policy")
+    if not isinstance(blind_spot_policy, str) or not blind_spot_policy:
+        raise ValueError("security configuration needs a blind_spot_policy")
+    policies = waiver_policy.get("policies") if isinstance(waiver_policy, dict) else None
+    if not isinstance(policies, list) or not any(isinstance(policy, dict) and policy.get("id") == blind_spot_policy for policy in policies):
+        raise ValueError(f"security configuration references unknown blind_spot_policy {blind_spot_policy!r}")
+    controls = config.get("controls")
+    if not isinstance(controls, list):
+        raise ValueError("security configuration controls must be a list")
+    by_id = {item.get("id"): item for item in controls if isinstance(item, dict)}
+    if set(by_id) != set(REQUIRED_CONTROLS) or len(by_id) != len(controls):
+        raise ValueError("security configuration must name each required control exactly once")
+    tool_digest, rules_digest = _digest(Path(__file__)), _digest(rules_path)
+    for control_id, control in by_id.items():
+        required = ("tool_digest", "ruleset_digest", "vulnerability_database_digest", "severity_threshold", "suppressions", "unavailable_feed")
+        if any(field not in control for field in required):
+            raise ValueError(f"{control_id}: missing required security policy field")
+        if not all(isinstance(control[field], str) and re.fullmatch(r"[0-9a-f]{64}", control[field]) for field in ("tool_digest", "ruleset_digest")):
+            raise ValueError(f"{control_id}: tool and rules digests must be SHA-256 hex values")
+        if control["tool_digest"] != tool_digest or control["ruleset_digest"] != rules_digest:
+            raise ValueError(f"{control_id}: pinned tool or rules digest mismatch")
+        if control["severity_threshold"] not in SEVERITIES:
+            raise ValueError(f"{control_id}: invalid severity threshold")
+        if control["unavailable_feed"] not in ("blind_spot", "fail_closed"):
+            raise ValueError(f"{control_id}: invalid unavailable_feed behavior")
+        if control_id in ("secret_scan", "static_analysis", "license_policy") and control["vulnerability_database_digest"] != "not_applicable":
+            raise ValueError(f"{control_id}: vulnerability database must be not_applicable")
+        if control_id == "dependency_vulnerability":
+            if control["vulnerability_database_digest"] != "unavailable" or control.get("feed") != "unavailable":
+                raise ValueError("dependency_vulnerability: fixture requires an explicitly unavailable vulnerability feed")
+        if control_id == "license_policy" and control.get("feed") != "unavailable":
+            raise ValueError("license_policy: fixture requires an explicitly unavailable license feed")
+        _validate_suppressions(control)
+    if not all(isinstance(rules.get(name), str) and rules[name] for name in ("secret_assignment", "process_execution")):
+        raise ValueError("security rules are incomplete")
+    return by_id
+
+
+def _finding(control: dict, rule: str, path: Path) -> dict[str, str]:
+    suppressed = next((item for item in control["suppressions"] if item["rule"] == rule), None)
+    severity = "high"
+    result = "pass" if suppressed or SEVERITIES.index(severity) < SEVERITIES.index(control["severity_threshold"]) else "fail"
+    return {"control": control["id"], "result": result, "reason": "suppressed" if suppressed else str(path), "rule": rule}
+
+
+def _run(control: dict, checkout: Path, rules: dict) -> dict[str, str]:
+    control_id = control["id"]
+    if control_id == "secret_scan":
+        hit = next((path for path in _source_files(checkout) if re.search(rules["secret_assignment"], path.read_text())), None)
+        return _finding(control, "secret_assignment", hit) if hit else {"control": control_id, "result": "pass", "reason": ""}
+    if control_id == "static_analysis":
+        hit = next((path for path in _source_files(checkout) if re.search(rules["process_execution"], path.read_text())), None)
+        return _finding(control, "process_execution", hit) if hit else {"control": control_id, "result": "pass", "reason": ""}
+    if control_id == "dependency_vulnerability":
+        return {
+            "control": control_id,
+            "result": "blind_spot" if control["unavailable_feed"] == "blind_spot" else "fail",
+            "reason": "vulnerability database unavailable",
+        }
+    if control_id == "license_policy":
+        return {
+            "control": control_id,
+            "result": "blind_spot" if control["unavailable_feed"] == "blind_spot" else "fail",
+            "reason": "license policy data unavailable",
+        }
+    raise ValueError(f"unknown security control {control_id!r}")
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="security_checks")
+    parser.add_argument("--config", default=CONFIG_PATH, type=Path)
+    parser.add_argument("--rules", default=RULES_PATH, type=Path)
+    parser.add_argument("--waiver-policy", default=WAIVER_POLICY_PATH, type=Path)
+    parser.add_argument("--checkout", required=True, type=Path)
+    args = parser.parse_args(argv)
+    try:
+        config = yaml.safe_load(args.config.read_text()) or {}
+        rules = yaml.safe_load(args.rules.read_text()) or {}
+        controls = _validate(config, rules, args.rules, args.waiver_policy)
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        parser.error(str(exc))
+    results = [_run(controls[control_id], args.checkout, rules) for control_id in REQUIRED_CONTROLS]
+    status = "fail" if any(item["result"] == "fail" for item in results) else "blind_spot" if any(item["result"] == "blind_spot" for item in results) else "pass"
+    print(json.dumps({"result": status, "controls": results}, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,7 @@
+subject: immutable coverage history
+owner: abhishek
+failure_modes: [FM-09, FM-20]
+cases:
+  - name: persisted_append_only_history
+    fixture: fixtures/history.yaml
+    expect: ok

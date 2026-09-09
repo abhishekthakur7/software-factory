@@ -19,6 +19,7 @@ ship. `walk` runs `check` over every directory `expected_eval_dirs`
 names, stopping at the first failure so the reported directory is the
 one actually broken.
 """
+import re
 from pathlib import Path
 
 import yaml
@@ -73,7 +74,7 @@ def expected_eval_dirs(root: Path = FACTORY_DIR, runtime_path: Path | None = Non
             dirs.append(evals_root / "adapters" / adapter_name)
 
     if (root / "config" / "sandbox").is_dir():
-        dirs.append(evals_root / "sandbox" / "escape")
+        dirs.extend(evals_root / name for name in REQUIRED_MECHANICS)
 
     for kind in ("checks", "tools"):
         for name in _executable_names(root / "scripts" / kind):
@@ -82,6 +83,12 @@ def expected_eval_dirs(root: Path = FACTORY_DIR, runtime_path: Path | None = Non
     dirs += [evals_root / "rubrics" / p.stem for p in sorted((root / "rubrics").glob("*.md"))]
 
     return dirs
+
+
+REQUIRED_MECHANICS = (
+    "sandbox/escape", "sandbox/copy-disposal", "record/incident-history",
+    "record/control-history", "record/coverage-history",
+)
 
 
 def _fixture_exists_and_nonempty(fixture_path: Path) -> bool:
@@ -127,6 +134,25 @@ def check(eval_dir: Path) -> None:
             has_fixture = True
     if not has_fixture:
         raise EvalDirectoryError(f"{eval_dir}: no case names a fixture that exists and is non-empty")
+
+    if "/".join(eval_dir.parts[-2:]) in REQUIRED_MECHANICS:
+        modes = spec.get("failure_modes")
+        if not isinstance(modes, list) or not modes or not all(
+            isinstance(mode, str) and re.fullmatch(r"FM-\d{2}", mode) for mode in modes
+        ):
+            raise EvalDirectoryError(f"{eval_dir}: target failure-mode ids are required")
+        for case in cases:
+            relative = case.get("fixture")
+            if not isinstance(relative, str) or not relative:
+                raise EvalDirectoryError(f"{eval_dir}: case {case.get('name')!r} has no fixture")
+            fixture = (eval_dir / relative).resolve()
+            files = list(fixture.rglob("*")) if fixture.is_dir() else [fixture]
+            if (
+                not fixture.is_relative_to(eval_dir.resolve())
+                or any(not path.resolve().is_relative_to(eval_dir.resolve()) for path in files)
+                or not any(path.is_file() and path.stat().st_size > 0 for path in files)
+            ):
+                raise EvalDirectoryError(f"{eval_dir}: missing or invalid fixture for {case.get('name')!r}")
 
 
 def walk(root: Path = FACTORY_DIR) -> list[Path]:

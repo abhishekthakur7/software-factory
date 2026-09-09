@@ -1,5 +1,6 @@
 subject: the OS-enforced sandbox
 owner: abhishek
+failure_modes: [FM-15, FM-20, FM-23]
 cases:
   - name: paths
     fixture: fixtures/paths
@@ -40,3 +41,6 @@ cases:
   - name: ok
     fixture: fixtures/ok
     expect: ok
+  - name: vendor-read-only
+    fixture: fixtures/vendor-read-only
+    expect: reject

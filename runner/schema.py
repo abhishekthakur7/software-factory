@@ -280,6 +280,7 @@ TABLES: tuple[Table, ...] = (
             Column("last_pr_body_hash", "TEXT", mutable=True),
             # True only for the pre-factory baseline provenance rows.
             Column("baseline", "INTEGER"),
+            Column("baseline_cohort_id", "INTEGER", references="artefact.id"),
             Column("opened_at", "TEXT", mutable=True),
             Column("factory_completed_at", "TEXT", mutable=True),
             Column("closed_at", "TEXT", mutable=True),
@@ -428,6 +429,9 @@ TABLES: tuple[Table, ...] = (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
             Column("stage_run_id", "INTEGER", references="stage_run.id"),
+            # Utility-produced evidence has no stage attempt, but remains a
+            # governed artefact tied to the run that produced it.
+            Column("utility_run_id", "INTEGER", references="utility_run.id"),
             Column("guard_decision_id", "INTEGER", references="guard_decision.id"),
             Column("kind", "TEXT"),
             Column("version", "INTEGER"),
@@ -438,6 +442,9 @@ TABLES: tuple[Table, ...] = (
             Column("redaction_state", "TEXT"),
             Column("retention_until", "TEXT"),
             Column("supersedes", "INTEGER", references="artefact.id"),
+            # A baseline selection settles once. Its rows can be appended
+            # only before this timestamp is recorded by the cohort writer.
+            Column("frozen_at", "TEXT", once="frozen_at"),
             # Same governed-import marker as `ticket.imported_from`: the
             # exporting record's content hash, null on every artefact this
             # record itself registered.
@@ -778,6 +785,11 @@ TABLES: tuple[Table, ...] = (
             Column("idempotency_key", "TEXT"),
             Column("payload_artefact_id", "INTEGER", references="artefact.id"),
             Column("payload_digest", "TEXT"),
+            # Immutable delivery binding for a digest: dispatch must use the
+            # channel and cadence slot reviewed when this intent was created,
+            # never whichever configuration happens to be current later.
+            Column("digest_channel", "TEXT"),
+            Column("cadence_slot", "TEXT"),
             # Set by the dispatch attempt, not at intent creation: the guard
             # commits its own decision row, so guarding inside the
             # approval-plus-intent transaction would split that commit.
@@ -868,6 +880,7 @@ TABLES: tuple[Table, ...] = (
         (
             _id(),
             Column("ticket_id", "INTEGER", references="ticket.id"),
+            Column("baseline_cohort_id", "INTEGER", references="artefact.id"),
             Column("measure", "TEXT"),
             Column("measure_definition_hash", "TEXT"),
             Column("service", "TEXT"),
@@ -1287,4 +1300,17 @@ def ddl() -> list[str]:
         statements.extend(_mutability_triggers(table))
     for view_name, select_sql in VIEWS:
         statements.append(f"CREATE VIEW IF NOT EXISTS {view_name} AS {select_sql}")
+    # The cohort identifier is carried by both baseline row kinds so this
+    # database-level guard protects every caller, including a raw insert
+    # that bypasses the convenience helpers.
+    statements.extend((
+        "CREATE TRIGGER IF NOT EXISTS baseline_ticket_frozen_cohort "
+        "BEFORE INSERT ON ticket WHEN NEW.baseline = 1 AND NEW.baseline_cohort_id IS NOT NULL "
+        "AND EXISTS (SELECT 1 FROM artefact WHERE id = NEW.baseline_cohort_id AND frozen_at IS NOT NULL) "
+        "BEGIN SELECT RAISE(ABORT, 'baseline cohort is frozen'); END",
+        "CREATE TRIGGER IF NOT EXISTS baseline_measure_frozen_cohort "
+        "BEFORE INSERT ON baseline_measure WHEN NEW.baseline_cohort_id IS NOT NULL "
+        "AND EXISTS (SELECT 1 FROM artefact WHERE id = NEW.baseline_cohort_id AND frozen_at IS NOT NULL) "
+        "BEGIN SELECT RAISE(ABORT, 'baseline cohort is frozen'); END",
+    ))
     return statements

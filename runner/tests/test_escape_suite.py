@@ -24,11 +24,10 @@ import yaml
 from runner import artefact_registry, launcher, tickets
 from runner.db import connect
 from runner.paths import REPO_ROOT
-from runner import launcher
 from runner.sandbox import copies, os_policy
 from runner.tests.support import REAL_SANDBOX_PATH, launch_probe
 
-EVAL_DIR = REPO_ROOT / "factory" / "evals" / "sandbox" / "escape"
+EVAL_DIR = Path(os.environ.get("FACTORY_GATE_ROOT", str(REPO_ROOT))) / "factory" / "evals" / "sandbox" / "escape"
 
 if not os_policy.available():
     pytest.fail(
@@ -248,6 +247,23 @@ def test_eval_directory_names_every_category_this_module_exercises():
     """R-I-14 criterion 36: the suite covers every category the eval directory names, none silently dropped."""
     exercised = {
         "paths", "symlinks", "subprocesses", "environment", "sockets", "network", "mounts",
-        "base-head-isolation", "source-immutability", "copy-disposal", "credentials", "unregistered-file", "ok",
+        "base-head-isolation", "source-immutability", "copy-disposal", "credentials", "unregistered-file", "ok", "vendor-read-only",
     }
     assert set(_CASES) == exercised
+
+
+def test_must_reject_changes_to_the_read_only_vendor_mount(tmp_path):
+    """R-I-14/R-S5-2: recipes can inspect pinned artifacts but cannot replace or delete them."""
+    vendor_dir = tmp_path / "vendor"
+    vendor_dir.mkdir()
+    dependency = vendor_dir / "pinned.jar"
+    dependency.write_text("pinned dependency\n")
+    copy_dir = _tiny_repo(tmp_path / "copy")
+    payload = _run_probe(
+        tmp_path, "vendor-read-only", role="build", stage="S5", copy_dir=copy_dir,
+        build_dir=copy_dir / "build", scratch_dir=copy_dir / "scratch", cache_dir=copy_dir / "cache",
+        vendor_dir=vendor_dir, extra_argv=(str(dependency),),
+    )
+    _assert_matches_expect(payload, "vendor-read-only")
+    assert payload["readable"] is True
+    assert dependency.read_text() == "pinned dependency\n"

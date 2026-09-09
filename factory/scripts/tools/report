@@ -49,6 +49,17 @@ CONTEXT_MEASURES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 )
 
 
+def baseline_measures() -> dict[str, str]:
+    """Map each reported view to its baseline measure without exposing SQL names to other readers."""
+    source_measures = {
+        "v_revisions_per_ticket_by_fm": "revisions_per_ticket_after_plan_approval",
+        "v_questions_per_ticket": "questions_per_ticket",
+        "v_queue_latency_by_stage_tier": "latency_minutes",
+        "v_active_attention_by_stage_tier_outcome": "attention_minutes",
+    }
+    return {view: source_measures.get(view, view) for _title, view, _columns in (*PRIMARY_MEASURES, *CONTEXT_MEASURES)}
+
+
 def primary_measures() -> tuple[tuple[str, str, tuple[str, ...]], ...]:
     """The primary panel's driving table, exposed for callers that need the data rather than the text."""
     return PRIMARY_MEASURES

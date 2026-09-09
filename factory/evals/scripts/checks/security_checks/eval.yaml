@@ -1,0 +1,9 @@
+subject: factory/scripts/checks/security_checks
+owner: abhishek
+cases:
+  - name: secret_detected
+    fixture: fixtures/secret_detected
+    expect: fail
+  - name: unavailable_feed
+    fixture: fixtures/unavailable_feed
+    expect: blind_spot

@@ -53,7 +53,7 @@ GITHUB_ROUTE_IDS = ("github_pilot", "github_scratch")
 
 # The routes with a real deliverer; every other route is a stub, since no
 # real deliverer for it exists yet.
-LIVE_ROUTES = ("hosted_model", "atlassian_read")
+LIVE_ROUTES = ("hosted_model", "atlassian_read", "github_scratch", "slack_digest")
 
 DIGEST_ROUTE = "slack_digest"
 DIGEST_FIELDS = ("ticket_id", "tier", "item_kind", "age", "command")
@@ -286,10 +286,12 @@ def _load_routes(doc: Mapping, order: tuple[str, ...], expected_rule_set_hash: s
             raise TrustProfileError(
                 f"trust-profile.yaml: {where}.rule_set_hash does not match the canonical hash of secret_rules"
             )
-        expected_deliverer = "live" if route_id in LIVE_ROUTES else "stub"
-        if raw["deliverer"] != expected_deliverer:
+        allowed_deliverers = {"live", "stub"} if route_id in ("github_scratch", "slack_digest") else {
+            "live" if route_id in LIVE_ROUTES else "stub"
+        }
+        if raw["deliverer"] not in allowed_deliverers:
             raise TrustProfileError(
-                f"trust-profile.yaml: {where}.deliverer must be {expected_deliverer!r} for this route"
+                f"trust-profile.yaml: {where}.deliverer must be one of {sorted(allowed_deliverers)!r}"
             )
         if route_id in GITHUB_ROUTE_IDS:
             operations = tuple(raw.get("operations", ()))

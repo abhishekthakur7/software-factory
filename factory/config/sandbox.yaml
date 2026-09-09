@@ -41,7 +41,7 @@ policies:
         digest: 8e80db96e8ddbe540809e9e2151dade0c472e6dde23c083ca116d33e6e501e69
       build:
         path: factory/config/sandbox/build-profile.sb
-        digest: 8810ccd3e5d325bca42a0be20287a21ac2bbc2731c17d2a6de24fe6dd2577be1
+        digest: c3b414b6fd80d1184e3e57b15eab7e7c3607087fef21df0610b1dd9d6269a1f6
     # The one home for an external host and port a route resolves to; a
     # stage's `proxy_allowlist` entry below names route ids, never a raw
     # host, so every stage that admits `hosted_model` agrees on where it
@@ -49,9 +49,6 @@ policies:
     endpoints:
       hosted_model:
         host: api.cursor.sh
-        port: 443
-      registry:
-        host: pypi.org
         port: 443
       atlassian_read:
         host: api.atlassian.com
@@ -66,7 +63,6 @@ policies:
       S2: [hosted_model]
       S3: [hosted_model]
       S4: [hosted_model]
-      S5: [registry]
     # Where a build step's copy-on-write checkouts live for one stage run;
     # `runner/sandbox/copies.py` resolves the two `{...}` placeholders.
     copies:

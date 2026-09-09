@@ -239,7 +239,10 @@ def test_every_route_the_walk_crosses_names_its_provider_reader_roles_and_delive
     for route_id, route in profile.routes.items():
         assert route.provider
         assert route.reader_roles
-        expected_deliverer = "live" if route_id in trust_profile.LIVE_ROUTES else "stub"
+        expected_deliverer = (
+            "stub" if route_id in ("github_scratch", "slack_digest") and not route.credential_roles
+            else "live" if route_id in trust_profile.LIVE_ROUTES else "stub"
+        )
         assert route.deliverer == expected_deliverer
     for route_id in trust_profile.GITHUB_ROUTE_IDS:
         assert profile.routes[route_id].operations == ("pr_create", "pr_update")

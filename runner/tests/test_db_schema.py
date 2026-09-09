@@ -21,7 +21,7 @@ EXPECTED_FIELDS = {
         "required_approvers", "state", "blocked_on", "pause_requested",
         "paused_at", "base_sha", "target_base_sha", "branch",
         "worktree_path", "head_sha", "pr_url", "pr_identity",
-        "last_remote_head_sha", "last_pr_body_hash", "baseline",
+        "last_remote_head_sha", "last_pr_body_hash", "baseline", "baseline_cohort_id",
         "opened_at", "factory_completed_at", "closed_at", "close_reason",
         "final_head_sha", "final_target_base_sha", "final_pr_body_hash",
         "merge_sha", "required_checks_disposition", "approval_disposition",
@@ -46,9 +46,9 @@ EXPECTED_FIELDS = {
         "result_artefact", "duration_ms", "tokens", "result_bytes", "inline",
     },
     "artefact": {
-        "id", "ticket_id", "stage_run_id", "guard_decision_id", "kind",
+        "id", "ticket_id", "stage_run_id", "utility_run_id", "guard_decision_id", "kind",
         "version", "path", "hash", "created_at", "data_class",
-        "redaction_state", "retention_until", "supersedes",
+        "redaction_state", "retention_until", "supersedes", "frozen_at",
     },
     "queue_item": {
         "id", "ticket_id", "stage", "tier", "kind", "ref", "queued_at",
@@ -146,7 +146,7 @@ EXPECTED_FIELDS = {
         "observed_through",
     },
     "baseline_measure": {
-        "id", "ticket_id", "measure", "measure_definition_hash", "service",
+        "id", "ticket_id", "baseline_cohort_id", "measure", "measure_definition_hash", "service",
         "ticket_type", "tier", "value", "status", "source_kind",
         "source_ref", "content_hash", "source_observed_at", "entered_by",
         "entered_at", "unavailable_reason",

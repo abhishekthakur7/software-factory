@@ -1,0 +1,5 @@
+source: configured_project_current_base
+views: [base, head]
+expected_disposed: true
+expected_results:
+  fixture_security: blind_spot

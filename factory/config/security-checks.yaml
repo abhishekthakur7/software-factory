@@ -1,0 +1,38 @@
+# Controls run locally over each immutable project view. Digest fields pin the
+# exact policy inputs a review tuple binds; a feed that cannot be observed is
+# explicitly a blind spot under the named waiver policy.
+version: 1
+waiver_policy: factory/config/waiver-policy.yaml
+waiver_policy_digest: eb61803fd6d1806c5f70f102d6620c69d4df5439d72eb850e270bfd1a8bdfa77
+blind_spot_policy: recipe-execution-gap
+controls:
+  - id: secret_scan
+    tool_digest: c74a9541996dbd8223a95d038be399b13fb0b047ec8f752ab32e2e6a4f8a847c
+    ruleset_digest: 9c05198b4f8990e8b156fcc9f3f1e8df891c79d1e0397f535f87b700e992e801
+    vulnerability_database_digest: not_applicable
+    severity_threshold: high
+    suppressions: []
+    unavailable_feed: fail_closed
+  - id: static_analysis
+    tool_digest: c74a9541996dbd8223a95d038be399b13fb0b047ec8f752ab32e2e6a4f8a847c
+    ruleset_digest: 9c05198b4f8990e8b156fcc9f3f1e8df891c79d1e0397f535f87b700e992e801
+    vulnerability_database_digest: not_applicable
+    severity_threshold: high
+    suppressions: []
+    unavailable_feed: fail_closed
+  - id: dependency_vulnerability
+    tool_digest: c74a9541996dbd8223a95d038be399b13fb0b047ec8f752ab32e2e6a4f8a847c
+    ruleset_digest: 9c05198b4f8990e8b156fcc9f3f1e8df891c79d1e0397f535f87b700e992e801
+    vulnerability_database_digest: unavailable
+    severity_threshold: high
+    suppressions: []
+    unavailable_feed: blind_spot
+    feed: unavailable
+  - id: license_policy
+    tool_digest: c74a9541996dbd8223a95d038be399b13fb0b047ec8f752ab32e2e6a4f8a847c
+    ruleset_digest: 9c05198b4f8990e8b156fcc9f3f1e8df891c79d1e0397f535f87b700e992e801
+    vulnerability_database_digest: not_applicable
+    severity_threshold: high
+    suppressions: []
+    unavailable_feed: blind_spot
+    feed: unavailable

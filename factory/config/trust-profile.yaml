@@ -148,6 +148,7 @@ routes:
     retention_days: 0
     rule_set_hash: *rule_set_hash
     max_class: internal
+    # Fixture-only until the owner configures and approves the live target.
     deliverer: stub
     credential_role: github_publish
 
@@ -176,7 +177,7 @@ routes:
 
   baseline_read:
     purpose: read the target repository's baseline coverage and defect history, and the Jira issues its commits reference, for archaeology and drift baselines
-    fields: [baseline_metric, issue_reference, commit_sha]
+    fields: [ticket_id, title, status, completed_at, issue_type, ticket_type, service, agent_assisted, source_locator, pull_request_locator, history, pull_request_history]
     provider: internal_baseline_service
     processing_location: factory_host
     storage_location: none_transient
@@ -253,6 +254,7 @@ routes:
     # Admits only internal (never confidential) so that even before field
     # projection, nothing sensitive reaches the digest path.
     max_class: internal
+    # Fixture-only until the owner configures and approves the live target.
     deliverer: stub
     credential_role: slack_digest
 

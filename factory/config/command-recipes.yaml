@@ -132,3 +132,37 @@ recipes:
     output_retention: keep
     level: end_to_end
     test_globs: ["src/e2e/java/**/*EndToEndTest.java"]
+
+  - id: fixture_dependencies
+    executable: factory/scripts/checks/dep_resolve
+    executable_digest: 71cab7a1943617fb7fa8419a747da24b2ae6b4e7e3fd7612846f74d42fe85a30
+    args:
+      - "--pom"
+      - {placeholder: pom, type: path}
+      - "--vendor"
+      - {placeholder: vendor, type: string}
+    cwd_role: checkout
+    kind: dependency
+    stages: [S5]
+    timeout_seconds: 30
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: keep
+
+  - id: fixture_security
+    executable: factory/scripts/checks/security_checks
+    executable_digest: c74a9541996dbd8223a95d038be399b13fb0b047ec8f752ab32e2e6a4f8a847c
+    args: ["--config", {placeholder: security_config, type: string}, "--rules", {placeholder: security_rules, type: string}, "--waiver-policy", {placeholder: security_waiver_policy, type: string}, "--checkout", "."]
+    cwd_role: checkout
+    kind: security
+    stages: [S5]
+    timeout_seconds: 30
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: keep
+    sandbox_inputs:
+      security_config: factory/config/security-checks.yaml
+      security_rules: factory/config/security-rules.yaml
+      security_waiver_policy: factory/config/waiver-policy.yaml

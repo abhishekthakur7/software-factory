@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,13 +30,14 @@ import yaml
 
 from runner import (
     approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, manifest,
-    owners, publication, queue, recipes, record, run_ledger, stages, tickets,
+    owners, project, publication, queue, recipes, record, run_ledger, setup, stages, tickets, waivers,
 )
 from runner.adapters import cursor_sdk
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.reviewer_sets import Slot
 from runner.sandbox import os_policy
+from runner.stages import S5
 from runner.tests.support import launch_probe
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
 
@@ -143,6 +145,15 @@ def _source_repo(tmp_path):
     return repo
 
 
+def _materialise_fixture_vendor(tmp_path: Path) -> Path:
+    """Build the committed fixture vendor beside a disposable setup project for S5's real dependency checks."""
+    config_path = tmp_path / "fixture-project.yaml"
+    config_path.write_text(yaml.safe_dump({"projects": [{
+        "name": "fixture-project", "checkout": "fixture/checkout", "vendor": "fixture/vendor", "target_branch": "main",
+    }]}))
+    return setup.materialise(project_path=config_path, repo_root=tmp_path).vendor
+
+
 def _activate_default_profile(conn) -> dict:
     """Satisfy the default trust profile's quorum, the same way `factory advance` reads it.
 
@@ -215,6 +226,29 @@ def _kill_and_restart(conn, ticket_id, stage, tmp_path):
     ).fetchall()
     assert rows[-1]["outcome"] == "pass"
     assert sum(1 for row in rows if row["outcome"] == "infrastructure_failure") == 1
+
+
+def _kill_and_record_s5_security_blind_spot(conn, ticket_id, tmp_path) -> tuple[int, int]:
+    """Restart S5 once and retain its sole waivable security gap for the review tuple waiver."""
+    dead_id = _open_dead_run(conn, ticket_id=ticket_id, stage="S5", lease_seconds=-1)
+    cli.advance(conn, ticket_id, tmp_path)
+
+    dead_row = record.get(conn, "stage_run", dead_id)
+    assert dead_row["outcome"] == "infrastructure_failure"
+    assert dead_row["failure_kind"] == "expired_lease"
+    stage_run = conn.execute(
+        "SELECT id, outcome FROM stage_run WHERE ticket_id = ? AND stage = 'S5' AND parent_run_id IS NULL ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    assert stage_run["outcome"] == "fail"
+    blocking = conn.execute(
+        "SELECT id, check_name, result, evidence_artefact FROM check_result "
+        "WHERE stage_run_id = ? AND check_tier = 'blocking' AND result != 'pass' ORDER BY id",
+        (stage_run["id"],),
+    ).fetchall()
+    assert [(row["check_name"], row["result"]) for row in blocking] == [("recipe:fixture_security@head", "blind_spot")]
+    assert blocking[0]["evidence_artefact"] is not None
+    return stage_run["id"], blocking[0]["id"]
 
 
 def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
@@ -317,6 +351,9 @@ class WalkResult:
     tmp_path: Path
     wrong_state_stage_run_id: int
     stopped_stage_run_id: int
+    s5_stage_run_id: int
+    security_blind_spot_id: int
+    security_waiver_id: int
     manifest_hash_before: subprocess.CompletedProcess
     manifest_hash_after: subprocess.CompletedProcess
 
@@ -459,7 +496,24 @@ def _run_walk(tmp_path) -> WalkResult:
     if not HAS_JAVAC:
         pytest.skip("javac/java not available: the walk cannot run S5's real recipes past this point")
 
-    _kill_and_restart(conn, ticket_id, "S5", tmp_path)
+    vendor = _materialise_fixture_vendor(tmp_path)
+    s5_project = {**project.pilot(), "vendor": str(vendor)}
+    with patch.object(S5, "_project_config", return_value=s5_project):
+        s5_stage_run_id, security_blind_spot_id = _kill_and_record_s5_security_blind_spot(conn, ticket_id, tmp_path)
+    security_result = record.get(conn, "check_result", security_blind_spot_id)
+    security_evidence = record.get(conn, "artefact", security_result["evidence_artefact"])
+    assert security_evidence is not None and Path(security_evidence["path"]).is_file()
+    expires_at = (datetime.fromisoformat(record.now()) + timedelta(days=1)).isoformat()
+    message = cli.waive(
+        conn, ticket_id=ticket_id, policy_id="recipe-execution-gap", check_result_id=security_blind_spot_id,
+        human_verdict_id=None, actor=ABHISHEK, reason="security feeds are unavailable in the fixture environment",
+        scope="fixture_security head recipe", controls="local secret and static checks remain recorded", evidence=[security_evidence["id"]],
+        expires_at=expires_at,
+    )
+    assert message.startswith("waiver ")
+    security_waiver_id = int(message.split()[1].rstrip(":"))
+    assert waivers.validity(conn, security_waiver_id).valid
+    conn.commit()
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
     _kill_and_restart(conn, ticket_id, "S6", tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
@@ -475,6 +529,8 @@ def _run_walk(tmp_path) -> WalkResult:
     return WalkResult(
         conn=conn, ticket_id=ticket_id, tmp_path=tmp_path,
         wrong_state_stage_run_id=wrong_state_row["id"], stopped_stage_run_id=stopped_run_id,
+        s5_stage_run_id=s5_stage_run_id, security_blind_spot_id=security_blind_spot_id,
+        security_waiver_id=security_waiver_id,
         manifest_hash_before=manifest_hash_before, manifest_hash_after=manifest_hash_after,
     )
 
@@ -580,7 +636,23 @@ def test_a_kill_at_every_stage_leaves_no_duplicate_attempt(walk):
         ).fetchall()
         outcomes = [row["outcome"] for row in rows]
         assert outcomes.count("infrastructure_failure") == 1, stage
-        assert outcomes.count("pass") == 1, stage
+        assert outcomes.count("pass") == (0 if stage == "S5" else 1), stage
+        assert outcomes.count("fail") == (1 if stage == "S5" else 0), stage
+
+
+def test_s5_security_blind_spot_has_generated_evidence_and_a_valid_recipe_waiver(walk):
+    """The real security recipe records its unavailable feeds as the single S5 gap, cleared only by its evidence-backed waiver."""
+    result = record.get(walk.conn, "check_result", walk.security_blind_spot_id)
+    evidence = record.get(walk.conn, "artefact", result["evidence_artefact"])
+    waiver = record.get(walk.conn, "waiver", walk.security_waiver_id)
+
+    assert result["stage_run_id"] == walk.s5_stage_run_id
+    assert result["check_name"] == "recipe:fixture_security@head"
+    assert result["result"] == "blind_spot"
+    assert evidence is not None and Path(evidence["path"]).is_file()
+    assert waiver["policy_id"] == "recipe-execution-gap"
+    assert waiver["waived_check_result_id"] == result["id"]
+    assert waivers.validity(walk.conn, waiver["id"]).valid
 
 
 def test_the_stop_demonstration_ended_the_run_aborted_human(walk):

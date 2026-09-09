@@ -1,0 +1,12 @@
+rows:
+  - table: ticket
+    fields: {title: Seeded control history, state: escalated}
+  - table: incident_observation
+    fields: {ticket_id: 1, record_kind: control_defect_event, control_category: sandbox, severity: sev1}
+  - table: incident_observation
+    fields: {ticket_id: 1, record_kind: control_disposition, event_id: 1, disposition: open}
+  - table: incident_observation
+    fields: {ticket_id: 1, record_kind: control_disposition, event_id: 1, supersedes: 2, disposition: remediated}
+immutable:
+  - {table: incident_observation, id: 1, field: control_category, replacement: waived}
+  - {table: incident_observation, id: 2, field: disposition, replacement: remediated}

@@ -1,0 +1,12 @@
+rows:
+  - table: ticket
+    fields: {title: Seeded coverage history, state: checks}
+  - table: stage_run
+    fields: {ticket_id: 1, stage: S5}
+  - table: check_result
+    fields: {stage_run_id: 1, check_name: behavior_contract_evidence, result: blind_spot, summary: Integration dependency unavailable}
+  - table: tag
+    fields: {ticket_id: 1, event_kind: control_defect, fm_id: FM-20, ref: 'stage_run:1', severity: sev2}
+immutable:
+  - {table: check_result, id: 1, field: result, replacement: pass}
+  - {table: tag, id: 1, field: fm_id, replacement: FM-01}

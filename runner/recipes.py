@@ -13,9 +13,8 @@ loaded, resolves and bounds-checks every `path` placeholder against the
 recipe's declared working-directory role, builds the child environment only
 from the recipe's declared allowlist, and never invokes a shell.
 
-The record row for a check result belongs to a later ticket that binds a
-`RecipeResult` to a review tuple; this module only runs a recipe and reports
-what happened, and writes nothing to the database.
+Callers bind `RecipeResult` evidence to their review tuple. This module enforces
+execution policy and retains output without writing database rows.
 """
 import hashlib
 import json
@@ -26,17 +25,18 @@ from pathlib import Path
 import yaml
 
 from runner.fs import write_text
+from runner import launcher
 from runner.paths import FACTORY_DIR, REPO_ROOT
 
 DEFAULT_CATALOGUE_PATH = FACTORY_DIR / "config" / "command-recipes.yaml"
 
 CWD_ROLES = ("checkout", "base", "head", "scratch")
-NETWORK_POLICIES = ("none",)
+NETWORK_POLICIES = ("none", "registry")
 OUTPUT_RETENTIONS = ("keep", "discard")
 TEST_LEVELS = ("unit", "integration", "end_to_end")
 # What a recipe checks, so the regression-only rule and the fix-round route
 # can tell a lint or compile diagnostic from a test result without parsing ids.
-RECIPE_KINDS = ("lint", "compile", "test", "other")
+RECIPE_KINDS = ("lint", "compile", "test", "dependency", "security", "other")
 PLACEHOLDER_TYPES = ("path", "string", "int")
 
 REQUIRED_FIELDS = (
@@ -66,6 +66,14 @@ class RecipeError(Exception):
     """A recipe entry fails schema validation, or a run request is refused before dispatch."""
 
 
+class RecipeUnavailable(RecipeError):
+    """A declared recipe cannot run under the selected sandbox's admitted dependencies."""
+
+
+class RecipeSandboxError(RecipeError):
+    """A build child returned without the required OS policy or integrity proof."""
+
+
 @dataclass(frozen=True)
 class ArgPlaceholder:
     name: str
@@ -86,8 +94,11 @@ class Recipe:
     env_allowlist: tuple[str, ...]
     network: str
     output_retention: str
+    registry_endpoints: tuple[str, ...] = ()
+    cache_policy: str | None = None
     level: str | None = None
     test_globs: tuple[str, ...] | None = None
+    sandbox_inputs: tuple[tuple[str, Path], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -99,6 +110,7 @@ class RecipeResult:
     stderr_path: Path | None
     level: str | None = None
     tests_ran: tuple | None = None
+    reported_result: str | None = None
 
 
 def _contains_forbidden_chars(value: str) -> bool:
@@ -146,6 +158,16 @@ def _parse_recipe(entry: object) -> Recipe:
     network = entry["network"]
     if network not in NETWORK_POLICIES:
         raise RecipeError(f"recipe {recipe_id!r} has unknown network policy {network!r}")
+    registry_endpoints: tuple[str, ...] = ()
+    cache_policy = None
+    if network == "registry":
+        raw_endpoints = entry.get("registry_endpoints")
+        if not isinstance(raw_endpoints, list) or not raw_endpoints or not all(isinstance(item, str) and item for item in raw_endpoints):
+            raise RecipeError(f"recipe {recipe_id!r} needs non-empty registry_endpoints for registry network")
+        if entry.get("cache_policy") != "isolated":
+            raise RecipeError(f"recipe {recipe_id!r} needs isolated cache_policy for registry network")
+        registry_endpoints = tuple(raw_endpoints)
+        cache_policy = "isolated"
     output_retention = entry["output_retention"]
     if output_retention not in OUTPUT_RETENTIONS:
         raise RecipeError(f"recipe {recipe_id!r} has unknown output_retention {output_retention!r}")
@@ -154,6 +176,17 @@ def _parse_recipe(entry: object) -> Recipe:
         raise RecipeError(f"recipe {recipe_id!r} has unknown kind {kind!r}")
 
     level, test_globs = None, None
+    sandbox_inputs: tuple[tuple[str, Path], ...] = ()
+    raw_inputs = entry.get("sandbox_inputs", {})
+    if not isinstance(raw_inputs, dict) or not all(isinstance(name, str) and isinstance(path, str) for name, path in raw_inputs.items()):
+        raise RecipeError(f"recipe {recipe_id!r} has invalid sandbox_inputs")
+    resolved_inputs = []
+    for name, raw_path in raw_inputs.items():
+        path = (REPO_ROOT / raw_path).resolve()
+        if not path.is_file() or not path.is_relative_to(REPO_ROOT):
+            raise RecipeError(f"recipe {recipe_id!r} sandbox input {name!r} is not a committed file")
+        resolved_inputs.append((name, path))
+    sandbox_inputs = tuple(resolved_inputs)
     if "level" in entry or "test_globs" in entry:
         level = entry.get("level")
         if kind != "test":
@@ -178,8 +211,11 @@ def _parse_recipe(entry: object) -> Recipe:
         env_allowlist=tuple(entry["env_allowlist"]),
         network=network,
         output_retention=output_retention,
+        registry_endpoints=registry_endpoints,
+        cache_policy=cache_policy,
         level=level,
         test_globs=test_globs,
+        sandbox_inputs=sandbox_inputs,
     )
 
 
@@ -258,6 +294,37 @@ def _write_outputs(results_dir: Path, recipe_id: str, stdout: str, stderr: str, 
     return stdout_path, stderr_path
 
 
+def _stage_sandbox_inputs(recipe: Recipe, sandbox_run_dir: Path) -> dict[str, str]:
+    """Copy a recipe's pinned files into the launch results area before the child starts.
+
+    The build profile can read this area but cannot write it, so a preceding
+    recipe cannot replace configuration that a later control consumes.
+    """
+    staged = {}
+    for name, source in recipe.sandbox_inputs:
+        destination = Path(sandbox_run_dir) / "results" / "inputs" / source.name
+        write_text(destination, source.read_text())
+        staged[name] = str(destination)
+    return staged
+
+
+def _validate_sandbox_network(recipe: Recipe, stage: str, sandbox_path: Path) -> None:
+    """Refuse a registry recipe before dispatch when its hosts are absent from that stage's proxy routes."""
+    if recipe.network == "none":
+        return
+    document = yaml.safe_load(Path(sandbox_path).read_text()) or {}
+    policy = (document.get("policies") or {}).get("enforced") or {}
+    endpoints = policy.get("endpoints") or {}
+    admitted = {
+        (endpoints[route_id].get("host"), endpoints[route_id].get("port"))
+        for route_id in (policy.get("proxy_allowlist") or {}).get(stage, [])
+        if route_id in endpoints
+    }
+    missing = [host for host in recipe.registry_endpoints if (host, 443) not in admitted]
+    if missing:
+        raise RecipeUnavailable(f"recipe {recipe.id!r} requires registry endpoint(s) unavailable at {stage}: {', '.join(missing)}")
+
+
 def _parse_test_identities(stdout: str):
     """The `{"ran": [...]}` JSON a test wrapper prints as its last stdout line, or `None`."""
     lines = [line for line in (stdout or "").splitlines() if line.strip()]
@@ -273,6 +340,17 @@ def _parse_test_identities(stdout: str):
     return tuple(ran)
 
 
+def _reported_result(stdout: str) -> str | None:
+    lines = [line for line in (stdout or "").splitlines() if line.strip()]
+    if not lines:
+        return None
+    try:
+        result = json.loads(lines[-1]).get("result")
+    except (AttributeError, json.JSONDecodeError):
+        return None
+    return result if result in {"pass", "fail", "blind_spot"} else None
+
+
 def run(
     recipe_id: str,
     values: dict,
@@ -282,6 +360,10 @@ def run(
     results_dir: Path,
     env_source: dict,
     env_request: tuple[str, ...] = (),
+    sandbox_run_dir: Path | None = None,
+    sandbox_stage: str | None = None,
+    sandbox_vendor_dir: Path | None = None,
+    sandbox_path: Path = launcher.SANDBOX_PATH,
 ) -> RecipeResult:
     """Validate and execute `recipe_id` from `catalogue` with `values`, never a shell string.
 
@@ -307,8 +389,42 @@ def run(
         raise RecipeError(f"recipe {recipe_id!r} needs cwd role {recipe.cwd_role!r}, not supplied")
     cwd = Path(cwd_roles[recipe.cwd_role]).resolve()
 
-    argv = _build_argv(recipe, values, cwd)
     env = _build_env(recipe, env_source, env_request)
+
+    if sandbox_run_dir is not None:
+        if sandbox_stage is None:
+            raise RecipeError("sandbox_stage is required when sandbox_run_dir is set")
+        if sandbox_stage not in recipe.stages:
+            raise RecipeError(f"recipe {recipe.id!r} is not declared for sandbox stage {sandbox_stage}")
+        _validate_sandbox_network(recipe, sandbox_stage, sandbox_path)
+        values = {**values, **_stage_sandbox_inputs(recipe, Path(sandbox_run_dir))}
+        argv = _build_argv(recipe, values, cwd)
+        jdk_home = launcher._jdk_home(env)
+        if jdk_home:
+            env = {**env, "PATH": f"{Path(jdk_home) / 'bin'}:{env.get('PATH', '')}"}
+        launched = launcher.launch(
+            run_dir=Path(sandbox_run_dir), argv=argv, role="build", policy="enforced", cwd=cwd,
+            wall_clock_seconds=recipe.timeout_seconds, stage=sandbox_stage, copy_dir=cwd,
+            build_dir=cwd / "target", scratch_dir=cwd / "scratch", cache_dir=cwd / "cache", vendor_dir=sandbox_vendor_dir,
+            env_source=env,
+            sandbox_path=sandbox_path,
+        )
+        if not launched.os_policy_applied:
+            raise RecipeSandboxError(f"recipe {recipe.id!r} ran without an OS sandbox policy")
+        if not launched.integrity.ok:
+            raise RecipeSandboxError(f"recipe {recipe.id!r} failed sandbox integrity: {'; '.join(launched.integrity.violations)}")
+        stdout_path, stderr_path = _write_outputs(
+            results_dir, recipe_id, launched.stdout_text, launched.stderr_text, recipe.output_retention
+        )
+        outcome = "timeout" if launched.timed_out else "pass" if launched.exit_code in recipe.expected_exit_codes else "fail"
+        return RecipeResult(
+            recipe_id=recipe_id, outcome=outcome, exit_code=None if launched.timed_out else launched.exit_code,
+            stdout_path=stdout_path, stderr_path=stderr_path, level=recipe.level,
+            tests_ran=_parse_test_identities(launched.stdout_text) if recipe.level is not None else None,
+            reported_result=_reported_result(launched.stdout_text),
+        )
+
+    argv = _build_argv(recipe, values, cwd)
 
     try:
         completed = subprocess.run(
@@ -336,4 +452,5 @@ def run(
         stderr_path=stderr_path,
         level=recipe.level,
         tests_ran=tests_ran,
+        reported_result=_reported_result(completed.stdout),
     )

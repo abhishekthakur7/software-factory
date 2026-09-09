@@ -1,0 +1,3 @@
+version: 1
+secret_assignment: '(?i)(api[_-]?key|password|secret)\s*='
+process_execution: 'Runtime\.getRuntime\(\)\.exec\('

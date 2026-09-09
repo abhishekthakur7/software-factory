@@ -8,6 +8,7 @@ The fixture pair (a `Widget.java`/`WidgetUnitTest.java` repository, CODEOWNERS, 
 file drives S5 in isolation -- no S1 through S4 -- rather than through a whole ticket walk.
 """
 import json
+from datetime import datetime, timedelta, timezone
 import os
 import shutil
 import subprocess
@@ -15,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from runner import approvals, artefact_registry, artefacts, git_trees, manifest, owners, plan_tuple, record
+from runner import approvals, artefact_registry, artefacts, git_trees, manifest, owners, plan_tuple, record, waivers
 from runner.checks import exclusion
 from runner.db import connect
 from runner.fs import write_text
@@ -73,6 +74,7 @@ def _source_repo(tmp_path: Path) -> Path:
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "CODEOWNERS").write_text("* @abhishek\n")
+    (repo / "pom.xml").write_text("<project><licenses><license/></licenses></project>\n")
     widget_src = repo / "src" / "main" / "java" / "com" / "fixture"
     widget_src.mkdir(parents=True)
     (widget_src / "Widget.java").write_text(
@@ -145,16 +147,13 @@ def _ready_ticket(conn, tmp_path):
 
 
 @skip_without_jdk
-def test_s5_pass_runs_the_full_ordered_check_list_over_one_review_tuple_with_plain_checkouts(conn, tmp_path):
-    """Criterion 16: on a clean base/head diff, `size_gate`, `scope_diff`,
-    `source_declaration_diff`, `behavior_contract_evidence`, `regression_only`, and
-    `base_test_diff` all run in `CHECK_ORDER` after the project's own recipes, no security
-    recipe runs, the checkouts are plain clones with copies only for the recipes, and every
-    check_result binds the one review tuple this attempt built."""
+def test_s5_runs_the_full_ordered_controls_and_routes_unavailable_security_evidence_for_review(conn, tmp_path):
+    """The configured metadata lets dependency and security controls run in both copies.
+    Unavailable vulnerability and licence data stay visible as a waivable review gap."""
     ticket_id = _ready_ticket(conn, tmp_path)
 
     outcome = run_stage(conn, ticket_id, "S5", runs_dir=tmp_path)
-    assert outcome == "pass"
+    assert outcome == "fail"
 
     stage_run = conn.execute(
         "SELECT * FROM stage_run WHERE ticket_id = ? AND stage = 'S5' ORDER BY id DESC LIMIT 1", (ticket_id,)
@@ -168,18 +167,20 @@ def test_s5_pass_runs_the_full_ordered_check_list_over_one_review_tuple_with_pla
     # The base-side and the governed-recipe head results (integration/end-to-end have no
     # matching test tree in this fixture at either side) are recorded for evidence but never
     # decide blocking by themselves -- `regression_only`'s own verdict is what must be clean.
-    for name in (*S5.CHECK_ORDER, "approval_binding", "recipe:fixture_lint@head", "recipe:fixture_compile@head", "recipe:fixture_unit@head"):
+    for name in ("base_test_diff", "dep_verify", "size_gate", "scope_diff", "source_declaration_diff", "behavior_contract_evidence", "regression_only", "approval_binding", "recipe:fixture_lint@head", "recipe:fixture_compile@head", "recipe:fixture_unit@head"):
         assert by_name[name] == "pass", (name, by_name)
 
-    order_positions = [names.index(name) for name in S5.CHECK_ORDER]
-    assert order_positions == sorted(order_positions), names
-    for name in S5.CHECK_ORDER:
+    assert by_name["recipe:fixture_security@head"] == "blind_spot"
+    ordered_controls = ["base_test_diff", "recipe:fixture_security@head", "recipe:fixture_dependencies@head", "dep_verify", "size_gate", "scope_diff", "source_declaration_diff", "behavior_contract_evidence", "approval_binding"]
+    assert [names.index(name) for name in ordered_controls] == sorted(names.index(name) for name in ordered_controls), names
+    for name in ordered_controls:
         assert names.count(name) == 1, names
 
     recipe_names = [name for name in names if name.startswith("recipe:")]
     assert recipe_names
-    assert all(names.index(recipe_name) < order_positions[0] for recipe_name in recipe_names)
-    assert not any("security" in name for name in names)
+    initial_names = [name for name in recipe_names if not name.startswith(("recipe:fixture_security", "recipe:fixture_dependencies"))]
+    assert all(names.index(recipe_name) < names.index("base_test_diff") for recipe_name in initial_names)
+    assert names.index("base_test_diff") < names.index("recipe:fixture_security@head") < names.index("dep_verify")
 
     review_tuple_ids = {row["evidence_tuple_id"] for row in rows}
     assert review_tuple_ids == {conn.execute(
@@ -190,14 +191,30 @@ def test_s5_pass_runs_the_full_ordered_check_list_over_one_review_tuple_with_pla
     checkouts_dir = run_dir / "checkouts"
     assert (checkouts_dir / "base" / ".git").is_dir()
     assert (checkouts_dir / "head" / ".git").is_dir()
-    # the recipes' own build output (`javac -d`) lands only in the throwaway
-    # copies, never in the plain checkouts the diff and declaration scripts read
-    assert (checkouts_dir / "base-recipes" / "out" / "compile-classes").is_dir()
-    assert (checkouts_dir / "head-recipes" / "out" / "compile-classes").is_dir()
+    # Build output lands only in run-local copies, which are gone once their
+    # evidence has been captured; immutable views remain free of generated output.
+    copies_root = Path(tmp_path) / "tickets" / str(ticket_id) / "copies" / str(stage_run["id"])
+    assert not copies_root.exists()
     assert not (checkouts_dir / "base" / "out").exists()
     assert not (checkouts_dir / "head" / "out").exists()
 
-    assert artefact_registry.latest(conn, ticket_id, "check_evidence") is not None
+    evidence = artefact_registry.latest(conn, ticket_id, "check_evidence")
+    assert evidence is not None
+    red_items = conn.execute("SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'red_check'", (ticket_id,)).fetchall()
+    assert len(red_items) == 1 and red_items[0]["resolved_at"] is None
+    assert not waivers.cleared(conn, stage_run["id"])
+    security_result = conn.execute(
+        "SELECT id FROM check_result WHERE stage_run_id = ? AND check_name = 'recipe:fixture_security@head'",
+        (stage_run["id"],),
+    ).fetchone()["id"]
+    waivers.issue(
+        conn, ticket_id=ticket_id, policy_id="recipe-execution-gap", check_result_id=security_result,
+        actor="abhishek", reason="fixture feed unavailable", scope="this review tuple's unavailable security feeds",
+        compensating_controls="local secret and static scans ran; fixture-only adoption",
+        evidence_ids=[evidence["id"]], expires_at=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+    )
+    assert waivers.cleared(conn, stage_run["id"])
+    assert record.get(conn, "queue_item", red_items[0]["id"])["resolved_at"] is not None
 
 
 # ---- criterion 9: a public-compatibility blind spot re-triggers pilot exclusion ----

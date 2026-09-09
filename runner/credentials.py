@@ -13,7 +13,8 @@ import subprocess
 
 SERVICE_NAME = "soft-factory"
 
-ROLES: tuple[str, ...] = ("runtime_key", "atlassian_read", "github_publish", "slack_digest")
+SLACK_DIGEST_ROLE = "slack_digest"
+ROLES: tuple[str, ...] = ("runtime_key", "atlassian_read", "github_publish", SLACK_DIGEST_ROLE)
 
 
 class CredentialUnavailable(Exception):

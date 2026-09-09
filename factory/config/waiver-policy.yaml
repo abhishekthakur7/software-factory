@@ -48,3 +48,11 @@ policies:
     roles: [s6_reviewer, factory_owner]
     max_days: 7
     severity: sev2
+
+  - id: recipe-execution-gap
+    version: 1
+    subject_kinds: [review_tuple]
+    conditions: ["recipe:*@head"]
+    roles: [s6_reviewer, factory_owner]
+    max_days: 7
+    severity: sev2

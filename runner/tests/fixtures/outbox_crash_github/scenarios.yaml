@@ -1,0 +1,4 @@
+crash_points:
+  - before_send
+  - after_remote_success
+  - before_local_commit

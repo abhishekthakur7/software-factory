@@ -11,6 +11,8 @@ land together can share one.
 import sqlite3
 from datetime import UTC, datetime
 
+from runner import schema
+
 
 def now() -> str:
     """The record's timestamp format: ISO-8601 in UTC with second precision."""
@@ -33,7 +35,11 @@ def update(conn: sqlite3.Connection, table: str, row_id: int, **fields) -> None:
     the named columns in place, or when a one-time field is written twice,
     and `LookupError` when no such row exists.
     """
-    fields = {**fields, "updated_at": now()}
+    # Immutable and once-settled rows deliberately have no `updated_at`:
+    # their value is provenance, not mutable lifecycle state. Add the stamp
+    # only where the schema declares that lifecycle field.
+    if "updated_at" in {column.name for column in schema.table(table).columns}:
+        fields = {**fields, "updated_at": now()}
     assignments = ", ".join(f"{name} = ?" for name in fields)
     cursor = conn.execute(
         f"UPDATE {table} SET {assignments} WHERE id = ?", (*fields.values(), row_id)

@@ -1,0 +1,12 @@
+rows:
+  - table: ticket
+    fields: {title: Seeded incident history, state: merged}
+  - table: incident_observation
+    fields: {ticket_id: 1, record_kind: production_incident_event, severity: sev2, occurred_at: '2026-01-01T00:00:00+00:00'}
+  - table: incident_observation
+    fields: {ticket_id: 1, record_kind: production_disposition, event_id: 1, attribution: attributable, disposition: open}
+  - table: incident_observation
+    fields: {ticket_id: 1, record_kind: production_disposition, event_id: 1, supersedes: 2, attribution: attributable, disposition: remediated}
+immutable:
+  - {table: incident_observation, id: 1, field: severity, replacement: sev1}
+  - {table: incident_observation, id: 2, field: disposition, replacement: remediated}

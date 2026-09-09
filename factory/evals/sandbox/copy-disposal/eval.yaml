@@ -1,0 +1,7 @@
+subject: every configured recipe in disposable copies
+owner: abhishek
+failure_modes: [FM-15, FM-20, FM-23]
+cases:
+  - name: every_recipe_disposed
+    fixture: fixtures/recipes.yaml
+    expect: ok

@@ -36,7 +36,7 @@ ALLOWED_COLUMNS = {
     },
     "utility_run": {"outcome", "heartbeat_at", "lease_expires_at", "ended_at", "updated_at"},
     "tool_call": set(),
-    "artefact": set(),
+    "artefact": {"frozen_at"},
     "queue_item": {
         "resolved_at", "resolved_by", "resolved_role", "action", "note", "active_attention_bucket",
         "updated_at",

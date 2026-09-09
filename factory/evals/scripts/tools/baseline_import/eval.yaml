@@ -1,0 +1,15 @@
+subject: factory/scripts/tools/baseline_import
+owner: abhishek
+cases:
+  - name: retrospective_cohort
+    fixture: fixtures/retrospective_cohort
+    expect: ok
+  - name: supplemental_cohort
+    fixture: fixtures/supplemental_cohort
+    expect: ok
+  - name: unavailable_value
+    fixture: fixtures/unavailable_value
+    expect: ok
+  - name: frozen_write
+    fixture: fixtures/frozen_write
+    expect: reject

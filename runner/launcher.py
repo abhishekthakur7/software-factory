@@ -68,6 +68,7 @@ class LaunchResult:
     timed_out: bool
     exit_code: int | None
     stdout_json: dict | None
+    stdout_text: str
     stderr_text: str
     integrity: SandboxIntegrity
     os_policy_applied: bool
@@ -187,7 +188,7 @@ def stage_inputs(run_dir: Path, locations: dict) -> dict:
 def _sandbox_params(
     *, run_dir: Path, tmp_dir: Path, ticket_dir: Path | None, worktree_path: Path | None, stage: str | None,
     copy_dir: Path | None, build_dir: Path | None, scratch_dir: Path | None, cache_dir: Path | None,
-    jdk_home: str | None, proxy_port: int,
+    jdk_home: str | None, vendor_dir: Path | None, proxy_port: int,
 ) -> dict[str, str]:
     """Every named parameter either profile file's `(param ...)` calls might read, agent or build alike.
 
@@ -211,6 +212,7 @@ def _sandbox_params(
         "SCRATCH_DIR": str(scratch_dir) if scratch_dir else placeholder,
         "CACHE_DIR": str(cache_dir) if cache_dir else placeholder,
         "JDK_HOME": jdk_home or placeholder,
+        "VENDOR_DIR": str(vendor_dir) if vendor_dir else placeholder,
     }
 
 
@@ -256,6 +258,7 @@ def launch(
     build_dir: Path | None = None,
     scratch_dir: Path | None = None,
     cache_dir: Path | None = None,
+    vendor_dir: Path | None = None,
     env_source: dict[str, str] | None = None,
     runtime_key_value: str | None = None,
     runtime_key_env_name: str = RUNTIME_KEY_ENV_NAME,
@@ -308,7 +311,7 @@ def launch(
             params=_sandbox_params(
                 run_dir=run_dir, tmp_dir=tmp_dir, ticket_dir=ticket_dir, worktree_path=worktree_path, stage=stage,
                 copy_dir=copy_dir, build_dir=build_dir, scratch_dir=scratch_dir, cache_dir=cache_dir,
-                jdk_home=env_source.get("JAVA_HOME") or env_source.get("JDK_HOME"), proxy_port=run_proxy.port,
+                jdk_home=_jdk_home(env_source), vendor_dir=vendor_dir, proxy_port=run_proxy.port,
             ),
         )
 
@@ -360,8 +363,21 @@ def launch(
     return LaunchResult(
         run_dir=run_dir, out_dir=out_dir, results_dir=results_dir, pid=pid,
         timed_out=timed_out, exit_code=exit_code, stdout_json=stdout_json, stderr_text=stderr_text,
+        stdout_text=stdout_text,
         integrity=integrity, os_policy_applied=os_policy_applied,
     )
+
+
+def _jdk_home(env_source: dict[str, str]) -> str | None:
+    """The JDK root that contains the resolved `javac` and `java` binaries, if the recipe environment exposes one."""
+    configured = env_source.get("JAVA_HOME") or env_source.get("JDK_HOME")
+    if configured:
+        return configured
+    discovered = subprocess.run(["/usr/libexec/java_home", "-v", "17"], capture_output=True, text=True)
+    if discovered.returncode == 0 and discovered.stdout.strip():
+        return discovered.stdout.strip()
+    javac = shutil.which("javac", path=env_source.get("PATH"))
+    return str(Path(javac).resolve().parent.parent) if javac else None
 
 
 def terminate_child(run_dir: Path) -> bool:

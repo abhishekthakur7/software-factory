@@ -1,27 +1,13 @@
-"""S5: the review-tuple preflight, then every blocking check at this milestone, over base and head.
+"""Run ordered S5 checks against one preflight-bound review tuple.
 
-The preflight (`freshness.check` at `S5_PREFLIGHT`, then `binding.preflight_review_tuple`)
-runs before any check does: a stale base or a `PreflightRefused` candidate component
-writes exactly one refusal and the run ends there, since a check run over a binding
-that cannot become a review tuple would have nothing real to bind its result to.
-Once one review tuple exists, the driver takes plain base and head checkouts of the
-ticket's own clone, runs the pilot project's own recipes over a throwaway copy of
-each (the fixture project's recipes write class directories into their own cwd), then
-the scripts in `CHECK_ORDER` over the resulting diff and recipe evidence. Every
-`check_result` this run writes binds that one review tuple. Checks continue after a
-red result -- only the preflight itself stops the run early -- and a governed
-recipe's own raw pass/fail never blocks by itself: `regression_only` is the one
-`CHECK_ORDER` entry that decides whether a lint, compile, integration, or end-to-end
-result actually blocks, folding the four raw `recipe:<id>@<base|head>` results for
-those kinds into one verdict; an ungoverned unit-test recipe's own head result blocks
-directly, exactly like every other check in `CHECK_ORDER`. A run with every blocking
-result `pass` ends `pass` and leaves the state to `checks_gate`; a run with any red
-result checks whether it is confined to a set a machine can retry on its own
-(`runner.checks.red_route.classify`) and either sends the
-ticket back to `implementing` for a fix round or opens one `red_check` item naming
-every red and blind-spot result together.
+Recipes execute in disposable base/head sandboxes; trusted comparisons consume
+retained evidence and immutable checkouts. Source integrity is rechecked on every
+exit. Ordinary red results do not stop later checks. New recipe failures enter
+the bounded repair loop when eligible; independent failures and unavailable
+evidence share one review queue item, with blind spots governed by waiver policy.
 """
 import fnmatch
+from contextlib import contextmanager
 import json
 import os
 import re
@@ -38,6 +24,7 @@ from runner import (
 from runner.checks import exclusion, regression_only
 from runner.fs import write_bytes, write_text
 from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
+from runner.sandbox import copies as sandbox_copies
 
 # `Test strategy.criteria`'s `AC-n` shape -- the only criteria cell the
 # both-views rerun treats as a real behaviour claim; a `no_behaviour_change`
@@ -47,17 +34,19 @@ _AC_ID_RE = re.compile(r"^AC-\d+$")
 ARTEFACT_KIND = "check_evidence"
 PASS_EVENT = None
 
-# The blocking-tier checks S5 runs at this milestone, in the order they
-# run after the preflight and the project's own recipes at base and head.
+# The blocking checks follow this order after preflight and project recipes.
 # The S4 hand-off names this list as the check policies the implementer
 # will face, so the two never disagree about what S5 enforces.
 CHECK_ORDER: tuple[str, ...] = (
+    "regression_only",
+    "base_test_diff",
+    "security_checks",
+    "dep_verify",
     "size_gate",
     "scope_diff",
     "source_declaration_diff",
     "behavior_contract_evidence",
-    "regression_only",
-    "base_test_diff",
+    "approval_binding",
 )
 
 _SCRIPTS_DIR = REPO_ROOT / "factory" / "scripts" / "checks"
@@ -66,6 +55,7 @@ SCOPE_DIFF_SCRIPT = _SCRIPTS_DIR / "scope_diff"
 SOURCE_DECLARATION_DIFF_SCRIPT = _SCRIPTS_DIR / "source_declaration_diff"
 BEHAVIOR_CONTRACT_EVIDENCE_SCRIPT = _SCRIPTS_DIR / "behavior_contract_evidence"
 BASE_TEST_DIFF_SCRIPT = _SCRIPTS_DIR / "base_test_diff"
+DEP_VERIFY_SCRIPT = _SCRIPTS_DIR / "dep_verify"
 
 TIERS_PATH = FACTORY_DIR / "config" / "tiers.yaml"
 LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
@@ -230,13 +220,41 @@ def _vendor_classpath(project_cfg: dict) -> str:
     return os.pathsep.join(str(p) for p in sorted(vendor_dir.rglob("*.jar")))
 
 
-def _checkouts(repo: Path, base_sha: str, head_sha: str, run_dir: Path) -> tuple[Path, Path, Path, Path]:
+def _checkouts(repo: Path, base_sha: str, head_sha: str, run_dir: Path) -> tuple[Path, Path]:
     checkouts_dir = run_dir / "checkouts"
     base_checkout = git_trees.plain_checkout(repo, base_sha, checkouts_dir / "base")
     head_checkout = git_trees.plain_checkout(repo, head_sha, checkouts_dir / "head")
-    base_copy = git_trees.throwaway_copy(base_checkout, checkouts_dir / "base-recipes")
-    head_copy = git_trees.throwaway_copy(head_checkout, checkouts_dir / "head-recipes")
-    return base_checkout, head_checkout, base_copy, head_copy
+    return base_checkout, head_checkout
+
+
+class SandboxIntegrityError(RuntimeError):
+    """The build boundary or immutable source failed its integrity check."""
+
+
+@contextmanager
+def _checked_copies(conn, stage_run_id, review_tuple_id, *, base_sha, head_sha, **kwargs):
+    """Dispose views on every exit and record source drift before allowing any result to proceed."""
+    try:
+        with sandbox_copies.provisioned(stage_run_id=stage_run_id, **kwargs) as views:
+            yield views
+    finally:
+        if not all((
+            sandbox_copies.recheck(kwargs["base_checkout"], base_sha),
+            sandbox_copies.recheck(kwargs["head_checkout"], head_sha),
+        )):
+            _record_check_result(
+                conn, stage_run_id, check_name="sandbox_integrity", result="fail",
+                summary="immutable checkout changed during copy-backed checks", evidence_tuple_id=review_tuple_id,
+            )
+            raise SandboxIntegrityError("immutable checkout changed during copy-backed checks")
+
+
+def _recipe_status(result: recipes.RecipeResult) -> str:
+    if result.outcome == "unavailable":
+        return "blind_spot"
+    if result.outcome != "pass":
+        return "fail"
+    return result.reported_result or "pass"
 
 
 def _run_recipes(
@@ -254,15 +272,33 @@ def _run_recipes(
     recipe_results: dict[str, dict] = {}
     blocking: list[tuple[str, str, int]] = []
     prior_evidence = artefact_registry.latest(conn, ticket_id, ARTEFACT_KIND)
+    vendor_dir = REPO_ROOT / _project_config()["vendor"]
 
     for recipe_id in project_recipes:
         recipe = catalogue[recipe_id]
         recipe_results[recipe_id] = {}
         for side, checkout in (("base", base_copy), ("head", head_copy)):
-            result = recipes.run(
-                recipe_id, {"vendor_classpath": vendor_classpath}, catalogue=catalogue,
-                cwd_roles={"checkout": checkout}, results_dir=results_dir / side, env_source=os.environ,
-            )
+            values = {"vendor_classpath": vendor_classpath, "vendor": str(vendor_dir), "pom": "pom.xml"}
+            try:
+                result = recipes.run(
+                    recipe_id, values, catalogue=catalogue,
+                    cwd_roles={"checkout": checkout}, results_dir=results_dir / side, env_source=os.environ,
+                    sandbox_run_dir=run_dir / "sandbox" / side / recipe_id, sandbox_stage="S5",
+                    sandbox_vendor_dir=vendor_dir,
+                )
+            except recipes.RecipeUnavailable as exc:
+                evidence_path = results_dir / side / f"{recipe_id}.unavailable.json"
+                write_text(evidence_path, json.dumps({"result": "blind_spot", "unmet_dependency": str(exc)}))
+                result = recipes.RecipeResult(
+                    recipe_id=recipe_id, outcome="unavailable", exit_code=None, stdout_path=evidence_path,
+                    stderr_path=None, level=recipe.level, reported_result="blind_spot",
+                )
+            except recipes.RecipeSandboxError as exc:
+                _record_check_result(
+                    conn, stage_run_id, check_name="sandbox_integrity", result="fail", summary=str(exc),
+                    evidence_tuple_id=review_tuple_id,
+                )
+                raise SandboxIntegrityError(str(exc)) from exc
             recipe_results[recipe_id][side] = result
 
             evidence_id = None
@@ -273,18 +309,21 @@ def _run_recipes(
                 )
                 prior_evidence = record.get(conn, "artefact", evidence_id)
 
-            outcome = "pass" if result.outcome == "pass" else "fail"
+            outcome = _recipe_status(result)
+            payload = None
+            if result.stdout_path is not None:
+                try:
+                    payload = json.loads(result.stdout_path.read_text().splitlines()[-1])
+                except (IndexError, json.JSONDecodeError):
+                    pass
             governed_kind = regression_only.recipe_governed_kind(kind=recipe.kind, level=recipe.level)
-            is_blocking = side == "head" and governed_kind is None
+            is_blocking = side == "head" and (governed_kind is None or outcome == "blind_spot")
             cr_id = _record_check_result(
                 conn, stage_run_id, check_name=f"recipe:{recipe_id}@{side}", result=outcome,
-                summary=json.dumps({"outcome": result.outcome, "exit_code": result.exit_code}, sort_keys=True),
+                summary=json.dumps(payload or {"outcome": result.outcome, "exit_code": result.exit_code}, sort_keys=True),
                 evidence_tuple_id=review_tuple_id, evidence_artefact=evidence_id,
-                # Only an ungoverned recipe's own head result ever blocks the run on its
-                # own -- a governed recipe's raw pass/fail is folded through
-                # `regression_only` instead, and a base-side result of any kind is
-                # comparison evidence, never itself a gate -- so every other raw recipe
-                # result carries no weight of its own against `waivers.cleared` either.
+                # Governed failures use regression comparison; an unavailable head
+                # remains blocking because comparison cannot fill an evidence gap.
                 check_tier="blocking" if is_blocking else "advisory",
             )
             if is_blocking:
@@ -358,28 +397,33 @@ def _both_views_rerun(
     if not matched_paths:
         return None
 
-    rerun_copy = git_trees.throwaway_copy(base_checkout, run_dir / "checkouts" / "base-both-views")
-    for rel_path in matched_paths:
-        head_file = head_checkout / rel_path
-        if head_file.is_file():
-            write_bytes(rerun_copy / rel_path, head_file.read_bytes())
+    with sandbox_copies.provisioned(
+        ticket_id=0, stage_run_id=0, base_checkout=base_checkout, head_checkout=head_checkout,
+        runs_dir=run_dir / "planned-rerun",
+    ) as views:
+        rerun_copy = views.base
+        for rel_path in matched_paths:
+            head_file = head_checkout / rel_path
+            if head_file.is_file():
+                write_bytes(rerun_copy / rel_path, head_file.read_bytes())
 
-    ran: list[dict] = []
-    failed: list[dict] = []
-    for recipe_id in project_recipes:
-        if catalogue[recipe_id].kind != "test":
-            continue
-        result = recipes.run(
-            recipe_id, {"vendor_classpath": vendor_classpath}, catalogue=catalogue,
-            cwd_roles={"checkout": rerun_copy}, results_dir=run_dir / "recipes" / "both-views",
-            env_source=os.environ,
-        )
-        ran += [dict(entry) for entry in (result.tests_ran or ())]
-        failed += _failed_test_identities(_recipe_output_text(result))
+        ran: list[dict] = []
+        failed: list[dict] = []
+        for recipe_id in project_recipes:
+            if catalogue[recipe_id].kind != "test":
+                continue
+            result = recipes.run(
+                recipe_id, {"vendor_classpath": vendor_classpath, "pom": "pom.xml"}, catalogue=catalogue,
+                cwd_roles={"checkout": rerun_copy}, results_dir=run_dir / "recipes" / "both-views",
+                env_source=os.environ, sandbox_run_dir=run_dir / "sandbox" / "both-views" / recipe_id,
+                sandbox_stage="S5", sandbox_vendor_dir=REPO_ROOT / _project_config()["vendor"],
+            )
+            ran += [dict(entry) for entry in (result.tests_ran or ())]
+            failed += _failed_test_identities(_recipe_output_text(result))
 
-    payload_path = run_dir / "tests_head_in_base.json"
-    write_text(payload_path, json.dumps({"ran": ran, "failed": failed}))
-    return payload_path
+        payload_path = run_dir / "tests_head_in_base.json"
+        write_text(payload_path, json.dumps({"ran": ran, "failed": failed}))
+        return payload_path
 
 
 def _tests_payload(catalogue, project_recipes: list[str], recipe_results: dict, side: str) -> dict:
@@ -500,20 +544,30 @@ def _apply_routing(
     if not non_passing:
         return
 
-    # Imported here, at the one call site that needs it, rather than at
-    # module load: `runner.checks.red_route` is a separate, independently
-    # developed module, so this file must still import cleanly regardless
-    # of that module's own development state.
+    if any(outcome == "blind_spot" for _name, outcome, _cr_id in non_passing):
+        _record_check_result(
+            conn, stage_run_id, check_name="fix_round_route", check_tier="advisory", result="fail",
+            summary="a waivable evidence gap requires review rather than a source fix round",
+            evidence_tuple_id=review_tuple_id,
+        )
+        queue.open_item(conn, ticket_id=ticket["id"], kind="red_check", stage="S5", tier=_tier(ticket), ref=f"stage_run:{stage_run_id}")
+        return
+
     from runner.checks.red_route import CheckOutcome, RecipeOutcome, classify
 
     recipe_outcomes = [
         RecipeOutcome(
             recipe_id=recipe_id, kind=catalogue[recipe_id].kind, level=catalogue[recipe_id].level,
-            base=recipe_results[recipe_id]["base"].outcome, head=recipe_results[recipe_id]["head"].outcome,
+            base=_recipe_status(recipe_results[recipe_id]["base"]), head=_recipe_status(recipe_results[recipe_id]["head"]),
         )
         for recipe_id in project_recipes
     ]
-    check_outcomes = [CheckOutcome(check_name=name, result=outcome) for name, outcome, _cr_id in blocking_results]
+    # Recipe rows and their regression comparison describe the same execution;
+    # counting them as independent checks would reject every repairable failure.
+    check_outcomes = [
+        CheckOutcome(check_name=name, result=outcome) for name, outcome, _cr_id in blocking_results
+        if not name.startswith("recipe:") and name != "regression_only"
+    ]
     rounds_run = conn.execute(
         "SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = 'S4' AND run_kind = 'fix_round'", (ticket["id"],)
     ).fetchone()[0]
@@ -522,14 +576,14 @@ def _apply_routing(
 
     if route.kind == "fix_round":
         _record_check_result(
-            conn, stage_run_id, check_name="fix_round_route", result="pass", summary=route.reason,
+            conn, stage_run_id, check_name="fix_round_route", check_tier="advisory", result="pass", summary=route.reason,
             evidence_tuple_id=review_tuple_id,
         )
         transitions.apply(conn, ticket["id"], "checks_fix_round")
         return
 
     _record_check_result(
-        conn, stage_run_id, check_name="fix_round_route", result="fail", summary=route.reason,
+        conn, stage_run_id, check_name="fix_round_route", check_tier="advisory", result="fail", summary=route.reason,
         evidence_tuple_id=review_tuple_id,
     )
     queue.open_item(conn, ticket_id=ticket["id"], kind="red_check", stage="S5", tier=_tier(ticket), ref=f"stage_run:{stage_run_id}")
@@ -555,122 +609,161 @@ def run(
     repo = preflight["repo"]
 
     project_cfg = _project_config()
-    project_recipes = [r for r in (project_cfg.get("recipes") or []) if r]
     catalogue = recipes.load_catalogue()
+    project_recipes = [
+        recipe_id for recipe_id in (project_cfg.get("recipes") or [])
+        if recipe_id
+    ]
     vendor_classpath = _vendor_classpath(project_cfg)
 
     base_sha, head_sha = plan_row["base_sha"], ticket["head_sha"]
-    base_checkout, head_checkout, base_copy, head_copy = _checkouts(repo, base_sha, head_sha, run_dir)
+    base_checkout, head_checkout = _checkouts(repo, base_sha, head_sha, run_dir)
+    initial_recipes = [name for name in project_recipes if catalogue[name].kind not in {"security", "dependency"}]
+    security_recipes = [name for name in project_recipes if catalogue[name].kind == "security"]
+    dependency_recipes = [name for name in project_recipes if catalogue[name].kind == "dependency"]
+    try:
+        with _checked_copies(
+            conn, stage_run_id, review_tuple_id, ticket_id=ticket_id, base_checkout=base_checkout,
+            head_checkout=head_checkout, runs_dir=runs_dir, base_sha=base_sha, head_sha=head_sha,
+        ) as copy_views:
+            recipe_results, blocking_results, _results_dir = _run_recipes(
+                conn, ticket_id, stage_run_id, catalogue=catalogue, project_recipes=initial_recipes,
+                base_copy=copy_views.base, head_copy=copy_views.head, run_dir=run_dir, review_tuple_id=review_tuple_id,
+                vendor_classpath=vendor_classpath,
+            )
 
-    recipe_results, blocking_results, _results_dir = _run_recipes(
-        conn, ticket_id, stage_run_id, catalogue=catalogue, project_recipes=project_recipes,
-        base_copy=base_copy, head_copy=head_copy, run_dir=run_dir, review_tuple_id=review_tuple_id,
-        vendor_classpath=vendor_classpath,
-    )
+            diff_text = subprocess.run(
+                ["git", "-C", str(repo), "diff", base_sha, head_sha], capture_output=True, text=True, check=True,
+            ).stdout
+            diff_path = run_dir / "diff.patch"
+            write_text(diff_path, diff_text)
+            diff_paths = _diff_touched_paths(repo, base_sha, head_sha)
+            touched_path = run_dir / "touched_files.txt"
+            write_text(touched_path, "\n".join(diff_paths) + ("\n" if diff_paths else ""))
 
-    diff_text = subprocess.run(
-        ["git", "-C", str(repo), "diff", base_sha, head_sha], capture_output=True, text=True, check=True,
-    ).stdout
-    diff_path = run_dir / "diff.patch"
-    write_text(diff_path, diff_text)
-    diff_paths = _diff_touched_paths(repo, base_sha, head_sha)
-    touched_path = run_dir / "touched_files.txt"
-    write_text(touched_path, "\n".join(diff_paths) + ("\n" if diff_paths else ""))
+            tests_base_path, tests_head_path = run_dir / "tests_base.json", run_dir / "tests_head.json"
+            write_text(tests_base_path, json.dumps(_tests_payload(catalogue, initial_recipes, recipe_results, "base")))
+            write_text(tests_head_path, json.dumps(_tests_payload(catalogue, initial_recipes, recipe_results, "head")))
+            verdicts_path = run_dir / "verdicts.json"
+            write_text(verdicts_path, json.dumps(_verdicts_payload(conn, ticket_id)))
 
-    size_payload, size_cr_id = _run_check_script(
-        conn, stage_run_id, check_name="size_gate", script=SIZE_GATE_SCRIPT, review_tuple_id=review_tuple_id,
-        trust_json_over_exit_code=True,
-        args=["--plan", str(plan_artefact["path"]), "--tier", tier, "--diff", str(diff_path),
-              "--tiers-config", str(TIERS_PATH), "--project-config", str(project.DEFAULT_PROJECT_CONFIG_PATH)],
-    )
-    blocking_results.append(("size_gate", size_payload.get("result", "blind_spot"), size_cr_id))
+            regression_payload, regression_cr_id = _run_regression_only(
+                conn, stage_run_id, catalogue=catalogue, project_recipes=initial_recipes, recipe_results=recipe_results,
+                review_tuple_id=review_tuple_id,
+            )
+            blocking_results.append(("regression_only", regression_payload["result"], regression_cr_id))
 
-    scope_payload, scope_cr_id = _run_check_script(
-        conn, stage_run_id, check_name="scope_diff", script=SCOPE_DIFF_SCRIPT, review_tuple_id=review_tuple_id,
-        args=["--diff", str(diff_path), "--plan", str(plan_artefact["path"])],
-    )
-    blocking_results.append(("scope_diff", scope_payload.get("result", "blind_spot"), scope_cr_id))
+            test_globs = sorted({
+                glob for recipe_id in initial_recipes if catalogue[recipe_id].kind == "test"
+                for glob in (catalogue[recipe_id].test_globs or ())
+            })
+            rerun_payload_path = _both_views_rerun(
+                catalogue=catalogue, project_recipes=initial_recipes, base_checkout=base_checkout, head_checkout=head_checkout,
+                run_dir=run_dir, plan_text=plan_text, diff_paths=diff_paths, test_globs=test_globs,
+                vendor_classpath=vendor_classpath,
+            )
+            base_test_args = [
+                "--base", str(base_checkout), "--head", str(head_checkout), "--globs", ",".join(test_globs),
+                "--plan", str(plan_artefact["path"]), "--tests-base", str(tests_base_path), "--tests-head", str(tests_head_path),
+            ]
+            if rerun_payload_path is not None:
+                base_test_args += ["--tests-head-in-base", str(rerun_payload_path)]
+            base_test_payload, base_test_cr_id = _run_check_script(
+                conn, stage_run_id, check_name="base_test_diff", script=BASE_TEST_DIFF_SCRIPT, review_tuple_id=review_tuple_id,
+                args=base_test_args,
+            )
+            blocking_results.append(("base_test_diff", base_test_payload.get("result", "blind_spot"), base_test_cr_id))
 
-    decl_payload, decl_cr_id = _run_check_script(
-        conn, stage_run_id, check_name="source_declaration_diff", script=SOURCE_DECLARATION_DIFF_SCRIPT,
-        review_tuple_id=review_tuple_id,
-        args=["--base", str(base_checkout), "--head", str(head_checkout), "--files", str(touched_path),
-              "--plan", str(plan_artefact["path"])],
-    )
-    blocking_results.append(("source_declaration_diff", decl_payload.get("result", "blind_spot"), decl_cr_id))
-    declarations_path = run_dir / "source_declaration_diff.json"
-    write_text(declarations_path, json.dumps(decl_payload, sort_keys=True))
+            for recipe_group in (security_recipes, dependency_recipes):
+                results, blocking, _ = _run_recipes(
+                    conn, ticket_id, stage_run_id, catalogue=catalogue, project_recipes=recipe_group,
+                    base_copy=copy_views.base, head_copy=copy_views.head, run_dir=run_dir,
+                    review_tuple_id=review_tuple_id, vendor_classpath=vendor_classpath,
+                )
+                recipe_results.update(results)
+                blocking_results.extend(blocking)
+            dependency_results = recipe_results.get(dependency_recipes[0], {}) if len(dependency_recipes) == 1 else {}
+            base_resolution = dependency_results.get("base")
+            head_resolution = dependency_results.get("head")
+            if base_resolution is None or head_resolution is None or base_resolution.stdout_path is None or head_resolution.stdout_path is None:
+                dep_payload = {"result": "blind_spot", "reason": "dependency resolution did not produce both immutable-view evidence"}
+                dep_cr_id = _record_check_result(conn, stage_run_id, check_name="dep_verify", result="blind_spot", summary=json.dumps(dep_payload), evidence_tuple_id=review_tuple_id)
+            else:
+                dep_payload, dep_cr_id = _run_check_script(
+                    conn, stage_run_id, check_name="dep_verify", script=DEP_VERIFY_SCRIPT, review_tuple_id=review_tuple_id,
+                    args=["--base", str(base_checkout), "--head", str(head_checkout), "--base-resolution", str(base_resolution.stdout_path),
+                          "--head-resolution", str(head_resolution.stdout_path), "--plan", str(plan_artefact["path"]), "--allowed-registry", ""],
+                )
+            blocking_results.append(("dep_verify", dep_payload.get("result", "blind_spot"), dep_cr_id))
 
-    tests_base_path, tests_head_path = run_dir / "tests_base.json", run_dir / "tests_head.json"
-    write_text(tests_base_path, json.dumps(_tests_payload(catalogue, project_recipes, recipe_results, "base")))
-    write_text(tests_head_path, json.dumps(_tests_payload(catalogue, project_recipes, recipe_results, "head")))
-    verdicts_path = run_dir / "verdicts.json"
-    write_text(verdicts_path, json.dumps(_verdicts_payload(conn, ticket_id)))
+            size_payload, size_cr_id = _run_check_script(
+                conn, stage_run_id, check_name="size_gate", script=SIZE_GATE_SCRIPT, review_tuple_id=review_tuple_id,
+                trust_json_over_exit_code=True,
+                args=["--plan", str(plan_artefact["path"]), "--tier", tier, "--diff", str(diff_path),
+                      "--tiers-config", str(TIERS_PATH), "--project-config", str(project.DEFAULT_PROJECT_CONFIG_PATH)],
+            )
+            blocking_results.append(("size_gate", size_payload.get("result", "blind_spot"), size_cr_id))
 
-    bce_payload, bce_cr_id = _run_check_script(
-        conn, stage_run_id, check_name="behavior_contract_evidence", script=BEHAVIOR_CONTRACT_EVIDENCE_SCRIPT,
-        review_tuple_id=review_tuple_id,
-        args=["--plan", str(plan_artefact["path"]), "--verdicts", str(verdicts_path), "--tests-base", str(tests_base_path),
-              "--tests-head", str(tests_head_path), "--declarations", str(declarations_path),
-              "--generated-paths", ",".join(project.load().get("generated_paths") or [])],
-    )
-    blocking_results.append(("behavior_contract_evidence", bce_payload.get("result", "blind_spot"), bce_cr_id))
+            scope_payload, scope_cr_id = _run_check_script(
+                conn, stage_run_id, check_name="scope_diff", script=SCOPE_DIFF_SCRIPT, review_tuple_id=review_tuple_id,
+                args=["--diff", str(diff_path), "--plan", str(plan_artefact["path"])],
+            )
+            blocking_results.append(("scope_diff", scope_payload.get("result", "blind_spot"), scope_cr_id))
 
-    if _handle_compatibility_exclusion(conn, ticket_id, stage_run_id, bce_payload=bce_payload, plan_paths=_scope_paths(plan_text)):
+            decl_payload, decl_cr_id = _run_check_script(
+                conn, stage_run_id, check_name="source_declaration_diff", script=SOURCE_DECLARATION_DIFF_SCRIPT,
+                review_tuple_id=review_tuple_id,
+                args=["--base", str(base_checkout), "--head", str(head_checkout), "--files", str(touched_path),
+                      "--plan", str(plan_artefact["path"])],
+            )
+            blocking_results.append(("source_declaration_diff", decl_payload.get("result", "blind_spot"), decl_cr_id))
+            declarations_path = run_dir / "source_declaration_diff.json"
+            write_text(declarations_path, json.dumps(decl_payload, sort_keys=True))
+
+            bce_payload, bce_cr_id = _run_check_script(
+                conn, stage_run_id, check_name="behavior_contract_evidence", script=BEHAVIOR_CONTRACT_EVIDENCE_SCRIPT,
+                review_tuple_id=review_tuple_id,
+                args=["--plan", str(plan_artefact["path"]), "--verdicts", str(verdicts_path), "--tests-base", str(tests_base_path),
+                      "--tests-head", str(tests_head_path), "--declarations", str(declarations_path),
+                      "--generated-paths", ",".join(project.load().get("generated_paths") or [])],
+            )
+            blocking_results.append(("behavior_contract_evidence", bce_payload.get("result", "blind_spot"), bce_cr_id))
+
+            if _handle_compatibility_exclusion(conn, ticket_id, stage_run_id, bce_payload=bce_payload, plan_paths=_scope_paths(plan_text)):
+                return "fail"
+
+            quorum = approvals.evaluate(conn, gate="plan", subject_hash=plan_row["content_hash"], slots=planned_slots)
+            binding_ok = quorum.satisfied and quorum.approval_set_hash == components.plan_approval_set_hash
+            binding_payload = {"result": "pass" if binding_ok else "fail", "reasons": list(quorum.reasons)}
+            binding_cr_id = _record_check_result(
+                conn, stage_run_id, check_name="approval_binding", result=binding_payload["result"],
+                summary=json.dumps(binding_payload, sort_keys=True), evidence_tuple_id=review_tuple_id,
+            )
+            blocking_results.append(("approval_binding", binding_payload["result"], binding_cr_id))
+
+            summary_path = run_dir / "check_evidence.json"
+            write_text(summary_path, json.dumps(
+                {"checks": [{"id": cr_id, "check_name": name, "result": outcome} for name, outcome, cr_id in blocking_results]},
+                sort_keys=True,
+            ))
+            prior_summary = artefact_registry.latest(conn, ticket_id, ARTEFACT_KIND)
+            artefact_registry.register(
+                conn, ticket_id=ticket_id, kind=ARTEFACT_KIND, path=summary_path, stage_run_id=stage_run_id,
+                supersedes=prior_summary["id"] if prior_summary is not None else None,
+            )
+
+            if all(outcome == "pass" for _name, outcome, _cr_id in blocking_results):
+                return "pass"
+            _apply_routing(
+                conn, ticket, stage_run_id, review_tuple_id=review_tuple_id, blocking_results=blocking_results,
+                catalogue=catalogue, project_recipes=project_recipes, recipe_results=recipe_results,
+            )
+            return "fail"
+    except SandboxIntegrityError:
         return "fail"
-
-    regression_payload, regression_cr_id = _run_regression_only(
-        conn, stage_run_id, catalogue=catalogue, project_recipes=project_recipes, recipe_results=recipe_results,
-        review_tuple_id=review_tuple_id,
-    )
-    blocking_results.append(("regression_only", regression_payload["result"], regression_cr_id))
-
-    test_globs = sorted({
-        glob for recipe_id in project_recipes if catalogue[recipe_id].kind == "test"
-        for glob in (catalogue[recipe_id].test_globs or ())
-    })
-    rerun_payload_path = _both_views_rerun(
-        catalogue=catalogue, project_recipes=project_recipes, base_checkout=base_checkout, head_checkout=head_checkout,
-        run_dir=run_dir, plan_text=plan_text, diff_paths=diff_paths, test_globs=test_globs,
-        vendor_classpath=vendor_classpath,
-    )
-    base_test_args = [
-        "--base", str(base_checkout), "--head", str(head_checkout), "--globs", ",".join(test_globs),
-        "--plan", str(plan_artefact["path"]), "--tests-base", str(tests_base_path), "--tests-head", str(tests_head_path),
-    ]
-    if rerun_payload_path is not None:
-        base_test_args += ["--tests-head-in-base", str(rerun_payload_path)]
-    base_test_payload, base_test_cr_id = _run_check_script(
-        conn, stage_run_id, check_name="base_test_diff", script=BASE_TEST_DIFF_SCRIPT, review_tuple_id=review_tuple_id,
-        args=base_test_args,
-    )
-    blocking_results.append(("base_test_diff", base_test_payload.get("result", "blind_spot"), base_test_cr_id))
-
-    quorum = approvals.evaluate(conn, gate="plan", subject_hash=plan_row["content_hash"], slots=planned_slots)
-    binding_ok = quorum.satisfied and quorum.approval_set_hash == components.plan_approval_set_hash
-    binding_payload = {"result": "pass" if binding_ok else "fail", "reasons": list(quorum.reasons)}
-    binding_cr_id = _record_check_result(
-        conn, stage_run_id, check_name="approval_binding", result=binding_payload["result"],
-        summary=json.dumps(binding_payload, sort_keys=True), evidence_tuple_id=review_tuple_id,
-    )
-    blocking_results.append(("approval_binding", binding_payload["result"], binding_cr_id))
-
-    summary_path = run_dir / "check_evidence.json"
-    write_text(summary_path, json.dumps(
-        {"checks": [{"id": cr_id, "check_name": name, "result": outcome} for name, outcome, cr_id in blocking_results]},
-        sort_keys=True,
-    ))
-    prior_summary = artefact_registry.latest(conn, ticket_id, ARTEFACT_KIND)
-    artefact_registry.register(
-        conn, ticket_id=ticket_id, kind=ARTEFACT_KIND, path=summary_path, stage_run_id=stage_run_id,
-        supersedes=prior_summary["id"] if prior_summary is not None else None,
-    )
-
-    if all(outcome == "pass" for _name, outcome, _cr_id in blocking_results):
-        return "pass"
-
-    _apply_routing(
-        conn, ticket, stage_run_id, review_tuple_id=review_tuple_id, blocking_results=blocking_results,
-        catalogue=catalogue, project_recipes=project_recipes, recipe_results=recipe_results,
-    )
-    return "fail"
+    except recipes.RecipeSandboxError as exc:
+        _record_check_result(
+            conn, stage_run_id, check_name="sandbox_integrity", result="fail", summary=str(exc),
+            evidence_tuple_id=review_tuple_id,
+        )
+        return "fail"

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from runner import (
-    control, export, freshness, gates, manifest, outbox, queue, record, refresh_base, run_ledger, tags, transitions,
+    control, digest, export, freshness, gates, manifest, outbox, project, queue, record, refresh_base, run_ledger, tags, transitions,
     waivers,
 )
 from runner.db import connect
@@ -215,6 +215,13 @@ def waive(
     return f"waiver {waiver_id}: issued"
 
 
+def digest_open_items(conn: sqlite3.Connection, runs_dir: Path = RUNS_DIR) -> str:
+    """Build and dispatch the configured cadence's digest through the transactional outbox."""
+    config = project.load().get("digest") or {}
+    intent_id = digest.run(conn, channel=config.get("channel"), cadence=config.get("cadence", "daily"), runs_dir=runs_dir)
+    return "digest: no open items" if intent_id is None else f"digest: intent {intent_id}"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="factory")
     parser.add_argument("--db", type=Path, default=RUNS_DIR / "factory.sqlite")
@@ -307,6 +314,8 @@ def main(argv: list[str] | None = None) -> int:
     report_parser.add_argument("--window-days", type=int, default=30)
     report_parser.add_argument("--until", default=None)
 
+    subparsers.add_parser("digest")
+
     export_parser = subparsers.add_parser("export")
     export_parser.add_argument("ticket_id", type=int)
 
@@ -380,6 +389,8 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 end="",
             )
+        elif args.verb == "digest":
+            print(digest_open_items(conn, runs_dir))
         elif args.verb == "export":
             result = export.export_ticket(conn, args.ticket_id, runs_dir=runs_dir)
             print(f"ticket {args.ticket_id}: exported to {result['export_dir']}")

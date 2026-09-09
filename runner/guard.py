@@ -73,6 +73,13 @@ def _project(route: trust_profile.Route, payload: object) -> tuple[object, bool]
     allowlist, and dropping any key is what turns an `allow` into a
     `redact`.
     """
+    if route.id == trust_profile.DIGEST_ROUTE and isinstance(payload, Mapping) and isinstance(payload.get("items"), list):
+        allowed = set(route.fields)
+        projected_items = [
+            {key: value for key, value in item.items() if key in allowed}
+            for item in payload["items"] if isinstance(item, Mapping)
+        ]
+        return {"items": projected_items}, projected_items != payload.get("items") or set(payload) != {"items"}
     if isinstance(payload, Mapping):
         projected = {k: v for k, v in payload.items() if k in route.fields}
         return projected, len(projected) != len(payload)

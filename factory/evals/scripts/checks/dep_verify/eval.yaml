@@ -1,0 +1,15 @@
+subject: factory/scripts/checks/dep_verify
+owner: abhishek
+cases:
+  - name: fabricated_import
+    fixture: fixtures/fabricated_import
+    expect: fail
+  - name: undeclared_package
+    fixture: fixtures/undeclared_package
+    expect: fail
+  - name: mutable_resolution
+    fixture: fixtures/mutable_resolution
+    expect: fail
+  - name: network_policy
+    fixture: fixtures/network_policy
+    expect: fail

@@ -35,13 +35,34 @@ import sqlite3
 from pathlib import Path
 from typing import Mapping
 
-from runner import artefact_registry, canonical, freshness, guard, owners, record, trust_profile, waivers
-from runner.deliverers import deliverer_for
+from runner import artefact_registry, canonical, freshness, guard, owners, queue, record, transitions, trust_profile, waivers
+from runner import project
+from runner.deliverers import Deliverer, GitHubDeliverer, SlackDeliverer, SlackMCPPostTool, SlackMCPUnavailable, StubDeliverer
+from runner.trust_profile import Route
+from runner.deliverers.github import GitHubNonRetryable
 from runner.deliverers.stub import Receipt, RemoteRefused
 from runner.fs import write_text
 from runner.paths import RUNS_DIR
 from runner.project import DEFAULT_PROJECT_CONFIG_PATH as DEFAULT_PROJECT_CONFIG
 from runner.schema import EXTERNAL_WRITE_OPERATIONS
+
+def deliverer_for(route: Route, runs_dir: Path) -> Deliverer:
+    """A live route never falls back to a local fixture receipt."""
+    if route.deliverer == "stub":
+        return StubDeliverer(Path(runs_dir) / "remote" / f"{route.id}.json")
+    if route.deliverer == "live" and route.id == "github_scratch":
+        if project.load().get("scratch_repository", {}).get("remote"):
+            return GitHubDeliverer(runs_dir=runs_dir)
+        raise GitHubNonRetryable("scratch repository remote is not configured")
+    if route.deliverer == "live" and route.id == "slack_digest":
+        digest = project.load().get("digest", {})
+        if digest.get("channel") and digest.get("mcp_post_tool") and all((digest.get("mcp_post_arguments") or {}).get(key) for key in ("channel", "text")):
+            return SlackDeliverer(SlackMCPPostTool(digest["mcp_post_tool"], digest["mcp_post_arguments"]))
+        raise SlackMCPUnavailable("Slack channel and MCP post-tool binding are not configured")
+    if route.deliverer == "live":
+        raise NotImplementedError(f"no live deliverer exists yet for route {route.id!r}")
+    raise ValueError(f"unknown deliverer kind {route.deliverer!r} for route {route.id!r}")
+
 
 PR_OPERATIONS: frozenset[str] = frozenset({"pr_create", "pr_update"})
 
@@ -91,7 +112,7 @@ KEY_COLUMNS: dict[str, tuple[str, ...]] = {
         "expected_prior_remote_head_sha",
         "pr_body_hash",
     ),
-    "digest": ("payload_digest",),
+    "digest": ("digest_channel", "cadence_slot", "payload_digest"),
     "jira_feedback": ("ticket_id", "payload_digest"),
 }
 
@@ -134,6 +155,8 @@ def create_intent(
     desired_remote_head_sha: str | None = None,
     expected_prior_remote_head_sha: str | None = None,
     remote_pr_identity: str | None = None,
+    digest_channel: str | None = None,
+    cadence_slot: str | None = None,
 ) -> int:
     """Insert one `pending` intent for `operation` and return its id, or the id of the row its key already names.
 
@@ -170,6 +193,8 @@ def create_intent(
             canonical.content_hash({"pr_body": payload["pr_body"]}) if "pr_body" in payload else None
         ),
         "remote_pr_identity": remote_pr_identity,
+        "digest_channel": digest_channel,
+        "cadence_slot": cadence_slot,
     }
     key = idempotency_key(operation, row)
 
@@ -441,7 +466,14 @@ def dispatch(
     if write is None:
         raise LookupError(f"no such external_write intent: {intent_id}")
     operation = write["operation"]
-    route, deliverer = _route_and_deliverer(write, profile_path=profile_path, runs_dir=runs_dir)
+    try:
+        route, deliverer = _route_and_deliverer(write, profile_path=profile_path, runs_dir=runs_dir)
+    except GitHubNonRetryable as exc:
+        _escalate_nonretryable_github_failure(conn, write, str(exc))
+        return
+    except RemoteRefused as exc:
+        _fail(conn, write["id"], str(exc))
+        return
     payload = _load_payload(conn, write)
 
     decision = _guard_outbox(
@@ -467,6 +499,13 @@ def dispatch(
 
     try:
         receipt = getattr(deliverer, operation)(write, passed_payload)
+    except GitHubNonRetryable as exc:
+        record.update(conn, "external_write", intent_id, state="failed", last_error=str(exc))
+        ticket = record.get(conn, "ticket", write["ticket_id"])
+        if ticket is not None and (ticket["state"], "escalate") in transitions.TABLE:
+            transitions.apply(conn, ticket["id"], "escalate")
+        conn.commit()
+        return
     except RemoteRefused as exc:
         record.update(conn, "external_write", intent_id, state="failed", last_error=str(exc))
         conn.commit()
@@ -485,13 +524,16 @@ def dispatch(
 def _reconcile_sending(
     conn: sqlite3.Connection, write: sqlite3.Row, *, runs_dir: Path, profile_path: Path, owners_path: Path, now,
 ) -> None:
-    """A `sending` row: adopt the receipt the deliverer already holds, else return the row to `pending`.
+    """Adopt a `sending` receipt, retaining an unobservable digest as ambiguous.
 
     The idempotency key is checked first, since every deliverer operation
     stores its receipt under that key in the same call that performs the
     remote effect; the pull-request identity lookup is the fallback for a
     `pr_create`/`pr_update` row whose crash landed before that receipt
-    lookup could have found anything by key alone.
+    lookup could have found anything by key alone. Slack cannot look up a
+    digest by that key, so its absent receipt cannot safely mean the post
+    failed; it remains `sending` for operator resolution. Other operations
+    return to `pending` when their remote state shows no prior effect.
     """
     _, deliverer = _route_and_deliverer(write, profile_path=profile_path, runs_dir=runs_dir)
     receipt = deliverer.receipt_for_key(write["idempotency_key"])
@@ -500,6 +542,11 @@ def _reconcile_sending(
         if found is not None:
             receipt = _receipt_from_pull_request(write, *found, now)
     if receipt is None:
+        if write["operation"] == "digest":
+            # Slack cannot look up a post by our idempotency key, so resending
+            # after a crash could duplicate a message. Preserve the ambiguity
+            # for an operator instead of reopening the intent automatically.
+            return
         record.update(conn, "external_write", write["id"], state="pending")
         conn.commit()
         return
@@ -510,6 +557,15 @@ def _reconcile_sending(
 
 def _fail(conn: sqlite3.Connection, write_id: int, reason: str) -> None:
     record.update(conn, "external_write", write_id, state="failed", last_error=reason)
+    conn.commit()
+
+
+def _escalate_nonretryable_github_failure(conn: sqlite3.Connection, write: sqlite3.Row, reason: str) -> None:
+    """Record a GitHub authority/control refusal and escalate when the ticket still has an escalation transition."""
+    record.update(conn, "external_write", write["id"], state="failed", last_error=reason)
+    ticket = record.get(conn, "ticket", write["ticket_id"])
+    if ticket is not None and (ticket["state"], "escalate") in transitions.TABLE:
+        transitions.apply(conn, ticket["id"], "escalate")
     conn.commit()
 
 
@@ -535,12 +591,28 @@ def _dispatch_pending(
         dispatch(conn, write["id"], runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path, now=now)
         return
 
-    _, deliverer = _route_and_deliverer(write, profile_path=profile_path, runs_dir=runs_dir)
     repository, head_ref = write["repository"], write["head_ref"]
 
-    existing = deliverer.open_pull_request(repository, head_ref)
+    try:
+        _, deliverer = _route_and_deliverer(write, profile_path=profile_path, runs_dir=runs_dir)
+        existing = deliverer.open_pull_request(repository, head_ref)
+    except GitHubNonRetryable as exc:
+        _escalate_nonretryable_github_failure(conn, write, str(exc))
+        return
     if existing is not None:
         identity, pr = existing
+        if pr.get("state") != "open":
+            already_raised = conn.execute(
+                "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'pr_outcome' AND resolved_at IS NULL",
+                (write["ticket_id"],),
+            ).fetchone()
+            if already_raised is None:
+                queue.open_item(
+                    conn, ticket_id=write["ticket_id"], kind="pr_outcome", ref=f"pull_request:{identity}",
+                )
+            record.update(conn, "external_write", write["id"], state="superseded", last_error="remote_pull_request_closed")
+            conn.commit()
+            return
         if pr["head_sha"] == write["desired_remote_head_sha"] and pr["body_hash"] == write["pr_body_hash"]:
             _finalize_receipt(
                 conn, write, _receipt_from_pull_request(write, identity, pr, now), runs_dir=runs_dir,
@@ -549,13 +621,21 @@ def _dispatch_pending(
             return
 
     if operation == "pr_create":
-        current_head = deliverer.branch_head(repository, head_ref)
+        try:
+            current_head = deliverer.branch_head(repository, head_ref)
+        except GitHubNonRetryable as exc:
+            _escalate_nonretryable_github_failure(conn, write, str(exc))
+            return
         if current_head is not None and current_head != write["expected_prior_remote_head_sha"]:
             _fail(conn, write["id"], "unexpected_remote_head")
             return
     else:
         ticket = record.get(conn, "ticket", write["ticket_id"])
-        current_head = deliverer.branch_head(repository, head_ref)
+        try:
+            current_head = deliverer.branch_head(repository, head_ref)
+        except GitHubNonRetryable as exc:
+            _escalate_nonretryable_github_failure(conn, write, str(exc))
+            return
         if current_head != ticket["last_remote_head_sha"]:
             _fail(conn, write["id"], "unexpected_remote_head")
             return

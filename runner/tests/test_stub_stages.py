@@ -9,14 +9,16 @@ repository's `runs/`, which no test touches.
 import json
 import os
 import subprocess
+from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, artefacts, gates, git_trees, governance, manifest, owners, plan_tuple, record,
-    transitions,
+    approvals, artefact_registry, artefacts, cli, gates, git_trees, governance, manifest, owners, plan_tuple, project,
+    record, transitions, waivers,
 )
 from runner.db import connect
 from runner.tests import support
@@ -24,7 +26,8 @@ from runner.definitions import DefinitionError, load_definition
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR
 from runner.reviewer_sets import Slot
-from runner.stages import run_stage
+from runner.stages import S5, run_stage
+from runner.tests.test_stub_walk import _materialise_fixture_vendor
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
@@ -141,7 +144,10 @@ def _checks_ticket_with_fresh_base(conn, tmp_path):
 
     for kind in ("brief", "criteria", "plan"):
         path = tmp_path / f"{kind}.md"
-        write_text(path, f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
+        text = f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n"
+        if kind == "plan":
+            text += "\n## Dependencies\n\n| package | from_version | to_version | kind | reason |\n|---|---|---|---|---|\n"
+        write_text(path, text)
         artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
 
     identity = owners.load_owners().roles["s3_reviewer"]["identity"]
@@ -303,14 +309,34 @@ def test_s4_runs_for_real_and_passes_to_checks(conn, tmp_path):
 
 
 def test_s5_and_s6_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tmp_path):
-    """the real S5 and S6 stub drivers each run (writing
-    `check_evidence` and `packet` artefacts) without leaving `checks` on
-    their own; only once both have passed does the checks gate fire."""
+    """The real S5 gap is cleared by its evidence-backed waiver before S6 and the checks gate run."""
     ticket_id = _checks_ticket_with_fresh_base(conn, tmp_path)
-    s5_outcome = run_stage(conn, ticket_id, "S5", runs_dir=tmp_path)
-    assert s5_outcome == "pass"
+    vendor = _materialise_fixture_vendor(tmp_path)
+    with patch.object(S5, "_project_config", return_value={**project.pilot(), "vendor": str(vendor)}):
+        s5_outcome = run_stage(conn, ticket_id, "S5", runs_dir=tmp_path)
+    assert s5_outcome == "fail"
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
     assert artefact_registry.latest(conn, ticket_id, "check_evidence") is not None
+    s5_run = conn.execute(
+        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S5' ORDER BY id DESC LIMIT 1", (ticket_id,)
+    ).fetchone()
+    blocking = conn.execute(
+        "SELECT id, check_name, result, evidence_artefact FROM check_result "
+        "WHERE stage_run_id = ? AND check_tier = 'blocking' AND result != 'pass' ORDER BY id",
+        (s5_run["id"],),
+    ).fetchall()
+    assert [(row["check_name"], row["result"]) for row in blocking] == [("recipe:fixture_security@head", "blind_spot")]
+    evidence = record.get(conn, "artefact", blocking[0]["evidence_artefact"])
+    assert evidence is not None and Path(evidence["path"]).is_file()
+    message = cli.waive(
+        conn, ticket_id=ticket_id, policy_id="recipe-execution-gap", check_result_id=blocking[0]["id"],
+        human_verdict_id=None, actor=ABHISHEK, reason="security feeds are unavailable in the fixture environment",
+        scope="fixture_security head recipe", controls="local secret and static checks remain recorded", evidence=[evidence["id"]],
+        expires_at=(datetime.fromisoformat(record.now()) + timedelta(days=1)).isoformat(),
+    )
+    waiver_id = int(message.split()[1].rstrip(":"))
+    assert waivers.validity(conn, waiver_id).valid
+    conn.commit()
 
     s6_outcome = run_stage(conn, ticket_id, "S6", runs_dir=tmp_path)
     assert s6_outcome == "pass"

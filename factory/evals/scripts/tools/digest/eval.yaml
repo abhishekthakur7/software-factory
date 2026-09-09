@@ -1,0 +1,9 @@
+subject: factory/scripts/tools/digest
+owner: abhishek
+cases:
+  - name: open_items
+    fixture: fixtures/open_items
+    expect: ok
+  - name: empty_queue
+    fixture: fixtures/empty_queue
+    expect: ok

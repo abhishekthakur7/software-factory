@@ -13,17 +13,49 @@ module calls, so the write barrier has nothing to enforce here beyond what
 it already enforces on `fs.copy_tree`.
 """
 import os
+import plistlib
 import subprocess
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from runner.fs import write_text
 from runner import fs, project as project_config
 from runner.paths import FACTORY_DIR, REPO_ROOT
 
 DEFAULT_PROJECT_CONFIG = project_config.DEFAULT_PROJECT_CONFIG_PATH
 DEFAULT_SEED_DIR = FACTORY_DIR / "evals" / "fixture-project"
+
+
+def digest_launchd_plist(config: dict, executable: Path, db_path: Path) -> str:
+    """The launchd plist text for the configured digest cadence, without installing it."""
+    digest = config.get("digest") or {}
+    channel, cadence = digest.get("channel"), digest.get("cadence")
+    if not isinstance(channel, str) or not channel:
+        raise SetupError("digest scheduler requires a configured channel")
+    schedules = {
+        "hourly": {"Minute": 0},
+        "daily": {"Hour": 9, "Minute": 0},
+        "weekly": {"Weekday": 1, "Hour": 9, "Minute": 0},
+    }
+    if cadence not in schedules:
+        raise SetupError(f"unsupported digest cadence {cadence!r}")
+    return plistlib.dumps(
+        {
+            "Label": "com.soft-factory.digest",
+            "ProgramArguments": [str(executable), "--db", str(db_path), "digest"],
+            "StartCalendarInterval": schedules[cadence],
+            "EnvironmentVariables": {"FACTORY_DIGEST_CHANNEL": channel},
+        }
+    ).decode()
+
+
+def write_digest_launchd_entry(config: dict, directory: Path, executable: Path, db_path: Path) -> Path:
+    """Write the digest scheduler plist under `directory`; loading it remains an explicit owner action."""
+    path = Path(directory) / "com.soft-factory.digest.plist"
+    write_text(path, digest_launchd_plist(config, executable, db_path))
+    return path
 
 # Fixed identity and timestamp for the seed commit, so materialising the
 # same seed tree twice always produces the same commit sha.

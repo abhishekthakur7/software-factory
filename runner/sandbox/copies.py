@@ -47,11 +47,20 @@ def provision(
     root = Path(runs_dir) / "tickets" / str(ticket_id) / "copies" / str(stage_run_id)
     base = root / "base"
     head = root / "head"
-    _clone(Path(base_checkout), base)
-    _clone(Path(head_checkout), head)
-    for checkout_dir in (base, head):
-        for name in disposable:
-            (checkout_dir / name).mkdir(parents=True, exist_ok=True)
+    if root.exists():
+        fs.remove_tree(root)
+    try:
+        _clone(Path(base_checkout), base)
+        _clone(Path(head_checkout), head)
+        for checkout_dir in (base, head):
+            for name in disposable:
+                (checkout_dir / name).mkdir(parents=True)
+    except Exception:
+        # A failed second clone can leave a writable first copy. Remove the
+        # whole run-local root before reporting failure so it cannot be reused.
+        if root.exists():
+            fs.remove_tree(root)
+        raise
     return Copies(root=root, base=base, head=head, disposable=tuple(disposable))
 
 
