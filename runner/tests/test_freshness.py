@@ -17,7 +17,7 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, artefacts, binding, canonical, cli, freshness, gates, git_trees, manifest, outbox,
+    approvals, artefact_registry, artefacts, binding, canonical, cli, freshness, gates, git_trees, manifest, operations, outbox,
     owners, plan_tuple, publication, record, refresh_base, transitions,
 )
 from runner.db import connect
@@ -145,7 +145,7 @@ def test_advance_refuses_s4_on_a_stale_base_and_queues_exactly_one_red_check(con
     # `advance` reads the project's real target branch from the committed
     # `factory/config/project.yaml` ("main"), which the fixture's source
     # repository already uses -- no monkeypatch of that config is needed.
-    monkeypatch.setattr(cli, "_due_stage", lambda conn, ticket: "S4")
+    monkeypatch.setattr(operations, "_due_stage", lambda conn, ticket: "S4")
 
     _write_files(source, fixture["target_commit"]["files"])
     _commit_all(source, fixture["target_commit"]["message"])

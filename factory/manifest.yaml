@@ -23,7 +23,7 @@ files:
   - path: factory/config/exclusions.yaml
     content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
   - path: factory/config/limits.yaml
-    content_hash: e16d0eef1a657d548bc75543c2920d8868efd617f0dae10ef6f0ce2a7fd7b591
+    content_hash: 9f04d5c6c112137496a04672e5cd14382cab060cc7fb8fabdc561bbe4327c03f
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/pricing.yaml

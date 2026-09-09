@@ -52,3 +52,21 @@ verification:
 # same sandboxed launch a real agent invocation runs under.
 archaeology:
   wall_clock_seconds: 60
+
+# The parallel ticket limit: how many tickets may be past `intake` at
+# once. Stays effective at one until a recorded graduation approval binds
+# a passing report and the exact hash of this file's bytes.
+parallel_tickets: 1
+
+# The graduation gate's thresholds: the smallest candidate window, the
+# fewest top-level first attempts a stage needs before its pass share
+# counts, the pass share a stage must exceed, the fewest comparable
+# observed baseline values the revision comparison needs, and the
+# severities whose attributable production incident fails the gate and
+# resets the window once remediated.
+graduation:
+  window_min_outcomes: 10
+  stage_min_first_attempts: 10
+  stage_min_pass_share: 0.9
+  baseline_min_comparable: 10
+  severe_severities: [sev1, sev2]

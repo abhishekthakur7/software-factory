@@ -216,6 +216,7 @@ UTILITY_KINDS: tuple[str, ...] = (
     "improvement",
     "refused_request",
     "gate",
+    "graduation",
     "other",
 )
 
@@ -285,13 +286,20 @@ TABLES: tuple[Table, ...] = (
             Column("factory_completed_at", "TEXT", mutable=True),
             Column("closed_at", "TEXT", mutable=True),
             Column("close_reason", "TEXT", mutable=True),
-            Column("final_head_sha", "TEXT"),
-            Column("final_target_base_sha", "TEXT"),
-            Column("final_pr_body_hash", "TEXT"),
-            Column("merge_sha", "TEXT"),
-            Column("required_checks_disposition", "TEXT"),
-            Column("approval_disposition", "TEXT"),
-            Column("external_revision_count", "INTEGER"),
+            # The observed outcome: what actually happened to the pull
+            # request, entered by hand once and never rewritten. The group
+            # settles together in one write; outcome_observed_at is its
+            # sentinel because every outcome carries an observation time.
+            Column("final_head_sha", "TEXT", once="outcome_observed_at"),
+            Column("final_target_base_sha", "TEXT", once="outcome_observed_at"),
+            Column("final_pr_body_hash", "TEXT", once="outcome_observed_at"),
+            Column("merge_sha", "TEXT", once="outcome_observed_at"),
+            Column("required_checks_disposition", "TEXT", once="outcome_observed_at"),
+            Column("approval_disposition", "TEXT", once="outcome_observed_at"),
+            Column("outcome_actor_role", "TEXT", once="outcome_observed_at"),
+            Column("outcome_observed_at", "TEXT", once="outcome_observed_at"),
+            # Counted up by each recorded revision after approval.
+            Column("external_revision_count", "INTEGER", mutable=True),
             # Later field; reserved now so it never needs a migration.
             Column("close_survey", "TEXT"),
             # The exporting record's content hash, set only by `factory
