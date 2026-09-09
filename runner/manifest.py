@@ -119,9 +119,6 @@ class Entry:
     model_requested: str | None
     grader_model: str | None
     sandbox_policy: str | None
-    # The credential roles the manifest's sandbox-policy entry admits into
-    # this stage's sandbox; empty for a stage that runs no agent.
-    credential_roles: tuple[str, ...]
     toolchain: dict
     restatement_model: str | None
     agent_hash: str | None
@@ -129,6 +126,9 @@ class Entry:
     shared_skill_hashes: tuple[str, ...]
     rubric_hash: str | None
     manifest_hash: str
+    # The credential roles the manifest's sandbox-policy entry admits into
+    # this stage's sandbox; empty for a stage that runs no agent.
+    credential_roles: tuple[str, ...] = ()
 
 
 def _load_files(entries: object, path: Path) -> dict[str, str]:
