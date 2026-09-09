@@ -13,6 +13,10 @@ Checks (exit 1 on any failure):
   - every ticket has the sections id, title, milestone, blocks, HLD components,
     depends on, rows covered, description, scope (in and out), acceptance
     criteria and verification, none empty
+  - a ticket whose "Rows covered" is "none" lists "Rows exercised": rows an
+    earlier ticket covers whose live, pilot-host clauses this ticket runs;
+    an exercised row is a live PRD row covered by an earlier ticket, never by
+    this one, and every exercised row is cited by at least one criterion
   - ticket ids are T-<milestone>-NN, numbered 01, 02, ... in file order
   - every row id in "Rows covered" is a live PRD row
   - every Appendix A row of the milestone appears in a ticket of that file
@@ -21,8 +25,9 @@ Checks (exit 1 on any failure):
   - every dependency names a ticket that appears earlier in the same file or
     in an earlier milestone's file; no cycle
   - every acceptance criterion is a numbered item ending with a row-id list in
-    parentheses, optionally followed by a full stop; every id it cites is in the ticket's rows; every covered row
-    is cited by at least one criterion
+    parentheses, optionally followed by a full stop; every id it cites is a
+    row the ticket covers or exercises; every covered row is cited by at
+    least one criterion
   - no acceptance criterion carries a forbidden phrase ("as described in",
     "properly", "correctly", "etc.", "and so on", "appropriately",
     "as specified", "as required", "per the PRD", "according to")
@@ -60,6 +65,8 @@ FORBIDDEN = [
     "appropriately", "as specified", "as required", "per the prd", "according to",
 ]
 META_KEYS = ["Milestone", "Blocks", "HLD components", "Depends on", "Rows covered"]
+# Optional: rows an earlier ticket covers whose live clauses this ticket runs.
+EXERCISED_KEY = "Rows exercised"
 SECTIONS = ["Description", "Scope", "Acceptance criteria", "Verification"]
 
 
@@ -116,7 +123,7 @@ def parse_file(milestone, path, errors):
             continue
         if section is None:
             mm = META_RE.match(line)
-            if mm and mm.group(1) in META_KEYS:
+            if mm and mm.group(1) in META_KEYS + [EXERCISED_KEY]:
                 current["meta"][mm.group(1)] = mm.group(2)
         else:
             current["sections"][section].append(line)
@@ -136,6 +143,7 @@ def criteria_of(ticket):
 
 
 def check_ticket(t, rows, errors):
+    """Return (covered, exercised) row ids; exercised rows are validated against earlier tickets by the caller."""
     tid, name = t["id"], t["file"]
     for key in META_KEYS:
         if not t["meta"].get(key, "").strip():
@@ -159,6 +167,17 @@ def check_ticket(t, rows, errors):
             errors.append(f"{name} {tid}: {rid} is not a live PRD row")
     if len(set(covered)) != len(covered):
         errors.append(f"{name} {tid}: a row is listed twice in 'Rows covered'")
+    exercised = split_ids(t["meta"].get(EXERCISED_KEY, ""))
+    for rid in exercised:
+        if not ROW_ID_RE.fullmatch(rid):
+            errors.append(f"{name} {tid}: '{rid}' in '{EXERCISED_KEY}' is not a row id")
+        elif rid not in rows:
+            errors.append(f"{name} {tid}: exercised {rid} is not a live PRD row")
+        elif rid in covered:
+            errors.append(f"{name} {tid}: {rid} is both covered and exercised")
+    if not covered and not exercised:
+        errors.append(f"{name} {tid}: covers no row and exercises none")
+    citable = set(covered) | set(exercised)
     cited = set()
     crits = criteria_of(t)
     if not crits:
@@ -172,8 +191,8 @@ def check_ticket(t, rows, errors):
             continue
         for rid in split_ids(m.group(1)):
             cited.add(rid)
-            if rid not in covered:
-                errors.append(f"{name} {tid}: criterion {num} cites {rid}, which is not in 'Rows covered'")
+            if rid not in citable:
+                errors.append(f"{name} {tid}: criterion {num} cites {rid}, which the ticket neither covers nor exercises")
         low = body.lower()
         for phrase in FORBIDDEN:
             if phrase in low:
@@ -181,7 +200,10 @@ def check_ticket(t, rows, errors):
     for rid in covered:
         if rid not in cited:
             errors.append(f"{name} {tid}: {rid} is covered but no criterion cites it")
-    return covered
+    for rid in exercised:
+        if rid not in cited:
+            errors.append(f"{name} {tid}: {rid} is exercised but no criterion cites it")
+    return covered, exercised
 
 
 def main(argv):
@@ -214,8 +236,13 @@ def main(argv):
     seen_rows = {}
     for ms, tickets in per_file.items():
         for tid, t in tickets.items():
-            covered = check_ticket(t, rows, errors)
+            covered, exercised = check_ticket(t, rows, errors)
             t["rows"] = covered
+            # seen_rows holds only earlier tickets' rows at this point, so
+            # membership is exactly "covered by a ticket above this one".
+            for rid in exercised:
+                if rid not in seen_rows:
+                    errors.append(f"{t['file']} {tid}: exercises {rid}, which no earlier ticket covers")
             for rid in covered:
                 if rid in seen_rows:
                     errors.append(f"{t['file']} {tid}: {rid} is also covered by {seen_rows[rid]}")
