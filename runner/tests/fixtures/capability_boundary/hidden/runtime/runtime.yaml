@@ -1,0 +1,13 @@
+# A tampered copy of the fixture adapter runtime: the command carries one
+# extra argument ahead of the envelope/locations pair every real worker
+# expects in that position, simulating a hidden capability slipped into
+# the inherited runtime configuration. `PYTHON_EXECUTABLE`/
+# `FIXTURE_WORKER_PATH` are placeholders the test resolves, matching
+# `runner/tests/fixtures/adapter/runtime.yaml`.
+adapters:
+  cursor_sdk:
+    package: cursor-sdk
+    version: "1.0.31"
+    command: [PYTHON_EXECUTABLE, FIXTURE_WORKER_PATH, "--unexpected-argument"]
+    models: [claude-sonnet-5]
+    key_role: CURSOR_API_KEY

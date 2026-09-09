@@ -12,6 +12,7 @@ through `runner.launcher.launch` under the real, committed profiles --
 never a test double.
 
 """
+import json
 import os
 import subprocess
 import sys
@@ -20,9 +21,11 @@ from pathlib import Path
 import pytest
 import yaml
 
+from runner import artefact_registry, launcher, tickets
+from runner.db import connect
 from runner.paths import REPO_ROOT
 from runner.sandbox import copies, os_policy
-from runner.tests.support import launch_probe
+from runner.tests.support import REAL_SANDBOX_PATH, launch_probe
 
 EVAL_DIR = REPO_ROOT / "factory" / "evals" / "sandbox" / "escape"
 
@@ -180,6 +183,61 @@ def test_credentials_probe_no_ambient_credential_material_ever_surfaces(tmp_path
     _assert_matches_expect(payload, "credentials")
 
 
+def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from_every_mount(tmp_path):
+    """R-T-2: an unregistered file beside a registered one is invisible to `artefact_registry.latest`
+    and absent from the next stage's sandbox, even though both files sit in the very same ticket directory."""
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)
+
+    ticket_dir = tmp_path / "ticket"
+    ticket_dir.mkdir()
+    registered_path = ticket_dir / "registered.md"
+    registered_path.write_text("a real, registered artefact\n")
+    unregistered_path = ticket_dir / "unregistered.md"
+    unregistered_path.write_text("never registered\n")
+    artefact_id = artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=registered_path)
+
+    # The database-level lookup a stage driver actually calls never
+    # returns the unregistered file, no matter how it looks on disk.
+    latest = artefact_registry.latest(conn, ticket_id, "brief")
+    assert latest["id"] == artefact_id
+    assert latest["path"] == str(registered_path.resolve())
+    assert conn.execute(
+        "SELECT COUNT(*) FROM artefact WHERE ticket_id = ? AND path = ?", (ticket_id, str(unregistered_path.resolve()))
+    ).fetchone()[0] == 0
+
+    # The sandbox-level mount agrees -- `locations.json` is written the
+    # same way a real invocation writes it (see `envelope.locations`),
+    # naming only the registered artefact.
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "locations.json").write_text(json.dumps({
+        "inputs": [{"artefact_id": artefact_id, "kind": "brief", "path": str(registered_path.resolve())}],
+    }))
+    probe_path = run_dir / "tmp"
+    probe_path.mkdir(parents=True, exist_ok=True)
+    probe_copy = probe_path / "probe.py"
+    probe_copy.write_text((EVAL_DIR / "fixtures" / "unregistered-file" / "probe.py").read_text())
+
+    result = launcher.launch(
+        run_dir=run_dir, argv=[sys.executable, str(probe_copy), str(unregistered_path)], role="agent",
+        policy="enforced", cwd=tmp_path, wall_clock_seconds=20, stage="S1", ticket_dir=ticket_dir,
+        sandbox_path=REAL_SANDBOX_PATH,
+    )
+    assert result.os_policy_applied is True
+    assert result.stdout_json is not None, f"probe produced no parseable JSON; stderr: {result.stderr_text}"
+    _assert_matches_expect(result.stdout_json, "unregistered-file")
+
+    # The registered path itself, named by `locations.json`, stays readable
+    # -- the mount narrows to exactly the registered set, not to nothing.
+    registered_read = launcher.launch(
+        run_dir=run_dir, argv=[sys.executable, str(probe_copy), str(registered_path)], role="agent",
+        policy="enforced", cwd=tmp_path, wall_clock_seconds=20, stage="S1", ticket_dir=ticket_dir,
+        sandbox_path=REAL_SANDBOX_PATH,
+    )
+    assert registered_read.stdout_json == {"attempted": True, "refused": False}
+
+
 def test_ok_control_case_reads_back_its_own_out(tmp_path):
     """The one positive control every real category is judged against: an ordinary write-then-read still works."""
     payload = _run_probe(tmp_path, "ok", role="agent", ticket_dir=tmp_path / "ticket")
@@ -190,6 +248,6 @@ def test_eval_directory_names_every_category_this_module_exercises():
     """R-I-14 criterion 36: the suite covers every category the eval directory names, none silently dropped."""
     exercised = {
         "paths", "symlinks", "subprocesses", "environment", "sockets", "network", "mounts",
-        "base-head-isolation", "source-immutability", "copy-disposal", "credentials", "ok",
+        "base-head-isolation", "source-immutability", "copy-disposal", "credentials", "unregistered-file", "ok",
     }
     assert set(_CASES) == exercised

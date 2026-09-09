@@ -575,7 +575,10 @@ def test_recheck_is_true_when_the_checkout_is_untouched_and_false_once_modified(
 # exceptions); results/ is read-only from inside every sandbox.
 
 
-def test_ticket_dir_is_readable_but_writing_it_is_refused(tmp_path):
+def test_an_unregistered_ticket_dir_file_is_neither_readable_nor_writable(tmp_path):
+    """The agent profile mounts only the paths a run's own `locations.json` names, never the ticket directory
+    as a whole (R-T-2): a file sitting in the ticket directory that no invocation named as a registered input
+    is refused on read exactly like it is on write."""
     ticket_dir = tmp_path / "ticket"
     ticket_dir.mkdir()
     (ticket_dir / "input.txt").write_text("registered input\n")
@@ -583,16 +586,20 @@ def test_ticket_dir_is_readable_but_writing_it_is_refused(tmp_path):
         tmp_path,
         "import os, sys, json\n"
         "d = sys.argv[1]\n"
-        "read_ok = open(os.path.join(d, 'input.txt')).read() == 'registered input\\n'\n"
+        "read_denied = False\n"
+        "try:\n"
+        "    open(os.path.join(d, 'input.txt')).read()\n"
+        "except OSError:\n"
+        "    read_denied = True\n"
         "write_denied = False\n"
         "try:\n"
         "    open(os.path.join(d, 'escape.txt'), 'w').write('x')\n"
         "except OSError:\n"
         "    write_denied = True\n"
-        "print(json.dumps({'read_ok': read_ok, 'write_denied': write_denied}))\n",
+        "print(json.dumps({'read_denied': read_denied, 'write_denied': write_denied}))\n",
         ticket_dir=ticket_dir, extra_argv=(str(ticket_dir),),
     )
-    assert result.stdout_json == {"read_ok": True, "write_denied": True}
+    assert result.stdout_json == {"read_denied": True, "write_denied": True}
 
 
 def test_results_subpath_is_read_only_from_inside_every_role(tmp_path):

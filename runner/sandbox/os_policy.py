@@ -22,9 +22,33 @@ SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
 SANDBOX_EXEC = "/usr/bin/sandbox-exec"
 ROLES: tuple[str, ...] = ("agent", "build")
 
+# How many registered-artefact paths the agent profile mounts by name
+# (`INPUT_0`..`INPUT_{N-1}`): a fixed count, since a Seatbelt profile names
+# its params statically rather than looping over an arbitrary list.
+# `agent-profile.sb` defines exactly this many `input-N` params, so a
+# caller that changes this constant must also edit the profile (and
+# `sandbox.yaml`'s digest) to match.
+REGISTERED_INPUT_SLOTS = 8
+
 
 class OSPolicyError(Exception):
     """The named sandbox policy carries no os_profiles entry, or no entry for the given role."""
+
+
+class MountParamError(OSPolicyError):
+    """A sandbox mount parameter resolves to a path this profile must never grant."""
+
+
+# Every param name a caller uses to name a directory the profile mounts
+# (grants read or write access to) rather than an interpreter root, a
+# stage label, or a port number. `wrap` checks only these against the
+# host's own home directory: REPO_ROOT/PYTHON_ROOT/JDK_HOME legitimately
+# sit outside a run's own tree, so a blanket check over every param would
+# refuse an ordinary launch, not just a hidden one.
+_MOUNT_PARAM_NAMES: frozenset[str] = frozenset({
+    "TICKET_DIR", "WORKTREE", "RUN_DIR", "TMPDIR",
+    "COPY_DIR", "BUILD_DIR", "SCRATCH_DIR", "CACHE_DIR",
+})
 
 
 def _policy(policy_name: str, *, sandbox_path: Path) -> dict:
@@ -59,6 +83,24 @@ def digest(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def _refuse_home_mount(params: dict[str, str]) -> None:
+    """Raise when a mount param resolves to the host's own home directory -- an extra mount hidden in plain sight.
+
+    A legitimate run never sets `TICKET_DIR`/`WORKTREE`/`RUN_DIR`/etc to
+    `$HOME` itself; every real caller derives these from `RUNS_DIR` or a
+    checkout under it, so this check costs nothing on any real launch and
+    closes the one concrete leak a corrupted or hostile param set could
+    hand to `sandbox-exec` before it becomes a granted mount.
+    """
+    home = Path.home().resolve()
+    for name in _MOUNT_PARAM_NAMES:
+        value = params.get(name)
+        if not value:
+            continue
+        if Path(value).resolve() == home:
+            raise MountParamError(f"sandbox param {name!r} resolves to the host home directory: refused")
+
+
 def wrap(
     argv: list[str], *, role: str, params: dict[str, str], policy_name: str = "enforced",
     sandbox_path: Path = SANDBOX_PATH,
@@ -67,6 +109,7 @@ def wrap(
     profile_path = profile_for(role, policy_name=policy_name, sandbox_path=sandbox_path)
     if profile_path is None:
         return list(argv)
+    _refuse_home_mount(params)
     defines: list[str] = []
     for name, value in params.items():
         defines += ["-D", f"{name}={value}"]
@@ -74,10 +117,12 @@ def wrap(
 
 
 def _throwaway_params(scratch: str) -> dict[str, str]:
-    return {
+    params = {
         "REPO_ROOT": str(REPO_ROOT), "PYTHON_ROOT": sys.base_prefix, "WORKTREE": scratch,
         "RUN_DIR": scratch, "TICKET_DIR": scratch, "TMPDIR": scratch, "STAGE": "S0", "PROXY_PORT": "0",
     }
+    params.update({f"INPUT_{i}": scratch for i in range(REGISTERED_INPUT_SLOTS)})
+    return params
 
 
 def available(*, policy_name: str = "enforced", sandbox_path: Path = SANDBOX_PATH) -> bool:

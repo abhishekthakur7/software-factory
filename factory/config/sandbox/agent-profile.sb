@@ -14,10 +14,17 @@
 (define python-root (param "PYTHON_ROOT"))
 (define worktree (param "WORKTREE"))
 (define run-dir (param "RUN_DIR"))
-(define ticket-dir (param "TICKET_DIR"))
 (define tmp-dir (param "TMPDIR"))
 (define stage (param "STAGE"))
 (define proxy-port (param "PROXY_PORT"))
+(define input-0 (param "INPUT_0"))
+(define input-1 (param "INPUT_1"))
+(define input-2 (param "INPUT_2"))
+(define input-3 (param "INPUT_3"))
+(define input-4 (param "INPUT_4"))
+(define input-5 (param "INPUT_5"))
+(define input-6 (param "INPUT_6"))
+(define input-7 (param "INPUT_7"))
 
 ; A resolved path's ancestor chain needs stat-only access before any of it
 ; can be opened, exec'd, or even proven to exist -- `path-ancestors` grants
@@ -28,7 +35,6 @@
     (path-ancestors repo-root)
     (path-ancestors worktree)
     (path-ancestors run-dir)
-    (path-ancestors ticket-dir)
     (path-ancestors tmp-dir))
 
 ; `runner`'s package finder lists REPO_ROOT itself (an editable install
@@ -63,9 +69,22 @@
     (subpath (string-append repo-root "/.venv"))
     (subpath python-root))
 
-; Registered inputs for this ticket, read-only: an agent proposes edits
-; inside its own worktree or `out/`, never by mutating what was handed to it.
-(allow file-read* file-test-existence (subpath ticket-dir))
+; Registered inputs for this invocation, read-only, one artefact file at a
+; time -- never the whole per-ticket directory: only the paths this run's
+; own `locations.json` names are ever readable, so a file an agent or
+; script produced but never registered through the artefact table stays
+; invisible to the next stage's sandbox. Unused slots are the same
+; `TMPDIR` placeholder already granted below, so an invocation with fewer
+; than eight registered inputs costs nothing extra. An agent proposes
+; edits inside its own worktree or `out/`, never by mutating an input.
+(allow file-read-metadata file-test-existence
+    (path-ancestors input-0) (path-ancestors input-1)
+    (path-ancestors input-2) (path-ancestors input-3)
+    (path-ancestors input-4) (path-ancestors input-5)
+    (path-ancestors input-6) (path-ancestors input-7))
+(allow file-read* file-test-existence
+    (literal input-0) (literal input-1) (literal input-2) (literal input-3)
+    (literal input-4) (literal input-5) (literal input-6) (literal input-7))
 
 ; The one writable destination a non-S4 invocation gets; `results/` is
 ; written only by the trusted launcher, after the child has already exited.
@@ -73,10 +92,14 @@
 (allow file-read* file-test-existence (subpath (string-append run-dir "/results")))
 (allow file-read* file-write* file-test-existence (subpath tmp-dir))
 
-; Only S4's task loop edits the ticket's own worktree directly; every other
-; stage proposes changes through `out/` for the trusted runner to apply.
+; The ticket's own checkout is what every agent stage reads its code from;
+; only S4's task loop edits it directly, and every other stage proposes
+; changes through `out/` for the trusted runner to apply. The checkout is
+; a mount in its own right, not a registered input, so a file dropped
+; elsewhere in the per-ticket directory stays out of reach.
+(allow file-read* file-test-existence (subpath worktree))
 (if (string=? stage "S4")
-    (allow file-read* file-write* file-test-existence (subpath worktree)))
+    (allow file-write* (subpath worktree)))
 
 ; Outbound network never leaves the loopback proxy `runner/sandbox/proxy.py`
 ; starts for this run; the proxy itself enforces the per-stage endpoint

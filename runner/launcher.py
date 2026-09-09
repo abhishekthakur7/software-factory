@@ -34,6 +34,12 @@ from runner.sandbox import os_policy, proxy
 
 SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
 
+# `os_policy.REGISTERED_INPUT_SLOTS` is the one home for this count: the
+# profile file itself names exactly this many `input-N` params, so the
+# launcher must build exactly that many `INPUT_n` values, never its own
+# separate constant that could drift from the profile's own shape.
+REGISTERED_INPUT_SLOTS = os_policy.REGISTERED_INPUT_SLOTS
+
 # The environment name an agent sandbox receives the runtime key under
 # when the caller names none; a runtime adapter passes its own
 # (`runtime.yaml` `key_role`), since the worker's SDK reads a fixed name.
@@ -147,6 +153,43 @@ def _resolve_proxy_allowlist(policy: dict, stage: str | None) -> list[proxy.Endp
     ]
 
 
+def _registered_input_params(run_dir: Path, *, placeholder: str) -> dict[str, str]:
+    """`INPUT_0`..`INPUT_{REGISTERED_INPUT_SLOTS - 1}`: the paths this run's own `locations.json` names, if any.
+
+    Read from `<run_dir>/locations.json`, written by the caller (see
+    `cursor_sdk.invoke`) before `launch` ever runs -- never by the child,
+    which cannot write there. A missing file, an unparsable one, or a
+    caller (a probe, a script-only stage) that never writes one at all
+    just leaves every slot at `placeholder`, the same value every other
+    unused mount param gets: an artefact an agent or script produced but
+    never registered through the artefact table must never become
+    readable through this or any other path (R-T-2), so absence here is
+    silence, not a failure this function raises on.
+    """
+    locations_path = Path(run_dir) / "locations.json"
+    paths: list[str] = []
+    if locations_path.is_file():
+        try:
+            doc = json.loads(locations_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            doc = {}
+        for item in doc.get("inputs", []) if isinstance(doc, dict) else []:
+            path = item.get("path") if isinstance(item, dict) else None
+            if path:
+                paths.append(str(path))
+    if len(paths) > REGISTERED_INPUT_SLOTS:
+        # Silently dropping an input would hand the agent a run whose
+        # envelope names files it cannot read; refusing keeps the count
+        # and the profile honest about each other.
+        raise SandboxPolicyError(
+            f"{locations_path} names {len(paths)} inputs; the agent profile mounts at most {REGISTERED_INPUT_SLOTS}"
+        )
+    params = {f"INPUT_{i}": placeholder for i in range(REGISTERED_INPUT_SLOTS)}
+    for i, path in enumerate(paths):
+        params[f"INPUT_{i}"] = path
+    return params
+
+
 def _sandbox_params(
     *, run_dir: Path, tmp_dir: Path, ticket_dir: Path | None, worktree_path: Path | None, stage: str | None,
     copy_dir: Path | None, build_dir: Path | None, scratch_dir: Path | None, cache_dir: Path | None,
@@ -174,6 +217,7 @@ def _sandbox_params(
         "SCRATCH_DIR": str(scratch_dir) if scratch_dir else placeholder,
         "CACHE_DIR": str(cache_dir) if cache_dir else placeholder,
         "JDK_HOME": jdk_home or placeholder,
+        **_registered_input_params(run_dir, placeholder=placeholder),
     }
 
 

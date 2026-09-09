@@ -14,6 +14,7 @@ opens it -- so every later liveness check in the walk runs the real
 function; every "live" run (the stop demonstration) opens with no patch
 at all, so its identity is this very test process.
 """
+import ast
 import json
 import os
 import shutil
@@ -27,13 +28,15 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, owners,
-    publication, queue, recipes, record, run_ledger,
+    approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, manifest,
+    owners, publication, queue, recipes, record, run_ledger, stages, tickets,
 )
 from runner.adapters import cursor_sdk
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.reviewer_sets import Slot
+from runner.sandbox import os_policy
+from runner.tests.support import launch_probe
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
 
 ADAPTER_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "adapter"
@@ -41,6 +44,9 @@ ADAPTER_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "adapter"
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "stub_walk"
 TABLES = yaml.safe_load((FIXTURES_DIR / "tables.yaml").read_text())["tables"]
 MANIFEST_HASH_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "manifest_hash"
+
+CAPABILITY_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "capability_boundary"
+ESCAPE_EVAL_DIR = REPO_ROOT / "factory" / "evals" / "sandbox" / "escape"
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
@@ -632,3 +638,233 @@ def test_must_reject_a_crossing_that_bypasses_the_guard(tmp_path):
     with pytest.raises(guard.GuardRefused):
         guard.pass_through(conn, fake, "outbox")
     conn.close()
+
+
+# Forbidden capabilities, tested over the manifest, the sandbox and the
+# route ids a direct GitHub or Slack write would need: no stage sandbox
+# can exec an arbitrary shell, open an arbitrary network client, write
+# source outside S4, write outside S5's own disposable layers, or reach a
+# GitHub/Slack write through anything but the outbox dispatcher and the
+# digest intent. A hidden capability injected at any of six surfaces the
+# stub walk touches fails at the boundary that owns that surface.
+
+def _capability_boundary_entry(tmp_path: Path, base: Path, name: str, stage: str = "S1", tier: str = "light"):
+    """A resolved manifest `Entry` from `base/factory`, committed into a fresh git repo first --
+    `manifest.resolve` and `manifest.current_hash` both require committed bytes."""
+    repo = tmp_path / f"{name}_repo"
+    shutil.copytree(base / "factory", repo / "factory")
+    _git(["init", "-q"], cwd=repo)
+    _git(["add", "factory"], cwd=repo)
+    _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
+    m = manifest.load(repo / "factory" / "manifest.yaml")
+    return manifest.resolve(m, stage, tier)
+
+
+def _capability_boundary_runtime_path(tmp_path: Path) -> Path:
+    doc = yaml.safe_load((ADAPTER_FIXTURES_DIR / "runtime.yaml").read_text())
+    doc["adapters"]["cursor_sdk"]["command"] = [sys.executable, str(ADAPTER_FIXTURES_DIR / "fixture_worker.py")]
+    path = tmp_path / "runtime.yaml"
+    path.write_text(yaml.safe_dump(doc))
+    return path
+
+
+def test_must_reject_an_arbitrary_shell_exec_from_inside_a_build_sandbox(tmp_path):
+    """R-I-11: a process outside the build profile's recipe-executable allowlist never runs, from any
+    build-role sandbox -- the same boundary an agent-issued `/bin/sh -c '...'` would meet."""
+    payload = launch_probe(
+        tmp_path, ESCAPE_EVAL_DIR / "fixtures" / "subprocesses" / "probe.py", role="build", stage="S5",
+        copy_dir=tmp_path / "copy", build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
+        cache_dir=tmp_path / "cache",
+    )
+    assert payload == {"attempted": True, "refused": True}
+
+
+def test_must_reject_an_arbitrary_network_client_from_inside_an_agent_sandbox(tmp_path):
+    """R-I-11: a raw socket to a host outside the stage's proxy allowlist never connects, from any
+    agent-role sandbox."""
+    payload = launch_probe(
+        tmp_path, ESCAPE_EVAL_DIR / "fixtures" / "network" / "probe.py", role="agent", stage="S1",
+        ticket_dir=tmp_path / "ticket",
+    )
+    assert payload == {"attempted": True, "refused": True}
+
+
+def test_must_reject_a_source_tree_write_at_every_agent_stage_but_s4(tmp_path):
+    """R-I-11: source-tree write succeeds only at S4's worktree mount; a probe at any other agent
+    stage attempting one is refused."""
+    for stage in ("S1", "S2", "S3", "S5", "S6"):
+        stage_tmp = tmp_path / stage
+        worktree = stage_tmp / "worktree"
+        worktree.mkdir(parents=True)
+        payload = launch_probe(
+            stage_tmp, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage=stage,
+            ticket_dir=stage_tmp / "ticket", worktree_path=worktree, extra_argv=(str(worktree),),
+        )
+        assert payload == {"attempted": True, "refused": True}, stage
+        assert not (worktree / "escape_write.txt").exists()
+
+
+def test_a_source_tree_write_succeeds_only_at_s4(tmp_path):
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    payload = launch_probe(
+        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="S4",
+        ticket_dir=tmp_path / "ticket", worktree_path=worktree, extra_argv=(str(worktree),),
+    )
+    assert payload == {"attempted": True, "refused": False}
+    assert (worktree / "escape_write.txt").exists()
+
+
+def test_s5_writing_outside_its_disposable_layers_is_refused(tmp_path):
+    """R-I-11: a build-role probe at S5 writing outside COPY_DIR/BUILD_DIR/SCRATCH_DIR/CACHE_DIR --
+    here, a path shaped like the immutable checkout the copy was cloned from -- is refused."""
+    immutable_checkout = tmp_path / "immutable_checkout"
+    immutable_checkout.mkdir()
+    payload = launch_probe(
+        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="build", stage="S5",
+        copy_dir=tmp_path / "copy", build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
+        cache_dir=tmp_path / "cache", extra_argv=(str(immutable_checkout),),
+    )
+    assert payload == {"attempted": True, "refused": True}
+    assert not (immutable_checkout / "escape_write.txt").exists()
+
+
+def test_s1_grants_no_write_capability_outside_its_declared_out_directory(tmp_path):
+    """R-I-11: a probe at S1 writing anywhere but `RUN_DIR/out` -- here, the read-only ticket
+    directory -- is refused."""
+    ticket_dir = tmp_path / "ticket"
+    ticket_dir.mkdir()
+    payload = launch_probe(
+        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="S1",
+        ticket_dir=ticket_dir, extra_argv=(str(ticket_dir),),
+    )
+    assert payload == {"attempted": True, "refused": True}
+
+
+# `credentials.py` names `slack_digest` too, but only as a credential ROLE
+# in `credentials.ROLES` -- a name in a different namespace that happens
+# to share the same text, never a route construction; excluded here for
+# that reason, not because it is exempt from the boundary this test proves.
+_FORBIDDEN_ROUTE_ID_LITERALS = ("github_pilot", "github_scratch", "slack_digest")
+_ROUTE_CONSTRUCTION_HOMES = frozenset({"outbox.py", "trust_profile.py", "credentials.py"})
+
+
+def test_github_and_slack_route_ids_are_named_only_by_the_outbox_dispatcher():
+    """R-I-11: no module but the outbox dispatcher (and the trust-profile schema that defines the
+    route ids in the first place) ever names a GitHub or Slack route id, so a direct GitHub merge,
+    default-branch push, PR approval, Actions rerun, or Slack post has no route left to address."""
+    offenders = []
+    for path in sorted((REPO_ROOT / "runner").rglob("*.py")):
+        relative_parts = path.relative_to(REPO_ROOT / "runner").parts
+        if path.name in _ROUTE_CONSTRUCTION_HOMES or "tests" in relative_parts:
+            continue
+        source = path.read_text()
+        for literal in _FORBIDDEN_ROUTE_ID_LITERALS:
+            if literal in source:
+                offenders.append(f"{path.relative_to(REPO_ROOT)}: {literal!r}")
+    assert offenders == []
+
+
+def test_hidden_capability_in_the_manifest_fails_the_walk(tmp_path):
+    """R-I-11: a manifest entry carrying an extra, undeclared tool-allowlist item changes the
+    manifest's own hash; a ticket pinned to the hash resolved before that change is refused
+    outright, before any `stage_run` is ever opened."""
+    repo = tmp_path / "repo"
+    shutil.copytree(CAPABILITY_FIXTURES_DIR / "hidden" / "manifest" / "factory", repo / "factory")
+    _git(["init", "-q"], cwd=repo)
+    _git(["add", "factory"], cwd=repo)
+    _git(["commit", "-q", "-m", "init"], cwd=repo, env=_COMMIT_ENV)
+
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn, factory_manifest_hash="pinned-before-the-hidden-tool-was-added")
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    result = stages.invoke_agent(
+        conn, ticket, "S1", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+    )
+
+    assert result.outcome == "refused_request"
+    assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
+
+
+def test_hidden_capability_in_the_inherited_runtime_configuration_fails_the_walk(tmp_path):
+    """R-I-11: a runtime.yaml adapter command carrying one extra, unreviewed argument shifts every
+    positional argument the worker expects; the worker crashes reading what it takes to be its own
+    envelope, and the invocation is recorded `infrastructure_failure` with nothing registered."""
+    entry = _capability_boundary_entry(tmp_path, CAPABILITY_FIXTURES_DIR / "entry", "entry")
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    doc = yaml.safe_load((CAPABILITY_FIXTURES_DIR / "hidden" / "runtime" / "runtime.yaml").read_text())
+    doc["adapters"]["cursor_sdk"]["command"] = [
+        sys.executable, str(ADAPTER_FIXTURES_DIR / "fixture_worker.py"), "--unexpected-argument",
+    ]
+    runtime_path = tmp_path / "runtime.yaml"
+    runtime_path.write_text(yaml.safe_dump(doc))
+
+    result = cursor_sdk.invoke(
+        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        runtime_path=runtime_path, sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
+    )
+
+    assert result.outcome == "infrastructure_failure"
+    assert conn.execute(
+        "SELECT COUNT(*) FROM artefact WHERE stage_run_id = ?", (result.stage_run_id,)
+    ).fetchone()[0] == 0
+
+
+def test_hidden_capability_in_the_recipe_catalogue_fails_the_walk(tmp_path):
+    """R-I-11: a catalogue entry whose declared `executable_digest` no longer matches the file on
+    disk -- as if the executable had been swapped after the catalogue was authored -- is refused by
+    `recipes.run`'s own digest check, before the executable is ever invoked."""
+    catalogue = recipes.load_catalogue(CAPABILITY_FIXTURES_DIR / "hidden" / "recipe" / "command-recipes.yaml")
+    with pytest.raises(recipes.RecipeError, match="executable digest mismatch"):
+        recipes.run(
+            "hidden_capability_probe", {}, catalogue=catalogue, cwd_roles={"checkout": tmp_path},
+            results_dir=tmp_path / "results", env_source={"PATH": os.environ.get("PATH", "")},
+        )
+
+
+def test_hidden_capability_as_an_extra_mount_pointing_at_home_fails_the_walk():
+    """R-I-11: a sandbox param naming a mount (here, `TICKET_DIR`) that resolves to the host's own
+    home directory is refused by `os_policy.wrap` before `sandbox-exec` ever sees it."""
+    params = {
+        "REPO_ROOT": str(REPO_ROOT), "PYTHON_ROOT": sys.base_prefix, "WORKTREE": "/tmp/nonexistent",
+        "RUN_DIR": "/tmp/nonexistent", "TICKET_DIR": os.path.expanduser("~"), "TMPDIR": "/tmp/nonexistent",
+        "STAGE": "S1", "PROXY_PORT": "0",
+    }
+    with pytest.raises(os_policy.MountParamError):
+        os_policy.wrap(["/usr/bin/true"], role="agent", params=params)
+
+
+def test_hidden_capability_as_an_unallowlisted_environment_name_fails_the_walk(tmp_path):
+    """R-I-11: an environment name the launching process set but the sandbox policy never
+    allowlisted never crosses into the child."""
+    env_source = {"PATH": os.environ.get("PATH", ""), "HIDDEN_CAPABILITY_ENV_CANARY": "leak-if-present"}
+    payload = launch_probe(
+        tmp_path, CAPABILITY_FIXTURES_DIR / "hidden" / "environment" / "probe.py", role="agent", stage="S1",
+        ticket_dir=tmp_path / "ticket", env_source=env_source,
+    )
+    assert payload == {"attempted": True, "refused": True}
+
+
+def test_hidden_capability_as_a_credential_role_the_manifest_does_not_admit_fails_the_walk(tmp_path):
+    """R-I-11: a resolved entry whose stage the manifest's own `sandbox_policy` admits no credential
+    role for never reaches `credentials.fetch`, even though the stage is agent-bearing."""
+    entry = _capability_boundary_entry(tmp_path, CAPABILITY_FIXTURES_DIR / "hidden" / "credential", "credential")
+    assert entry.credential_roles == ()
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = tickets.open_ticket(conn)
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    def _must_not_be_called(*args, **kwargs):
+        raise AssertionError("credentials.fetch must never be called for a stage the manifest admits no role for")
+
+    result = cursor_sdk.invoke(
+        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        runtime_path=_capability_boundary_runtime_path(tmp_path), sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
+        credential_run=_must_not_be_called,
+    )
+
+    assert result.outcome == "pass"
