@@ -1,0 +1,36 @@
+# A synthetic authority policy for the non-owner-approval fixture: every
+# role but `incident_reviewer` is held by the real pilot identity,
+# `incident_reviewer` by a second identity who holds no `factory_owner`
+# role here -- the seeded `approval_record` in the non-owner-approval test names
+# that second identity as its actor, whatever role the row itself claims.
+roles:
+  factory_owner:
+    identity: abhishek
+    responsibilities: [tiers, topology, manifests_rubrics]
+  security_approver:
+    identity: abhishek
+    responsibilities: [trust_policy, sandbox_recipes, approvals]
+  legal_data_governance_approver:
+    identity: someone_else
+    responsibilities: [trust_policy, approvals]
+  service_owner:
+    identity: abhishek
+    responsibilities: [tiers, topology]
+  sensitive_path_owner:
+    identity: abhishek
+    responsibilities: [approvals, sandbox_recipes]
+  ticket_engineer:
+    identity: abhishek
+    responsibilities: [sandbox_recipes]
+  s3_reviewer:
+    identity: abhishek
+    responsibilities: [approvals]
+  s6_reviewer:
+    identity: abhishek
+    responsibilities: [approvals]
+  outcome_recorder:
+    identity: abhishek
+    responsibilities: [incident_attribution_disposition]
+  incident_reviewer:
+    identity: mallory
+    responsibilities: [incident_attribution_disposition]

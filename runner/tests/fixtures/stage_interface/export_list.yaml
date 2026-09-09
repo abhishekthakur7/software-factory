@@ -1,0 +1,24 @@
+# The Initial operation catalogue: every name `runner/stage_interface.py`
+# must export, held here once so the export-list test reads the same
+# expectation a later ticket's own operation would extend, rather than a
+# second hand-typed copy living only in the test file.
+operations:
+  - advance
+  - run_stage
+  - pause
+  - resume
+  - stop
+  - show
+  - queue
+  - act
+  - migrate_manifest
+  - refresh_base
+  - tag
+  - abandon
+  - report
+  - export
+  - import_record
+  - purge
+  - digest
+  - graduate_evaluate
+  - graduate_approve

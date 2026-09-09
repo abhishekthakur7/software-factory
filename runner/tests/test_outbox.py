@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import approvals, artefact_registry, cli, git_trees, governance, outbox, owners, publication, queue, record, transitions
+from runner import approvals, artefact_registry, git_trees, governance, operations, outbox, owners, publication, queue, record, transitions
 from runner.db import connect
 from runner.deliverers.stub import Receipt, StubDeliverer
 from runner.reviewer_sets import Slot
@@ -582,7 +582,7 @@ def test_must_reject_two_intents_sharing_a_key_with_different_payloads(conn, run
 @pytest.mark.parametrize("call", ["advance", "run", "act", "abandon"])
 def test_every_state_advancing_command_reconciles_pending_rows_first(conn, runs_dir, call):
     """R-T-11: `factory advance`, `run`, `act` and `abandon` reconcile pending `external_write` rows before doing anything else."""
-    # `cli.advance`/`cli.run` reconcile through the default (committed) trust
+    # `operations.advance`/`operations.run` reconcile through the default (committed) trust
     # profile and owners file, since neither takes a profile/owners override --
     # activated here directly rather than through a tmp copy.
     _activate(conn, DEFAULT_TRUST_PROFILE_PATH, owners.DEFAULT_OWNERS_PATH)
@@ -595,9 +595,9 @@ def test_every_state_advancing_command_reconciles_pending_rows_first(conn, runs_
     conn.commit()
 
     if call == "advance":
-        cli.advance(conn, ticket_id, runs_dir)
+        operations.advance(conn, ticket_id, runs_dir)
     elif call == "run":
-        cli.run(conn, ticket_id, "S5", runs_dir)
+        operations.run(conn, ticket_id, "S5", runs_dir)
     elif call == "act":
         item_id = queue.open_item(conn, ticket_id=ticket_id, kind="rubric_inspection")
         queue.act(conn, item_id=item_id, action="close_inspection", actor="abhishek", runs_dir=runs_dir)

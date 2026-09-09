@@ -17,8 +17,8 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, artefacts, cli, gates, git_trees, governance, manifest, owners, plan_tuple, project,
-    record, transitions, waivers,
+    approvals, artefact_registry, artefacts, gates, git_trees, governance, manifest, operations, owners, plan_tuple,
+    project, record, transitions, waivers,
 )
 from runner.db import connect
 from runner.tests import support
@@ -328,7 +328,7 @@ def test_s5_and_s6_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tm
     assert [(row["check_name"], row["result"]) for row in blocking] == [("recipe:fixture_security@head", "blind_spot")]
     evidence = record.get(conn, "artefact", blocking[0]["evidence_artefact"])
     assert evidence is not None and Path(evidence["path"]).is_file()
-    message = cli.waive(
+    message = operations.waive(
         conn, ticket_id=ticket_id, policy_id="recipe-execution-gap", check_result_id=blocking[0]["id"],
         human_verdict_id=None, actor=ABHISHEK, reason="security feeds are unavailable in the fixture environment",
         scope="fixture_security head recipe", controls="local secret and static checks remain recorded", evidence=[evidence["id"]],

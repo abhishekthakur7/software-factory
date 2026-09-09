@@ -1,0 +1,6 @@
+subject: factory/scripts/tools/fixture_from_export
+owner: abhishek
+cases:
+  - name: basic
+    fixture: fixtures/basic/export
+    expect: ok

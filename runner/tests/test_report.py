@@ -17,8 +17,8 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, checklist, cli, gates, git_trees, manifest, owners, queue, record, schema,
-    transitions,
+    approvals, artefact_registry, checklist, cli, gates, git_trees, manifest, operations, owners, queue, record,
+    schema, transitions,
 )
 from runner.db import connect
 from runner.fs import write_text
@@ -357,7 +357,7 @@ def test_factory_report_runs_the_script_and_prints_its_output(tmp_path, capsys):
     case = next(c for c in OK_CASES if c["name"] == "completed_walk")
     db_path = _build_db(case, tmp_path)
 
-    text = cli.report(db_path, window_days=7, until="2026-02-01T00:00:00+00:00")
+    text = operations.report(db_path, window_days=7, until="2026-02-01T00:00:00+00:00")
     assert "primary measures (unranked)" in text
 
     cli.main(["--db", str(db_path), "report", "--window-days", "7", "--until", "2026-02-01T00:00:00+00:00"])

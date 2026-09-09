@@ -156,7 +156,10 @@ def test_a_real_ticket_export_case_with_a_recorded_redaction_review_is_accepted(
         "name": "exported",
         "fixture": "fixtures/exported",
         "source": "real_ticket_export",
-        "redaction_review": {"reviewer": "abhishek", "date": "2026-01-01", "note": "names and paths stripped"},
+        "redaction_review": {
+            "reviewer_identity": "abhishek", "reviewed_at": "2026-01-01T00:00:00+00:00",
+            "redacted_fields": ["names", "paths"], "export_content_hash": "0" * 64,
+        },
     })
     (eval_dir / "eval.yaml").write_text(yaml.safe_dump(spec))
     check(eval_dir)  # raises on failure; no exception is the assertion

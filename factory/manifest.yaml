@@ -444,8 +444,12 @@ files:
     content_hash: 0938bc4c943d5bb951d9aa8218b8157629d7334831f392153d6cbf973fb470e2
   - path: factory/evals/bootstrap/T-B-04/plan.md
     content_hash: ad4e247f60349bdff615f25c3b2e9d9d82e9102ff97f1bdf77e82e65eaa9b36d
+  - path: factory/evals/bootstrap/T-B-05/brief.md
+    content_hash: b825b00500c43140a83be8e302d6306f5969f2bb011d9074b23e5a4c4d81aab2
+  - path: factory/evals/bootstrap/T-B-05/plan.md
+    content_hash: f3a8c25b5b301d1e588f81cffc55eb2d9ad68415c17dc047dc0d59322891fe0a
   - path: factory/evals/bootstrap/eval.yaml
-    content_hash: a9e605d2886aa181795bc1e68102a832ec1969366af69949ee881a1430f3770c
+    content_hash: 41528bf17d9c88dbcc728f808bf21c3186ae23ba2a1adf74811569711a02719f
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml
@@ -922,6 +926,10 @@ files:
     content_hash: 06ca00c2b4116dd8e6a6320c00cf7e3763a54fd3e44dc256883b6bbcf32808ca
   - path: factory/evals/scripts/tools/export/fixtures/permitted_ticket/README.md
     content_hash: db403e5f635dac1d724a060186cbd53a6ffd34e060720afed83bbde0cfd70860
+  - path: factory/evals/scripts/tools/fixture_from_export/eval.yaml
+    content_hash: b155a70068b0f2f1b3947d90af143241b22cfcb59e05f0c46c3c0f17ec672295
+  - path: factory/evals/scripts/tools/fixture_from_export/fixtures/basic/export/manifest.json
+    content_hash: 478de3a9aa19ceaaa88777fcba4fd23eca07c7d5d7355081c8c41c815894db88
   - path: factory/evals/scripts/tools/handoff_ready/eval.yaml
     content_hash: 45fc4bf6af29df0bf0d8ffa6b822a7e404dcc1f06ff4a34556fc3e24ffbe9315
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/all_pass/assumptions.json
@@ -1168,6 +1176,8 @@ files:
     content_hash: f1ca441a5fdc5da1aceab76fc25fc568be2c3397daa962d8e67d46d9e768415c
   - path: factory/scripts/tools/export
     content_hash: e3b238ffa0f8c1ca1b82c3f16c665da86b931bd6daec94a5e94b9363ab960b5f
+  - path: factory/scripts/tools/fixture_from_export
+    content_hash: a5d24f5a68a74685b880d541cb31b4e09a9ac60f15517f5f56f1f6004a70cf38
   - path: factory/scripts/tools/handoff_ready
     content_hash: e1eb6ce520c021ebffcba12d65c4bd0d40690242a23a2a06986777ea9c1a0b75
   - path: factory/scripts/tools/import
