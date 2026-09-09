@@ -94,3 +94,7 @@ tickets:
   T-AB-01:
   - sandbox/escape
   T-AB-04: []
+  T-AB-05:
+  - rubrics/S1
+  - rubrics/S3
+  - scripts/tools/archaeology
