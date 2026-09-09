@@ -77,6 +77,9 @@ routes:
     rule_set_hash: *rule_set_hash
     max_class: confidential
     deliverer: live
+    # The runtime key the launcher injects into an agent sandbox; the
+    # trusted runner fetches it by this role at the moment of launch.
+    credential_role: runtime_key
 
   governed_export_display:
     purpose: display and export the governed ticket record to an authorised human reader

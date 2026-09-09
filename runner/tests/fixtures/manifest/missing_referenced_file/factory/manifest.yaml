@@ -115,3 +115,17 @@ stages:
       sandbox_policy: thin
       toolchain:
         jdk: "17"
+sandbox_policy:
+  os_profiles:
+    agent: factory/config/sandbox/agent-profile.sb
+    build: factory/config/sandbox/build-profile.sb
+  proxy_allowlist: factory/config/sandbox.yaml
+  credential_roles:
+    S0: []
+    S1: [runtime_key]
+    S2: [runtime_key]
+    S3: [runtime_key]
+    S4: [runtime_key]
+    S5: []
+    S6: []
+    build: []

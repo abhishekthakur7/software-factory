@@ -36,7 +36,7 @@ from pathlib import Path
 
 import yaml
 
-from runner import approvals, canonical, evals, owners, record, run_ledger, transitions
+from runner import approvals, canonical, credentials, evals, owners, record, run_ledger, transitions
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.reviewer_sets import Slot
 from runner.state_table import TERMINAL_STATES
@@ -66,6 +66,12 @@ _ALL_ENTRY_FIELDS: tuple[str, ...] = REQUIRED_ENTRY_FIELDS + ("restatement_model
 # (by_tier, a per-stage override, or s4_per_ticket).
 ALLOWED_BUDGET_KEYS: frozenset[str] = frozenset({"tokens", "wall_clock_seconds"})
 
+# The sandboxes the manifest's sandbox-policy entry admits credential roles
+# into: every stage's agent sandbox by stage name, plus the build sandbox
+# a recipe runs in, which no stage name covers.
+SANDBOX_POLICY_SCOPES: tuple[str, ...] = ("S0", "S1", "S2", "S3", "S4", "S5", "S6", "build")
+SANDBOX_POLICY_ROLES: tuple[str, ...] = ("agent", "build")
+
 # An exact package version or digest, never a range: digits and dots only.
 _EXACT_VERSION_RE = re.compile(r"^[0-9]+(\.[0-9]+)*$")
 
@@ -89,6 +95,9 @@ class Manifest:
     version: int
     files: dict[str, str]  # path -> content_hash
     stages: dict[str, dict[str, dict]]  # stage -> {"default": {...}, tier: {...}}
+    # The one sandbox-policy entry: OS profile paths by sandbox role, the
+    # proxy-allowlist file, and the credential roles admitted per scope.
+    sandbox_policy: dict
     root: Path
 
 
@@ -110,6 +119,9 @@ class Entry:
     model_requested: str | None
     grader_model: str | None
     sandbox_policy: str | None
+    # The credential roles the manifest's sandbox-policy entry admits into
+    # this stage's sandbox; empty for a stage that runs no agent.
+    credential_roles: tuple[str, ...]
     toolchain: dict
     restatement_model: str | None
     agent_hash: str | None
@@ -272,6 +284,31 @@ def _validate_budget_keys(root: Path, budget_rel_path: str, path: Path) -> None:
         _check_budget_key_set(tier_budget, f"{path}: {budget_rel_path} s4_per_ticket.{tier_name}")
 
 
+def _load_sandbox_policy(raw: object, path: Path) -> dict:
+    """The validated `sandbox_policy` entry: OS profiles by role, one proxy-allowlist path, roles per scope."""
+    where = f"{path}: manifest 'sandbox_policy'"
+    if not isinstance(raw, dict):
+        raise ManifestError(f"{where} must be a mapping")
+    os_profiles = raw.get("os_profiles")
+    if not isinstance(os_profiles, dict) or set(os_profiles) != set(SANDBOX_POLICY_ROLES):
+        raise ManifestError(f"{where}.os_profiles must name exactly {list(SANDBOX_POLICY_ROLES)}")
+    if not all(isinstance(value, str) and value for value in os_profiles.values()):
+        raise ManifestError(f"{where}.os_profiles values must be file paths")
+    if not isinstance(raw.get("proxy_allowlist"), str) or not raw["proxy_allowlist"]:
+        raise ManifestError(f"{where}.proxy_allowlist must be a file path")
+    credential_roles = raw.get("credential_roles")
+    if not isinstance(credential_roles, dict) or set(credential_roles) != set(SANDBOX_POLICY_SCOPES):
+        raise ManifestError(f"{where}.credential_roles must name exactly {list(SANDBOX_POLICY_SCOPES)}")
+    for scope, roles in credential_roles.items():
+        if not isinstance(roles, list) or any(role not in credentials.ROLES for role in roles):
+            raise ManifestError(f"{where}.credential_roles.{scope} must list roles from {list(credentials.ROLES)}")
+    return {
+        "os_profiles": dict(os_profiles),
+        "proxy_allowlist": raw["proxy_allowlist"],
+        "credential_roles": {scope: tuple(roles) for scope, roles in credential_roles.items()},
+    }
+
+
 def _load_stages(stages_raw: object, files: dict[str, str], root: Path, path: Path) -> dict[str, dict]:
     if not isinstance(stages_raw, dict):
         raise ManifestError(f"{path}: manifest 'stages' must be a mapping")
@@ -327,7 +364,8 @@ def load(path: Path = MANIFEST_PATH) -> Manifest:
     files = _load_files(data.get("files"), path)
     root = path.resolve().parent.parent
     stages = _load_stages(data.get("stages"), files, root, path)
-    return Manifest(version=version, files=files, stages=stages, root=root)
+    sandbox_policy = _load_sandbox_policy(data.get("sandbox_policy"), path)
+    return Manifest(version=version, files=files, stages=stages, sandbox_policy=sandbox_policy, root=root)
 
 
 def resolve(manifest: Manifest, stage: str, tier: str) -> Entry:
@@ -386,6 +424,7 @@ def resolve(manifest: Manifest, stage: str, tier: str) -> Entry:
         model_requested=merged.get("model_requested"),
         grader_model=merged.get("grader_model"),
         sandbox_policy=merged.get("sandbox_policy"),
+        credential_roles=manifest.sandbox_policy["credential_roles"][stage],
         toolchain=dict(merged.get("toolchain", {})),
         restatement_model=merged.get("restatement_model"),
         agent_hash=agent_hash,

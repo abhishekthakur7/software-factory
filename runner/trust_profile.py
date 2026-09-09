@@ -26,7 +26,7 @@ from typing import Mapping
 
 import yaml
 
-from runner import canonical
+from runner import canonical, credentials
 from runner.paths import FACTORY_DIR
 from runner.reviewer_sets import Slot
 
@@ -132,6 +132,10 @@ class Route:
     max_class: str
     deliverer: str
     operations: tuple[str, ...] = ()
+    # The credential roles the trusted runner fetches to serve this route;
+    # empty for a route that needs none. Written as `credential_role` in
+    # the file, one name or a list.
+    credential_roles: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -228,6 +232,15 @@ def _load_export_rule(raw: Mapping, order: tuple[str, ...], where: str) -> Expor
     return ExportRule(allowed_formats=tuple(allowed_formats), max_class=max_class, admitted_classes=admitted_classes)
 
 
+def _load_credential_roles(raw: Mapping, where: str) -> tuple[str, ...]:
+    value = raw.get("credential_role")
+    roles = () if value is None else (value,) if isinstance(value, str) else tuple(value)
+    unknown = [role for role in roles if role not in credentials.ROLES]
+    if unknown:
+        raise TrustProfileError(f"trust-profile.yaml: {where}.credential_role names unknown role(s) {unknown}")
+    return roles
+
+
 def _load_routes(doc: Mapping, order: tuple[str, ...], expected_rule_set_hash: str) -> dict:
     routes_raw = _require(doc, "routes", "trust-profile.yaml")
     missing_routes = [r for r in ROUTE_IDS if r not in routes_raw]
@@ -279,6 +292,7 @@ def _load_routes(doc: Mapping, order: tuple[str, ...], expected_rule_set_hash: s
             max_class=raw["max_class"],
             deliverer=raw["deliverer"],
             operations=operations,
+            credential_roles=_load_credential_roles(raw, where),
         )
     return routes
 

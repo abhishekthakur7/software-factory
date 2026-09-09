@@ -43,7 +43,7 @@ files:
   - path: factory/config/tiers.yaml
     content_hash: ead3cce3050dc53e9813b1a09aca41117f2c2d0719f6be67929258e28ff7c88d
   - path: factory/config/trust-profile.yaml
-    content_hash: f7087e2418fe862598a0197b62716799862474a8a723048c7b5b1da57cfe9443
+    content_hash: 2a84c78281fdf7d584e8f8eaf8853a20ac85e1af28671f3c24ab46bb78bf7549
   - path: factory/config/waiver-policy.yaml
     content_hash: 5946acc82e75dcd4686e797cdfed0a465940ab66897dbd8c817f00e8619ef59c
   - path: factory/evals/adapters/cursor_sdk/eval.yaml
@@ -1143,3 +1143,21 @@ stages:
       sandbox_policy: thin
       toolchain:
         jdk: '17'
+# The one sandbox-policy entry: which OS profile each sandbox role runs
+# under, where the loopback proxy's allowlist lives, and which credential
+# roles may be admitted into each sandbox. Only an agent stage admits the
+# runtime key; S0, S5, S6 and every build sandbox admit no role at all.
+sandbox_policy:
+  os_profiles:
+    agent: factory/config/sandbox/agent-profile.sb
+    build: factory/config/sandbox/build-profile.sb
+  proxy_allowlist: factory/config/sandbox.yaml
+  credential_roles:
+    S0: []
+    S1: [runtime_key]
+    S2: [runtime_key]
+    S3: [runtime_key]
+    S4: [runtime_key]
+    S5: []
+    S6: []
+    build: []
