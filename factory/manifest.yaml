@@ -33,11 +33,11 @@ files:
   - path: factory/config/runtime.yaml
     content_hash: c72a6244731f346284c50535ca35b94c7bee9ac41561cb6234499d672c455bca
   - path: factory/config/sandbox/agent-profile.sb
-    content_hash: 72b8073dfcdc2104c67431333cb1f323a755a9ee83142cef242420c442eb228b
+    content_hash: ceb12b7bf140b0a5528fc16166976da2c3b6678d6c0de5308129c509ec901c50
   - path: factory/config/sandbox/build-profile.sb
     content_hash: 985ba848d2f7390bef1b2d1a3991ec2097fa934eebe42fbc573a887a1661d0c6
   - path: factory/config/sandbox.yaml
-    content_hash: 244f44c53c9cc7c7fc1d23ea07c2ec83537be06c4e5e57e1199ebcf4aa0d7d28
+    content_hash: b195c0d712b49cdb4eab87efad8ce8654809eb029b38ea9dd982fe51a42b8939
   - path: factory/config/sensitive-paths.yaml
     content_hash: d6f425fafb63a7a0fc5c0e51fe676ea0d2a097a8a4a9a796acee4ecba09e76af
   - path: factory/config/service-tiers.yaml
@@ -555,7 +555,7 @@ files:
   - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
     content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/evals/sandbox/escape/eval.yaml
-    content_hash: e7d366bec670f2124882e3e73e33446a0027783f1e6c6e178d4419250a625de6
+    content_hash: a4d308bc1da5a39dd8fb2aca434d0c151ad6b363f06c4907f8f9d4562b947cbf
   - path: factory/evals/sandbox/escape/fixtures/base-head-isolation/probe.py
     content_hash: bca54c32f9546c01b212b89783465193e6640b57a7e1c4123ef4581b4ab307af
   - path: factory/evals/sandbox/escape/fixtures/copy-disposal/probe.py
@@ -580,6 +580,8 @@ files:
     content_hash: 43fcb153e0f1ee2660367213e76f94272e2c1c483317af13c1ee30a1c6dde6e7
   - path: factory/evals/sandbox/escape/fixtures/symlinks/probe.py
     content_hash: 76b3d6263a37b1c91467e94a561a6d7d0e7d194c1113488d561558beb9cdd68d
+  - path: factory/evals/sandbox/escape/fixtures/unregistered-file/probe.py
+    content_hash: d8d0479b4ad47ee8da301a98abb9235d76dfa4624dc29ad7ad4ac95ea6ed1fa9
   - path: factory/evals/scripts/checks/base_test_diff/eval.yaml
     content_hash: f3db0c24f8d78fdc25a804986de2f1daf7f4f51f42c2287ece78f97857207fcd
   - path: factory/evals/scripts/checks/base_test_diff/fixtures/both_views_blind_spot/base/src/test/java/com/fixture/WidgetTest.java

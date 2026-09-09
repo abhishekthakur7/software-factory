@@ -34,6 +34,9 @@ cases:
   - name: credentials
     fixture: fixtures/credentials
     expect: reject
+  - name: unregistered-file
+    fixture: fixtures/unregistered-file
+    expect: reject
   - name: ok
     fixture: fixtures/ok
     expect: ok
