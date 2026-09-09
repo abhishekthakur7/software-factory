@@ -4,8 +4,8 @@ walk to `clarifying`.
 
 Two levels. The script (`factory/scripts/tools/archaeology`) is exercised directly, over a small real git
 repository this file builds and a local `http.server` standing in for the loopback proxy's own
-`POST /routes/<route_id>` contract -- T-AB-03 has not landed yet, so this fakes exactly the response shape
-its route contract fixes. The driver level runs `S1.run` directly (`test_s1.py`'s own
+`POST /routes/<route_id>` contract -- the proxy's own real route dispatch has not landed yet, so this
+fakes exactly the response shape that contract fixes. The driver level runs `S1.run` directly (`test_s1.py`'s own
 `_governed_ticket_fields`/`_ready_ticket` pattern, mirrored here with a git repository carrying an
 issue-naming commit) with `archaeology_proxy_url` pointed at the same fake server. A dedicated pair of tests
 proves the real thing: `archaeology` actually running under the committed, OS-enforced agent Seatbelt
@@ -106,7 +106,7 @@ def _candidate(path="src/main/java/com/example/Handler.java", *, symbol=None, se
 
 
 class _FakeAtlassianProxy:
-    """A loopback `http.server` implementing the proxy's `POST /routes/<id>` route contract, standing in for T-AB-03."""
+    """A loopback `http.server` implementing the proxy's `POST /routes/<id>` route contract, standing in for the real proxy."""
 
     def __init__(self, issues: dict[str, dict]):
         self._server = http.server.HTTPServer(("127.0.0.1", 0), self._handler(issues))
@@ -181,9 +181,7 @@ def _run_script(tmp_path: Path, *, repo: Path, candidates: list[dict], proxy_url
     return json.loads(result.stdout)
 
 
-# ----------------------------------------------------------------------
-# The script's own classification rule (R-S1-4, criteria 1, 2, 5, 6)
-# ----------------------------------------------------------------------
+# The script's own classification rule (R-S1-4).
 
 def test_explained_classification_from_a_blame_linked_resolved_issue(tmp_path, fake_proxy):
     """A candidate whose blame-linked commit names a resolved issue is classified `explained` (R-S1-4)."""
@@ -247,9 +245,7 @@ def test_must_reject_an_unreadable_candidates_file(tmp_path, fake_proxy):
     assert json.loads(result.stdout)["ok"] is False
 
 
-# ----------------------------------------------------------------------
-# The sandbox's own atlassian_read route (R-S1-4, criterion 3)
-# ----------------------------------------------------------------------
+# The sandbox's own atlassian_read route (R-S1-4).
 
 def test_sandbox_yaml_names_the_atlassian_read_route_for_s1_only():
     """`sandbox.yaml`'s `proxy_allowlist` admits `atlassian_read` for S1 only, resolved through `endpoints` (R-S1-4)."""
@@ -262,9 +258,7 @@ def test_sandbox_yaml_names_the_atlassian_read_route_for_s1_only():
         assert "atlassian_read" not in policy["proxy_allowlist"].get(stage, [])
 
 
-# ----------------------------------------------------------------------
-# The real OS-enforced boundary (R-S1-4, criteria 1 and 4)
-# ----------------------------------------------------------------------
+# The real OS-enforced boundary (R-S1-4).
 
 def _git_reachable_inside_the_agent_sandbox(tmp_path: Path) -> bool:
     probe = tmp_path / "git_probe.py"
@@ -279,7 +273,7 @@ def _git_reachable_inside_the_agent_sandbox(tmp_path: Path) -> bool:
 
 def test_archaeology_runs_git_blame_and_resolves_a_classification_under_the_real_sandbox(tmp_path, fake_proxy):
     """The script runs for real under the committed, OS-enforced agent profile for stage S1 and still
-    resolves a classification through the loopback route contract (R-S1-4, criterion 1).
+    resolves a classification through the loopback route contract (R-S1-4).
 
     Skipped loudly when `git` cannot be exec'd from inside that profile on
     this host: the committed `agent-profile.sb` (a different ticket's,
@@ -314,11 +308,11 @@ def test_archaeology_runs_git_blame_and_resolves_a_classification_under_the_real
 def test_the_agent_sandboxs_environment_allowlist_admits_no_atlassian_credential(tmp_path):
     """A value injected under a plausible credential-role env name into the launching process's own
     environment never reaches an agent-role, stage-S1 sandboxed child -- the same launch `archaeology`
-    itself runs under -- because `sandbox.yaml`'s `env_allowlist` never names it (R-S1-4, criterion 4).
+    itself runs under -- because `sandbox.yaml`'s `env_allowlist` never names it (R-S1-4).
 
     The proxy's own responsibility -- fetching the credential to relay the
     call, and never writing it to a `tool_call` row or artefact -- is
-    T-AB-03's code, not built yet, and outside what this test can prove.
+    is code that has not landed yet, and outside what this test can prove.
     """
     probe = tmp_path / "env_probe.py"
     probe.write_text("import json, os\nprint(json.dumps({'environment_names': sorted(os.environ.keys())}))\n")
@@ -330,9 +324,7 @@ def test_the_agent_sandboxs_environment_allowlist_admits_no_atlassian_credential
     assert marker_name not in result["environment_names"]
 
 
-# ----------------------------------------------------------------------
-# The rubric line (R-S1-4, criterion 10)
-# ----------------------------------------------------------------------
+# The rubric line (R-S1-4).
 
 def test_rubric_line_r_s1_4_grader_is_a_bootstrap_checklist_with_the_dictated_judgment():
     """The R-S1-4 grader line is a bootstrap-checklist line with the dictated judgment sentence (R-S1-4)."""
@@ -354,9 +346,7 @@ def test_seeded_human_verdict_for_r_s1_4_names_its_rubric_line_and_a_fail_verdic
     assert fixture["subject"]
 
 
-# ----------------------------------------------------------------------
-# The driver: History section, the dry-run walk to `clarifying`, and abandon (R-S1-4, criteria 7, 8, 9)
-# ----------------------------------------------------------------------
+# The driver: History section, the dry-run walk to `clarifying`, and abandon (R-S1-4).
 
 def _governed_ticket_fields(conn) -> dict:
     """Ticket fields that satisfy the committed trust profile's default-path activation (mirrors `test_s1.py`)."""
@@ -406,7 +396,7 @@ def _ticket_moved_to_clarifying(conn, tmp_path: Path, monkeypatch, fake_proxy) -
 def test_the_dry_run_ticket_resolves_the_blame_linked_issue_and_moves_to_clarifying(conn, tmp_path, monkeypatch, fake_proxy):
     """On the dry-run ticket, S1 resolves the one blame-linked issue, the checked brief's `History` section
     records that classification (never the agent's own -- `plain_ok`'s fixture brief names a different one),
-    a `history` artefact is registered, and the ticket moves `context` to `clarifying` (R-S1-4, criteria 7, 8)."""
+    a `history` artefact is registered, and the ticket moves `context` to `clarifying` (R-S1-4)."""
     ticket_id = _ticket_moved_to_clarifying(conn, tmp_path, monkeypatch, fake_proxy)
 
     brief = artefact_registry.latest(conn, ticket_id, "brief")
@@ -427,7 +417,7 @@ def test_factory_abandon_on_the_clarifying_ticket_writes_the_tag_and_coverage_re
 ):
     """`factory abandon` on the dry-run ticket in `clarifying` writes the `abandoned` tag and the
     `not_deployed` production-coverage record, and no `stage_run` for S2 or later exists -- `queue.abandon`
-    already does both, this only asserts them (R-S1-4, criterion 9)."""
+    already does both, this only asserts them (R-S1-4)."""
     ticket_id = _ticket_moved_to_clarifying(conn, tmp_path, monkeypatch, fake_proxy)
 
     queue.abandon(conn, ticket_id, actor=ABHISHEK, fm_id="FM-02", runs_dir=tmp_path)
