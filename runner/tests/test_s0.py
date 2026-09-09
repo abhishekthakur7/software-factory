@@ -76,7 +76,7 @@ def _seed_ticket_source(conn, ticket_id: int, tmp_path: Path, **front_matter_ove
     return artefact_registry.register(conn, ticket_id=ticket_id, kind="ticket_source", path=path)
 
 
-# --- criterion 1: the 15-cell provisional tier matrix (R-S0-2) ---
+# the 15-cell provisional tier matrix (R-S0-2)
 
 _MATRIX_CASES = [
     ("T1", "bug", "heavy"), ("T1", "small_feature", "heavy"), ("T1", "feature", "heavy"),
@@ -100,7 +100,7 @@ def test_provisional_tier_matrix_cell(conn, service_tier, ticket_type, expected_
     assert tier_provisional == expected_tier
 
 
-# --- criterion 2: a service absent from service-tiers.yaml, and an Epic issue type (R-S0-2) ---
+# a service absent from service-tiers.yaml, and an Epic issue type (R-S0-2)
 
 def test_must_reject_lookup_for_a_service_absent_from_service_tiers(conn):
     ticket_id = record.insert(
@@ -144,7 +144,7 @@ def test_must_reject_a_lookup_failure_through_run_stage_rejects_the_ticket(conn,
     assert ticket["close_reason"] == "rejected_at_s0"
 
 
-# --- criteria 3 and 5: a sensitive-path candidate raises tier_final and R-S0-8 excludes it (R-S0-5) ---
+# a sensitive-path candidate raises tier_final and R-S0-8 excludes it (R-S0-5)
 
 def test_sensitive_path_candidate_raises_tier_final_to_heavy_and_excludes_the_ticket(conn, tmp_path):
     ticket_id = record.insert(
@@ -160,7 +160,7 @@ def test_sensitive_path_candidate_raises_tier_final_to_heavy_and_excludes_the_ti
     assert ticket["close_reason"] == "pilot_excluded"
 
 
-# --- criterion 4: an authoritative match over an actual diff (R-S0-5) ---
+# an authoritative match over an actual diff (R-S0-5)
 
 def test_authoritative_sensitivity_match_over_an_actual_diff_confirms_heavy(conn):
     diff_paths = ["src/main/java/com/fixture/payments/ChargeService.java"]
@@ -178,7 +178,7 @@ def test_a_provisional_candidate_match_is_not_marked_authoritative(conn):
     assert match.authoritative is False
 
 
-# --- criterion 6: the path-owner slot's distinct_from rejects the ticket engineer's own identity (R-S0-5) ---
+# the path-owner slot's distinct_from rejects the ticket engineer's own identity (R-S0-5)
 
 def test_sensitive_path_owner_slot_rejects_the_ticket_engineers_own_identity(conn):
     """the fixture sensitive-paths mapping gives the auth path a different
@@ -242,7 +242,7 @@ def test_must_reject_when_the_ticket_engineer_also_holds_the_sensitive_path_owne
     assert any(reason.startswith("separation:") for reason in quorum.reasons)
 
 
-# --- criterion 7: the scrutiny template fill (R-S0-6) ---
+# the scrutiny template fill (R-S0-6)
 
 def test_scrutiny_template_fill_writes_a_nonempty_paragraph_naming_type_tier_and_match(conn, tmp_path):
     ticket_id = record.insert(
@@ -264,7 +264,7 @@ def test_scrutiny_template_fill_writes_a_nonempty_paragraph_naming_type_tier_and
     assert item["tier"] == "standard"
 
 
-# --- criterion 8: an empty rendered template holds the ticket at intake (R-S0-6) ---
+# an empty rendered template holds the ticket at intake (R-S0-6)
 
 def test_empty_rendered_scrutiny_leaves_the_ticket_in_intake_with_no_item(conn, tmp_path):
     ticket_id = record.insert(
@@ -286,7 +286,7 @@ def test_empty_rendered_scrutiny_leaves_the_ticket_in_intake_with_no_item(conn, 
     assert count == 0
 
 
-# --- criterion 9: the eligibility item shows governance state; granted admits (R-S0-7) ---
+# the eligibility item shows governance state; granted admits (R-S0-7)
 
 def test_a_granted_eligibility_decision_moves_intake_to_context(conn, tmp_path):
     fields = _governed_ticket_fields(conn)
@@ -314,7 +314,7 @@ def test_a_granted_eligibility_decision_moves_intake_to_context(conn, tmp_path):
     assert transitions.apply(conn, ticket_id, event) == "context"
 
 
-# --- criterion 10: expired, unauthorised, wrong-scope, and invalid-route governance states refuse act (R-S0-7) ---
+# expired, unauthorised, wrong-scope, and invalid-route governance states refuse act (R-S0-7)
 
 def test_must_reject_act_when_the_governance_approval_set_has_expired(conn, tmp_path):
     fields = _governed_ticket_fields(conn, expires_at="2000-01-01T00:00:00+00:00")
@@ -356,7 +356,7 @@ def test_must_reject_governance_validity_when_the_trust_profile_fails_to_load(co
     assert "invalid route" in reasons
 
 
-# --- criterion 11: the acting role is recorded (R-S0-7) ---
+# the acting role is recorded (R-S0-7)
 
 def test_resolved_role_records_the_deciding_identitys_role(conn, tmp_path):
     owners_path = FIXTURES_DIR / "owners_engineer2.yaml"
@@ -378,7 +378,7 @@ def test_resolved_role_records_the_deciding_identitys_role(conn, tmp_path):
     assert resolved["resolved_role"] == "ticket_engineer"
 
 
-# --- criterion 12: override writes the tier and its provenance (R-S0-7) ---
+# override writes the tier and its provenance (R-S0-7)
 
 def test_override_writes_tier_final_and_override_provenance_and_tag(conn, tmp_path):
     fields = _governed_ticket_fields(conn)
@@ -407,7 +407,7 @@ def test_override_writes_tier_final_and_override_provenance_and_tag(conn, tmp_pa
     assert len(tag_rows) == 1
 
 
-# --- criterion 13: override refuses on a ticket S0 already excluded (R-S0-7) ---
+# override refuses on a ticket S0 already excluded (R-S0-7)
 
 def test_must_reject_override_on_a_ticket_s0_excluded(conn, tmp_path):
     fields = _governed_ticket_fields(conn)
@@ -428,7 +428,7 @@ def test_must_reject_override_on_a_ticket_s0_excluded(conn, tmp_path):
     assert record.get(conn, "ticket", ticket_id)["tier_override_by"] is None
 
 
-# --- Jira intake: a fresh read's field gate, guard redaction, and credential discipline (R-S0-1) ---
+# Jira intake: a fresh read's field gate, guard redaction, and credential discipline (R-S0-1)
 
 def _redaction_fixture_issue() -> dict:
     return yaml.safe_load((FIXTURES_DIR / "redaction_issue.yaml").read_text())

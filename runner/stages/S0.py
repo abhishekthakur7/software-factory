@@ -183,7 +183,7 @@ def _write_ticket_source_artefact(
     conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_dir: Path,
     front_matter: dict, redacted: dict, *, guard_decision_id: int, prior: sqlite3.Row | None,
 ) -> None:
-    """Register the redacted Jira read as this ticket's `ticket_source` artefact, superseding `prior`."""
+    """Register the redacted Jira read as the ticket's `ticket_source` artefact, superseding `prior`."""
     body = (
         f"## Summary\n\n{redacted.get('summary') or ''}\n\n"
         f"## Description\n\n{redacted.get('description') or ''}\n\n"
@@ -230,7 +230,8 @@ def _run_jira_intake(
             conn, stage_run_id,
             intake_fields.Finding("atlassian_read", "fail", "sandbox.yaml names no atlassian_read endpoint yet"),
         )
-        transitions.apply(conn, ticket_id, "s0_reject")
+        # An unreachable source is the host's problem, not the ticket's: the
+        # ticket stays in intake for a retry once the endpoint exists.
         return ("fail", "infrastructure")
 
     issue = reader.read_issue(ticket["source_ref"])

@@ -46,7 +46,7 @@ from runner.schema import EXTERNAL_WRITE_OPERATIONS
 PR_OPERATIONS: frozenset[str] = frozenset({"pr_create", "pr_update"})
 
 # The scratch repository is the only one a pull request can actually reach
-# at this wave: the pilot repository's own route (`github_pilot`) has no
+# today: the pilot repository's own route (`github_pilot`) has no
 # real GitHub repository behind it yet. One constant, not a literal at
 # each call site, so the day the pilot repository is real, retargeting
 # every PR operation is a one-line change.

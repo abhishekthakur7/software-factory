@@ -16,7 +16,7 @@ PROJECT_DOC = project.load()
 PILOT = project.pilot()
 
 
-# --- service-tiers.yaml, ticket-types.yaml, sensitive-paths.yaml carry the pilot's rows ---
+# service-tiers.yaml, ticket-types.yaml, sensitive-paths.yaml carry the pilot's rows
 
 def test_service_tiers_carries_a_row_for_the_pilot_service():
     tiers = yaml.safe_load((FACTORY_DIR / "config" / "service-tiers.yaml").read_text())
@@ -42,7 +42,7 @@ def test_sensitive_paths_entries_each_carry_an_owner():
     assert all(isinstance(owner, str) and owner for owner in sensitive_paths.values())
 
 
-# --- factory/index/ carries the pilot's entries, fresh at seeding ---
+# factory/index/ carries the pilot's entries, fresh at seeding
 
 def test_index_conventions_and_sensitive_paths_entries_carry_last_verified():
     from runner import context_index
@@ -60,7 +60,7 @@ def test_index_carries_a_caller_entry_for_the_pilots_known_caller():
     assert all(entry.last_verified is not None for entry in callers)
 
 
-# --- project.yaml: the pilot's checkout, target branch, recipes, toolchain; the scratch repository ---
+# project.yaml: the pilot's checkout, target branch, recipes, toolchain; the scratch repository
 
 def test_pilot_checkout_resolves_outside_the_repository():
     checkout = (REPO_ROOT / PILOT["checkout"]).resolve()
@@ -96,7 +96,7 @@ def test_pilot_loader_refuses_a_file_naming_more_than_one_project(tmp_path):
         raise AssertionError("expected ProjectConfigError")
 
 
-# --- trust-profile.yaml: admitted scopes, routes, credential roles, and the repository data-class join ---
+# trust-profile.yaml: admitted scopes, routes, credential roles, and the repository data-class join
 
 def test_admitted_scopes_carries_both_the_pilot_and_the_scratch_repository():
     scratch_name = PROJECT_DOC["scratch_repository"]["name"]
@@ -123,7 +123,7 @@ def test_pilot_repository_data_class_joins_to_confidential():
     assert trust_profile.repository_class(TRUST_PROFILE, PILOT["name"]) == "confidential"
 
 
-# --- every service's repositories fall inside the admitted scope ---
+# every service's repositories fall inside the admitted scope
 
 def test_every_service_tiers_repository_is_inside_the_admitted_scope():
     tiers = yaml.safe_load((FACTORY_DIR / "config" / "service-tiers.yaml").read_text())
@@ -132,7 +132,7 @@ def test_every_service_tiers_repository_is_inside_the_admitted_scope():
             assert repository in TRUST_PROFILE.admitted_scopes["repositories"], (service, repository)
 
 
-# --- the committed profile is governance-approved and pinned before eligibility, the same activation path S0 uses ---
+# the committed profile is governance-approved and pinned before eligibility, the same activation path S0 uses
 
 def test_pilot_profile_is_approved_and_pinned_before_a_fresh_tickets_eligibility(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")

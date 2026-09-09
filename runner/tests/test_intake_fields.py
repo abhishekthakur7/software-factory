@@ -17,7 +17,7 @@ def _payload(name: str) -> dict:
     return yaml.safe_load((FIXTURES_DIR / f"{name}.yaml").read_text())
 
 
-# --- each reject reason, first hit wins (R-S0-1) ---
+# each reject reason, first hit wins (R-S0-1)
 
 def test_must_reject_empty_acceptance_criteria():
     finding = intake_fields.check(_payload("missing_acceptance_criteria"), field_names=FIELD_NAMES)
@@ -43,7 +43,7 @@ def test_must_reject_epic_issue_type_with_the_reason_named():
     assert finding.detail == "needs child tickets"
 
 
-# --- a payload clearing every check passes, reading field names from ticket-types.yaml (R-S0-1) ---
+# a payload clearing every check passes, reading field names from ticket-types.yaml (R-S0-1)
 
 def test_a_complete_payload_passes():
     finding = intake_fields.check(_payload("ok"), field_names=FIELD_NAMES)
@@ -61,7 +61,7 @@ def test_check_reads_field_names_from_ticket_types_yaml_not_a_hardcoded_mapping(
     assert finding.detail == "missing acceptance criteria"
 
 
-# --- S0 calls the gate before classification, writing one check_result row (R-S0-1) ---
+# S0 calls the gate before classification, writing one check_result row (R-S0-1)
 
 @pytest.fixture
 def conn(tmp_path):
