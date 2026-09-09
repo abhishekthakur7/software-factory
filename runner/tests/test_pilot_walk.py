@@ -124,8 +124,16 @@ def test_the_governed_export_lists_every_run_tool_result_guard_decision_approval
                 f"SELECT id FROM tool_call WHERE stage_run_id IN ({placeholders})", list(stage_run_ids)
             ).fetchall()
         }
+    # The export's own scans write guard decisions while it runs, after
+    # its row snapshot was taken; those are named by its manifest rather
+    # than carried inside it, so the record it must match is every
+    # decision that preceded the export's own overall decision.
+    export_manifest = json.loads((export_dir / "manifest.json").read_text())
     guard_decision_ids = {
-        row["id"] for row in conn.execute("SELECT id FROM guard_decision WHERE ticket_id = ?", (ticket_id,)).fetchall()
+        row["id"] for row in conn.execute(
+            "SELECT id FROM guard_decision WHERE ticket_id = ? AND id < ?",
+            (ticket_id, export_manifest["guard_decision_id"]),
+        ).fetchall()
     }
     approval_ids = {
         row["id"] for row in conn.execute("SELECT id FROM approval_record WHERE ticket_id = ?", (ticket_id,)).fetchall()

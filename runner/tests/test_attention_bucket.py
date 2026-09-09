@@ -69,8 +69,9 @@ def _reviewer_set(conn, ticket_id, *, kind, subject_hash, roles):
 
 def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn, tmp_path):
     """each reviewer's `active_attention_bucket`, `unknown` among them, shows
-    on its own approval record -- distinct from the queue latency line and
-    the decision outcome, never collapsed into one shared value."""
+    on its own approval record, never collapsed into one shared value; the
+    item itself stays open until the second slot's decision arrives, so no
+    latency or outcome line stands in for a bucket."""
     import json as _json
 
     from runner import artefact_registry, artefacts, checklist, manifest, owners, plan_tuple
@@ -129,8 +130,8 @@ def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn, tm
     approval_section = output.split("approval records:")[1].split("queue latency")[0]
     assert "abhishek: approve (active_attention_bucket: under_2m)" in approval_section
     assert "second-reviewer: approve (active_attention_bucket: unknown)" in approval_section
-    assert "queue latency:" in output
-    assert "outcome: approve" in output
+    assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
+    assert "queue latency:" not in output
 
 
 
