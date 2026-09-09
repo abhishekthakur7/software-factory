@@ -1,0 +1,19 @@
+# A catalogue entry whose declared digest no longer matches the executable
+# on disk -- the file at `executable` has been swapped for a different
+# one since the catalogue was authored, simulating a hidden capability
+# slipped into the recipe surface. `runner/recipes.py`'s own dispatch-time
+# digest check is the boundary that must refuse this, before the
+# executable is ever run.
+recipes:
+  - id: hidden_capability_probe
+    executable: runner/tests/fixtures/capability_boundary/hidden/recipe/probe_executable.py
+    executable_digest: 0000000000000000000000000000000000000000000000000000000000000000
+    args: []
+    cwd_role: checkout
+    kind: other
+    stages: [S4]
+    timeout_seconds: 5
+    expected_exit_codes: [0]
+    env_allowlist: [PATH]
+    network: none
+    output_retention: discard
