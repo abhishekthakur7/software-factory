@@ -375,8 +375,8 @@ def invoke(
         run_dir=run_dir, argv=[*adapter_cfg["command"], str(envelope_path), str(locations_path)], role="agent",
         policy=entry.sandbox_policy, cwd=Path(ticket["worktree_path"]) if ticket["worktree_path"] else run_dir,
         wall_clock_seconds=entry.budget.get("wall_clock_seconds"), env_source=env_source,
-        runtime_key_value=runtime_key_value, envelope_path=envelope_path, sandbox_path=sandbox_path,
-        stage=stage, ticket_dir=Path(runs_dir) / "tickets" / str(ticket["id"]),
+        runtime_key_value=runtime_key_value, runtime_key_env_name=adapter_cfg["key_role"],
+        envelope_path=envelope_path, sandbox_path=sandbox_path, stage=stage, ticket_dir=Path(runs_dir) / "tickets" / str(ticket["id"]),
         worktree_path=Path(ticket["worktree_path"]) if ticket["worktree_path"] else None,
     )
     if launch_result.timed_out:

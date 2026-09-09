@@ -34,10 +34,9 @@ from runner.sandbox import os_policy, proxy
 
 SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
 
-# The runtime-key environment name an agent sandbox receives -- the same
-# string as `credentials.ROLES`'s "runtime_key" entry, so the name a
-# sandboxed process sees is the credential's own role, not a second name
-# some other mapping would have to keep in sync with it.
+# The environment name an agent sandbox receives the runtime key under
+# when the caller names none; a runtime adapter passes its own
+# (`runtime.yaml` `key_role`), since the worker's SDK reads a fixed name.
 RUNTIME_KEY_ENV_NAME = "runtime_key"
 
 # macOS's own process-spawning runtime (CoreFoundation) injects these two
@@ -87,13 +86,13 @@ def _load_policy(policy_name: str, *, sandbox_path: Path) -> dict:
 
 def _build_child_env(
     policy: dict, role: str, *, env_source: dict[str, str], runtime_key_value: str | None,
-    out_dir: Path, tmp_dir: Path, envelope_path: Path | None, proxy_port: int,
+    runtime_key_env_name: str, out_dir: Path, tmp_dir: Path, envelope_path: Path | None, proxy_port: int,
 ) -> dict[str, str]:
     """The child's whole environment: only the allowlisted names, plus the injected ones every launch carries."""
     allowlist = policy.get("env_allowlist", [])
     env = {name: env_source[name] for name in allowlist if name in env_source}
     if role == "agent" and runtime_key_value is not None:
-        env[RUNTIME_KEY_ENV_NAME] = runtime_key_value
+        env[runtime_key_env_name] = runtime_key_value
     env["FACTORY_RUN_OUT"] = str(out_dir)
     if envelope_path is not None:
         env["FACTORY_ENVELOPE_PATH"] = str(envelope_path)
@@ -220,6 +219,7 @@ def launch(
     cache_dir: Path | None = None,
     env_source: dict[str, str] | None = None,
     runtime_key_value: str | None = None,
+    runtime_key_env_name: str = RUNTIME_KEY_ENV_NAME,
     envelope_path: Path | None = None,
     sandbox_path: Path = SANDBOX_PATH,
 ) -> LaunchResult:
@@ -254,7 +254,7 @@ def launch(
     try:
         env = _build_child_env(
             policy_doc, role, env_source=env_source, runtime_key_value=runtime_key_value,
-            out_dir=out_dir, tmp_dir=tmp_dir, envelope_path=envelope_path, proxy_port=run_proxy.port,
+            runtime_key_env_name=runtime_key_env_name, out_dir=out_dir, tmp_dir=tmp_dir, envelope_path=envelope_path, proxy_port=run_proxy.port,
         )
         codegraph_process, codegraph_started = (
             _start_codegraph(policy_doc, env, cwd) if role == "agent" else (None, False)

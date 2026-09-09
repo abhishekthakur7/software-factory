@@ -10,9 +10,11 @@ here rather than inventing its own approximation.
 """
 import json
 import sqlite3
+import sys
 from pathlib import Path
 
-from runner import approvals, artefact_registry, artefacts, owners, plan_tuple, record
+from runner import approvals, artefact_registry, artefacts, launcher, owners, plan_tuple, record
+from runner.paths import REPO_ROOT
 from runner.reviewer_sets import Slot
 
 # Stand-in trust binding for a ticket a test never took through governance:
@@ -63,3 +65,38 @@ def approve_current_plan(conn: sqlite3.Connection, ticket_id: int, scratch_dir: 
             attestation_hash=f"att-{planned_slot.slot_id}", ticket_id=ticket_id,
         )
     return tuple_id
+
+
+REAL_SANDBOX_PATH = REPO_ROOT / "factory" / "config" / "sandbox.yaml"
+
+
+def launch_probe(
+    tmp_path: Path, probe_source: Path, *, role: str, stage: str = "S1", extra_argv: tuple = (),
+    env_source: dict | None = None, ticket_dir: Path | None = None, worktree_path: Path | None = None,
+    copy_dir: Path | None = None, build_dir: Path | None = None, scratch_dir: Path | None = None,
+    cache_dir: Path | None = None,
+) -> dict:
+    """Run `probe_source` for real under the committed Seatbelt profile for `role`; return its one stdout JSON line.
+
+    The probe is copied into the run's own `tmp/`, the one path both
+    profiles grant read access to without also granting it to the
+    directory the probe was written in, so a probe never needs `factory/`
+    or the test tree readable from inside the sandbox. A launch the OS
+    policy did not actually wrap, or a probe with no parseable output,
+    fails here rather than letting a caller read a refusal into silence.
+    """
+    run_dir = tmp_path / "run"
+    scratch = run_dir / "tmp"
+    scratch.mkdir(parents=True, exist_ok=True)
+    probe_copy = scratch / "probe.py"
+    probe_copy.write_text(Path(probe_source).read_text())
+
+    result = launcher.launch(
+        run_dir=run_dir, argv=[sys.executable, str(probe_copy), *extra_argv], role=role, policy="enforced",
+        cwd=tmp_path, wall_clock_seconds=20, stage=stage, ticket_dir=ticket_dir, worktree_path=worktree_path,
+        copy_dir=copy_dir, build_dir=build_dir, scratch_dir=scratch_dir, cache_dir=cache_dir,
+        env_source=env_source, sandbox_path=REAL_SANDBOX_PATH,
+    )
+    assert result.os_policy_applied is True, "a probe must run under a real OS-enforced profile"
+    assert result.stdout_json is not None, f"probe produced no parseable JSON; stderr: {result.stderr_text}"
+    return result.stdout_json

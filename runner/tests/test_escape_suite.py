@@ -11,7 +11,6 @@ read access to without also granting it to `factory/` itself, then run
 through `runner.launcher.launch` under the real, committed profiles --
 never a test double.
 
-  R-I-14 criteria 24-36
 """
 import os
 import subprocess
@@ -21,12 +20,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import launcher
-from runner.paths import REPO_ROOT, RUNS_DIR
+from runner.paths import REPO_ROOT
 from runner.sandbox import copies, os_policy
+from runner.tests.support import launch_probe
 
 EVAL_DIR = REPO_ROOT / "factory" / "evals" / "sandbox" / "escape"
-REAL_SANDBOX_PATH = REPO_ROOT / "factory" / "config" / "sandbox.yaml"
 
 if not os_policy.available():
     pytest.fail(
@@ -63,33 +61,9 @@ def _tiny_repo(root: Path) -> Path:
     return root
 
 
-def _run_probe(
-    tmp_path: Path, category: str, *, role: str, stage: str = "S1", extra_argv: tuple = (),
-    env_source: dict | None = None, ticket_dir: Path | None = None, worktree_path: Path | None = None,
-    copy_dir: Path | None = None, build_dir: Path | None = None, scratch_dir: Path | None = None,
-    cache_dir: Path | None = None,
-) -> dict:
+def _run_probe(tmp_path: Path, category: str, **kwargs) -> dict:
     """Launch `category`'s probe for real, under the real committed profiles; return its parsed stdout JSON."""
-    run_dir = tmp_path / "run"
-    # `launcher.launch` grants `TMPDIR` read+write under both profiles and
-    # creates this same `tmp/` directory itself; writing the probe here
-    # before the launch means the sandboxed child can read the very
-    # script it is about to run without `factory/` needing a grant of its own.
-    scratch = run_dir / "tmp"
-    scratch.mkdir(parents=True, exist_ok=True)
-    probe_source = EVAL_DIR / "fixtures" / category / "probe.py"
-    probe_copy = scratch / "probe.py"
-    probe_copy.write_text(probe_source.read_text())
-
-    result = launcher.launch(
-        run_dir=run_dir, argv=[sys.executable, str(probe_copy), *extra_argv], role=role, policy="enforced",
-        cwd=tmp_path, wall_clock_seconds=20, stage=stage, ticket_dir=ticket_dir, worktree_path=worktree_path,
-        copy_dir=copy_dir, build_dir=build_dir, scratch_dir=scratch_dir, cache_dir=cache_dir,
-        env_source=env_source, sandbox_path=REAL_SANDBOX_PATH,
-    )
-    assert result.os_policy_applied is True, "the escape suite must run under a real OS-enforced profile"
-    assert result.stdout_json is not None, f"probe produced no parseable JSON; stderr: {result.stderr_text}"
-    return result.stdout_json
+    return launch_probe(tmp_path, EVAL_DIR / "fixtures" / category / "probe.py", **kwargs)
 
 
 def _assert_matches_expect(payload: dict, category: str) -> None:

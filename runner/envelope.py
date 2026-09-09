@@ -26,8 +26,8 @@ from pathlib import Path
 
 import yaml
 
-from runner import canonical, record, recipes
-from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
+from runner import canonical, project, recipes, record
+from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
 
 SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
 
@@ -263,8 +263,7 @@ def build(
     brief); left None, every latest-version artefact of the ticket is an
     input, sorted by kind. `runs_dir` feeds `sandbox_digest` only.
     """
-    project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
-    toolchain = dict(entry.toolchain) if entry.toolchain else dict(project.get("toolchain", {}))
+    toolchain = dict(entry.toolchain) if entry.toolchain else dict(project.pilot().get("toolchain", {}))
     sandbox_path = sandbox_path if sandbox_path is not None else SANDBOX_PATH
     inputs = (
         _named_inputs(conn, ticket["id"], input_artefact_ids) if input_artefact_ids is not None
