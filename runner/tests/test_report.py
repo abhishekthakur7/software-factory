@@ -399,10 +399,10 @@ def test_no_view_computes_pull_request_share_savings_or_cost_per_pull_request():
             assert fragment not in name, f"{name} looks like a forbidden PR/savings measure"
 
 
-def test_only_the_report_script_references_the_measure_view_names():
-    """R-O-5: the report is the only reader of the views -- no other module
-    under `runner/` (besides the schema itself) or script under
-    `factory/scripts/` names one."""
+def test_only_the_report_script_and_the_graduation_gate_reference_the_measure_view_names():
+    """R-O-5: the report and the graduation gate are the only readers of the
+    views -- no other module under `runner/` (besides the schema itself) or
+    script under `factory/scripts/` names one."""
     view_names = [name for name, _ in schema.VIEWS]
     pattern = re.compile("|".join(re.escape(name) for name in view_names))
 
@@ -410,7 +410,7 @@ def test_only_the_report_script_references_the_measure_view_names():
     runner_dir = REPO_ROOT / "runner"
     for path in runner_dir.rglob("*.py"):
         relative = path.relative_to(runner_dir)
-        if path.name == "schema.py" or relative.parts[0] == "tests":
+        if path.name in ("schema.py", "graduation.py") or relative.parts[0] == "tests":
             continue
         if pattern.search(path.read_text()):
             offenders.append(path)
