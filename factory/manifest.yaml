@@ -432,6 +432,8 @@ files:
     content_hash: 84623f9331782c4e65a6f356f719f7b04ea96e748ca05e5190f6f7555e0a4483
   - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-3.yaml
     content_hash: be933bbc9cc87b2487ff7e102e207d39f6e005683c1cec157c3c2f121f8490a3
+  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-4.yaml
+    content_hash: 65e2ff745c88092c38c7c38b3fbf17009a8a396b27cbba83bbf479e367c5fa06
   - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-6.yaml
     content_hash: 536910e93e2e47bd815581be8bf5b57edd95ae22eb0a2accf9b65feb4dddec24
   - path: factory/evals/rubrics/S1/fixtures/missing_front_matter/S1.md
@@ -491,7 +493,7 @@ files:
   - path: factory/evals/rubrics/S3/fixtures/checklist/criteria.md
     content_hash: b5da3b6b794112461ed97697a85d59cdad7c8e5b792e367b86a2758e7be12173
   - path: factory/evals/rubrics/S3/fixtures/checklist/expected.json
-    content_hash: 0028c62a5d3bb2bfe7cca060be7dc4f407c181b7fce5aec18ca30b48a4aaed3a
+    content_hash: 7af7964c1bc603da909e8c532b11dbaa25381949a0fefbf020586360425d6048
   - path: factory/evals/rubrics/S3/fixtures/checklist/plan.md
     content_hash: 8924974e3c8044622e69d76548f1a60487e7724b96b29b3a2525edc40c1e337c
   - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_duplicate.md
@@ -499,7 +501,7 @@ files:
   - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_ok.md
     content_hash: 16e5795835f789928d8b990ee01b5c25e6309fb26896aedd323d083e219fbe51
   - path: factory/evals/rubrics/S3/fixtures/checklist/verdicts.yaml
-    content_hash: 462d0fda7fe130e316973aea545bc2a2beb9238e3edc5b3b6513180e823dd1a5
+    content_hash: 75dd0d379b979e3e130fb7f64881b1171f4ab3226011bdb12f6b6decd3ba1c0a
   - path: factory/evals/rubrics/S3/fixtures/contracts_ok/plan.md
     content_hash: b46090a1061fac87268e6a76402677092159e0afd5f3e21e36f4bc79eecc260f
   - path: factory/evals/rubrics/S3/fixtures/contracts_reject/plan.md
@@ -995,7 +997,7 @@ files:
   - path: factory/rubrics/S0.md
     content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
   - path: factory/rubrics/S1.md
-    content_hash: 34fd4f4004d18fb1525ef90dc4f04ea3f0b97484016c115326308c43cc7ea31f
+    content_hash: 394ea59d6120c152caa02559bc3cc3f4d7cb9f982e536a0ec68e811c1ac59a9a
   - path: factory/rubrics/S2.md
     content_hash: 70319b9be7d3e95cdc1f5364e10858f7e8daf0c59b5593eb01fd30f95267f249
   - path: factory/rubrics/S3.md
