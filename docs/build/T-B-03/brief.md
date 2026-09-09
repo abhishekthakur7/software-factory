@@ -135,11 +135,9 @@ the report is the only reader of `v_reconstruction_share_by_gate` and
 
 ## Out of scope
 
-The parallel-limit raise that reads a graduation approval (T-B-04);
-`runner/stage_interface.py`'s export of `graduate_evaluate`/
-`graduate_approve` (T-B-05); the manual outcome, exposure, coverage and
-incident rows the window reads (T-B-01, already committed); the closing
-run's criterion 40, added later to `runner/tests/test_pilot_walk.py` by
-another builder; `runner/schema.py`, `runner/db.py`,
-`factory/config/limits.yaml`'s `graduation` keys (read only), and every
-other file this ticket's Scope Out already names.
+The parallel-limit raise that reads a graduation approval; the stage
+interface's export of `graduate_evaluate`/`graduate_approve`; the manual
+outcome, exposure, coverage and incident rows the window reads; the
+closing run's graduation check, added later to
+`runner/tests/test_pilot_walk.py`; `runner/schema.py`, `runner/db.py`, and
+`factory/config/limits.yaml`'s `graduation` keys (read only).

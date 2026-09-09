@@ -30,8 +30,7 @@ sub-conditions, and `runner/gate.py`'s own recorded run.
 `start` computation from a prior approval and a remediation, the fresh-
 window and incident-reset cases, and the window-size floor.
 `test_graduation_clauses.py` calls each remaining clause function
-directly with a hand-built ticket list, covering every one of criteria 23
-through 35, the tagged-control test parametrized over the five control
+directly with a hand-built ticket list, covering every clause, the tagged-control test parametrized over the five control
 categories, the report's `context` block and `views_read` list, and the
 invariance test (seeding behind `v_default_shown_share`,
 `v_default_accepted_share`, `v_plan_approved_no_redirect_share`, and the
