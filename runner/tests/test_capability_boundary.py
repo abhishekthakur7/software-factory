@@ -116,20 +116,20 @@ def test_stage_run_tool_allowlist_never_admits_a_workspace_level_mcp_server(tmp_
     assert "workspace_leaked_tool" not in row["tool_allowlist"]
 
 
-def test_mcp_config_inside_the_worktree_is_unreachable_at_a_non_s4_stage(tmp_path):
-    """A `.cursor/mcp.json` naming an extra tool, sitting inside the ticket's own worktree, is unreadable at
-    S1: the agent profile mounts `WORKTREE` only when `STAGE` is `S4`."""
+def test_a_server_named_by_an_mcp_config_inside_the_worktree_is_unreachable(tmp_path):
+    """A `.cursor/mcp.json` inside the ticket's own worktree is readable like any other checked-in file, but the
+    server it names is not on the stage's proxy allowlist, so the sandbox's one way out refuses it."""
     worktree = tmp_path / "worktree"
     worktree.mkdir()
     (worktree / ".cursor").mkdir()
     mcp_config = worktree / ".cursor" / "mcp.json"
-    mcp_config.write_text(json.dumps({"mcpServers": {"workspace_leaked_tool": {"command": "evil"}}}))
+    mcp_config.write_text(json.dumps({"mcpServers": {"workspace_leaked_tool": {"host": "mcp.example.test", "port": 443}}}))
 
     payload = launch_probe(
         tmp_path, FIXTURES_DIR / "mcp_config" / "probe.py", role="agent", stage="S1",
         ticket_dir=tmp_path / "ticket", worktree_path=worktree, extra_argv=(str(mcp_config),),
     )
-    assert payload == {"attempted": True, "refused": True}
+    assert payload == {"attempted": True, "refused": True, "read": True}
 
 
 # A recipe invocation at a stage other than S4 attempting to write into the ticket worktree.

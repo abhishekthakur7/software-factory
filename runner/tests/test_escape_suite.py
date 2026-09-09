@@ -24,6 +24,7 @@ import yaml
 from runner import artefact_registry, launcher, tickets
 from runner.db import connect
 from runner.paths import REPO_ROOT
+from runner import launcher
 from runner.sandbox import copies, os_policy
 from runner.tests.support import REAL_SANDBOX_PATH, launch_probe
 
@@ -206,14 +207,13 @@ def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from
         "SELECT COUNT(*) FROM artefact WHERE ticket_id = ? AND path = ?", (ticket_id, str(unregistered_path.resolve()))
     ).fetchone()[0] == 0
 
-    # The sandbox-level mount agrees -- `locations.json` is written the
-    # same way a real invocation writes it (see `envelope.locations`),
-    # naming only the registered artefact.
+    # The sandbox-level mount agrees: only what the launcher staged into
+    # the run's own `inputs/` from the registered set is readable.
     run_dir = tmp_path / "run"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "locations.json").write_text(json.dumps({
+    staged = launcher.stage_inputs(run_dir, {
         "inputs": [{"artefact_id": artefact_id, "kind": "brief", "path": str(registered_path.resolve())}],
-    }))
+    })
+    staged_path = staged["inputs"][0]["path"]
     probe_path = run_dir / "tmp"
     probe_path.mkdir(parents=True, exist_ok=True)
     probe_copy = probe_path / "probe.py"
@@ -228,10 +228,10 @@ def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from
     assert result.stdout_json is not None, f"probe produced no parseable JSON; stderr: {result.stderr_text}"
     _assert_matches_expect(result.stdout_json, "unregistered-file")
 
-    # The registered path itself, named by `locations.json`, stays readable
-    # -- the mount narrows to exactly the registered set, not to nothing.
+    # The staged copy of the registered artefact stays readable -- the
+    # mount narrows to exactly the registered set, not to nothing.
     registered_read = launcher.launch(
-        run_dir=run_dir, argv=[sys.executable, str(probe_copy), str(registered_path)], role="agent",
+        run_dir=run_dir, argv=[sys.executable, str(probe_copy), staged_path], role="agent",
         policy="enforced", cwd=tmp_path, wall_clock_seconds=20, stage="S1", ticket_dir=ticket_dir,
         sandbox_path=REAL_SANDBOX_PATH,
     )

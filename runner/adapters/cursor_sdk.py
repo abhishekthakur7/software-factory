@@ -381,7 +381,8 @@ def invoke(
     # The worker's second argument: where to find what the envelope names
     # by hash. Unhashed on purpose (see `envelope.locations`).
     locations_path = run_dir / "locations.json"
-    write_text(locations_path, canonical.canonical_json(envelope_mod.locations(conn, ticket, entry, env)).decode())
+    staged_locations = launcher.stage_inputs(run_dir, envelope_mod.locations(conn, ticket, entry, env))
+    write_text(locations_path, canonical.canonical_json(staged_locations).decode())
 
     limits_doc = _yaml(limits_path)
     inline_rule = limits_doc["tool_result_inline"]

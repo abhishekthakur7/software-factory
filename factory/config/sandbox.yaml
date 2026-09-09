@@ -38,7 +38,7 @@ policies:
     os_profiles:
       agent:
         path: factory/config/sandbox/agent-profile.sb
-        digest: 41925b23a85c6814a68f1b3fa2b6ba86c025c2f99e2f7c00c8f8f15db60e9479
+        digest: 8e80db96e8ddbe540809e9e2151dade0c472e6dde23c083ca116d33e6e501e69
       build:
         path: factory/config/sandbox/build-profile.sb
         digest: 8810ccd3e5d325bca42a0be20287a21ac2bbc2731c17d2a6de24fe6dd2577be1

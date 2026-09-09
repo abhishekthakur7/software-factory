@@ -22,15 +22,6 @@ SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
 SANDBOX_EXEC = "/usr/bin/sandbox-exec"
 ROLES: tuple[str, ...] = ("agent", "build")
 
-# How many registered-artefact paths the agent profile mounts by name
-# (`INPUT_0`..`INPUT_{N-1}`): a fixed count, since a Seatbelt profile names
-# its params statically rather than looping over an arbitrary list.
-# `agent-profile.sb` defines exactly this many `input-N` params, so a
-# caller that changes this constant must also edit the profile (and
-# `sandbox.yaml`'s digest) to match.
-REGISTERED_INPUT_SLOTS = 8
-
-
 class OSPolicyError(Exception):
     """The named sandbox policy carries no os_profiles entry, or no entry for the given role."""
 
@@ -117,12 +108,10 @@ def wrap(
 
 
 def _throwaway_params(scratch: str) -> dict[str, str]:
-    params = {
+    return {
         "REPO_ROOT": str(REPO_ROOT), "PYTHON_ROOT": sys.base_prefix, "WORKTREE": scratch,
         "RUN_DIR": scratch, "TICKET_DIR": scratch, "TMPDIR": scratch, "STAGE": "S0", "PROXY_PORT": "0",
     }
-    params.update({f"INPUT_{i}": scratch for i in range(REGISTERED_INPUT_SLOTS)})
-    return params
 
 
 def available(*, policy_name: str = "enforced", sandbox_path: Path = SANDBOX_PATH) -> bool:

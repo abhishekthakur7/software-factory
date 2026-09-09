@@ -576,9 +576,9 @@ def test_recheck_is_true_when_the_checkout_is_untouched_and_false_once_modified(
 
 
 def test_an_unregistered_ticket_dir_file_is_neither_readable_nor_writable(tmp_path):
-    """The agent profile mounts only the paths a run's own `locations.json` names, never the ticket directory
-    as a whole (R-T-2): a file sitting in the ticket directory that no invocation named as a registered input
-    is refused on read exactly like it is on write."""
+    """The agent profile mounts only the run's own staged `inputs/`, never the ticket directory as a whole
+    (R-T-2): a file sitting in the ticket directory that no invocation staged as a registered input is
+    refused on read exactly like it is on write."""
     ticket_dir = tmp_path / "ticket"
     ticket_dir.mkdir()
     (ticket_dir / "input.txt").write_text("registered input\n")
