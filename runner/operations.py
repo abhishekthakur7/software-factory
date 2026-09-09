@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import control, digest, freshness, gates, outbox, project, queue, record, run_ledger, transitions, waivers
+from runner import capacity, control, digest, freshness, gates, outbox, project, queue, record, run_ledger, transitions, waivers
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
 from runner.state_table import STAGE_STATE
@@ -82,7 +82,11 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
     result: no stage runs, one `red_check` item is queued (unless the
     ticket already has one open), and the ticket stays where it is. The
     same freshness check backs `plan_review`'s own gate, so a moved target
-    withholds `plan_quorum_fresh` too.
+    withholds `plan_quorum_fresh` too. A ticket still in `intake` is
+    checked against the parallel-ticket limit before either boundary --
+    starting its `S0` run or applying the intake gate's admitting event --
+    so a ticket at capacity starts no run and moves nowhere, and the wait
+    is reported instead.
     """
     ticket = record.get(conn, "ticket", ticket_id)
     if ticket is None:
@@ -91,6 +95,10 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
         return control.live_run_refusal(ticket_id)
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir)
     run_ledger.expire_dead_runs(conn, ticket_id)
+    if ticket["state"] == "intake":
+        wait_line = capacity.wait(conn, ticket, capacity.effective_parallel_limit(conn))
+        if wait_line is not None:
+            return f"ticket {ticket_id}: {wait_line}"
     stage = _due_stage(conn, ticket)
     if stage is not None:
         if control.pause_pending(conn, ticket_id):
@@ -153,6 +161,9 @@ def show(conn: sqlite3.Connection, ticket_id: int) -> str:
         )
         for output in info["outputs"]:
             lines.append(f"    output: artefact {output['id']} {output['kind']} {output['path']}")
+    wait_line = capacity.wait(conn, ticket, capacity.effective_parallel_limit(conn))
+    if wait_line is not None:
+        lines.append(f"  {wait_line}")
     return "\n".join(lines)
 
 
