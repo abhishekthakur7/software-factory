@@ -312,7 +312,7 @@ def locations(conn: sqlite3.Connection, ticket: sqlite3.Row, entry, envelope: En
     resolved here so the worker never has to know the repository root.
     """
     def _abs(rel: str | None) -> str | None:
-        return str(REPO_ROOT / rel) if rel else None
+        return str(entry.root / rel) if rel else None
 
     inputs = []
     for ref in envelope.inputs:

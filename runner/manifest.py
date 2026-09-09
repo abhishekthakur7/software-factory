@@ -129,6 +129,10 @@ class Entry:
     # The credential roles the manifest's sandbox-policy entry admits into
     # this stage's sandbox; empty for a stage that runs no agent.
     credential_roles: tuple[str, ...] = ()
+    # The tree the entry's repository-relative file paths resolve against:
+    # the manifest's own root, so an entry resolved over a copied tree
+    # names that tree's files, never the running repository's.
+    root: Path = REPO_ROOT
 
 
 def _load_files(entries: object, path: Path) -> dict[str, str]:
@@ -432,6 +436,7 @@ def resolve(manifest: Manifest, stage: str, tier: str) -> Entry:
         shared_skill_hashes=shared_skill_hashes,
         rubric_hash=rubric_hash,
         manifest_hash=current_hash(manifest.root),
+        root=manifest.root,
     )
 
 
