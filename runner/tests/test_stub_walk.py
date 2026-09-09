@@ -160,6 +160,25 @@ def _activate_default_profile(conn) -> dict:
     }
 
 
+def _seed_ticket_source(conn, ticket_id: int, tmp_path: Path) -> int:
+    """A `ticket_source` artefact whose front matter already clears the intake field gate.
+
+    Stands in for a real Jira read this walk never performs: no
+    Atlassian server exists on this host, so S0's Jira intake leg would
+    otherwise try to reach `sandbox.yaml`'s (still absent) endpoint and
+    reject the ticket before ever reaching eligibility.
+    """
+    front_matter = {
+        "jira_issue_type": "Story", "estimate": 2, "label": None, "owner": ABHISHEK,
+        "parent_link": "FIX-0", "confluence_link": None,
+        "acceptance_criteria": "Given a user opens the export dialog, when they click export, then a file downloads.",
+    }
+    text = "---\n" + yaml.safe_dump(front_matter, sort_keys=False) + "---\n\nSummary body.\n"
+    path = tmp_path / "seeded_ticket_source.md"
+    path.write_text(text)
+    return artefact_registry.register(conn, ticket_id=ticket_id, kind="ticket_source", path=path)
+
+
 def _manifest_hash() -> subprocess.CompletedProcess:
     return subprocess.run([str(MANIFEST_HASH_SCRIPT), "--root", str(REPO_ROOT)], capture_output=True, text=True)
 
@@ -306,6 +325,12 @@ def _run_walk(tmp_path) -> WalkResult:
         conn, "ticket", state="intake", opened_at=record.now(),
         service="fixture-project", ticket_type="small_feature", **governed,
     )
+    # `governed`'s source_kind is "jira", so S0 now runs the Jira intake
+    # leg; no real Atlassian server exists on this host (or in CI), so the
+    # walk seeds a ticket_source artefact up front the same way a ticket
+    # that already completed one earlier attempt would carry one, and S0
+    # reuses it instead of reading.
+    _seed_ticket_source(conn, ticket_id, tmp_path)
 
     # criterion 14: a stage invoked from a state the transition table does not permit is refused and recorded.
     wrong_state_outcome = cli.run(conn, ticket_id, "S4", runs_dir=tmp_path)
