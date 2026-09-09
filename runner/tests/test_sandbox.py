@@ -238,7 +238,8 @@ def test_sandbox_yaml_proxy_allowlist_resolves_to_route_host_port_per_stage():
     policy = doc["policies"]["enforced"]
     endpoints = policy["endpoints"]
     assert _resolve_allowlist(policy, "S1") == [
-        proxy.Endpoint(route_id="hosted_model", host=endpoints["hosted_model"]["host"], port=endpoints["hosted_model"]["port"])
+        proxy.Endpoint(route_id="hosted_model", host=endpoints["hosted_model"]["host"], port=endpoints["hosted_model"]["port"]),
+        proxy.Endpoint(route_id="atlassian_read", host=endpoints["atlassian_read"]["host"], port=endpoints["atlassian_read"]["port"]),
     ]
     assert _resolve_allowlist(policy, "S5") == [
         proxy.Endpoint(route_id="registry", host=endpoints["registry"]["host"], port=endpoints["registry"]["port"])
@@ -504,7 +505,7 @@ def test_proxy_admits_only_allowlisted_host_port_pairs():
 def test_runtime_key_reaches_the_hosted_model_endpoint_only_through_the_loopback_proxy(tmp_path):
     """The agent sandbox's own network-outbound rule admits loopback only; HTTPS_PROXY is the one route out."""
     doc = yaml.safe_load(REAL_SANDBOX_PATH.read_text())
-    assert doc["policies"]["enforced"]["proxy_allowlist"]["S1"] == ["hosted_model"]
+    assert doc["policies"]["enforced"]["proxy_allowlist"]["S1"] == ["hosted_model", "atlassian_read"]
     result = _run_real_probe(
         tmp_path,
         "import socket, json\n"

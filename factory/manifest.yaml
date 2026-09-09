@@ -23,7 +23,7 @@ files:
   - path: factory/config/exclusions.yaml
     content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
   - path: factory/config/limits.yaml
-    content_hash: 455e87459b9b83d03581c450aec18650fd8dc37901e2d5ad44b5f3ee5ecfdac4
+    content_hash: e16d0eef1a657d548bc75543c2920d8868efd617f0dae10ef6f0ce2a7fd7b591
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/pricing.yaml
@@ -37,7 +37,7 @@ files:
   - path: factory/config/sandbox/build-profile.sb
     content_hash: 985ba848d2f7390bef1b2d1a3991ec2097fa934eebe42fbc573a887a1661d0c6
   - path: factory/config/sandbox.yaml
-    content_hash: 244f44c53c9cc7c7fc1d23ea07c2ec83537be06c4e5e57e1199ebcf4aa0d7d28
+    content_hash: 0c3eb15a38d64d6af2601991ad07ae8ee7dc8f0b3da27571a2d9e583061189e1
   - path: factory/config/sensitive-paths.yaml
     content_hash: d6f425fafb63a7a0fc5c0e51fe676ea0d2a097a8a4a9a796acee4ecba09e76af
   - path: factory/config/service-tiers.yaml
@@ -394,8 +394,12 @@ files:
     content_hash: 93966579fbdce3e6890c6cf028eb5b7063ae828e6a54a89f205f6f3420acd2c5
   - path: factory/evals/bootstrap/T-AB-04/plan.md
     content_hash: 99dc75d2f8f398f1e5a1a9933682b2d32f4f44f5d9666fbe27ab1c29e3ec70ae
+  - path: factory/evals/bootstrap/T-AB-05/brief.md
+    content_hash: 3a68391533a9eaafd3ec3b236616f930856e23da398810b0dc68a71071886c86
+  - path: factory/evals/bootstrap/T-AB-05/plan.md
+    content_hash: 6cd21dea5e458a5d7976baabd167b6e8b2a3ba18aed6115af2d2919e82004930
   - path: factory/evals/bootstrap/eval.yaml
-    content_hash: c7b6cf577662cc71647f47f480cde737a5128da7c9ce1349c3cf35d247a60024
+    content_hash: b34eb6c5838464b9c87e045f21c301bdea62f1371fc58d82dafd744adfeb2148
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml
@@ -436,6 +440,8 @@ files:
     content_hash: 84623f9331782c4e65a6f356f719f7b04ea96e748ca05e5190f6f7555e0a4483
   - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-3.yaml
     content_hash: be933bbc9cc87b2487ff7e102e207d39f6e005683c1cec157c3c2f121f8490a3
+  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-4.yaml
+    content_hash: 65e2ff745c88092c38c7c38b3fbf17009a8a396b27cbba83bbf479e367c5fa06
   - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-6.yaml
     content_hash: 536910e93e2e47bd815581be8bf5b57edd95ae22eb0a2accf9b65feb4dddec24
   - path: factory/evals/rubrics/S1/fixtures/missing_front_matter/S1.md
@@ -495,7 +501,7 @@ files:
   - path: factory/evals/rubrics/S3/fixtures/checklist/criteria.md
     content_hash: b5da3b6b794112461ed97697a85d59cdad7c8e5b792e367b86a2758e7be12173
   - path: factory/evals/rubrics/S3/fixtures/checklist/expected.json
-    content_hash: 0028c62a5d3bb2bfe7cca060be7dc4f407c181b7fce5aec18ca30b48a4aaed3a
+    content_hash: 7af7964c1bc603da909e8c532b11dbaa25381949a0fefbf020586360425d6048
   - path: factory/evals/rubrics/S3/fixtures/checklist/plan.md
     content_hash: 8924974e3c8044622e69d76548f1a60487e7724b96b29b3a2525edc40c1e337c
   - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_duplicate.md
@@ -503,11 +509,13 @@ files:
   - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_ok.md
     content_hash: 16e5795835f789928d8b990ee01b5c25e6309fb26896aedd323d083e219fbe51
   - path: factory/evals/rubrics/S3/fixtures/checklist/verdicts.yaml
-    content_hash: 462d0fda7fe130e316973aea545bc2a2beb9238e3edc5b3b6513180e823dd1a5
+    content_hash: 75dd0d379b979e3e130fb7f64881b1171f4ab3226011bdb12f6b6decd3ba1c0a
   - path: factory/evals/rubrics/S3/fixtures/contracts_ok/plan.md
     content_hash: b46090a1061fac87268e6a76402677092159e0afd5f3e21e36f4bc79eecc260f
   - path: factory/evals/rubrics/S3/fixtures/contracts_reject/plan.md
     content_hash: 63b5a75a40d7bbea9d96a7b3b1dc37662f432be6dfc9e81f4a8df75ea0972633
+  - path: factory/evals/rubrics/S3/fixtures/dry_run_brief/brief.md
+    content_hash: 812c441d151e395935cfa27fe84bdb4e406a105efc71096abca9818c6eb3e3cb
   - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-10.yaml
     content_hash: 787362e86c7ee87e97d0119ef95e98d25da6ede5c0b4b8e17ab36eb73dada00a
   - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-2.yaml
@@ -800,6 +808,14 @@ files:
     content_hash: 1168bddad007141507fd2799173cfc0dd1fa6854cc07f37baf3c3ad078f61497
   - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/plan.md
     content_hash: dc6481bd70d4ff9c94fec95a9f1c5e95adf3960bbf7dac4beff3de217e056e59
+  - path: factory/evals/scripts/tools/archaeology/eval.yaml
+    content_hash: 50d939e778d563ac8e432521bb80a57ba49738f08b73a104b13263bb941f282d
+  - path: factory/evals/scripts/tools/archaeology/fixtures/resolved_issue/candidates.json
+    content_hash: 3613c858c0cc5a769c05b48c419789b60f328ad0655bc283585511a23377dec0
+  - path: factory/evals/scripts/tools/archaeology/fixtures/resolved_issue/issue_FIX-1.json
+    content_hash: cb40cc11c43bbc59a4b068154565506e236d75f303abcd4fd53fb2337b3197c6
+  - path: factory/evals/scripts/tools/archaeology/fixtures/unreadable_candidates_file/candidates.json
+    content_hash: 00130c0cfbbf34060d11eaea7f8051fd8100ec86541a013ce40697da71b30430
   - path: factory/evals/scripts/tools/export/eval.yaml
     content_hash: 06ca00c2b4116dd8e6a6320c00cf7e3763a54fd3e44dc256883b6bbcf32808ca
   - path: factory/evals/scripts/tools/export/fixtures/permitted_ticket/README.md
@@ -999,7 +1015,7 @@ files:
   - path: factory/rubrics/S0.md
     content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
   - path: factory/rubrics/S1.md
-    content_hash: 34fd4f4004d18fb1525ef90dc4f04ea3f0b97484016c115326308c43cc7ea31f
+    content_hash: 394ea59d6120c152caa02559bc3cc3f4d7cb9f982e536a0ec68e811c1ac59a9a
   - path: factory/rubrics/S2.md
     content_hash: 70319b9be7d3e95cdc1f5364e10858f7e8daf0c59b5593eb01fd30f95267f249
   - path: factory/rubrics/S3.md
@@ -1036,6 +1052,8 @@ files:
     content_hash: 7a807f7c77fa45b9ea4a272793d381b5ce608a547b968fc16078ab851747b569
   - path: factory/scripts/checks/source_declaration_diff
     content_hash: 5ce0b73d7cb9b9494b3b490070c881e299834ae82e00cc232f7c1c486b196ae1
+  - path: factory/scripts/tools/archaeology
+    content_hash: a909bf39d22608106543cbc3a117bfe49ae2b40529f59da5c4cdf8103ead4e62
   - path: factory/scripts/tools/export
     content_hash: e3b238ffa0f8c1ca1b82c3f16c665da86b931bd6daec94a5e94b9363ab960b5f
   - path: factory/scripts/tools/handoff_ready

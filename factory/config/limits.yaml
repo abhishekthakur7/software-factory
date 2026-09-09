@@ -47,3 +47,8 @@ fix_rounds:
 # version, before the ticket escalates.
 verification:
   max_attempts: 3
+
+# The wall-clock ceiling for one S1 archaeology script launch, inside the
+# same sandboxed launch a real agent invocation runs under.
+archaeology:
+  wall_clock_seconds: 60

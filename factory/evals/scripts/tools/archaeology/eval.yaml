@@ -1,0 +1,9 @@
+subject: factory/scripts/tools/archaeology
+owner: abhishek
+cases:
+  - name: resolved_issue
+    fixture: fixtures/resolved_issue
+    expect: ok
+  - name: unreadable_candidates_file
+    fixture: fixtures/unreadable_candidates_file
+    expect: reject

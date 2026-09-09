@@ -7,6 +7,9 @@
 - rubric_line_id: "R-S1-3:grader"
   subject_item_key: "brief"
   verdict: pass
+- rubric_line_id: "R-S1-4:grader"
+  subject_item_key: "brief"
+  verdict: pass
 - rubric_line_id: "R-S1-6:grader"
   subject_item_key: "brief"
   verdict: pass

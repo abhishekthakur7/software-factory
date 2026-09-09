@@ -436,3 +436,37 @@ def test_checklist_hash_changes_with_the_expected_set_and_verdict_set_changes_wi
         rubric_paths=OK_RUBRIC_PATHS,
     )
     assert binding.set_hash(checklist.verdict_set(conn, ticket_id)) != verdict_set_before
+
+
+DRY_RUN_BRIEF_FIXTURE = FACTORY_DIR / "evals" / "rubrics" / "S3" / "fixtures" / "dry_run_brief" / "brief.md"
+
+
+def test_the_dry_run_briefs_history_classification_derives_an_r_s1_4_checklist_instance_and_binds_a_verdict(tmp_path):
+    """On a seeded brief from the dry run (its `History` table already carrying a classification), the
+    bootstrap checklist derived over S1's own rubric includes the `R-S1-4:grader`/`brief` instance, and a
+    `human_verdict` row binds it (R-S1-4)."""
+    conn = _conn(tmp_path)
+    ticket_id = record.insert(
+        conn, "ticket", state="context", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
+        trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1",
+        base_sha="base-1", target_base_sha="base-1",
+    )
+    brief_artefact_id = artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=DRY_RUN_BRIEF_FIXTURE)
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    instances = checklist.expected_instances(conn, ticket, rubric_paths=(S1_RUBRIC,))
+    instance = next(i for i in instances if i.rubric_line_id == "R-S1-4:grader")
+    assert instance.subject_item_key == "brief"
+
+    item_id = queue.open_item(conn, ticket_id=ticket_id, kind="plan_approval", stage="S1")
+    item = record.get(conn, "queue_item", item_id)
+    verdict_id = checklist.record_verdict(
+        conn, ticket=ticket, item=item, instance=instance, verdict="pass",
+        evidence_ids=[brief_artefact_id], waiver_id=None, reviewer_identity=ABHISHEK,
+        reviewer_role="s3_reviewer", note="dry-run history classification confirmed",
+        rubric_paths=(S1_RUBRIC,),
+    )
+    row = record.get(conn, "human_verdict", verdict_id)
+    assert row["rubric_line_id"] == "R-S1-4:grader"
+    assert row["subject_item_key"] == "brief"
+    assert row["subject_artefact_id"] == brief_artefact_id

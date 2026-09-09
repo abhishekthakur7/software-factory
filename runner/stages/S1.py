@@ -25,14 +25,15 @@ rerun can fix the content without the ticket ever leaving `context`.
 import json
 import sqlite3
 import subprocess
+import sys
 from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, artefacts, context_index, project, record, run_ledger
+from runner import artefact_registry, artefacts, context_index, launcher, project, record, run_ledger
 from runner.checks import brief as checks_brief
 from runner.checks import exclusion
-from runner.fs import write_text
+from runner.fs import copy_tree, write_text
 from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
 
 ARTEFACT_KIND = "brief"
@@ -40,9 +41,12 @@ PASS_EVENT = "s1_pass"
 
 REINDEX_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "reindex"
 IMPACT_SCAN_SCRIPT = FACTORY_DIR / "scripts" / "checks" / "impact_scan"
+ARCHAEOLOGY_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "archaeology"
+ARCHAEOLOGY_ROUTE = "atlassian_read"
 DEFAULT_ARTIFACT_TO_SERVICE_PATH = FACTORY_DIR / "config" / "artifact-to-service.yaml"
 DEFAULT_PROJECT_CONFIG_PATH = project.DEFAULT_PROJECT_CONFIG_PATH
 DEFAULT_TIERS_PATH = FACTORY_DIR / "config" / "tiers.yaml"
+DEFAULT_LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 
 
 def _project_config(path: Path = DEFAULT_PROJECT_CONFIG_PATH) -> dict:
@@ -92,6 +96,98 @@ def _out_dir(runs_dir: Path, ticket_id: int, run_id: int) -> Path:
     return Path(runs_dir) / "tickets" / str(ticket_id) / "runs" / str(run_id) / "out"
 
 
+def _archaeology_run_dir(runs_dir: Path, ticket_id: int, stage_run_id: int) -> Path:
+    return Path(runs_dir) / "tickets" / str(ticket_id) / "runs" / str(stage_run_id) / "archaeology"
+
+
+def _archaeology_candidates(touched_rows: list[dict]) -> list[dict]:
+    """One archaeology candidate per non-empty `Touched area candidates` path, `path#symbol` split apart.
+
+    `self_evident` is always false: the brief's `Touched area candidates`
+    table (`path`, `reason`) carries no self-evidence signal of its own
+    for this to read, and the lax default is to always run archaeology
+    rather than silently skip a candidate that turns out not to be
+    self-evident.
+    """
+    candidates = []
+    for row in touched_rows:
+        cell = (row.get("path") or "").strip()
+        if not cell:
+            continue
+        path, _, symbol = cell.partition("#")
+        candidates.append({"path": path, "symbol": symbol or None, "self_evident": False})
+    return candidates
+
+
+def _history_row(candidate: dict) -> dict:
+    path = f"{candidate['path']}#{candidate['symbol']}" if candidate.get("symbol") else candidate["path"]
+    issues = candidate.get("issues") or []
+    evidence = f"{', '.join(issues) if issues else 'no issue named'}: {candidate['why']}"
+    return {"path": path, "classification": candidate["classification"], "evidence": evidence}
+
+
+def _run_archaeology(
+    conn: sqlite3.Connection, ticket_id: int, stage_run_id: int, runs_dir: Path, worktree: Path,
+    touched_rows: list[dict], *, proxy_url: str | None, sandbox_path: Path | None,
+) -> tuple[bool, str, str]:
+    """`(ok, check detail, History section text)`; `History` text is only meaningful when `ok`.
+
+    Runs `archaeology` as a subprocess launch under the agent profile for
+    stage S1 -- the same sandboxed boundary a real agent invocation
+    crosses, so the script's own proxy call (and the credential it never
+    sees) cross it too. `factory/` and, outside S4, the ticket's real
+    worktree are both unreadable from inside that profile, so the script
+    and a worktree copy are staged into the launch's own `tmp/` first,
+    the same way a sandbox test probe is. The classification itself is
+    never trusted from the agent, the same rule `Final tier` follows.
+    """
+    candidates = _archaeology_candidates(touched_rows)
+    if not candidates:
+        return True, "no touched-area candidates", "no touched-area candidates"
+
+    run_dir = _archaeology_run_dir(runs_dir, ticket_id, stage_run_id)
+    tmp_dir = run_dir / "tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    repo_copy = tmp_dir / "repo"
+    copy_tree(worktree, repo_copy)
+    script_copy = tmp_dir / "archaeology.py"
+    write_text(script_copy, ARCHAEOLOGY_SCRIPT.read_text())
+    candidates_path = tmp_dir / "candidates.json"
+    write_text(candidates_path, json.dumps(candidates))
+
+    argv = [
+        sys.executable, str(script_copy), "--worktree", str(repo_copy), "--candidates", str(candidates_path),
+        "--route", ARCHAEOLOGY_ROUTE,
+    ]
+    if proxy_url:
+        argv += ["--proxy", proxy_url]
+
+    limits = yaml.safe_load(DEFAULT_LIMITS_PATH.read_text())
+    result = launcher.launch(
+        run_dir=run_dir, argv=argv, role="agent", policy="enforced", cwd=tmp_dir,
+        wall_clock_seconds=limits["archaeology"]["wall_clock_seconds"], stage="S1",
+        ticket_dir=Path(runs_dir) / "tickets" / str(ticket_id), worktree_path=worktree,
+        # Read at call time, never bound as a default parameter value: a
+        # test's session-scoped fixture patches `launcher.SANDBOX_PATH`
+        # after this module has already been imported, so only a runtime
+        # attribute read (not `launcher.launch`'s own default argument)
+        # picks it up. `sandbox_path` lets a boundary test force the real,
+        # OS-enforcing profile regardless of that patch.
+        sandbox_path=sandbox_path if sandbox_path is not None else launcher.SANDBOX_PATH,
+    )
+    payload = result.stdout_json
+    if payload is None or "candidates" not in payload:
+        return False, f"archaeology script produced no parseable result; stderr: {result.stderr_text}", ""
+
+    history_path = _out_dir(runs_dir, ticket_id, stage_run_id) / "history.json"
+    write_text(history_path, json.dumps(payload, sort_keys=True))
+    artefact_registry.register(conn, ticket_id=ticket_id, kind="history", path=history_path, stage_run_id=stage_run_id)
+
+    rows = [_history_row(c) for c in payload["candidates"]]
+    text = artefacts.render_table(artefacts.BRIEF_TABLES["History"], rows) if rows else "no candidates required archaeology"
+    return True, f"{len(rows)} candidate(s) classified", text
+
+
 def run(
     conn: sqlite3.Connection,
     ticket: sqlite3.Row,
@@ -106,6 +202,8 @@ def run(
     target_branch: str | None = None,
     tiers_config: dict | None = None,
     repo_root: Path = REPO_ROOT,
+    archaeology_proxy_url: str | None = None,
+    archaeology_sandbox_path: Path | None = None,
 ) -> str | tuple[str, str]:
     """Run S1 for `ticket`: reindex, impact scan, context-index reads, the agent, then the brief's own checks.
 
@@ -113,7 +211,10 @@ def run(
     files (or, for `vendor_path`/`target_branch`, to what
     `project.yaml` names); `run_stage` never passes them, so they exist
     only for a test that needs a worktree, mapping, or index the real
-    project would never carry.
+    project would never carry. `archaeology_proxy_url`/
+    `archaeology_sandbox_path` are the same kind of test-only override,
+    for a test standing in its own loopback server or forcing the real
+    OS-enforced sandbox profile in place of the production defaults.
     """
     from runner.stages import S0, invoke_agent  # local: avoids the package __init__ import cycle
 
@@ -201,6 +302,14 @@ def run(
     flag_rows = parsed.section("Flags").table() or []
     unknown_rows = parsed.section("Unknowns").table() or []
 
+    archaeology_ok, archaeology_detail, history_text = _run_archaeology(
+        conn, ticket_id, stage_run_id, runs_dir, worktree, touched_rows,
+        proxy_url=archaeology_proxy_url, sandbox_path=archaeology_sandbox_path,
+    )
+    _record_check(conn, stage_run_id, checks_brief.Finding("archaeology", "pass" if archaeology_ok else "fail", archaeology_detail))
+    if not archaeology_ok:
+        return ("fail", "infrastructure")
+
     impact_scan_deps = impact_payload["dependencies"]
     files_touched = checks_brief.count_files_touched(touched_rows)
     services = checks_brief.touched_services(
@@ -226,10 +335,12 @@ def run(
         "files_touched": str(files_touched), "services_touched": str(services_touched), "unknowns": str(unknowns),
         "tier_provisional": tier_provisional, "tier_final": tier_final,
     }
-    # Two sections are the runner's, not the agent's: what the index read
-    # actually recorded, and the tier the rule computed.
+    # Three sections are the runner's, not the agent's: what the index
+    # read actually recorded, the archaeology script's own classification,
+    # and the tier the rule computed.
     runner_sections = {
         "Index entries used": index_reads_text,
+        "History": history_text,
         "Final tier": artefacts.render_table(artefacts.BRIEF_TABLES["Final tier"], [final_tier_row]),
     }
     checked_sections = [
