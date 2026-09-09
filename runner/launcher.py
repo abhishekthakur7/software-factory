@@ -155,9 +155,10 @@ def stage_inputs(run_dir: Path, locations: dict) -> dict:
     agent, skill and rubric definitions -- because `factory/` and the
     rest of the per-ticket directory are unreadable inside it. Staging
     copies rather than links: Seatbelt resolves a symlink to its target
-    before deciding, so a link would grant nothing. Each copy is named by
-    its position so two inputs with one basename never collide; the
-    envelope's hashes are over content, so they still hold. `worktree_path`
+    before deciding, so a link would grant nothing. Each copy keeps its
+    own basename under a directory named by its position, so two inputs
+    with one basename never collide and a reader keying on the name
+    still works; the envelope's hashes are over content, so they hold. `worktree_path`
     is a mount of its own and is left untouched. A file an agent produced
     but never registered is not in `locations`, so it is never staged and
     stays invisible to the next stage.
@@ -170,7 +171,7 @@ def stage_inputs(run_dir: Path, locations: dict) -> dict:
         if not path:
             return path
         source = Path(path)
-        destination = inputs_dir / f"{counter}-{source.name}"
+        destination = inputs_dir / str(counter) / source.name
         counter += 1
         write_bytes(destination, source.read_bytes())
         return str(destination)
