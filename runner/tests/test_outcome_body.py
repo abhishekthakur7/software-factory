@@ -14,7 +14,7 @@ _REQUIRED_OUTCOME_FIELDS = {
 
 
 def test_a_body_file_is_copied_into_the_run_tree_and_registered_and_hashed(conn, tmp_path):
-    """R-H-11 criterion 7: `--body-file` becomes a registered `pr_body_observed` artefact and `final_pr_body_hash`."""
+    """R-H-11: `--body-file` becomes a registered `pr_body_observed` artefact and `final_pr_body_hash`."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
     body_path = tmp_path / "observed-body.md"
@@ -32,7 +32,7 @@ def test_a_body_file_is_copied_into_the_run_tree_and_registered_and_hashed(conn,
 
 
 def test_a_locator_read_registers_the_remote_body_and_carries_the_locator_in_its_metadata(conn, tmp_path, monkeypatch):
-    """R-H-11 criterion 8: `--pr-identity`/`--observed-head-sha` performs one narrowly scoped GitHub read."""
+    """R-H-11: `--pr-identity`/`--observed-head-sha` performs one narrowly scoped GitHub read."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -62,7 +62,7 @@ def test_a_locator_read_registers_the_remote_body_and_carries_the_locator_in_its
 
 
 def test_neither_body_source_leaves_the_final_pr_body_hash_null(conn, tmp_path):
-    """R-H-11 criterion 9: given neither `--body-file` nor `--pr-identity`, `final_pr_body_hash` stays null."""
+    """R-H-11: given neither `--body-file` nor `--pr-identity`, `final_pr_body_hash` stays null."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 

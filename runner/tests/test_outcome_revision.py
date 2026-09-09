@@ -47,7 +47,7 @@ def seed_pr_outcome_item(conn, ticket_id: int) -> int:
 
 
 def test_a_reconciled_receipt_opens_exactly_one_non_blocking_pr_outcome_item(conn, tmp_path):
-    """R-H-11 criterion 1: the item carries `blocked_on` null and `ref` naming the reconciled receipt's artefact."""
+    """R-H-11: the item carries `blocked_on` null and `ref` naming the reconciled receipt's artefact."""
     ticket_id = seed_pr_opened_ticket(conn)
     artefact_id = seed_reconciled_receipt(conn, ticket_id, tmp_path)
     item_id = outcome.open_pr_outcome_item(conn, ticket_id)
@@ -59,7 +59,7 @@ def test_a_reconciled_receipt_opens_exactly_one_non_blocking_pr_outcome_item(con
 
 
 def test_a_second_reconciled_receipt_opens_no_second_pr_outcome_item(conn, tmp_path):
-    """R-H-11 criterion 2: exactly one current `pr_outcome` item survives create and update cycles."""
+    """R-H-11: exactly one current `pr_outcome` item survives create and update cycles."""
     ticket_id = seed_pr_opened_ticket(conn)
     seed_reconciled_receipt(conn, ticket_id, tmp_path, operation="pr_create")
     first_item_id = outcome.open_pr_outcome_item(conn, ticket_id)
@@ -76,7 +76,7 @@ def test_a_second_reconciled_receipt_opens_no_second_pr_outcome_item(conn, tmp_p
 
 
 def test_revision_writes_a_tag_and_moves_the_ticket_back_to_its_target_stage(conn, tmp_path):
-    """R-H-11 criterion 3: `revision` to `implementing` writes one `revision_after_approval` tag and transitions the ticket."""
+    """R-H-11: `revision` to `implementing` writes one `revision_after_approval` tag and transitions the ticket."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -94,7 +94,7 @@ def test_revision_writes_a_tag_and_moves_the_ticket_back_to_its_target_stage(con
 
 
 def test_must_reject_a_revision_to_a_stage_pr_opened_cannot_return_to(conn, tmp_path):
-    """R-H-11 criterion 4: an out-of-set `--to` is refused before any tag row or transition is written."""
+    """R-H-11: an out-of-set `--to` is refused before any tag row or transition is written."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -111,7 +111,7 @@ def test_must_reject_a_revision_to_a_stage_pr_opened_cannot_return_to(conn, tmp_
 
 
 def test_a_recorded_revision_leaves_the_prior_review_approval_unusable_for_a_new_pr_update(conn, tmp_path):
-    """R-H-11 criterion 5: the ticket must revisit `plan_review` through `review`; the resolved packet
+    """R-H-11: the ticket must revisit `plan_review` through `review`; the resolved packet
     approval that got it to `pr_opened` cannot be replayed to authorise a fresh `pr_update`."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
@@ -132,7 +132,7 @@ def test_a_recorded_revision_leaves_the_prior_review_approval_unusable_for_a_new
 
 
 def test_revision_leaves_the_remote_branch_and_pull_request_untouched(conn, tmp_path):
-    """R-H-11 criterion 6: no outbox intent is created, so the ticket's own remote-publication fields do not move."""
+    """R-H-11: no outbox intent is created, so the ticket's own remote-publication fields do not move."""
     ticket_id = seed_pr_opened_ticket(
         conn, pr_url="https://github.example/fixture/pull/1", pr_identity="1",
         last_remote_head_sha="head-1", branch="scratch/ticket-1",

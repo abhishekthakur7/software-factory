@@ -15,7 +15,7 @@ def _seed_ticket(conn, **overrides) -> int:
 
 
 def test_incident_event_writes_the_row_and_its_required_incident_tag(conn):
-    """R-H-11 criterion 27: one `production_incident_event` row and its human `incident` tag; the root is never superseded."""
+    """R-H-11: one `production_incident_event` row and its human `incident` tag; the root is never superseded."""
     ticket_id = _seed_ticket(conn)
     queue.act(
         conn, ticket_id=ticket_id, action="incident_event", actor=ABHISHEK,
@@ -34,7 +34,7 @@ def test_incident_event_writes_the_row_and_its_required_incident_tag(conn):
 
 
 def test_disposition_supersedes_only_the_same_roots_earlier_disposition(conn):
-    """R-H-11 criterion 28: `recorder_role` is `incident_reviewer`, and a disposition supersedes
+    """R-H-11: `recorder_role` is `incident_reviewer`, and a disposition supersedes
     only an earlier `production_disposition` naming the same event root."""
     ticket_id = _seed_ticket(conn)
     for note in ("first incident", "second incident"):
@@ -80,7 +80,7 @@ def test_disposition_supersedes_only_the_same_roots_earlier_disposition(conn):
 
 
 def test_incident_policy_yaml_declares_every_required_shape():
-    """R-H-11 criterion 31."""
+    """R-H-11."""
     policy = yaml.safe_load(POLICY_PATH.read_text())
     assert policy["severity_levels"] == ["sev1", "sev2", "sev3", "sev4"]
     assert set(policy["control_categories"]) == set(CONTROL_CATEGORIES)
@@ -92,7 +92,7 @@ def test_incident_policy_yaml_declares_every_required_shape():
 
 
 def test_s4_control_defect_event_reads_its_severity_from_the_incident_policy(conn):
-    """R-H-11 criterion 32."""
+    """R-H-11."""
     ticket_id = record.insert(conn, "ticket", state="implementing", opened_at=record.now())
     ticket = record.get(conn, "ticket", ticket_id)
     stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1)
@@ -106,7 +106,7 @@ def test_s4_control_defect_event_reads_its_severity_from_the_incident_policy(con
 
 
 def test_control_event_with_no_severity_derives_it_from_the_policy_for_the_category(conn, tmp_path):
-    """R-H-11 criterion 33."""
+    """R-H-11."""
     ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="red_check")
 

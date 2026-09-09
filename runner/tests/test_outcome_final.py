@@ -6,7 +6,7 @@ from runner.tests.test_outcome_revision import conn, seed_pr_opened_ticket, seed
 
 
 def test_a_merged_outcome_closes_the_ticket_and_settles_its_final_fields(conn, tmp_path):
-    """R-H-11 criterion 10: `merged` sets `close_reason`, `closed_at`, the final SHAs, and moves the ticket to `merged`."""
+    """R-H-11: `merged` sets `close_reason`, `closed_at`, the final SHAs, and moves the ticket to `merged`."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -30,7 +30,7 @@ def test_a_merged_outcome_closes_the_ticket_and_settles_its_final_fields(conn, t
 
 
 def test_an_abandoned_outcome_closes_the_ticket_and_leaves_merge_sha_null(conn, tmp_path):
-    """R-H-11 criterion 11: `abandoned` sets the final SHAs and moves the ticket to `abandoned`, `merge_sha` stays null."""
+    """R-H-11: `abandoned` sets the final SHAs and moves the ticket to `abandoned`, `merge_sha` stays null."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -53,7 +53,7 @@ def test_an_abandoned_outcome_closes_the_ticket_and_leaves_merge_sha_null(conn, 
 
 
 def test_outcome_records_the_acting_identity_role_and_observed_at(conn, tmp_path):
-    """R-H-11 criterion 12: `outcome_actor_role` is the recorder role from `owners.yaml`, `outcome_observed_at` is the given time."""
+    """R-H-11: `outcome_actor_role` is the recorder role from `owners.yaml`, `outcome_observed_at` is the given time."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -76,7 +76,7 @@ def test_outcome_records_the_acting_identity_role_and_observed_at(conn, tmp_path
     [("green", None), ("waived", "flaky check waived by the owner"), ("red", None), ("unknown", None)],
 )
 def test_outcome_accepts_each_required_checks_disposition(conn, tmp_path, checks, checks_reason):
-    """R-H-11 criterion 13: `outcome` accepts a seeded value of each of the four `required_checks_disposition` kinds."""
+    """R-H-11: `outcome` accepts a seeded value of each of the four `required_checks_disposition` kinds."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
     fields = {
@@ -92,7 +92,7 @@ def test_outcome_accepts_each_required_checks_disposition(conn, tmp_path, checks
 
 
 def test_must_reject_a_waived_checks_disposition_with_no_reason(conn, tmp_path):
-    """R-H-11 criterion 13: a `waived` value given with no `--checks-reason` is refused."""
+    """R-H-11: a `waived` value given with no `--checks-reason` is refused."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 

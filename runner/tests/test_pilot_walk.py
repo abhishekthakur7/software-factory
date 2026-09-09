@@ -19,11 +19,10 @@ def pilot_walk(tmp_path_factory):
     result.conn.close()
 
 
+@pytest.mark.skipif(not HAS_JAVAC, reason="javac/java not available: the walk cannot reach pr_opened without it")
 def test_the_pilot_tickets_pull_request_outcome_is_entered_manually_and_closes_it(pilot_walk):
-    """R-H-11 criterion 35: the closing run records the pilot ticket's eventual disposition by hand,
+    """R-H-11: the closing run records the pilot ticket's eventual disposition by hand,
     with its actual final SHAs and body hash, approval and required-check dispositions, and coverage status."""
-    if not HAS_JAVAC:
-        pytest.skip("javac/java not available: the walk cannot reach pr_opened without it")
     conn, ticket_id, tmp_path = pilot_walk.conn, pilot_walk.ticket_id, pilot_walk.tmp_path
     assert record.get(conn, "ticket", ticket_id)["state"] == "pr_opened"
 

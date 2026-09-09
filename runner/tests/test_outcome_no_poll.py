@@ -49,7 +49,7 @@ def _runner_modules():
 
 
 def test_only_the_outbox_and_the_outcome_locator_read_import_the_github_transport():
-    """R-H-11 criterion 34: no other module under `runner/` reaches GitHub at all, so nothing polls it."""
+    """R-H-11: no other module under `runner/` reaches GitHub at all, so nothing polls it."""
     importers = set()
     for path, rel in _runner_modules():
         names = _imported_top_level_names(ast.parse(path.read_text(), filename=str(path)))
@@ -59,7 +59,7 @@ def test_only_the_outbox_and_the_outcome_locator_read_import_the_github_transpor
 
 
 def test_setup_writes_no_scheduler_entry_but_the_digests():
-    """R-H-11 criterion 34: `runner/setup.py` names exactly one launchd `Label`, the digest's."""
+    """R-H-11: `runner/setup.py` names exactly one launchd `Label`, the digest's."""
     tree = ast.parse(SETUP_PATH.read_text(), filename=str(SETUP_PATH))
     labels = [
         value.value

@@ -31,7 +31,7 @@ def _coverage_rows(conn, ticket_id: int):
 
 
 def test_an_abandoned_outcome_appends_a_not_deployed_coverage_row(conn, tmp_path):
-    """R-H-11 criterion 22."""
+    """R-H-11."""
     ticket_id = seed_pr_opened_ticket(conn)
     _abandon(conn, tmp_path, ticket_id)
     rows = _coverage_rows(conn, ticket_id)
@@ -40,7 +40,7 @@ def test_an_abandoned_outcome_appends_a_not_deployed_coverage_row(conn, tmp_path
 
 
 def test_a_merged_outcome_appends_an_unknown_coverage_row_with_no_exposure_fields(conn, tmp_path):
-    """R-H-11 criterion 23."""
+    """R-H-11."""
     ticket_id = seed_pr_opened_ticket(conn)
     _merge(conn, tmp_path, ticket_id)
     rows = _coverage_rows(conn, ticket_id)
@@ -51,7 +51,7 @@ def test_a_merged_outcome_appends_an_unknown_coverage_row_with_no_exposure_field
 
 
 def test_exposure_appends_an_unknown_status_row_superseding_the_earlier_coverage_row(conn, tmp_path):
-    """R-H-11 criterion 24."""
+    """R-H-11."""
     ticket_id = seed_pr_opened_ticket(conn)
     _merge(conn, tmp_path, ticket_id)
     earlier = _coverage_rows(conn, ticket_id)[0]
@@ -70,7 +70,7 @@ def test_exposure_appends_an_unknown_status_row_superseding_the_earlier_coverage
 
 
 def test_coverage_appends_a_none_observed_row_superseding_within_the_series(conn, tmp_path):
-    """R-H-11 criterion 25."""
+    """R-H-11."""
     ticket_id = seed_pr_opened_ticket(conn)
     _merge(conn, tmp_path, ticket_id)
     queue.act(
@@ -88,7 +88,7 @@ def test_coverage_appends_a_none_observed_row_superseding_within_the_series(conn
 
 
 def test_must_reject_coverage_whose_current_row_carries_no_exposure_start_and_source(conn, tmp_path):
-    """R-H-11 criterion 26: the freshly merged `unknown` row carries no exposure fields yet."""
+    """R-H-11: the freshly merged `unknown` row carries no exposure fields yet."""
     ticket_id = seed_pr_opened_ticket(conn)
     _merge(conn, tmp_path, ticket_id)
     with pytest.raises(queue.ActionRefused):
@@ -96,7 +96,7 @@ def test_must_reject_coverage_whose_current_row_carries_no_exposure_start_and_so
 
 
 def test_must_reject_coverage_naming_a_production_incident_event_root(conn, tmp_path):
-    """R-H-11 criterion 29."""
+    """R-H-11."""
     ticket_id = seed_pr_opened_ticket(conn)
     _merge(conn, tmp_path, ticket_id)
     queue.act(
@@ -114,7 +114,7 @@ def test_must_reject_coverage_naming_a_production_incident_event_root(conn, tmp_
 
 
 def test_must_reject_exposure_naming_a_coverage_root_of_a_different_ticket(conn, tmp_path):
-    """R-H-11 criterion 30."""
+    """R-H-11."""
     ticket_id = seed_pr_opened_ticket(conn)
     _merge(conn, tmp_path, ticket_id)
     other_ticket_id = seed_pr_opened_ticket(conn)

@@ -35,16 +35,14 @@ reachable from nowhere else.
 
 Row covered: R-H-11.
 
-## Owner decisions this ticket follows
+## Design decisions
 
-- Every action's fixed field mapping (`fields: dict`), the exact once-group
-  shape `ticket.outcome_observed_at` settles, the graduation report's
-  shared shape, and the ticket-action dispatch rules are all given in
-  `COMMON.md`/`T-B-01.md` and built as stated.
-- `outcome_actor_role`/`recorder_role` are fixed literal role strings
+- Every action reads its flags from one `fields` mapping, so the queue's
+  `act` gains one parameter rather than twenty.
+- `outcome_actor_role`/`recorder_role` are fixed role strings
   (`outcome_recorder`, `incident_reviewer`) per action, not derived from
-  whichever role the acting identity happens to hold first -- validating
-  that the actor actually holds that role is later work (T-B-02).
+  whichever role the acting identity happens to hold first; validating that
+  the actor actually holds that role is later work.
 - The observed-body document is written identically regardless of source
   (a governed file or the remote locator), so a byte-identical body hashes
   identically against `ticket.last_pr_body_hash`.
