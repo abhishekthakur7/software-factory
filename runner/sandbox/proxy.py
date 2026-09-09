@@ -165,6 +165,12 @@ def _relay_and_record(routes: RouteService, *, route_id: str, endpoint: Endpoint
     `status` is the HTTP status this handler sends to the sandbox --
     `502` when the route's credential cannot be fetched, `200` otherwise
     with `payload` carrying the route contract's response body.
+
+    TODO (when the factory is stable): this relay is the `dispatch` guard
+    seat for routed tool calls, matching the adapter's seat for direct
+    calls. The result will take its own decision before the `tool_call` row
+    and any artefact are written; today they are written with no
+    `guard_decision_id`, by the owner's decision to defer it.
     """
     credential_roles = getattr(route, "credential_roles", ())
     role = credential_roles[0] if credential_roles else None

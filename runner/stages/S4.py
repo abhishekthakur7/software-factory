@@ -664,9 +664,13 @@ def _project_config() -> dict:
     return project.pilot()
 
 
-def _vendor_classpath(project_cfg: dict) -> str:
+def _vendor_dir(project_cfg: dict) -> Path | None:
     vendor = project_cfg.get("vendor")
-    vendor_dir = (REPO_ROOT / vendor) if vendor else None
+    return (REPO_ROOT / vendor) if vendor else None
+
+
+def _vendor_classpath(project_cfg: dict) -> str:
+    vendor_dir = _vendor_dir(project_cfg)
     if vendor_dir is None or not vendor_dir.is_dir():
         return ""
     return os.pathsep.join(str(p) for p in sorted(vendor_dir.rglob("*.jar")))
@@ -675,7 +679,9 @@ def _vendor_classpath(project_cfg: dict) -> str:
 def _validate_task(
     conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, task: dict, *, runs_dir: Path,
 ) -> tuple[str, str | None]:
-    """Run `task`'s validation recipe once; an unapproved or invalid recipe binding is a control defect, not a verification failure."""
+    """Run `task`'s validation recipe once, inside the same OS-enforced build sandbox as a
+    build-recipe run elsewhere; an unapproved or invalid recipe binding is a control defect,
+    not a verification failure."""
     project_cfg = _project_config()
     recipe_id = task["validation_recipe"]
     approved_ids = set(project_cfg.get("recipes") or [])
@@ -689,11 +695,13 @@ def _validate_task(
         catalogue = recipes.load_catalogue()
         if recipe_id not in catalogue:
             raise recipes.RecipeError(f"recipe {recipe_id!r} is not in the catalogue")
-        results_dir = _run_dir(runs_dir, ticket["id"], stage_run_id) / "results"
+        run_dir = _run_dir(runs_dir, ticket["id"], stage_run_id)
         values = {**task["validation_args"], "vendor_classpath": _vendor_classpath(project_cfg)}
         result = recipes.run(
             recipe_id, values, catalogue=catalogue, cwd_roles={"checkout": Path(ticket["worktree_path"])},
-            results_dir=results_dir, env_source={"PATH": os.environ.get("PATH", "")},
+            results_dir=run_dir / "results", env_source={"PATH": os.environ.get("PATH", "")},
+            sandbox_run_dir=run_dir / "sandbox" / str(task["id"]) / recipe_id, sandbox_stage="S4",
+            sandbox_vendor_dir=_vendor_dir(project_cfg),
         )
     except recipes.RecipeError as exc:
         _record_check_result(conn, stage_run_id, check_name="recipe_binding", passed=False, detail=str(exc))
@@ -1037,7 +1045,12 @@ def _run_fix_round(conn: sqlite3.Connection, ticket: sqlite3.Row, runs_dir: Path
 
     if outcome == "sandbox_violation" or failure_kind == "recipe_binding":
         _control_defect(conn, ticket, stage_run_id, failure_kind=failure_kind or "sandbox_integrity")
-    elif outcome != "pass":
+    elif outcome == "pass":
+        # A round's pass already re-validated every task, so it closes the
+        # ticket's whole implementing pass rather than waiting on any
+        # remaining-task check the ordinary per-task path still needs.
+        transitions.apply(conn, ticket_id, PASS_EVENT)
+    else:
         current = record.get(conn, "ticket", ticket_id)
         if current["state"] != "escalated":
             _open_red_check_if_none_open(conn, ticket_id, ref=f"stage_run:{stage_run_id}")

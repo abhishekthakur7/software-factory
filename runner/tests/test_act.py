@@ -6,12 +6,7 @@ control-event action every open kind but `pr_outcome` accepts.
 Each seeded ticket is placed directly in the state its item's action needs
 (`record.insert(..., state=...)`, never `tickets.open_ticket`, which always
 opens in `intake`) rather than replaying the stages that would normally
-reach it -- the same convention `test_state_table.py` uses. `escalated` is
-the one state the mapping and the state table disagree about: `escalated`
-carries no generic `send_back_to_*` row (its own routes are named
-`escalation_verification_resolved_to_*`), so the escalation/send_back
-combination is exercised against a ticket seeded in `checks` instead, the
-same way a plan, packet, or manual-pause send-back is. `request_changes`
+reach it -- the same convention `test_state_table.py` uses. `request_changes`
 also carries a failure-mode id here even though it names no `--fm`
 requirement of its own: the `revision_after_approval` tag its own effect
 writes has the same required `fm_id` every other tag does, so the id is
@@ -35,6 +30,7 @@ from runner import artefact_registry, artefacts, checklist, cli, governance, man
 from runner.db import connect
 from runner.reviewer_sets import Slot
 from runner.tests.test_s5_waivers import issue_review_waiver
+from runner.transitions import TransitionRefused
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
@@ -234,20 +230,35 @@ def test_each_valid_kind_action_pairing_from_the_day_one_mapping_is_accepted(con
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
 
 
-def test_escalation_send_back_uses_the_generic_send_back_transition(conn, tmp_path):
-    """`escalated` has no `send_back_to_*` row of its own, so this pairing
-    is exercised on a ticket seeded in `checks`, exactly as a red-check
-    send-back would be -- the mapping permits the pairing regardless of
-    which open state the ticket happens to carry it from."""
-    ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail")
-    item_id = queue.open_item(conn, ticket_id=ticket_id, kind="escalation", ref=f"stage_run:{stage_run_id}")
+def test_escalation_send_back_moves_a_ticket_that_is_really_escalated(conn, tmp_path):
+    """A verification-exhaustion escalation resolves through the same
+    generic `send_back` action every other open queue item uses, landing
+    on the earlier stage named by `--to`."""
+    ticket_id, item_id = _seed_item(conn, "escalation", tmp_path)
+    assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
+
     queue.act(
-        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="planning", fm_id="FM-07",
         note="technically_unsound: the approach does not hold", self_contained="yes", runs_dir=tmp_path,
     )
-    assert record.get(conn, "ticket", ticket_id)["state"] == "context"
+
+    assert record.get(conn, "ticket", ticket_id)["state"] == "planning"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
+
+
+def test_must_reject_escalation_send_back_to_a_state_verification_exhaustion_cannot_reach(conn, tmp_path):
+    """`escalated` only reaches `planning`, `clarifying`, or `context` by
+    send-back; `checks` has its own cause-specific resume route instead."""
+    ticket_id, item_id = _seed_item(conn, "escalation", tmp_path)
+
+    with pytest.raises(TransitionRefused):
+        queue.act(
+            conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="checks", fm_id="FM-07",
+            note="technically_unsound: the approach does not hold", self_contained="yes", runs_dir=tmp_path,
+        )
+
+    assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
+    assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
 
 
 _REFUSED_PAIRS = [

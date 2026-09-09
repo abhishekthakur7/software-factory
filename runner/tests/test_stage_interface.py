@@ -299,7 +299,7 @@ _SEND_BACK_STATES = {
     "plan_approval": "plan_review",
     "packet_approval": "review",
     "red_check": "checks",
-    "escalation": "checks",
+    "escalation": "escalated",
     "manual_pause": "implementing",
 }
 

@@ -130,6 +130,13 @@ def _record_tool_calls(
     a `tool_result` artefact, and given a sidecar excerpt file at
     `<seq>.excerpt.txt` next to it when the shaping produced one --
     discoverable by that naming convention rather than by an extra column.
+
+    TODO (when the factory is stable): this is the `dispatch` guard seat
+    for the runtime's direct tool calls. Each result will take its own
+    decision before its row and any `tool_result` artefact are written,
+    and the proxy's relay takes the same seat for routed calls. Today the
+    rows and artefacts carry no `guard_decision_id`, by the owner's
+    decision to defer it, not by oversight.
     """
     ids: list[int] = []
     # Proxy-routed calls were numbered as they happened, during the run;

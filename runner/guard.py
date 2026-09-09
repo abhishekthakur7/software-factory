@@ -4,12 +4,13 @@
 exactly one row -- an allow, a redact, or a deny, never zero and never two
 -- so an audit of the table is a complete audit of every crossing attempt.
 Deciding is fail-closed at every step: an unreadable policy file, a dead
-connection, an unrecognized class, an absent route, a route that will not
-admit the joined class, a missing or expired trust-profile activation, or a
-secret-rule hit each deny before anything else is even considered, and a
-denied secret event's row stores only the rule id and the caller-supplied
-safe provenance -- never the payload, the match, or a digest of either that
-a search over known secrets could reverse.
+connection, a crossing outside `CROSSINGS`, an unrecognized class, an
+absent route, a route that will not admit the joined class, a missing or
+expired trust-profile activation, or a secret-rule hit each deny before
+anything else is even considered, and a denied secret event's row stores
+only the rule id and the caller-supplied safe provenance -- never the
+payload, the match, or a digest of either that a search over known
+secrets could reverse.
 
 `pass_through` is the seat every crossing calls before acting on a
 decision's payload: it re-reads the row by id from the database rather than
@@ -24,9 +25,18 @@ from typing import Mapping
 
 from runner import canonical, governance, owners, record, trust_profile
 
-CROSSINGS = (
-    "ingress", "persistence", "display", "sandbox_mount", "logs", "dispatch", "outbox", "export",
-)
+# The crossings the guard is seated on today, each with one production
+# call site: `ingress` (S0's Jira read), `persistence` (the baseline
+# import), `display` (`show_artefact`), `outbox` (every outbox payload)
+# and `export`. The tuple is deliberately no wider than the seats that
+# exist: `decide` denies an undeclared name, so a seat added without
+# declaring it here fails closed instead of passing silently.
+# TODO (when the factory is stable): add the deferred seats and their
+# names together -- `persistence` widened to stage-written artefacts at
+# `artefact_registry.register`, `sandbox_mount` at `launcher.stage_inputs`,
+# `logs`, and `dispatch` at the adapter's tool-call recording and the
+# proxy's relay -- each taking its own decision and writing one row.
+CROSSINGS = ("ingress", "persistence", "display", "outbox", "export")
 
 
 class GuardUnavailable(Exception):
@@ -129,7 +139,9 @@ def decide(
     joined = trust_profile.join(profile, operation.input_classes)
     route = profile.routes.get(operation.route_id)
 
-    if joined is None:
+    if operation.crossing not in CROSSINGS:
+        reason_codes.append("crossing_not_declared")
+    elif joined is None:
         reason_codes.append("no_valid_join")
     elif route is None:
         reason_codes.append("absent_route")

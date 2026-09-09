@@ -72,8 +72,12 @@ def _run(envelope: dict, locations: dict) -> dict:
     out_dir = Path(os.environ["FACTORY_RUN_OUT"])
     model_requested = envelope.get("model_requested")
     # TODO (when the factory is stable): pass the envelope's tool list into
-    # the runtime's options; it is recorded on the run but not enforced by
-    # the runtime.
+    # the runtime's options and refuse a call to a tool outside it. Today
+    # the list is recorded on the `stage_run` row (`tool_allowlist`) for the
+    # audit trail only; the runtime exposes its default tool surface and the
+    # agent's command execution is bounded by the Seatbelt profile alone,
+    # which the owner accepted for the prototype. The recording is the seam
+    # the enforcement will read from, so it stays.
     agent = cursor_sdk.Agent.create(
         model=model_requested,
         local=cursor_sdk.LocalAgentOptions(

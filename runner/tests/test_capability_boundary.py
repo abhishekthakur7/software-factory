@@ -193,6 +193,66 @@ def test_must_reject_a_shell_string_arriving_through_the_s4_hand_backs_validatio
     assert "; rm -rf / #" in refusal["summary"]
 
 
+# A task-validation recipe runs under the same OS-enforced build sandbox as any other recipe.
+
+def test_a_task_validation_recipe_is_launched_under_the_build_role_with_the_enforced_policy(tmp_path):
+    """`_validate_task` used to dispatch its recipe through the bare-subprocess branch of
+    `recipes.run`, never through `launcher.launch`. The launch record it now produces --
+    `exit.json` under its own sandbox run directory -- is the same evidence
+    `test_dependency_resolution_recipe_runs_under_the_build_profile` in `test_recipes.py`
+    already treats as proof of a real, non-mocked Seatbelt-wrapped execution."""
+    conn = connect(tmp_path / "factory.sqlite")
+    worktree = tmp_path / "worktree"
+    (worktree / "src" / "main" / "java" / "com" / "fixture").mkdir(parents=True)
+    (worktree / "src" / "main" / "java" / "com" / "fixture" / "Widget.java").write_text(
+        "package com.fixture;\n\npublic class Widget {}\n"
+    )
+    ticket_id = tickets.open_ticket(conn, worktree_path=str(worktree))
+    ticket = record.get(conn, "ticket", ticket_id)
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+
+    task = {"id": 1, "validation_recipe": "fixture_compile", "validation_args": {}}
+    outcome, failure_kind = S4._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
+
+    assert outcome == "pass", failure_kind
+    exit_json = (
+        tmp_path / "tickets" / str(ticket_id) / "runs" / str(stage_run_id)
+        / "sandbox" / "1" / "fixture_compile" / "results" / "exit.json"
+    )
+    assert json.loads(exit_json.read_text())["os_policy"] is True
+
+
+def test_must_reject_a_task_validation_recipe_returning_without_an_applied_os_policy(tmp_path, monkeypatch):
+    """Once `_validate_task` routes through `launcher.launch`, a launch that comes back
+    without an applied Seatbelt profile is the same control defect `recipes.run` already
+    refuses for an S5 build recipe (`test_must_reject_a_build_result_without_policy_or_integrity_proof`
+    in `test_recipes.py`) -- never a silently accepted pass."""
+    from runner import launcher
+
+    conn = connect(tmp_path / "factory.sqlite")
+    worktree = tmp_path / "worktree"
+    (worktree / "src" / "main" / "java" / "com" / "fixture").mkdir(parents=True)
+    ticket_id = tickets.open_ticket(conn, worktree_path=str(worktree))
+    ticket = record.get(conn, "ticket", ticket_id)
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+
+    class _StubLaunched:
+        os_policy_applied = False
+        integrity = type("_Integrity", (), {"ok": True, "violations": ()})()
+        stdout_text = ""
+        stderr_text = ""
+        timed_out = False
+        exit_code = 0
+
+    monkeypatch.setattr(launcher, "launch", lambda **_: _StubLaunched())
+
+    task = {"id": 1, "validation_recipe": "fixture_compile", "validation_args": {}}
+    outcome, failure_kind = S4._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
+
+    assert outcome == "fail"
+    assert failure_kind == "recipe_binding"
+
+
 # No ambient credential is visible inside a non-agent (build) sandbox.
 
 def test_no_ambient_credential_is_visible_from_inside_a_build_sandbox(tmp_path):

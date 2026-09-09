@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Draft v0.2 |
+| Status | Draft v0.3 |
 | Date | 2026-09-10 |
 | Owner | Abhishek Thakur |
 | Reviewed against | `docs/prd/prd.md` v0.18 and its parts; `docs/design/hld/README.md` v0.3 and the L1/L2 files; `docs/design/milestones.md` v0.7 section 3 and Appendix A; `docs/design/tickets/A.md`, `AB.md`, `B.md` |
@@ -37,10 +37,10 @@ The owner's rule: the factory cannot yet open a real pull request, so security h
 
 | Finding | Disposition | Decision or note |
 |---|---|---|
-| G-01 fix round return | fix | Core path |
-| G-02 send-back from `escalated` | fix | Core path |
-| G-03 S4 validation unsandboxed | fix | The sandbox exists; one argument at the call site |
-| G-04 guard seats | closed by decision, rest deferred | Guard covers outside content, the baseline import, display, outbox and export in Initial (R-T-9 narrowed); stage output, mounts, logs and dispatch are R-T-13 (Later). To-do in `runner/artefact_registry.py` and `runner/launcher.py` |
+| G-01 fix round return | fixed 2026-09-10 | A passing fix round applies `s4_pass` in the transaction that closes its `validation_only` run; the next `advance` runs a fresh S5 |
+| G-02 send-back from `escalated` | fixed 2026-09-10 | The three `escalated` exits are `send_back_to_{planning,clarifying,context}`, the vocabulary every other open item uses; `checks` and `implementing` stay refused |
+| G-03 S4 validation unsandboxed | fixed 2026-09-10 | `_validate_task` passes the sandbox run directory, so validation goes through the enforced build launch like S5. The bare-subprocess branch of `recipes.run` remains for the recipe unit tests; no production caller reaches it, and a to-do at the branch says why it stays and what replaces it |
+| G-04 guard seats | closed by decision, rest deferred; code aligned 2026-09-10 | Guard covers outside content, the baseline import, display, outbox and export in Initial (R-T-9 narrowed); stage output, mounts, logs and dispatch are R-T-13 (Later). `CROSSINGS` now declares exactly those five, S0's intake is decided under `ingress`, and an undeclared crossing denies with `crossing_not_declared`. To-do at each deferred seat: `runner/guard.py` (the tuple), `runner/artefact_registry.py`, `runner/launcher.py`, `runner/adapters/cursor_sdk.py` and `runner/sandbox/proxy.py` (dispatch) |
 | G-05 registry policy | deferred | R-S5-15 (Later); R-S5-2 and R-I-14 narrowed. To-do in `runner/stages/S5.py` and `runner/recipes.py` |
 | G-06 pilot repository entry | wait | Environment work under the live-connection ticket; the single-entry loader changes then |
 | G-07 retry evidence feed | fix | |
@@ -361,5 +361,6 @@ What the reviewers checked and found to match, by slice. The per-slice reports c
 
 ## Revision history
 
+- **v0.3, 2026-09-10.** The four blocking findings closed in code: G-01, G-02 and G-03 fixed with the end-to-end tests section 10 asked for; G-04's declared crossing set and the S0 intake name aligned to the narrowed R-T-9, with an undeclared crossing now denied. Section 2a rows updated; finding text unchanged.
 - **v0.2, 2026-09-10.** Section 2a added with the owner's decisions and the disposition of every finding; PRD v0.19 applied (three Later rows, four rows narrowed, decision 55) and to-do notes placed at the seven code seams the deferred items would occupy. Finding text unchanged.
 - **v0.1, 2026-09-10.** First review of the implemented A, AB and B tickets by nine slice reviewers with orchestrator re-verification of every blocking and major finding. 36 findings: 4 blocking, 17 major, 15 minor; 6 known simplifications confirmed; 4 doc-drift items.

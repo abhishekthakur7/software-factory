@@ -133,7 +133,7 @@ def test_proposal_carries_metadata_only(profile_paths):
 def test_must_reject_operation_whose_input_classes_have_no_valid_join(conn, profile_paths):
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
-    op = _operation("dispatch", input_classes=("internal", "top_secret"))
+    op = _operation("persistence", input_classes=("internal", "top_secret"))
     decision = guard.decide(conn, op, profile_path=profile_path, owners_path=owners_path)
     assert decision.decision == "deny"
     assert decision.reason_codes == ("no_valid_join",)
@@ -262,7 +262,7 @@ def test_pass_through_returns_the_payload_of_its_own_matching_decision(conn, pro
 def test_must_reject_pass_through_for_a_mismatched_crossing(conn, profile_paths):
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
-    decision = guard.decide(conn, _operation("dispatch"), profile_path=profile_path, owners_path=owners_path)
+    decision = guard.decide(conn, _operation("persistence"), profile_path=profile_path, owners_path=owners_path)
     with pytest.raises(guard.GuardRefused):
         guard.pass_through(conn, decision, "ingress")
 
@@ -273,7 +273,7 @@ def test_must_reject_pass_through_for_a_denied_decision(conn, profile_paths):
     decision = guard.decide(conn, _operation("absent_route"), profile_path=profile_path, owners_path=owners_path)
     assert decision.decision == "deny"
     with pytest.raises(guard.GuardRefused):
-        guard.pass_through(conn, decision, "dispatch")
+        guard.pass_through(conn, decision, "persistence")
 
 
 def test_must_reject_pass_through_for_a_hand_built_decision_never_persisted(conn):
@@ -354,6 +354,25 @@ def test_must_reject_operation_naming_a_route_absent_from_the_trust_profile(conn
 
 
 # ---------------------------------------------------------------------------
+# a crossing outside CROSSINGS denies before route or class checks run.
+# ---------------------------------------------------------------------------
+
+def test_must_reject_operation_naming_a_crossing_outside_the_declared_set(conn, profile_paths):
+    """a crossing name `decide` does not seat is refused fail-closed, and
+    still writes its one audit row, the same as every other refusal."""
+    profile_path, owners_path = profile_paths
+    _activate(conn, profile_path, owners_path)
+    before = conn.execute("SELECT COUNT(*) FROM guard_decision").fetchone()[0]
+    decision = guard.decide(
+        conn, _operation("undeclared_crossing"), profile_path=profile_path, owners_path=owners_path,
+    )
+    after = conn.execute("SELECT COUNT(*) FROM guard_decision").fetchone()[0]
+    assert decision.decision == "deny"
+    assert decision.reason_codes == ("crossing_not_declared",)
+    assert after - before == 1
+
+
+# ---------------------------------------------------------------------------
 # guard unavailable denies, whatever makes it unavailable.
 # ---------------------------------------------------------------------------
 
@@ -361,7 +380,7 @@ def test_must_reject_operation_when_the_trust_profile_is_unreadable(conn, profil
     _, owners_path = profile_paths
     with pytest.raises(guard.GuardUnavailable):
         guard.decide(
-            conn, _operation("dispatch"),
+            conn, _operation("persistence"),
             profile_path=tmp_path / "no-such-trust-profile.yaml", owners_path=owners_path,
         )
 
@@ -371,7 +390,7 @@ def test_must_reject_operation_when_the_guard_sink_connection_is_closed(profile_
     closed_conn = connect(tmp_path / "closed.sqlite")
     closed_conn.close()
     with pytest.raises(guard.GuardUnavailable):
-        guard.decide(closed_conn, _operation("dispatch"), profile_path=profile_path, owners_path=owners_path)
+        guard.decide(closed_conn, _operation("persistence"), profile_path=profile_path, owners_path=owners_path)
 
 
 # ---------------------------------------------------------------------------

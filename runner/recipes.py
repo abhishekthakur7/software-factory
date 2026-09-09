@@ -314,7 +314,10 @@ def _validate_sandbox_network(recipe: Recipe, stage: str, sandbox_path: Path) ->
     TODO (when the factory is stable): give the S5 build sandbox a
     `registry` route and a vulnerability-feed route in `sandbox.yaml` so a
     recipe declaring `network: registry` can be admitted; today no stage
-    lists one, so every such recipe is refused here.
+    lists one, so every such recipe is refused here. The refusal is the
+    intended behaviour until the route exists, and this check is the place
+    the route will be honoured, so a `network: registry` recipe should not
+    be "fixed" by relaxing it to `network: none`.
     """
     if recipe.network == "none":
         return
@@ -430,6 +433,19 @@ def run(
             reported_result=_reported_result(launched.stdout_text),
         )
 
+    # Deliberately kept, not dead: the unsandboxed branch below is the path
+    # the recipe unit tests take to exercise validation, timeout and
+    # exit-code handling without a Seatbelt launch. Every production caller
+    # (the S4 task validation, both S5 recipe legs and the adoption gate)
+    # passes `sandbox_run_dir`, so no stage reaches this branch. A caller
+    # that omits it runs the recipe with no OS policy, no stage-declaration
+    # check, no network check and no integrity check, so treat the argument
+    # as required at every production call site.
+    # TODO (when the factory is stable): make `sandbox_run_dir` and
+    # `sandbox_stage` required and delete this branch, moving the executing
+    # recipe tests under the build profile the way the S4 validation test
+    # already runs. Until then the branch stays so the routine suite does
+    # not pay for `sandbox-exec` on every recipe assertion.
     argv = _build_argv(recipe, values, cwd)
 
     try:

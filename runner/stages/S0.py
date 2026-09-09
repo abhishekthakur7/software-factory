@@ -53,10 +53,9 @@ _FRONT_MATTER_FIELD_NAMES = {
     "issue_type": "jira_issue_type",
 }
 
-# The guard crossing S0's own Jira read is decided and passed through
-# under; distinct from the `CROSSINGS` a proxied agent tool call uses,
-# since a runner-side read never touches a sandbox.
-_JIRA_INTAKE_CROSSING = "s0_intake"
+# S0's Jira read is content-bearing ingress from an outside system, the
+# same crossing every other such read is decided and passed through under.
+_JIRA_INTAKE_CROSSING = "ingress"
 
 # A path-like token: at least one "/" with the usual filename characters
 # either side. The lax scan S0 runs over a ticket's title before any real

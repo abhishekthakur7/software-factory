@@ -462,6 +462,11 @@ def test_guard_redacts_a_fresh_jira_read_into_a_faithful_ticket_source_and_sets_
     assert front_matter["parent_link"] == "FIX-0"
     ticket = record.get(conn, "ticket", ticket_id)
     assert ticket["data_class"] == "confidential"
+    # The Jira read is content-bearing ingress from an outside system, the
+    # same crossing name every other such read is decided under -- not a
+    # name of its own that `runner.guard.CROSSINGS` would have to enumerate.
+    guard_decision = record.get(conn, "guard_decision", artefact["guard_decision_id"])
+    assert guard_decision["operation"] == "ingress"
 
 
 _SECRET_TOKEN = "ghp_" + "a" * 36

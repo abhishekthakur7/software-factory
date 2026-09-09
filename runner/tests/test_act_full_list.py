@@ -155,13 +155,7 @@ def test_escalation_actions_are_each_accepted(conn, tmp_path):
         queue.act(conn, **kwargs)
         assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
 
-    # `escalated` carries no generic `send_back_to_*` transition of its own
-    # (its own routes are named `escalation_verification_resolved_to_*`), so
-    # -- exactly as `test_act.py`'s own escalation/send_back pairing does --
-    # this one case is seeded from `checks` instead.
-    ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail")
-    item_id = queue.open_item(conn, ticket_id=ticket_id, kind="escalation", ref=f"stage_run:{stage_run_id}")
+    _, item_id = _seed_item(conn, "escalation", tmp_path)
     queue.act(
         conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
         note="duplicates_existing_work: already covered elsewhere", self_contained="yes", runs_dir=tmp_path,

@@ -29,10 +29,17 @@ def register(
 ) -> int:
     """Register the existing file at `path` as a new `artefact` row and return its id.
 
-    TODO (when the factory is stable): stage-written artefacts register with
-    no guard decision; the guard seats only on outside content, display,
-    the outbox and export. Seating it here needs no schema change, since
-    `guard_decision_id` is already a column.
+    TODO (when the factory is stable): stage-written artefacts (briefs,
+    criteria, plans, hand-offs, check evidence, tool results, packets)
+    register with no guard decision, so a secret in agent output is stored
+    before anything looks at it; the guard seats today only on outside
+    content, the baseline import, display, the outbox and export. The
+    planned seat is here: every registration of stage-written content takes
+    a `persistence` decision over the file's bytes and passes its id, and a
+    denial refuses the registration so the file is never kept. The
+    `guard_decision_id` parameter and column exist for that seat and stay
+    even though every stage call site passes None today; neither is unused
+    plumbing to remove.
 
     With `supersedes`, the new row is the next version of that artefact and
     must share its ticket and kind; a mismatch is a caller error and raises

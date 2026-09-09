@@ -523,16 +523,27 @@ def test_pr_opened_revision_returns_to_the_selected_earlier_stage(conn, event, t
 @pytest.mark.parametrize(
     "event,target",
     [
-        ("escalation_verification_resolved_to_planning", "planning"),
-        ("escalation_verification_resolved_to_clarifying", "clarifying"),
-        ("escalation_verification_resolved_to_context", "context"),
+        ("send_back_to_planning", "planning"),
+        ("send_back_to_clarifying", "clarifying"),
+        ("send_back_to_context", "context"),
     ],
 )
 def test_escalated_verification_exhaustion_resolution(conn, event, target):
     """verification exhaustion resolved by a superseding plan-item
-    version and new approval moves escalated to the named earlier stage."""
+    version and new approval moves escalated to the named earlier stage,
+    through the same send-back vocabulary every other open state uses."""
     ticket_id = _ticket_in(conn, "escalated")
     assert transitions.apply(conn, ticket_id, event) == target
+
+
+@pytest.mark.parametrize("event", ["send_back_to_checks", "send_back_to_implementing"])
+def test_must_reject_escalated_send_back_to_a_state_verification_exhaustion_cannot_reach(conn, event):
+    """escalated only reaches planning, clarifying, or context by send-back; checks and
+    implementing are reachable solely through the cause-specific resume events."""
+    ticket_id = _ticket_in(conn, "escalated")
+    with pytest.raises(TransitionRefused):
+        transitions.apply(conn, ticket_id, event)
+    assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
 
 
 def test_escalated_control_defect_remediated_moves_to_context(conn):

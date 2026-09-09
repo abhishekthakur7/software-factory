@@ -10,8 +10,12 @@ imports this module and calls it at collection time).
 
 TODO (when the factory is stable): confine the agent profile's
 `process-exec` to the runtime and the declared recipe programs, as the
-build profile already does; today the agent may exec anything within its
-file and network limits, which the owner accepted for now.
+build profile already does (its literal `process-exec` allow list is the
+template); today `agent-profile.sb` allows any `process-exec` and
+`process-fork` within its file and network limits, which the owner
+accepted for the prototype. The escape suite's subprocess probe runs
+under the build role only for the same reason; extend it to the agent
+role when the profile is tightened.
 """
 import hashlib
 import subprocess

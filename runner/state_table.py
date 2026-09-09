@@ -151,9 +151,9 @@ TABLE: dict[tuple[str, str], str] = {
     ("pr_opened", "revision_to_implementing"): "implementing",
     ("pr_opened", "revision_to_planning"): "planning",
     # escalated
-    ("escalated", "escalation_verification_resolved_to_planning"): "planning",
-    ("escalated", "escalation_verification_resolved_to_clarifying"): "clarifying",
-    ("escalated", "escalation_verification_resolved_to_context"): "context",
+    ("escalated", "send_back_to_planning"): "planning",
+    ("escalated", "send_back_to_clarifying"): "clarifying",
+    ("escalated", "send_back_to_context"): "context",
     ("escalated", "escalation_control_defect_remediated"): "context",
     ("escalated", "escalation_resume_implementing"): "implementing",
     ("escalated", "escalation_resume_checks"): "checks",

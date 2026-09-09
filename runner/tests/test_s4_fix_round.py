@@ -11,13 +11,13 @@ import os
 import subprocess
 from pathlib import Path
 
-from runner import artefact_registry, git_trees, manifest, record, run_ledger
+from runner import artefact_registry, git_trees, manifest, operations, record, run_ledger
 from runner.checks import red_route
 from runner.checks.red_route import CheckOutcome, RecipeOutcome, Route
 from runner.db import connect
 from runner.tests import support
 from runner.paths import FACTORY_DIR
-from runner.stages import S4, run_stage
+from runner.stages import S4, S5, run_stage
 
 EVAL_DIR = FACTORY_DIR / "evals" / "agents" / "S4"
 FIXTURES = Path(__file__).parent / "fixtures" / "s4_fix_round"
@@ -327,3 +327,73 @@ def test_a_ticket_at_the_fix_round_cap_is_refused_a_further_round(tmp_path):
         "SELECT COUNT(*) FROM queue_item WHERE ticket_id = ? AND kind = 'red_check' AND resolved_at IS NULL",
         (ticket_id,),
     ).fetchone()[0] == 1
+
+
+def test_a_passing_round_returns_the_ticket_to_checks_with_its_validation_run_closed(tmp_path):
+    """A round's pass applies `s4_pass` itself -- the same event the ordinary
+    per-task path applies -- so the ticket leaves `implementing` for `checks`
+    instead of sitting there with nothing left to distinguish it from a ticket
+    still mid-round."""
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = _ready_ticket(conn, tmp_path)
+    _route_via_s5(conn, ticket_id)
+
+    outcome = _run_fix_round(conn, ticket_id, tmp_path, worktree="fix_round_authorized")
+
+    assert outcome == "pass"
+    assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
+    validation_only = conn.execute(
+        "SELECT outcome FROM stage_run WHERE ticket_id = ? AND run_kind = 'validation_only' ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    assert validation_only["outcome"] == "pass"
+
+
+def test_the_next_advance_after_a_passing_round_reruns_s5_instead_of_a_second_round(tmp_path, monkeypatch):
+    """Once a round has passed the ticket back into `checks`, the next `factory
+    advance` is due for a fresh S5 attempt: `checks` no longer admits S4 at
+    all, so the routing marker a stale re-read of the ticket's latest S5 run
+    would otherwise still show as `fix_round_route = pass` never gets asked
+    again, and no second round opens against it."""
+    conn = connect(tmp_path / "factory.sqlite")
+    ticket_id = _ready_ticket(conn, tmp_path)
+    # Seeded like `_route_via_s5`, but `fix_round_route` carries the tier the
+    # real S5 driver actually gives it, `advisory` (S5.py's own
+    # `_apply_routing`): `_due_stage` separately reads every *blocking*
+    # result of a stage's latest run to decide whether that run is fully
+    # cleared, and a `blocking`-tier stand-in here would make this seeded,
+    # still-`blocked` run look spuriously cleared to that check.
+    first_s5_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S5")
+    run_ledger.finish(conn, first_s5_run_id, "blocked")
+    record.insert(
+        conn, "check_result", stage_run_id=first_s5_run_id, check_name="fix_round_route", check_tier="advisory",
+        source="runner", result="pass", canonical_serialization_version=1, content_hash="fix-round-route-pass",
+    )
+
+    outcome = _run_fix_round(conn, ticket_id, tmp_path, worktree="fix_round_authorized")
+    assert outcome == "pass"
+    assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
+
+    # S5's own real recipe run is exercised by its own driver tests; here only
+    # the choice of *which* stage `advance` invokes next -- and with which
+    # fresh row -- is under test, so its body is a stand-in that just
+    # reports which `stage_run` id it was handed.
+    seen_stage_run_ids = []
+
+    def fake_s5_run(conn, ticket, stage_run_id, runs_dir):
+        seen_stage_run_ids.append(stage_run_id)
+        return "pass"
+
+    monkeypatch.setattr(S5, "run", fake_s5_run)
+
+    operations.advance(conn, ticket_id, tmp_path)
+
+    assert seen_stage_run_ids and seen_stage_run_ids[0] != first_s5_run_id
+    fresh_run = record.get(conn, "stage_run", seen_stage_run_ids[0])
+    assert fresh_run["stage"] == "S5"
+    assert fresh_run["outcome"] == "pass"
+    assert conn.execute(
+        "SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = 'S4' AND run_kind = 'fix_round'",
+        (ticket_id,),
+    ).fetchone()[0] == 1
+    assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
