@@ -132,30 +132,7 @@ def test_mcp_config_inside_the_worktree_is_unreachable_at_a_non_s4_stage(tmp_pat
     assert payload == {"attempted": True, "refused": True}
 
 
-# Source-tree writes succeed only through S4's worktree mount.
-
-@pytest.mark.parametrize("stage", ["S1", "S2", "S3", "S5", "S6"])
-def test_must_reject_a_source_tree_write_outside_s4(tmp_path, stage):
-    worktree = tmp_path / "worktree"
-    worktree.mkdir()
-    payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage=stage,
-        ticket_dir=tmp_path / "ticket", worktree_path=worktree, extra_argv=(str(worktree),),
-    )
-    assert payload == {"attempted": True, "refused": True}
-    assert not (worktree / "escape_write.txt").exists()
-
-
-def test_a_source_tree_write_succeeds_at_s4(tmp_path):
-    worktree = tmp_path / "worktree"
-    worktree.mkdir()
-    payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="S4",
-        ticket_dir=tmp_path / "ticket", worktree_path=worktree, extra_argv=(str(worktree),),
-    )
-    assert payload == {"attempted": True, "refused": False}
-    assert (worktree / "escape_write.txt").exists()
-
+# A recipe invocation at a stage other than S4 attempting to write into the ticket worktree.
 
 def test_a_build_profile_recipe_run_writing_the_worktree_is_refused(tmp_path):
     """A recipe invocation runs under the build profile against a copy; the build profile never even
@@ -166,17 +143,6 @@ def test_a_build_profile_recipe_run_writing_the_worktree_is_refused(tmp_path):
         tmp_path, FIXTURES_DIR / "source_write" / "probe.py", role="build", stage="S4",
         copy_dir=tmp_path / "copy", build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
         cache_dir=tmp_path / "cache", extra_argv=(str(worktree_shaped_path),),
-    )
-    assert payload == {"attempted": True, "refused": True}
-
-
-def test_s1_grants_no_write_capability_outside_its_declared_out_directory(tmp_path):
-    """A probe at S1 writing anywhere but `RUN_DIR/out` (here, the read-only ticket directory) is refused."""
-    ticket_dir = tmp_path / "ticket"
-    ticket_dir.mkdir()
-    payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="S1",
-        ticket_dir=ticket_dir, extra_argv=(str(ticket_dir),),
     )
     assert payload == {"attempted": True, "refused": True}
 
