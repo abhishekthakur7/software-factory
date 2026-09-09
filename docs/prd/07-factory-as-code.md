@@ -17,12 +17,12 @@ factory/
   evals/              one directory per skill and per agent: fixtures, graders, thresholds, calibration record
   benchmarks/         fixture sets per stage; result matrices by manifest hash
   index/              context index entries: markdown with front matter
-  config/             tiers.yaml, service-tiers.yaml, artifact-to-service.yaml, sensitive-paths.yaml, owners.yaml, trust-profile.yaml, waiver-policy.yaml, incident-policy.yaml, pricing.yaml, sandbox.yaml, command-recipes.yaml, security-checks.yaml, limits.yaml, ticket-types.yaml, project.yaml, tools.yaml, runtime.yaml; maintenance.yaml (Later)
+  config/             tiers.yaml, service-tiers.yaml, artifact-to-service.yaml, sensitive-paths.yaml, owners.yaml, trust-profile.yaml, waiver-policy.yaml, incident-policy.yaml, pricing.yaml, sandbox.yaml, command-recipes.yaml, security-checks.yaml, limits.yaml, ticket-types.yaml, project.yaml, runtime.yaml; maintenance.yaml (Later)
   catalogue/          failure-modes.md mirroring charter section 4, with the tag schema; decisions.md
 runs/                 not versioned: factory.sqlite; tickets/<id>/ for artefacts and worktrees
 ```
 
-`scripts/checks/` holds a script that runs on the trusted side at a gate and writes a `check_result` row. `scripts/tools/` holds a utility a stage driver, a command, or the setup runs, or that an agent is given as a tool; it writes no check result. The digest cadence/channel and the per-stage-and-tier budgets now live inside `project.yaml` and `tiers.yaml` (section 8); inbound callers now live in the context index as `caller` entries (R-S1-3).
+`scripts/checks/` holds a script that runs on the trusted side at a gate and writes a `check_result` row. `scripts/tools/` holds a utility a stage driver, a command, or the setup runs, or that an agent is given as a tool; it writes no check result. The digest cadence/channel and the per-stage-and-tier budgets now live inside `project.yaml` and `tiers.yaml` (section 8); inbound callers now live in the context index as `caller` entries (R-S1-3). The tool attachment table of section 8 lives in the manifest as each stage's `tool_allowlist`, not in a separate `config/tools.yaml` (owner decision of 2026-09-10).
 
 Secrets and credentials are not under `factory/`. Configuration names credential roles, not values. Trusted ingress and outbox adapters obtain scoped credentials from an approved host facility; credentials are never inherited from the engineer's shell and never mounted into an agent or build sandbox, except the scoped runtime key of R-I-14, which the launcher supplies to agent sandboxes only.
 

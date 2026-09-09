@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Draft v0.3 |
+| Status | Draft v0.4 |
 | Date | 2026-09-07 |
 | Owner | Abhishek Thakur |
 | Derived from | `docs/prd/prd.md` v0.18; `docs/design/milestones.md` v0.6; `docs/charter.md` v0.14 |
@@ -57,7 +57,7 @@ flowchart TB
     end
 
     subgraph F6["F6 Policies, configuration and catalogue"]
-        F6_policy["Policy files<br/>trust-profile, owners, waiver-policy,<br/>incident-policy, sensitive-paths,<br/>security-checks (AB), sandbox,<br/>tools, runtime"]
+        F6_policy["Policy files<br/>trust-profile, owners, waiver-policy,<br/>incident-policy, sensitive-paths,<br/>security-checks (AB), sandbox,<br/>runtime"]
         F6_recipe["command-recipes.yaml<br/>Recipe catalogue, validated and<br/>run by G2 (G4 folded away);<br/>project.yaml"]
         F6_tuning["Tuning files<br/>tiers, limits, ticket-types,<br/>service-tiers, artifact-to-service,<br/>pricing"]
         F6_catalogue["catalogue/<br/>failure-modes, decisions"]
@@ -208,6 +208,7 @@ flowchart TB
 | F2 `manifest.yaml`, incl. grader model and S2 restatement model (never the authoring model) | Manifest | R-F-1, R-F-4, R-I-4, R-S2-3 | A |
 | Manifest migration | Manifest | R-I-4 | A |
 | Manifest and sandbox capability enforcement (OS-policy dependent) | Manifest (secondary: Sandbox) | R-I-3, R-I-11, R-I-14 | AB |
+| Agent process execution confined to declared recipe programs; the manifest's tool list passed into the runtime | Sandbox (secondary: Manifest) | R-I-18 | Later |
 | F3 `agents/` | Agent definition | R-F-7 | A |
 | F3 `skills/` | Agent definition (secondary: Skill) | R-F-7 | A |
 | F3 `skills/shared/` | Agent definition (secondary: Skill) | R-F-7 | A |
@@ -222,7 +223,7 @@ flowchart TB
 | Incremental re-index (index refresh extension point) | Context index | (`milestones.md:89`, extension points table) | Later |
 | F6 `config/trust-profile.yaml` | Trust profile | R-T-9 | A |
 | F6 `config/owners.yaml` | Approval and quorum (secondary: Trust profile) | R-F-13 | A |
-| F6 `config/tools.yaml` | Manifest (secondary: Sandbox) | R-I-3, R-I-4 | A / AB (allowlist resolved from A, OS-enforced from AB; see the "Manifest capability enforcement" row above) |
+| Tool attachment table, carried by `manifest.yaml`'s per-stage `tool_allowlist`; no `config/tools.yaml` (PRD decision 55) | Manifest (secondary: Sandbox) | R-I-3, R-I-4 | A / AB (allowlist resolved and recorded from A; see the "Manifest capability enforcement" row above) |
 | F6 `config/sandbox.yaml` | Sandbox | R-I-14 | A / AB (digest and thin contract read from A; OS-policy enforcement AB) |
 | F6 `config/runtime.yaml` | Invocation and runtime adapter (secondary: Sandbox) | R-I-13, R-I-14 | A / AB |
 | F6 `config/pricing.yaml` | Invocation and runtime adapter | R-I-13 | A |

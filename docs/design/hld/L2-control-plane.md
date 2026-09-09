@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Draft v0.3 |
+| Status | Draft v0.4 |
 | Date | 2026-09-07 |
 | Owner | Abhishek Thakur |
 | Derived from | `docs/prd/prd.md` v0.18; `docs/design/milestones.md` v0.6; `docs/charter.md` v0.14 |
@@ -13,9 +13,9 @@
 
 The control plane owns nine components, `C1` to `C9` (`C9`, Checks and gates, is new in this revision: the exclusion gate, the S3 size gate, the R-I-12 structure and R-S3-19 traceability check, `risk_map` and `handoff_ready`, the S5 preflight and its ordered check list, `base_test_diff`, the fix-round routing rule, the S6 race-guard call, and the waiver check against `waiver-policy.yaml`; `C6` keeps only the seven stage drivers, S0 to S6, dispatched one at a time by `C2` and communicating with each other only through the record — no driver-to-driver chain). Diagram 1 splits at 31 and 18 nodes into **1a** (`C1`–`C5`: command, state machine, run orchestration, binding and the guard) and **1b** (`C6`, `C9`, `C7`, `C8`: stage drivers, checks and gates, external access, git-tree operations), because the combined picture passed the 35-node guideline. Each half draws its own border stubs; `C2` and `C4` reappear in 1b as small reference stubs pointing back at 1a, since `C9`'s S5 preflight calls `C4` for the review-tuple boundary, and every stage driver in `C6` dispatches from and returns an outcome to `C2`.
 
-The control plane's own border crossings are five: `X1` (the person acts, `H2`↔`C1`; a second, metadata-only leg from `H4`'s governance view into `C1`'s audit sink, which cannot reach production content), `X2` (the runner writes and reads its record, `C1`–`C9`→`R1`–`R3`, every write and every mount-bound read passing `C5`'s seat), `X3` (the runner dispatches a run, `C3`/`C6`→`G1`; `C9`'s recipes are dispatched by the S4 and S5 drivers that call it, not by `C9` directly), `X4` (the factory tree is read at run time, `F2`→`C1`), and `X5` (the runner reads from and writes to outside systems, `C7`↔`E1`/`E2`/`E3`/`E5`; `E5` also invokes `factory digest` on `C1`, never a stage), drawn to twelve border stub nodes across the two halves (`H2`, `H4`, `R1`, `R2`, `R3`, `F2`, `G1`, `G2`, `E1`, `E2`, `E3`, `E5`) — those stubs are not detailed here; each lives in its own domain's Layer 2 file. The guard (`C5`) also seats on `X7` (mounts, `R2`/`R3`→`G2`) even though `X7` itself is not one of the five crossings whose endpoint is a control-plane component: the guard's policy evaluation runs in domain 2, so its seat on that crossing is drawn here per the rule below, not redrawn in `L2-record.md` or `L2-execution-boundary.md`.
+The control plane's own border crossings are five: `X1` (the person acts, `H2`↔`C1`; a second, metadata-only leg from `H4`'s governance view into `C1`'s audit sink, which cannot reach production content), `X2` (the runner writes and reads its record, `C1`–`C9`→`R1`–`R3`; in Initial the baseline import and the export pass `C5`'s seat, the runner's own row writes and the mount-bound reads do not — that seat is Later, PRD R-T-13), `X3` (the runner dispatches a run, `C3`/`C6`→`G1`; `C9`'s recipes are dispatched by the S4 and S5 drivers that call it, not by `C9` directly), `X4` (the factory tree is read at run time, `F2`→`C1`), and `X5` (the runner reads from and writes to outside systems, `C7`↔`E1`/`E2`/`E3`/`E5`; `E5` also invokes `factory digest` on `C1`, never a stage), drawn to twelve border stub nodes across the two halves (`H2`, `H4`, `R1`, `R2`, `R3`, `F2`, `G1`, `G2`, `E1`, `E2`, `E3`, `E5`) — those stubs are not detailed here; each lives in its own domain's Layer 2 file. The guard (`C5`) will also seat on `X7` (mounts, `R2`/`R3`→`G2`) once R-T-13 is Initial, even though `X7` itself is not one of the five crossings whose endpoint is a control-plane component: the guard's policy evaluation runs in domain 2, so its seat on that crossing is drawn here per the rule below, not redrawn in `L2-record.md` or `L2-execution-boundary.md`.
 
-**The guard is drawn once, with a seat on every carrier.** `C5` seats on `X1`'s display route (`C1`→`H2`), `X2` persistence (every write from `C2`, `C3`, `C6`, `C8` and `C9` fans in to `C5_seat`, which alone writes `R1`, `R2` and `R3`, each edge labelled `X2`; the two record legs read back into the seat for mounting, `R2`/`R3`→`C5_seat`, are labelled `X2 read`), `X3` dispatch (→`G1`), `X5` ingress (→`E1`), `X5` outbox payloads and the digest (→`E2`, `E3`), `X7` mounts (`C5_seat`→`G2`, labelled "mounts"), the `C1` export operation (→`R2`, labelled `X2 export`), and logs (R-T-9 names logs among the seated carriers; no distinct component exists to draw a twelfth edge to at this layer, so the seat is stated in prose only — see "Not drawn"); each drawn seat is one labelled edge from `C5_seat` to its carrier, and no content-bearing edge in this file bypasses it. Every other Layer 2 file states this rule once in its own "How to read" and does not redraw the guard. The credential fetch (`E5`→`C7`) is not a guard seat — it is not content, it is a secret the runner holds outside every sandbox — and is drawn as a direct, solid edge labelled "runtime key A; other roles AB" (decision 8/10): the launcher receives it inside the dispatch (`X3`) and supplies it to agent sandboxes only across `X11`; no edge runs from `E5` into domain 3.
+**The guard is drawn once, with a seat on every carrier of outside content.** In Initial (PRD R-T-9 as narrowed by decision 55) `C5` seats on `X1`'s display route (`C1`→`H2`), `X5` ingress (→`E1`), `X5` outbox payloads and the digest (→`E2`, `E3`), the baseline import (`C7_ingress`→`C5_seat`→`R1`, labelled `X2 baseline import`), and the `C1` export operation (→`R2`, labelled `X2 export`); each drawn seat is one labelled edge from `C5_seat` to its carrier, and no edge carrying content from or to an outside system bypasses it. The seats R-T-13 defers to Later are drawn dotted and labelled `Later, R-T-13`: `X2` persistence of what the stages write (`C2`, `C3`, `C6`, `C8`, `C9` write `R1`, `R2`, `R3` directly in Initial), `X3` dispatch (`C3_kinds`→`G1` direct in Initial), `X7` mounts (`R2`/`R3`→`G2` direct in Initial, the read-back legs `R2`/`R3`→`C5_seat` dotted), and logs (no distinct component exists to draw an edge to at this layer, so that seat is stated in prose only — see "Not drawn"). The owner deferred these on 2026-09-10 because the factory cannot yet open a real pull request; every artefact row already carries `guard_decision_id`, so the seats attach without a schema change. Every other Layer 2 file states this rule once in its own "How to read" and does not redraw the guard. The credential fetch (`E5`→`C7`) is not a guard seat — it is not content, it is a secret the runner holds outside every sandbox — and is drawn as a direct, solid edge labelled "runtime key A; other roles AB" (decision 8/10): the launcher receives it inside the dispatch (`X3`) and supplies it to agent sandboxes only across `X11`; no edge runs from `E5` into domain 3.
 
 Diagram 2 is the ticket state machine of PRD 2.3, `stateDiagram-v2`, drawn once and complete — this is its only drawing; `L2-human-surface.md` diagram 2 is a touchpoint strip with no transition edges of its own. Transition families, each covering several individual edges below: **advance on success** along the thick thirteen-state backbone; **send-back** to `context`, `clarifying` or `planning` from any open item (`plan_review`, `implementing`, `checks`, `review`, `escalated`); **abandon** from any open item, or directly from `context`, `clarifying`, `planning` or `pr_opened`; **escalation**, either stage-specific (budget, sandbox, verification, non-retryable control failure, stop) or a second consecutive failure outside S4 (`context`, `clarifying`, `planning`, `checks`, `review`); **resume from `escalated`** to the same stage after an infrastructure or human-stop cause, or to `planning` (or earlier, for a superseding plan version) after verification exhaustion; **`refresh_base`** to `context`; the **validation-only rerun** after a fix round (R-S4-9), recorded as an S4 run with no state change, so not drawn as an edge; the fix round itself is the drawn `checks → implementing` edge; and **manifest migration** (R-I-4), a human-approved change that returns any state to `context`, shown once as a note rather than thirteen edges. `pr_checks` and its transitions are Later, shown with a dashed node border and `(Later)` on every edge, since `stateDiagram-v2` has no dotted-edge syntax.
 
@@ -62,7 +62,7 @@ flowchart LR
   end
 
   subgraph C5sg["C5: Guard"]
-    C5_seat["one seat on every content-<br/>bearing crossing — display,<br/>persistence, dispatch, ingress,<br/>outbox, mounts, export, logs:<br/>allow/redact/deny + guard_decision<br/>row (R-T-9). Denies: unknown<br/>class; absent route; unavailable<br/>guard; missing/expired approval;<br/>attempted downgrade; secret hit"]
+    C5_seat["Initial seats: ingress, baseline<br/>import, display, outbox, export.<br/>Later (R-T-13): stage writes,<br/>dispatch, mounts, logs.<br/>allow/redact/deny + guard_decision<br/>row (R-T-9). Denies: unknown<br/>class; absent route; unavailable<br/>guard; missing/expired approval;<br/>attempted downgrade; secret hit"]
   end
 
   subgraph C7sg["C7: External access"]
@@ -94,8 +94,8 @@ flowchart LR
   H2 ==>|"X1 commands"| C1_ops
   C1_ops ==> C2_states
   C2_states ==> C3_kinds
-  C3_kinds ==>|"X3"| C5_seat
-  C5_seat ==>|"X3 dispatch"| G1
+  C3_kinds ==>|"X3 dispatch"| G1
+  C3_kinds -.->|"X3 seat (Later, R-T-13)"| C5_seat
 
   F2 -->|"X4"| C1_ops
   C1_ops --> C5_seat
@@ -104,13 +104,13 @@ flowchart LR
   C1_ops -->|"reconcile at start"| C7_outbox
   H4 -->|"X1 governance view,<br/>metadata-only"| C1_gov_audit
 
-  C2_states -->|"X2"| C5_seat
+  C2_states -->|"X2"| R1
   C2_states -->|"boundary 1: plan-approval<br/>commit"| C4_fresh
-  C3_kinds -->|"X2"| C5_seat
-  C3_lease -->|"X2"| C5_seat
+  C3_kinds -->|"X2"| R1
+  C3_lease -->|"X2"| R1
+  C3_kinds -.->|"X2 seat (Later, R-T-13)"| C5_seat
   C3_lease -->|"abort"| C2_states
-  C5_seat -->|"X2"| R1
-  C5_seat -->|"X2"| R3
+  C5_seat -.->|"X2 baseline import (AB)"| R1
 
   C4_fresh --> C8_ops
 
@@ -119,15 +119,18 @@ flowchart LR
   C7_outbox --> C5_seat
   C5_seat -.->|"X5 (AB)"| E2
   C5_seat -.->|"X5 digest (AB)"| E3
-  R2 -->|"X2 read"| C5_seat
-  R3 -->|"X2 read"| C5_seat
-  C5_seat -->|"X7 mounts"| G2
+  R2 -->|"X7 mounts"| G2
+  R3 -->|"X7 mounts"| G2
+  R2 -.->|"X2 read (Later, R-T-13)"| C5_seat
+  R3 -.->|"X2 read (Later, R-T-13)"| C5_seat
+  C5_seat -.->|"X7 mounts seat (Later, R-T-13)"| G2
 
   E5 -->|"X5 runtime key A;<br/>other roles AB"| C7_cred
   E5 -.->|"X5 invokes digest<br/>only — AB; never<br/>starts a stage"| C1_ops
   C8_ops --> C7_ingress
 
-  C8_ops -->|"X2 SHAs, ticket<br/>fields, tree state"| C5_seat
+  C8_ops -->|"X2 SHAs, ticket fields"| R1
+  C8_ops -->|"X2 tree state"| R3
 
   classDef store fill:#f3f4f6
   classDef content fill:#eef6ff
@@ -143,13 +146,13 @@ flowchart LR
 
 ### Diagram 1b — stage drivers, checks and gates, external access reference, git-tree reference (18 nodes: 12 interior, 6 border/reference stubs)
 
-`C2_stub`, `C4_stub` and `C5_stub` are the same components as diagram 1a's `C2`, `C4` and `C5`, repeated here only as dispatch/return and persistence-seat targets so this half reads on its own; every `X3` dispatch edge below passes `C5`'s seat (drawn fully in diagram 1a), and every `X2` write from `C6` or `C9` passes through `C5_stub` before it reaches `R1`/`R2` — no driver writes the record directly.
+`C2_stub`, `C4_stub` and `C5_stub` are the same components as diagram 1a's `C2`, `C4` and `C5`, repeated here only as dispatch/return and persistence-seat targets so this half reads on its own. In Initial the `X3` dispatch edges and the `X2` writes from `C6` and `C9` reach `G1`, `R1` and `R2` directly, as drawn; the seat of `C5_stub` on those writes and dispatches is Later (PRD R-T-13), drawn as one dotted edge. Drivers write the record only through the runner's own record and registry functions, never through a stage's sandbox.
 
 ```mermaid
 flowchart LR
   C2_stub["C2 state machine<br/>(diagram 1a)"]
   C4_stub["C4 binding & freshness<br/>(diagram 1a)"]
-  C5_stub["C5 guard seat<br/>(diagram 1a)"]
+  C5_stub["C5 guard seat (diagram 1a);<br/>seat on stage writes and<br/>dispatch: Later, R-T-13"]
   R1["R1 SQLite ledger (Record)"]
   R2["R2 Artefact files (Record)"]
   G1["G1 Runtime adapter<br/>(Execution boundary)"]
@@ -199,11 +202,11 @@ flowchart LR
   C9_preflight -->|"boundary 2"| C4_stub
   C9_fixround -->|"boundary 3"| C4_stub
 
-  C6sg -->|"X2"| C5_stub
-  C6_s6 -->|"X2"| C5_stub
-  C9sg -->|"X2"| C5_stub
-  C5_stub -->|"X2"| R1
-  C5_stub -->|"X2"| R2
+  C6sg -->|"X2"| R1
+  C6sg -->|"X2"| R2
+  C6_s6 -->|"X2"| R2
+  C9sg -->|"X2"| R1
+  C6sg -.->|"X2 seat (Later, R-T-13)"| C5_stub
 
   classDef store fill:#f3f4f6
   classDef later stroke-dasharray:5 5,color:#666
@@ -395,7 +398,8 @@ One row per component or part drawn above. Block is the row's own Appendix A pri
 | C3 Later: S1 fan-out children | Run | R-S1-10 | Later |
 | C4 canonical serialization + subject hashes | Binding | R-T-10 (secondary: approval and quorum) | A |
 | C4 freshness check (3 boundaries) | Binding | R-S3-15 (secondary: approval and quorum), R-S5-12 (secondary: git trees), R-S6-10 (secondary: approval and quorum), R-S4-5 (secondary: binding), R-S6-6 (secondary: binding) | A |
-| C5 guard seat | Trust profile (secondary: guard) | R-T-9, R-T-4 (secondary: guard) | A |
+| C5 guard seat on outside content: ingress, baseline import, display, outbox, export | Trust profile (secondary: guard) | R-T-9, R-T-4 (secondary: guard) | A |
+| C5 seat on stage writes, dispatch, mounts and logs | Guard | R-T-13 | Later |
 
 ### C6 (stage drivers only)
 
@@ -440,5 +444,5 @@ A driver spans several blocks, since it runs rubric lines, check scripts and dat
 - S7 PR-checks polling, `pr_checks_summary`, `sync_pr_head`, `close_survey`, `human_signal` reads, and Confluence sync (all Later, R-S7-*, R-H-10): shown as the `(Later)` state and edges in diagram 2, and as `C7`'s dashed node (diagram 1a).
 - Second runtime adapter (Claude Code, Later): belongs to the execution-boundary domain's own file; `G1` is drawn here only as a border stub.
 - Impact-method swap (import scan vs. dependency tree, `milestones.md:87`): a Later extension point on the Check block, but it is drawn where it executes, inside the sandbox recipe catalogue — see `L2-execution-boundary.md`, not here.
-- Log content as a distinct guarded carrier (R-T-9 names logs among the seated carriers): no register component exists to draw a separate edge to at this layer; log writes ride inside the already-guarded `R1`/`R2` writes, not a twelfth carrier — stated in prose only (see the guard paragraph above).
-- Never drawn, per the anti-goal list: a push before quorum (`C5_seat`'s edges to `E2`/`E3` are dotted-AB, labelled through the outbox, which pushes only after full quorum); an agent holding a GitHub or Slack credential (only `C7_outbox`, trusted-side, touches `E2`/`E3`, and the runtime key on `X5`/`X3`/`X11` never reaches domain 3 from `E5` directly — no edge from `E5` into `G1` or `G2`); the sandbox writing the record or the tree (no edge from `G1`/`G2` back into `R1`/`R2`/`F2`); the scheduler starting a stage (`E5`'s edges reach only `C7_cred` for credentials and `C1_ops` for the `factory digest` invocation, never `C2`/`C3`/`C6`/`C9`); a switchable S3 or S6 gate; cost or throughput as an objective; a content-bearing crossing that bypasses `C5` (the solid `C5_seat`→`E2` edge of v0.1, which duplicated the guarded outbox path at Milestone A, is removed; every `X2` write and mount-bound read now also passes `C5_seat`/`C5_stub`).
+- Log content as a distinct guarded carrier (R-T-13, Later): no register component exists to draw a separate edge to at this layer; when that row is Initial, log writes ride inside the `R1`/`R2` write seat, not a twelfth carrier — stated in prose only (see the guard paragraph above).
+- Never drawn, per the anti-goal list: a push before quorum (`C5_seat`'s edges to `E2`/`E3` are dotted-AB, labelled through the outbox, which pushes only after full quorum); an agent holding a GitHub or Slack credential (only `C7_outbox`, trusted-side, touches `E2`/`E3`, and the runtime key on `X5`/`X3`/`X11` never reaches domain 3 from `E5` directly — no edge from `E5` into `G1` or `G2`); the sandbox writing the record or the tree (no edge from `G1`/`G2` back into `R1`/`R2`/`F2`); the scheduler starting a stage (`E5`'s edges reach only `C7_cred` for credentials and `C1_ops` for the `factory digest` invocation, never `C2`/`C3`/`C6`/`C9`); a switchable S3 or S6 gate; cost or throughput as an objective; a crossing carrying outside content that bypasses `C5` (the solid `C5_seat`→`E2` edge of v0.1, which duplicated the guarded outbox path at Milestone A, is removed). The runner's own `X2` row writes and the mount-bound reads are drawn direct in v0.4: their seat is Later under R-T-13, not a bypass.

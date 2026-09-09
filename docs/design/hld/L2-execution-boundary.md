@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Draft v0.3 |
+| Status | Draft v0.4 |
 | Date | 2026-09-07 |
 | Owner | Abhishek Thakur |
 | Derived from | `docs/prd/prd.md` v0.18; `docs/design/milestones.md` v0.6; `docs/charter.md` v0.14 |
@@ -81,7 +81,7 @@ flowchart LR
   G3_agent -->|"X6: A, direct<br/>over the runtime key"| E4
   G2_proxy -.->|"X6 proxied — AB"| E4
   G2_proxy -.->|"X6 Atlassian S1<br/>context — AB"| E1
-  G2_proxy -.->|"X6 registry fetch — AB"| E6
+  G2_proxy -.->|"X6 registry fetch — Later, R-S5-15"| E6
   G3_rundir -->|"X11 back: out/ files,<br/>worktree writes (S4),<br/>recipe results, usage"| G2_launcher
   G2_launcher --> G1_adapter
   G1_checkpost -->|"X3 back: outcome,<br/>resolved model, usage,<br/>tool_call rows, hand-back,<br/>integrity result"| C6
@@ -146,7 +146,7 @@ sequenceDiagram
     G3->>E4: model call (X6, direct<br/>over the runtime key)
     E4-->>G3: response
   else Milestone AB
-    G3-->>PROXY: model / Atlassian / registry call (X6)
+    G3-->>PROXY: model / Atlassian call (X6); registry Later, R-S5-15
     PROXY-->>G3: response
   end
   G3->>G2: raw tool or recipe result

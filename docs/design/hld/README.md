@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| Status | Draft v0.3 |
-| Date | 2026-09-07 |
+| Status | Draft v0.4 |
+| Date | 2026-09-10 |
 | Owner | Abhishek Thakur |
-| Derived from | `docs/prd/prd.md` v0.18 and its parts; `docs/design/milestones.md` v0.6 (the 25 blocks, the 11 crossings, Appendix A row map, Appendix B crossings); `docs/charter.md` v0.14 |
+| Derived from | `docs/prd/prd.md` v0.19 and its parts; `docs/design/milestones.md` v0.6 (the 25 blocks, the 11 crossings, Appendix A row map, Appendix B crossings); `docs/charter.md` v0.14 |
 | Layers | Layer 1: one bird's-eye view and one ticket walk. Layer 2: one file per domain. Layer 3 does not exist yet; it is written per block just before that block is coded, as `milestones.md` section 0 says |
 
 ## 1. How to read
@@ -14,7 +14,7 @@ The factory is drawn in two layers so that no single picture has to hold everyth
 
 **Marks.** Everything unmarked exists at Milestone A, the walking skeleton on synthetic fixtures. `(AB)` marks what `milestones.md` section 3 builds between Milestone A and Milestone B: the OS policy, the copy-on-write copies, the loopback proxy, the escape suite, the real outside reads and writes and their credentials, the pilot repository and its configuration, the frozen baseline. `(B)` marks what section 3 places at Milestone B: the manual outcome record, the graduation gate, the first real-ticket fixture. `(Later)` marks what the PRD defers: a dashed node inside the component that would grow, joined to the part it grows from by one dotted edge, never a box on the main path. A dotted edge marks a crossing or part that first exists at the step in its label. A thick edge marks the main ticket path and nothing else. Shaded red is untrusted: the sandbox interior and the content of outside systems. Shaded blue is versioned content under `factory/`, read-only at run time. Shaded grey is the record, state on disk that the runner alone writes.
 
-**Trust.** Three rules from the charter apply everywhere and are not repeated on the pictures: the person is trusted, the runner process is trusted, and anything inside a sandbox is not. Ticket and repository text is untrusted instruction wherever it crosses; it never selects a tool, recipe, mount, model, endpoint or credential. Every content-bearing crossing passes the guard (C5) and leaves one `guard_decision` row; the guard's seats are drawn once, in `L2-control-plane.md`, and every other file states the rule instead of redrawing it. Every command and invocation passes the stage interface (C1).
+**Trust.** Three rules from the charter apply everywhere and are not repeated on the pictures: the person is trusted, the runner process is trusted, and anything inside a sandbox is not. Ticket and repository text is untrusted instruction wherever it crosses; it never selects a tool, recipe, mount, model, endpoint or credential. In Initial the guard (C5) seats on content from and to the outside — ingress from Jira and Confluence, the baseline import, display, outbox payloads and export — and each such crossing leaves one `guard_decision` row; its seats on what the stages write, on sandbox mounts and on dispatch are Later (PRD R-T-13, decision 55). The seats are drawn once, in `L2-control-plane.md`, and every other file states the rule instead of redrawing it. Every command and invocation passes the stage interface (C1).
 
 ## 2. The domain rule
 
@@ -123,7 +123,7 @@ From `milestones.md` section 2 and Appendix B, which state in full what crosses 
 | Id | Crossing | From | To | Holds from |
 |---|---|---|---|---|
 | X1 | The person acts | H2 (and the governance view of H4) | C1; back from C1 to H2 | A |
-| X2 | The runner writes and reads its record | C1 to C9 | R1, R2, R3 | A |
+| X2 | The runner writes and reads its record | C1 to C9 | R1, R2, R3 | A; the guard seat on the runner's own writes and on mount reads Later (R-T-13) |
 | X3 | The runner dispatches a run | C6, C3 | G1 | A |
 | X4 | The factory tree is read at run time | F2 (and every file it references) | C1, which resolves the manifest; C9 reads the policy files the manifest hashes (waiver policy, security checks) | A |
 | X5 | The runner reads from and writes to outside systems | C7 | E1, E2, E3; E5 to C7 (credentials by role) and E5 to C1 (the scheduler invokes `factory digest`, never a stage) | Runtime key and stubs at A; real reads and writes and the other credentials AB |
@@ -142,12 +142,17 @@ Seven fresh-context adversarial reviews of v0.1 (completeness in two halves, gro
 
 The owner's decisions of 2026-09-07 on the high-level design findings ([findings.md](findings.md)) were applied. The runner-taken disjoint base advance moves to Later (charter D43): Initial keeps only the human `refresh_base` of R-S5-12, and R-S5-14's loop and edges are withdrawn from the pictures that carried it. No agent runs at S0: the scrutiny paragraph is filled by a script from a template, and the manifest's S0 agent, skill and model entries are null. Deviation rows replace the `deviation_list` artefact kind: the runner writes them from the S4 hand-back into the `deviation` table, the one shape. The output and results directories fold into one per-run directory under `runs/tickets/<id>/`, with a writable `out/` subpath and a read-only `results/` subpath. Inbound callers become context index entries of kind `caller`; `service-callers.yaml` is withdrawn. The `factory/` layout changes: `rubrics/` gains a `checklists/` subdirectory, `scripts/` splits into `scripts/checks/` and `scripts/tools/`, and `service-callers.yaml`, `digest.yaml` and `budgets.yaml` fold into the context index, the `digest` key of `project.yaml`, and `tiers.yaml`. X2 (the runner writes and reads its record) now names git trees among its targets, and holds the pinned source checkout at the path `project.yaml` names, outside this repository. None of this changes the register: 34 components, as in v0.2.
 
-## 8. What these diagrams are not
+## 8. What changed in v0.4
+
+The owner's decisions of 2026-09-10 after the implementation review (`docs/build/findings.md`, PRD v0.19 decision 55) were applied. Security hardening beyond what is built is Later until the factory takes real tickets to merged pull requests: the guard's seats on stage-written content, mounts, dispatch and logs (R-T-13), confined agent process execution with a runtime-enforced tool list (R-I-18), and the registry route with its allowlist (R-S5-15). `L2-control-plane.md` draws the Initial guard seats solid and the Later seats dotted, and the runner's own record writes and the mounts direct; `L2-factory-as-code.md` drops `config/tools.yaml` (the manifest's per-stage `tool_allowlist` is the table) and adds the R-I-18 row; `L2-execution-boundary.md` marks the registry leg of X6 Later. The register is unchanged: 34 components. Crossing X2's holds-from column now reads: the guard seat on the runner's own writes and on mount reads is Later.
+
+## 9. What these diagrams are not
 
 Not an implementation: no module names, no schemas beyond table names, no command syntax beyond the `factory` verbs the PRD fixes. Not a replacement for `milestones.md`: block shapes per step and the row map live there. Not Layer 3: the pieces that carry risk (the state machine, the S5 gate, the wall, the outbox and its intent states) get their own two-deep diagrams per block just before that block is coded.
 
 ## Revision history
 
+- **v0.4, 2026-09-10.** The owner's decisions of 2026-09-10 (PRD v0.19, decision 55) applied; section 8 lists the changes. Cites charter v0.14, PRD v0.19, milestones v0.7. 34 components, unchanged.
 - **v0.3, 2026-09-07.** The owner's decisions of 2026-09-07 on the high-level design findings (`findings.md`) applied to the diagrams; section 7 lists the changes. Cites charter v0.14, PRD v0.18, milestones v0.6. 34 components, unchanged.
 - **v0.2, 2026-09-07.** After seven adversarial reviews (about 205 findings, 27 blocking); section 6 lists the changes. Two fresh confirmation reviews then checked every blocking and major finding (127 of 146 closed, the rest either requirement items in findings.md or residuals), and a residual pass applied the 39 residuals: the guard's persistence seat drawn, the structure check invoked at every stage, the digest's field rule and the governance path restored to the control plane, the scheduler's invocation and the policy-file reads admitted to X5 and X4, one mark convention and exact register names throughout. 34 components.
 - **v0.1, 2026-09-07.** First version. Nine readers extracted components, data, flows, crossings and simplification candidates from the PRD parts, the charter and `milestones.md`; the register and domain rule were fixed from the extracts; eight authors drew the files. 35 components.

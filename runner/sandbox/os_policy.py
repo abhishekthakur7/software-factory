@@ -7,6 +7,11 @@ raises rather than treating it as absent. `available()` proves the agent
 profile can actually run a real command on this host -- the escape suite
 fails outright, never skips, when it cannot (`test_escape_suite.py`
 imports this module and calls it at collection time).
+
+TODO (when the factory is stable): confine the agent profile's
+`process-exec` to the runtime and the declared recipe programs, as the
+build profile already does; today the agent may exec anything within its
+file and network limits, which the owner accepted for now.
 """
 import hashlib
 import subprocess

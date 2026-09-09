@@ -260,6 +260,10 @@ def issue(
         subject_kind = "plan_candidate"
 
     policy = load_policy(policy_path)
+    # TODO (when the factory is stable): back the policy file's never-waivable
+    # list with a constant here, so an edited policy cannot make a secret hit
+    # or a sandbox-integrity failure waivable. Today the file, under change
+    # control and hashed into the manifest, is the only source.
     if condition in policy.never_waivable:
         raise WaiverRefused(f"{condition!r} is never waivable; no policy may cover it")
     entry = policy.entry(policy_id)

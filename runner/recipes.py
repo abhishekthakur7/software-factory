@@ -309,7 +309,13 @@ def _stage_sandbox_inputs(recipe: Recipe, sandbox_run_dir: Path) -> dict[str, st
 
 
 def _validate_sandbox_network(recipe: Recipe, stage: str, sandbox_path: Path) -> None:
-    """Refuse a registry recipe before dispatch when its hosts are absent from that stage's proxy routes."""
+    """Refuse a registry recipe before dispatch when its hosts are absent from that stage's proxy routes.
+
+    TODO (when the factory is stable): give the S5 build sandbox a
+    `registry` route and a vulnerability-feed route in `sandbox.yaml` so a
+    recipe declaring `network: registry` can be admitted; today no stage
+    lists one, so every such recipe is refused here.
+    """
     if recipe.network == "none":
         return
     document = yaml.safe_load(Path(sandbox_path).read_text()) or {}

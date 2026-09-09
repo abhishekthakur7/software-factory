@@ -151,6 +151,10 @@ def _resolve_proxy_allowlist(policy: dict, stage: str | None) -> list[proxy.Endp
 def stage_inputs(run_dir: Path, locations: dict) -> dict:
     """Copy every file `locations` names into `<run_dir>/inputs/` and return the same document pointing there.
 
+    TODO (when the factory is stable): take a fresh guard decision per
+    input against the target stage before staging it; an input carries
+    only the decision of the crossing that created it.
+
     The agent profile grants the sandbox exactly one read-only directory
     for what the envelope names -- registered input artefacts and the
     agent, skill and rubric definitions -- because `factory/` and the

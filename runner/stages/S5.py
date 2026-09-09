@@ -689,6 +689,10 @@ def run(
                 dep_payload = {"result": "blind_spot", "reason": "dependency resolution did not produce both immutable-view evidence"}
                 dep_cr_id = _record_check_result(conn, stage_run_id, check_name="dep_verify", result="blind_spot", summary=json.dumps(dep_payload), evidence_tuple_id=review_tuple_id)
             else:
+                # TODO (when the factory is stable): pass the registries the
+                # recipe declares instead of an empty allowlist. The S5 sandbox
+                # has no registry route yet, so every repository host a head
+                # resolution names counts as undeclared until then.
                 dep_payload, dep_cr_id = _run_check_script(
                     conn, stage_run_id, check_name="dep_verify", script=DEP_VERIFY_SCRIPT, review_tuple_id=review_tuple_id,
                     args=["--base", str(base_checkout), "--head", str(head_checkout), "--base-resolution", str(base_resolution.stdout_path),

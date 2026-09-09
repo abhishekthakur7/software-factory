@@ -88,7 +88,7 @@ Not requirements. D42's accepted pilot defaults, owned by the engineer, live in 
 | PR checks, Later | GitHub MCP server in read-only mode with the `actions` and `pull_requests` toolsets | Recommended |
 | Language and security scripts | `dep_verify` runs a typed resolved-dependency recipe at base and head and compares it with the plan; `source_declaration_diff` extracts public/protected declarations with tree-sitter and never claims behavioural or binary compatibility; `behavior_contract_evidence` checks evidence links only; `security-checks.yaml` pins the pilot repository's secret, static-analysis, dependency-vulnerability and licence-policy recipes, rule/database versions, thresholds, suppressions and unavailable-feed policy. japicmp or Revapi is a Later Java compatibility upgrade (R-S5-5) | Owner plus security approver |
 
-**Tool attachment per stage** (C1, R-I-3). `tools.yaml`, initial values:
+**Tool attachment per stage** (C1, R-I-3). Carried by the manifest as each stage's `tool_allowlist`, with no separate `tools.yaml` (owner decision of 2026-09-10); initial values:
 
 | Stage | Attached | Writes |
 |---|---|---|

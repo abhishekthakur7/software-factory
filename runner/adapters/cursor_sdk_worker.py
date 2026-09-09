@@ -71,6 +71,9 @@ def _run(envelope: dict, locations: dict) -> dict:
 
     out_dir = Path(os.environ["FACTORY_RUN_OUT"])
     model_requested = envelope.get("model_requested")
+    # TODO (when the factory is stable): pass the envelope's tool list into
+    # the runtime's options; it is recorded on the run but not enforced by
+    # the runtime.
     agent = cursor_sdk.Agent.create(
         model=model_requested,
         local=cursor_sdk.LocalAgentOptions(
