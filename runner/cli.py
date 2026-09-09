@@ -1,15 +1,18 @@
-"""The `factory` command: `advance`, `run`, `show`, `pause`, `resume`, `stop`, `queue`, `act`, `abandon`, `refresh-base`, `migrate-manifest`, `export`, `import`, `purge`, `tag`, `waive`, `report`.
+"""The `factory` command: `advance`, `run`, `show`, `pause`, `resume`, `stop`, `queue`, `act`, `abandon`, `refresh-base`, `migrate-manifest`, `export`, `import`, `purge`, `tag`, `report`.
 
 Each verb is a thin wrapper over an in-process function (`runner.operations`
 for the verbs with no module of their own) so tests and any later API call
 the function directly without going through argument parsing at all.
+`show`'s `--artefact` form and every human decision `act` accepts,
+`waiver` issuance included, both route through this same thin-wrapper
+convention rather than a dedicated CLI-only code path.
 """
 import argparse
 from pathlib import Path
 
 from runner import export, freshness, graduation, manifest, queue, refresh_base, tags
 from runner.db import connect
-from runner.operations import advance, digest_open_items, pause, report, resume, run, show, stop, waive
+from runner.operations import advance, digest_open_items, pause, report, resume, run, show, show_artefact, stop
 from runner.paths import RUNS_DIR
 
 
@@ -26,7 +29,9 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("stage")
 
     show_parser = subparsers.add_parser("show")
-    show_parser.add_argument("ticket_id", type=int)
+    show_parser.add_argument("ticket_id", type=int, nargs="?")
+    show_parser.add_argument("--artefact", type=int, dest="artefact_id")
+    show_parser.add_argument("--actor")
 
     pause_parser = subparsers.add_parser("pause")
     pause_parser.add_argument("ticket_id", type=int)
@@ -47,6 +52,8 @@ def main(argv: list[str] | None = None) -> int:
     act_parser = subparsers.add_parser("act")
     act_parser.add_argument("item_id", type=int, nargs="?")
     act_parser.add_argument("action")
+    # The batch-verdicts action's own YAML file; unused by every other action.
+    act_parser.add_argument("file", nargs="?")
     act_parser.add_argument("--ticket", type=int, dest="ticket_id")
     act_parser.add_argument("--actor", required=True)
     act_parser.add_argument("--bucket")
@@ -63,6 +70,16 @@ def main(argv: list[str] | None = None) -> int:
     act_parser.add_argument("--evidence")
     act_parser.add_argument("--waiver", type=int)
     act_parser.add_argument("--self-contained", dest="self_contained", choices=("yes", "no"))
+    act_parser.add_argument("--consequential", choices=("yes", "no"))
+    act_parser.add_argument("--hard-to-reverse", dest="hard_to_reverse", choices=("yes", "no"))
+    # A waiver's own flags, shared with `--verdict` (the covered human
+    # verdict's id) and `--evidence` above rather than duplicated.
+    act_parser.add_argument("--policy", dest="policy_id")
+    act_parser.add_argument("--check-result", type=int, dest="check_result_id")
+    act_parser.add_argument("--reason")
+    act_parser.add_argument("--scope")
+    act_parser.add_argument("--controls")
+    act_parser.add_argument("--expires", dest="expires_at")
     # The manual outcome record's own flags: `revision`'s target stage
     # reuses `--to`/`--fm`/`--note` above; every other name here is unique
     # to `outcome`, `exposure`, `coverage`, `incident_event`, and
@@ -113,18 +130,6 @@ def main(argv: list[str] | None = None) -> int:
     tag_parser.add_argument("--resolves", type=int)
     tag_parser.add_argument("--resolution-evidence")
 
-    waive_parser = subparsers.add_parser("waive")
-    waive_parser.add_argument("--ticket", type=int, required=True, dest="ticket_id")
-    waive_parser.add_argument("--policy", required=True, dest="policy_id")
-    waive_parser.add_argument("--check-result", type=int, dest="check_result_id")
-    waive_parser.add_argument("--verdict", type=int, dest="human_verdict_id")
-    waive_parser.add_argument("--actor", required=True)
-    waive_parser.add_argument("--reason", required=True)
-    waive_parser.add_argument("--scope", required=True)
-    waive_parser.add_argument("--controls", required=True)
-    waive_parser.add_argument("--evidence", required=True)
-    waive_parser.add_argument("--expires", required=True, dest="expires_at")
-
     report_parser = subparsers.add_parser("report")
     report_parser.add_argument("--manifest-hash", default=None)
     report_parser.add_argument("--window-days", type=int, default=30)
@@ -174,7 +179,14 @@ def main(argv: list[str] | None = None) -> int:
         elif args.verb == "run":
             print(run(conn, args.ticket_id, args.stage, runs_dir))
         elif args.verb == "show":
-            print(show(conn, args.ticket_id))
+            if args.artefact_id is not None:
+                if not args.actor:
+                    raise SystemExit("show --artefact requires --actor")
+                print(show_artefact(conn, args.artefact_id, actor=args.actor))
+            elif args.ticket_id is not None:
+                print(show(conn, args.ticket_id))
+            else:
+                raise SystemExit("show requires a ticket_id or --artefact")
         elif args.verb == "pause":
             print(pause(conn, args.ticket_id))
         elif args.verb == "resume":
@@ -194,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
                 "through": args.through, "root": args.root, "severity": args.severity,
                 "occurred_at": args.occurred_at, "event": args.event, "attribution": args.attribution,
                 "disposition": args.disposition, "remediation_ref": args.remediation_ref, "category": args.category,
+                "verdicts_file": args.file,
             }
             print(queue.act(
                 conn, item_id=args.item_id, ticket_id=args.ticket_id, action=args.action, actor=args.actor,
@@ -201,6 +214,9 @@ def main(argv: list[str] | None = None) -> int:
                 category=args.category, severity=args.severity, option=args.option,
                 tier=args.tier, line=args.line, key=args.key, verdict=args.verdict,
                 evidence=evidence, waiver=args.waiver, self_contained=args.self_contained,
+                consequential=args.consequential, hard_to_reverse=args.hard_to_reverse,
+                policy_id=args.policy_id, check_result_id=args.check_result_id, reason=args.reason,
+                scope=args.scope, controls=args.controls, expires_at=args.expires_at,
                 fields=fields, runs_dir=runs_dir,
             ))
         elif args.verb == "abandon":
@@ -219,14 +235,6 @@ def main(argv: list[str] | None = None) -> int:
                 conn, target=args.target, kind=args.kind, fm_id=args.fm,
                 actor=args.actor, note=args.note, severity=args.severity,
                 resolves_tag_id=args.resolves, resolution_evidence_ref=args.resolution_evidence,
-            ))
-        elif args.verb == "waive":
-            evidence = [int(item) for item in args.evidence.split(",")] if args.evidence else []
-            print(waive(
-                conn, ticket_id=args.ticket_id, policy_id=args.policy_id,
-                check_result_id=args.check_result_id, human_verdict_id=args.human_verdict_id,
-                actor=args.actor, reason=args.reason, scope=args.scope, controls=args.controls,
-                evidence=evidence, expires_at=args.expires_at,
             ))
         elif args.verb == "report":
             print(

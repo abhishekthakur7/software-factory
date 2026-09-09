@@ -25,6 +25,8 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
+import yaml
+
 from runner import approvals, artefact_registry, binding, canonical, capacity, outbox, owners, publication, record, tags, transitions
 from runner.paths import RUNS_DIR
 from runner.reviewer_sets import Slot
@@ -44,11 +46,11 @@ _SELF_CONTAINED_VALUES = frozenset({"yes", "no"})
 # Every action a `queue_item` of each kind accepts, `control_event` aside.
 # `pr_outcome` is non-blocking and takes no action here.
 ACTIONS: dict[str, frozenset[str]] = {
-    "question": frozenset({"answer", "accept_default"}),
+    "question": frozenset({"answer", "accept_default", "override"}),
     "eligibility": frozenset({"granted", "declined", "edit_scrutiny", "override"}),
-    "plan_approval": frozenset({"approve", "redirect", "send_back", "abandon", "verdict"}),
+    "plan_approval": frozenset({"approve", "redirect", "send_back", "abandon", "verdict", "verdicts", "waiver"}),
     "packet_approval": frozenset({"approve", "request_changes", "send_back"}),
-    "red_check": frozenset({"send_back", "abandon"}),
+    "red_check": frozenset({"send_back", "abandon", "waiver"}),
     "escalation": frozenset({"resume", "send_back", "abandon"}),
     "manual_pause": frozenset({"resume", "stop", "send_back"}),
     "rubric_inspection": frozenset({"close_inspection"}),
@@ -220,6 +222,25 @@ def _review_decision_fields(conn: sqlite3.Connection, item: sqlite3.Row) -> tupl
     return subject.hash, fields
 
 
+def _refuse_forked_head(conn: sqlite3.Connection, *, gate: str, subject_hash: str, slot: Slot, actor: str) -> None:
+    """Refuse a second decision from `actor` on a slot they already hold a current head for on this exact subject.
+
+    `approvals.record_approval` never checks this itself -- a fork is
+    something `approvals.evaluate` only detects at quorum time, over rows
+    already written -- so this is the one point before the write where a
+    second `factory act` decision by the same actor on a still-open item
+    is stopped from creating one at all, keeping one immutable row per
+    actor and required slot the normal case rather than something a later
+    supersession has to repair.
+    """
+    heads = approvals.current_heads(conn, gate, subject_hash)
+    if any(row["slot_id"] == slot.slot_id and row["actor_identity"] == actor for row in heads):
+        raise ActionRefused(
+            f"actor {actor!r} already recorded a decision for slot {slot.slot_id!r} on this subject; "
+            f"a second one would fork the head"
+        )
+
+
 def _record_decision(
     conn: sqlite3.Connection,
     item: sqlite3.Row,
@@ -256,6 +277,8 @@ def _record_decision(
         attestation_version = review_fields.pop("attestation_version")
         attestation_hash = review_fields.pop("attestation_hash")
         extra_fields = review_fields
+
+    _refuse_forked_head(conn, gate=gate, subject_hash=subject_hash, slot=slot, actor=actor)
 
     return approvals.record_approval(
         conn,
@@ -311,6 +334,36 @@ def _override(
         fields["tier_final"] = tier
     record.update(conn, "ticket", item["ticket_id"], **fields)
     tags.tag(conn, target=f"ticket:{item['ticket_id']}", kind="override", fm_id=fm_id, actor=actor, note=note)
+
+
+def _question_override(
+    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, note: str | None, fm_id: str | None,
+    consequential: str | None, hard_to_reverse: str | None,
+) -> None:
+    """Correct a question's `consequential` and/or `hard_to_reverse` flag through `questions.correct_flag`.
+
+    Distinct from `_override` above (an eligibility item's tier
+    correction): this writes no ticket field and resolves no item -- a
+    question stays open for its own `answer`/`accept_default` regardless
+    of a flag correction landing on it, since the two are independent
+    decisions about the same question.
+    """
+    from runner import questions
+
+    table, _, raw_id = (item["ref"] or "").partition(":")
+    if table != "question" or not raw_id:
+        raise ActionRefused(f"question item {item['id']} names no question: {item['ref']!r}")
+    if consequential is None and hard_to_reverse is None:
+        raise ActionRefused("override requires --consequential and/or --hard-to-reverse")
+    if not note:
+        raise ActionRefused("override requires --note naming the recorded reason")
+    if not fm_id:
+        raise ActionRefused("override requires --fm")
+    questions.correct_flag(
+        conn, int(raw_id), actor=actor, fm_id=fm_id, reason=note,
+        consequential=None if consequential is None else consequential == "yes",
+        hard_to_reverse=None if hard_to_reverse is None else hard_to_reverse == "yes",
+    )
 
 
 def _instance_keys(instances) -> list[tuple[str, str]]:
@@ -369,6 +422,25 @@ def _approve(
     if kind == "packet_approval":
         outbox.intent_for_review_quorum(conn, item["ticket_id"], runs_dir=runs_dir)
     return approval_id
+
+
+def _approve_quorum_satisfied(conn: sqlite3.Connection, item: sqlite3.Row) -> bool:
+    """Whether every slot on the item's own reviewer set now holds a satisfying decision on this approval's subject.
+
+    A `plan_approval` or `packet_approval` item stays open across more
+    than one `approve` call when its reviewer set names more than one
+    slot: the item resolves only once `approvals.evaluate` finds quorum,
+    not on the first slot's own record, so a decision meant to need
+    several reviewers actually waits on all of them rather than closing
+    on the first.
+    """
+    reviewer_set_row = _reviewer_set_for_item(conn, item)
+    if reviewer_set_row is None:
+        return True
+    slots = [Slot.from_json(entry) for entry in json.loads(reviewer_set_row["slots"] or "[]")]
+    gate = "plan" if item["kind"] == "plan_approval" else "review"
+    subject_hash = _approval_subject_hash(conn, item)
+    return approvals.evaluate(conn, gate=gate, subject_hash=subject_hash, slots=slots).satisfied
 
 
 def _act_verdict(
@@ -434,6 +506,35 @@ def _act_verdict(
 
     if checklist.completeness(conn, ticket, expected).complete:
         plan_tuple.ensure_current(conn, ticket)
+    return False
+
+
+def _act_verdicts_batch(
+    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, owners_obj: owners.Owners,
+    verdicts_file: str | None, fm_id: str | None,
+) -> bool:
+    """Apply every `(rubric_line_id, subject_item_key, verdict, evidence)` tuple `verdicts_file` names, through `_act_verdict`.
+
+    Each tuple writes its own `human_verdict` row through the same path a
+    single `verdict` action uses, one call per tuple; a `fail` anywhere in
+    the list sends the ticket back exactly as a lone `fail` would and the
+    batch stops there, the remaining tuples never applied. `fm_id` is the
+    batch's one flag, since every tuple in a file shares whichever
+    send-back a `fail` among them causes.
+    """
+    if not verdicts_file:
+        raise ActionRefused("verdicts requires a file path")
+    entries = yaml.safe_load(Path(verdicts_file).read_text()) or []
+    if not entries:
+        raise ActionRefused(f"{verdicts_file} names no verdict tuples")
+    for entry in entries:
+        resolves = _act_verdict(
+            conn, item, actor=actor, owners_obj=owners_obj,
+            line=entry.get("rubric_line_id"), key=entry.get("subject_item_key"), verdict=entry.get("verdict"),
+            evidence=entry.get("evidence"), waiver=entry.get("waiver"), fm_id=fm_id, note=entry.get("note"),
+        )
+        if resolves:
+            return True
     return False
 
 
@@ -614,6 +715,28 @@ def _write_packet_defect(conn: sqlite3.Connection, *, target: str, actor: str, n
     tags.tag(conn, target=target, kind="packet_defect", fm_id=tags.PACKET_DEFECT_FM_ID, actor=actor, note=note)
 
 
+def _issue_waiver(
+    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, policy_id: str | None,
+    check_result_id: int | None, human_verdict_id: str | None, reason: str | None, scope: str | None,
+    controls: str | None, evidence: list[int] | None, expires_at: str | None,
+) -> int:
+    """Issue a waiver over `item`'s ticket through `waivers.issue`, the one policy-checked write a waiver ever takes.
+
+    Never resolves `item`: `waivers.issue` already resolves a `red_check`
+    itself, through `queue.resolve_by_waiver`, once every blocking result
+    the run shares clears, and a `plan_approval` item stays open for its
+    later `approve` regardless of which blind spot a waiver just covered.
+    """
+    from runner import waivers
+
+    return waivers.issue(
+        conn, ticket_id=item["ticket_id"], policy_id=policy_id, check_result_id=check_result_id,
+        human_verdict_id=int(human_verdict_id) if human_verdict_id is not None else None,
+        actor=actor, reason=reason or "", scope=scope or "", compensating_controls=controls or "",
+        evidence_ids=evidence or [], expires_at=expires_at or "",
+    )
+
+
 def act(
     conn: sqlite3.Connection,
     *,
@@ -635,6 +758,14 @@ def act(
     evidence: list[int] | None = None,
     waiver: int | None = None,
     self_contained: str | None = None,
+    consequential: str | None = None,
+    hard_to_reverse: str | None = None,
+    policy_id: str | None = None,
+    check_result_id: int | None = None,
+    reason: str | None = None,
+    scope: str | None = None,
+    controls: str | None = None,
+    expires_at: str | None = None,
     fields: dict | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
     runs_dir: Path = RUNS_DIR,
@@ -648,9 +779,13 @@ def act(
     `request_changes`, `answer`, `accept_default`, and an escalation
     item's `resume`/`send_back`/`abandon`), an approval action whose actor
     fits no reviewer slot, or -- for an `eligibility` item -- an invalid
-    governance state. A `control_event` is recorded and returns without
-    resolving the item; every other action settles the item's resolution
-    columns before returning. `self_contained == "no"` writes, in the same
+    governance state. A `control_event`, a `waiver`, and a `question`
+    item's `override` are each recorded and return without resolving the
+    item; every other action settles the item's resolution columns
+    before returning, except `approve` on a `plan_approval` or
+    `packet_approval` item, whose resolution additionally waits on the
+    reviewer set's own quorum -- one slot's record leaves the item open
+    for the next. `self_contained == "no"` writes, in the same
     transaction as the decision itself, a `packet_defect` tag bound to the
     exact `approval_record` (a plan or review decision), `question` (an
     answer), or `failure_history` artefact (an escalation) the false
@@ -725,6 +860,21 @@ def act(
         )
         return f"queue item {item_id}: control event recorded"
 
+    if action == "waiver":
+        waiver_id = _issue_waiver(
+            conn, item, actor=actor, policy_id=policy_id, check_result_id=check_result_id,
+            human_verdict_id=verdict, reason=reason, scope=scope, controls=controls,
+            evidence=evidence, expires_at=expires_at,
+        )
+        return f"queue item {item_id}: waiver {waiver_id} issued"
+
+    if kind == "question" and action == "override":
+        _question_override(
+            conn, item, actor=actor, note=note, fm_id=fm_id,
+            consequential=consequential, hard_to_reverse=hard_to_reverse,
+        )
+        return f"queue item {item_id}: override recorded"
+
     if kind == "pr_outcome" and action in ("revision", "outcome"):
         from runner import outcome
         getattr(outcome, action)(
@@ -748,6 +898,16 @@ def act(
         _resolve(conn, item, actor=actor, action=action, note=note, bucket=bucket, owners_obj=owners_obj)
         return f"queue item {item_id}: resolved with {action}"
 
+    if action == "verdicts":
+        resolves = _act_verdicts_batch(
+            conn, item, actor=actor, owners_obj=owners_obj,
+            verdicts_file=(fields or {}).get("verdicts_file"), fm_id=fm_id,
+        )
+        if not resolves:
+            return f"queue item {item_id}: verdicts recorded"
+        _resolve(conn, item, actor=actor, action=action, note=note, bucket=bucket, owners_obj=owners_obj)
+        return f"queue item {item_id}: resolved with {action}"
+
     if action in ("answer", "accept_default"):
         _answer(conn, item, action=action, actor=actor, option=option, note=note, self_contained=self_contained)
         if self_contained == "no":
@@ -763,6 +923,8 @@ def act(
         )
         if self_contained == "no":
             _write_packet_defect(conn, target=f"approval_record:{approval_id}", actor=actor, note=note)
+        if not _approve_quorum_satisfied(conn, item):
+            return f"queue item {item_id}: approval recorded"
     elif action == "redirect":
         _redirect(conn, item, actor=actor, owners_obj=owners_obj, owners_path=owners_path, bucket=bucket, to=to, fm_id=fm_id, note=note)
     elif action == "send_back":

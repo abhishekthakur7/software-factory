@@ -1,11 +1,13 @@
 """The in-process command functions behind the `factory` verbs that have no module of their own.
 
-`advance`, `run`, `show`, `pause`, `resume`, `stop`, `report`, `waive`, and
-`digest_open_items` live here rather than in `runner/cli.py`, so the
-command line is only argument parsing over the one operation surface and
-a test (or any later API client) calls these functions directly. Each
-other verb's function lives in the module that owns its mechanism
-(`queue.act`, `tags.tag`, `export.export_ticket`, ...).
+`advance`, `run`, `show`, `show_artefact`, `pause`, `resume`, `stop`,
+`report`, and `digest_open_items` live here rather than in
+`runner/cli.py`, so the command line is only argument parsing over the
+one operation surface and a test (or any later API client) calls these
+functions directly. Each other verb's function lives in the module that
+owns its mechanism (`queue.act`, `tags.tag`, `export.export_ticket`, a
+waiver among them -- issued through `queue.act`'s own `waiver` action
+rather than a dedicated command function).
 """
 import sqlite3
 import subprocess
@@ -13,8 +15,8 @@ import sys
 from pathlib import Path
 
 from runner import (
-    capacity, control, digest, freshness, gates, outbox, outcome, project, queue, record, run_ledger, transitions,
-    waivers,
+    capacity, control, digest, export, freshness, gates, guard, outbox, outcome, owners, project, queue, record,
+    run_ledger, trust_profile, transitions, waivers,
 )
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
@@ -209,27 +211,69 @@ def report(
     return result.stdout
 
 
-def waive(
+def show_artefact(
     conn: sqlite3.Connection,
+    artefact_id: int,
     *,
-    ticket_id: int,
-    policy_id: str,
-    check_result_id: int | None,
-    human_verdict_id: int | None,
     actor: str,
-    reason: str,
-    scope: str,
-    controls: str,
-    evidence: list[int],
-    expires_at: str,
+    owners_path: Path = owners.DEFAULT_OWNERS_PATH,
+    profile_path: Path = trust_profile.DEFAULT_TRUST_PROFILE_PATH,
 ) -> str:
-    """Issue a waiver over a seeded `blind_spot` and report its id."""
-    waiver_id = waivers.issue(
-        conn, ticket_id=ticket_id, policy_id=policy_id, check_result_id=check_result_id,
-        human_verdict_id=human_verdict_id, actor=actor, reason=reason, scope=scope,
-        compensating_controls=controls, evidence_ids=evidence, expires_at=expires_at,
+    """Print a governed artefact's content once the display route's guard allows it for `actor`'s reader role(s).
+
+    Evaluates `runner.guard.decide` the same way `runner.export._scan`
+    does -- against `trust-profile.yaml`'s `governed_export_display`
+    route, over the artefact's own file content -- but for the `display`
+    crossing rather than `export`. `actor` must hold at least one role
+    the route names as a reader in `owners.yaml`; an actor with none is
+    refused before the guard is ever consulted, since nothing about the
+    artefact was actually evaluated for a reader it never authorised. A
+    later refusal (an unadmitted data class, an inactive trust profile, a
+    secret found in the content) is the guard's own decision, printed
+    from its reason codes. An artefact whose `retention_until` has
+    passed is still shown, prefixed with a line flagging it as subject to
+    deletion, since retention governs cleanup, not readability.
+    """
+    artefact_row = record.get(conn, "artefact", artefact_id)
+    if artefact_row is None:
+        raise LookupError(f"no such artefact: {artefact_id}")
+
+    route = trust_profile.load_trust_profile(profile_path).routes[export.ROUTE_ID]
+    owners_obj = owners.load_owners(owners_path)
+    reader_roles = sorted(
+        role for role, entry in owners_obj.roles.items()
+        if entry["identity"] == actor and role in route.reader_roles
     )
-    return f"waiver {waiver_id}: issued"
+    if not reader_roles:
+        raise queue.ActionRefused(f"actor {actor!r} holds no role {export.ROUTE_ID!r} names as a reader")
+
+    source_path = Path(artefact_row["path"]) if artefact_row["path"] else None
+    if source_path is None or not source_path.is_file():
+        raise queue.ActionRefused(f"artefact {artefact_id} names no readable file")
+    content = source_path.read_text()
+
+    ticket_row = record.get(conn, "ticket", artefact_row["ticket_id"]) if artefact_row["ticket_id"] is not None else None
+    data_class = artefact_row["data_class"] or (ticket_row["data_class"] if ticket_row is not None else None)
+    operation = guard.Operation(
+        crossing="display",
+        route_id=export.ROUTE_ID,
+        payload=content,
+        input_classes=(data_class,),
+        source_identity="ticket_record",
+        destination_identity=f"reader:{'+'.join(reader_roles)}",
+        content_provenance={"artefact_id": artefact_id, "actor": actor},
+        ticket_id=artefact_row["ticket_id"],
+    )
+    decision = guard.decide(conn, operation, profile_path=profile_path, owners_path=owners_path)
+    if decision.decision != "allow":
+        raise queue.ActionRefused(f"artefact {artefact_id} display refused: {list(decision.reason_codes)}")
+
+    lines: list[str] = []
+    retention_until = artefact_row["retention_until"]
+    if retention_until is not None and retention_until < record.now():
+        lines.append(f"subject to deletion: retention_until {retention_until} has passed")
+    lines.append(decision.payload)
+    return "\n".join(lines)
 
 
 def digest_open_items(conn: sqlite3.Connection, runs_dir: Path = RUNS_DIR) -> str:
