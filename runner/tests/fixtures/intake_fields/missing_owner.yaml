@@ -1,0 +1,9 @@
+# Otherwise-complete, but no one is assigned.
+customfield_10010: >-
+  Given a signed-in user on the checkout page, when they click "Apply
+  discount", then the discount total updates without a page reload.
+assignee: null
+parent: FIX-10
+customfield_10011: null
+issuetype: Story
+summary: Apply a discount without a page reload

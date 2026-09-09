@@ -1,0 +1,9 @@
+# Otherwise-complete, but neither a parent link nor a Confluence link is set.
+customfield_10010: >-
+  Given a signed-in user on the checkout page, when they click "Apply
+  discount", then the discount total updates without a page reload.
+assignee: abhishek
+parent: null
+customfield_10011: null
+issuetype: Story
+summary: Apply a discount without a page reload

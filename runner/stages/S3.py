@@ -26,10 +26,12 @@ from pathlib import Path
 
 import yaml
 
-from runner import artefact_registry, artefacts, canonical, owners, queue, questions, recipes, record, reviewer_sets
+from runner import (
+    artefact_registry, artefacts, canonical, owners, project, queue, questions, recipes, record, reviewer_sets,
+)
 from runner.checks import artefact_structure, exclusion, plan_rubric
 from runner.fs import write_text
-from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
+from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
 
 ARTEFACT_KIND = "plan"
 PASS_EVENT = "s3_pass"
@@ -134,11 +136,11 @@ def _write_risk_map(
     candidates_path = run_dir / "risk_map_candidates.txt"
     write_text(candidates_path, "\n".join(paths) + ("\n" if paths else ""))
 
-    project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    project_cfg = project.pilot()
     risk_limits = _limits_config()["risk_map"]
     completed = subprocess.run(
         [
-            str(RISK_MAP_SCRIPT), "--checkout", ticket["worktree_path"], "--branch", project["target_branch"],
+            str(RISK_MAP_SCRIPT), "--checkout", ticket["worktree_path"], "--branch", project_cfg["target_branch"],
             "--candidates", str(candidates_path), "--months", str(risk_limits["churn_window_months"]),
             "--min-share", str(risk_limits["clear_owner_min_share"]),
         ],
@@ -305,7 +307,7 @@ def run(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, runs_d
     # when the rest of the rubric would otherwise pass.
     risk_map_doc = json.loads(risk_map_path.read_text()) if risk_map_path.is_file() else {"candidates": []}
     risk_map_candidate_count = sum(1 for c in risk_map_doc.get("candidates", []) if c.get("named"))
-    project_config = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    project_config = project.pilot()
     question_rows = conn.execute(
         "SELECT id, text, consequential, state, blocking FROM question WHERE ticket_id = ?", (ticket_id,)
     ).fetchall()

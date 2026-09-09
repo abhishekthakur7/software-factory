@@ -7,16 +7,21 @@ owners file, the same default-path activation `test_outbox.py`'s
 reconcile-first test uses (`governance.propose()`/`decide()` with no
 override paths).
 """
+import json
+import os
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
-from runner import artefact_registry, gates, governance, queue, record, run_ledger, transitions
+from runner import artefact_registry, credentials, gates, governance, manifest, queue, record, run_ledger, transitions
 from runner.db import connect
+from runner.readers import atlassian
 from runner.reviewer_sets import Slot
 from runner.stages import S0
 from runner.stages import run_stage
+from runner.tests.fakes.atlassian_transport import FakeAtlassianTransport
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
@@ -47,6 +52,28 @@ def _governed_ticket_fields(conn, *, expires_at: str = FAR_FUTURE) -> dict:
         "source_kind": "jira",
         "source_ref": "FIX-1",
     }
+
+
+def _seed_ticket_source(conn, ticket_id: int, tmp_path: Path, **front_matter_overrides) -> int:
+    """A `ticket_source` artefact that already clears the intake field gate, so `S0.run` skips the Jira read.
+
+    Every `_governed_ticket_fields` ticket carries `source_kind: "jira"`
+    for the governance-scope checks below, which means `S0.run` now takes
+    the Jira intake leg; without a registered source already on file it
+    would try a real read against a server this suite never reaches, so
+    every test that drives such a ticket through `run_stage`/`S0.run`
+    seeds one first.
+    """
+    front_matter = {
+        "jira_issue_type": "Story", "estimate": 2, "label": None, "owner": ABHISHEK,
+        "parent_link": "FIX-0", "confluence_link": None,
+        "acceptance_criteria": "Given a user opens the export dialog, when they click export, then a file downloads.",
+        **front_matter_overrides,
+    }
+    text = "---\n" + yaml.safe_dump(front_matter, sort_keys=False) + "---\n\nSummary body.\n"
+    path = tmp_path / f"ticket_source_{ticket_id}.md"
+    path.write_text(text)
+    return artefact_registry.register(conn, ticket_id=ticket_id, kind="ticket_source", path=path)
 
 
 # --- criterion 1: the 15-cell provisional tier matrix (R-S0-2) ---
@@ -267,6 +294,7 @@ def test_a_granted_eligibility_decision_moves_intake_to_context(conn, tmp_path):
         conn, "ticket", state="intake", opened_at=record.now(), title="Add an export button",
         ticket_type="small_feature", **fields,
     )
+    _seed_ticket_source(conn, ticket_id, tmp_path)
     outcome = run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     assert outcome == "pass"
     item = conn.execute(
@@ -337,6 +365,7 @@ def test_resolved_role_records_the_deciding_identitys_role(conn, tmp_path):
         conn, "ticket", state="intake", opened_at=record.now(), title="Add an export button",
         ticket_type="small_feature", **fields,
     )
+    _seed_ticket_source(conn, ticket_id, tmp_path)
     run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     item = conn.execute(
         "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'eligibility'", (ticket_id,)
@@ -357,6 +386,7 @@ def test_override_writes_tier_final_and_override_provenance_and_tag(conn, tmp_pa
         conn, "ticket", state="intake", opened_at=record.now(), title="Add an export button",
         ticket_type="small_feature", **fields,
     )
+    _seed_ticket_source(conn, ticket_id, tmp_path)
     run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     item = conn.execute(
         "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'eligibility'", (ticket_id,)
@@ -386,6 +416,7 @@ def test_must_reject_override_on_a_ticket_s0_excluded(conn, tmp_path):
         title="Rework src/main/java/com/fixture/auth/Login.java",
         ticket_type="small_feature", **fields,
     )
+    _seed_ticket_source(conn, ticket_id, tmp_path)
     run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
     assert ticket["state"] == "rejected"
@@ -395,3 +426,140 @@ def test_must_reject_override_on_a_ticket_s0_excluded(conn, tmp_path):
     with pytest.raises(queue.ActionRefused):
         queue.act(conn, item_id=item_id, action="override", actor=ABHISHEK, tier="heavy", fm_id="FM-05", runs_dir=tmp_path)
     assert record.get(conn, "ticket", ticket_id)["tier_override_by"] is None
+
+
+# --- Jira intake: a fresh read's field gate, guard redaction, and credential discipline (R-S0-1) ---
+
+def _redaction_fixture_issue() -> dict:
+    return yaml.safe_load((FIXTURES_DIR / "redaction_issue.yaml").read_text())
+
+
+def test_guard_redacts_a_fresh_jira_read_into_a_faithful_ticket_source_and_sets_data_class(conn, tmp_path):
+    """the guard classifies and redacts the permitted source fields of a
+    freshly read Jira payload into `ticket_source` and sets
+    `ticket.data_class`; a field the route does not admit (`reporter`)
+    never survives, so the result is faithful to the permitted fields,
+    never an unfiltered copy of the Jira payload (R-S0-1)."""
+    fields = _governed_ticket_fields(conn)
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(), title="Add an export button", **fields,
+    )
+    transport = FakeAtlassianTransport({"FIX-1": _redaction_fixture_issue()})
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S0")
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    outcome = S0.run(conn, ticket, stage_run_id, tmp_path, transport=transport)
+
+    assert outcome == "pass"
+    assert transport.calls == [("read_issue", {"key": "FIX-1"})]
+    artefact = artefact_registry.latest(conn, ticket_id, "ticket_source")
+    assert artefact is not None
+    text = Path(artefact["path"]).read_text()
+    assert "someone-else" not in text
+    assert "export" in text
+    front_matter = S0._ticket_source_front_matter(artefact)
+    assert front_matter["owner"] == "abhishek"
+    assert front_matter["parent_link"] == "FIX-0"
+    ticket = record.get(conn, "ticket", ticket_id)
+    assert ticket["data_class"] == "confidential"
+
+
+_SECRET_TOKEN = "ghp_" + "a" * 36
+
+
+def test_must_reject_when_the_jira_payload_contains_a_secret(conn, tmp_path):
+    """a secret-rule hit denies the guard crossing outright: no
+    `ticket_source` is ever written, and the ticket is rejected the same
+    way a field-gate failure is (R-S0-1)."""
+    fields = _governed_ticket_fields(conn)
+    ticket_id = record.insert(
+        conn, "ticket", state="intake", opened_at=record.now(), title="Add an export button", **fields,
+    )
+    issue = {**_redaction_fixture_issue(), "description": f"leaked token {_SECRET_TOKEN}"}
+    transport = FakeAtlassianTransport({"FIX-1": issue})
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S0")
+    ticket = record.get(conn, "ticket", ticket_id)
+
+    outcome = S0.run(conn, ticket, stage_run_id, tmp_path, transport=transport)
+
+    assert outcome == ("fail", "structural")
+    check_result = conn.execute(
+        "SELECT * FROM check_result WHERE stage_run_id = ? AND check_name = 'ticket_source_guard'", (stage_run_id,)
+    ).fetchone()
+    assert check_result is not None
+    assert check_result["result"] == "fail"
+    assert artefact_registry.latest(conn, ticket_id, "ticket_source") is None
+    assert record.get(conn, "ticket", ticket_id)["state"] == "rejected"
+
+
+def test_http_transport_requests_the_credential_inside_the_call_and_never_holds_it():
+    """`HttpTransport` fetches the `atlassian_read` credential at the
+    moment of the request, not at construction, and never stores it on
+    itself afterward (R-S0-1)."""
+    calls = []
+
+    def fake_fetch(role):
+        calls.append(role)
+        return "secret-token-value"
+
+    transport = atlassian.HttpTransport("https://jira.example.invalid", fetch=fake_fetch)
+    assert calls == []
+
+    response = MagicMock()
+    response.read.return_value = json.dumps({"key": "FIX-1"}).encode()
+    response.__enter__.return_value = response
+    response.__exit__.return_value = False
+    with patch("runner.readers.atlassian.urllib.request.urlopen", return_value=response) as mock_urlopen:
+        result = transport("read_issue", {"key": "FIX-1"})
+
+    assert calls == ["atlassian_read"]
+    assert result == {"key": "FIX-1"}
+    assert "secret-token-value" not in vars(transport).values()
+    sent_request = mock_urlopen.call_args[0][0]
+    assert sent_request.get_header("Authorization") == "Bearer secret-token-value"
+
+
+def test_manifest_sandbox_policy_admits_no_credential_role_into_s0():
+    """S0 runs no agent, so its sandbox admits no credential role: the
+    `atlassian_read` credential is fetched by the trusted runner process
+    directly, never mounted into a sandbox (R-S0-1)."""
+    assert manifest.load().sandbox_policy["credential_roles"]["S0"] == ()
+
+
+def test_dry_run_ticket_reads_the_real_atlassian_server_and_pins_governance(conn, tmp_path):
+    """on the dry-run ticket, `runner.readers.atlassian` reads the real
+    Atlassian server, the `atlassian_read` credential value never
+    reaches a row, artefact or check-result summary, and
+    `ticket.trust_profile_hash`/`trust_approval_set_hash` are pinned to
+    the committed profile's hash and its satisfying approval set (R-S0-1).
+
+    Skipped loudly wherever the pilot's Jira key, Keychain item, or
+    sandbox endpoint don't exist on this host -- the owner has confirmed
+    none of the three exist yet, so this test always skips today."""
+    if not credentials.available("atlassian_read"):
+        pytest.skip("no atlassian_read Keychain item on this host: the dry-run ticket cannot reach a real Jira")
+    if atlassian.endpoint() is None:
+        pytest.skip("sandbox.yaml names no atlassian_read endpoint yet: a later ticket wires the loopback proxy's allowlist")
+    dry_run_key = os.environ.get("SOFT_FACTORY_DRY_RUN_JIRA_KEY")
+    if not dry_run_key:
+        pytest.skip("no dry-run Jira key configured: SOFT_FACTORY_DRY_RUN_JIRA_KEY is unset")
+
+    fields = _governed_ticket_fields(conn)
+    fields["source_ref"] = dry_run_key
+    ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now(), **fields)
+
+    outcome = run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
+
+    ticket = record.get(conn, "ticket", ticket_id)
+    assert ticket["trust_profile_hash"] == fields["trust_profile_hash"]
+    assert ticket["trust_approval_set_hash"] == fields["trust_approval_set_hash"]
+    if outcome == "pass":
+        artefact = artefact_registry.latest(conn, ticket_id, "ticket_source")
+        assert artefact is not None
+        token = credentials.fetch("atlassian_read")
+        assert token not in Path(artefact["path"]).read_text()
+        rows = conn.execute(
+            "SELECT summary FROM check_result WHERE stage_run_id IN "
+            "(SELECT id FROM stage_run WHERE ticket_id = ?)", (ticket_id,),
+        ).fetchall()
+        assert all(token not in (row["summary"] or "") for row in rows)

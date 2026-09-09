@@ -28,12 +28,12 @@ from pathlib import Path
 import yaml
 
 from runner import (
-    approvals, artefact_registry, artefacts, binding, canonical, freshness, git_trees, plan_tuple, queue, record,
-    recipes, reviewer_sets, run_ledger, schema, tags, transitions,
+    approvals, artefact_registry, artefacts, binding, canonical, freshness, git_trees, plan_tuple, project, queue,
+    record, recipes, reviewer_sets, run_ledger, schema, tags, transitions,
 )
 from runner.checks import red_route
 from runner.fs import write_text
-from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
+from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
 from runner.run_ledger import budget as stage_budget, s4_per_ticket_budget
 from runner.stages import S5
 
@@ -251,7 +251,7 @@ def build_handoff(
     plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
     criteria_artefact = artefact_registry.latest(conn, ticket_id, "criteria")
     plan_text = Path(plan_artefact["path"]).read_text()
-    project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    project_cfg = project.pilot()
 
     payload = {
         "ticket_id": ticket_id,
@@ -265,7 +265,7 @@ def build_handoff(
         "tier": tier,
         "budget": {"run": stage_budget("S4", tier), "ticket": s4_per_ticket_budget(tier)},
         "check_policies": list(S5.CHECK_ORDER),
-        "recipe_ids": list(project.get("recipes") or []),
+        "recipe_ids": list(project_cfg.get("recipes") or []),
         "tasks": _tasks(plan_text),
         "scope": _scope(plan_text),
         "bootstrap_checklist_hash": plan_tuple["semantic_checklist_hash"],
@@ -661,11 +661,11 @@ def _run_scope_diff(
 
 
 def _project_config() -> dict:
-    return yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    return project.pilot()
 
 
-def _vendor_classpath(project: dict) -> str:
-    vendor = project.get("vendor")
+def _vendor_classpath(project_cfg: dict) -> str:
+    vendor = project_cfg.get("vendor")
     vendor_dir = (REPO_ROOT / vendor) if vendor else None
     if vendor_dir is None or not vendor_dir.is_dir():
         return ""
@@ -676,9 +676,9 @@ def _validate_task(
     conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id: int, task: dict, *, runs_dir: Path,
 ) -> tuple[str, str | None]:
     """Run `task`'s validation recipe once; an unapproved or invalid recipe binding is a control defect, not a verification failure."""
-    project = _project_config()
+    project_cfg = _project_config()
     recipe_id = task["validation_recipe"]
-    approved_ids = set(project.get("recipes") or [])
+    approved_ids = set(project_cfg.get("recipes") or [])
     if not recipe_id or recipe_id not in approved_ids:
         _record_check_result(
             conn, stage_run_id, check_name="recipe_binding", passed=False,
@@ -690,7 +690,7 @@ def _validate_task(
         if recipe_id not in catalogue:
             raise recipes.RecipeError(f"recipe {recipe_id!r} is not in the catalogue")
         results_dir = _run_dir(runs_dir, ticket["id"], stage_run_id) / "results"
-        values = {**task["validation_args"], "vendor_classpath": _vendor_classpath(project)}
+        values = {**task["validation_args"], "vendor_classpath": _vendor_classpath(project_cfg)}
         result = recipes.run(
             recipe_id, values, catalogue=catalogue, cwd_roles={"checkout": Path(ticket["worktree_path"])},
             results_dir=results_dir, env_source={"PATH": os.environ.get("PATH", "")},

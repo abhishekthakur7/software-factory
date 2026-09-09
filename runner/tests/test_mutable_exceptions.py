@@ -18,7 +18,7 @@ from runner.db import connect
 # in the allowlist: `test_allowlist_covers_every_table` catches that.
 ALLOWED_COLUMNS = {
     "ticket": {
-        "state", "blocked_on", "pause_requested", "paused_at",
+        "state", "blocked_on", "pause_requested", "paused_at", "data_class",
         "service_tier", "ticket_type", "tier_provisional", "scrutiny_requested",
         "tier_final", "tier_override_by", "tier_override_at", "tier_override_reason",
         "opened_at", "factory_completed_at", "closed_at", "close_reason",
@@ -118,6 +118,26 @@ def test_ticket_lifecycle_fields_are_updatable_in_place(tmp_path):
         row = record.get(conn, "ticket", ticket_id)
         assert row[field_name] == value
         assert row["updated_at"] is not None
+
+
+def test_ticket_data_class_can_be_written_once(tmp_path):
+    """S0's classification settles data_class once, in place."""
+    conn = _open(tmp_path)
+    ticket_id = record.insert(conn, "ticket", title="t")
+
+    record.update(conn, "ticket", ticket_id, data_class="confidential")
+
+    assert record.get(conn, "ticket", ticket_id)["data_class"] == "confidential"
+
+
+def test_must_reject_ticket_data_class_second_write(tmp_path):
+    """a second classification of the same ticket's source is rejected."""
+    conn = _open(tmp_path)
+    ticket_id = record.insert(conn, "ticket", title="t")
+    record.update(conn, "ticket", ticket_id, data_class="confidential")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        record.update(conn, "ticket", ticket_id, data_class="internal")
 
 
 def test_question_state_is_updatable_in_place(tmp_path):

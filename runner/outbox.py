@@ -39,20 +39,26 @@ from runner import artefact_registry, canonical, freshness, guard, owners, recor
 from runner.deliverers import deliverer_for
 from runner.deliverers.stub import Receipt, RemoteRefused
 from runner.fs import write_text
-from runner.paths import FACTORY_DIR, RUNS_DIR
+from runner.paths import RUNS_DIR
+from runner.project import DEFAULT_PROJECT_CONFIG_PATH as DEFAULT_PROJECT_CONFIG
 from runner.schema import EXTERNAL_WRITE_OPERATIONS
-
-DEFAULT_PROJECT_CONFIG = FACTORY_DIR / "config" / "project.yaml"
 
 PR_OPERATIONS: frozenset[str] = frozenset({"pr_create", "pr_update"})
 
+# The scratch repository is the only one a pull request can actually reach
+# at this wave: the pilot repository's own route (`github_pilot`) has no
+# real GitHub repository behind it yet. One constant, not a literal at
+# each call site, so the day the pilot repository is real, retargeting
+# every PR operation is a one-line change.
+GITHUB_ROUTE_ID = "github_scratch"
+
 # The route every operation dispatches through -- fixed by what each route
-# admits (`trust-profile.yaml`'s `github_pr.operations`), not derived at
+# admits (`trust-profile.yaml`'s route `operations` field), not derived at
 # call time, so a caller can never send an operation through the wrong
 # route by naming one explicitly.
 ROUTE_FOR_OPERATION: dict[str, str] = {
-    "pr_create": "github_pr",
-    "pr_update": "github_pr",
+    "pr_create": GITHUB_ROUTE_ID,
+    "pr_update": GITHUB_ROUTE_ID,
     "digest": "slack_digest",
     "jira_feedback": "jira_feedback",
 }

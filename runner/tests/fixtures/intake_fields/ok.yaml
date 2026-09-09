@@ -1,0 +1,10 @@
+# A source ticket that clears every intake requirement: acceptance
+# criteria, a named owner, a parent link, and a non-Epic issue type.
+customfield_10010: >-
+  Given a signed-in user on the checkout page, when they click "Apply
+  discount", then the discount total updates without a page reload.
+assignee: abhishek
+parent: FIX-10
+customfield_10011: null
+issuetype: Story
+summary: Apply a discount without a page reload

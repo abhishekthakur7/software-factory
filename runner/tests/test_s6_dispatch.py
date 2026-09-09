@@ -103,7 +103,7 @@ def test_full_quorum_on_a_ticket_with_no_pr_identity_creates_one_pr_create_inten
     assert record.get(conn, "ticket", ticket_id)["pr_identity"] is not None
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     assert len(deliverer._load()["repositories"]["fixture-project"]["pull_requests"]) == 1
 
 
@@ -142,7 +142,7 @@ def test_a_second_quorum_after_a_recorded_revision_creates_one_pr_update_intent_
     assert row["receipt_artefact_id"] is not None
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     pull_requests = deliverer._load()["repositories"]["fixture-project"]["pull_requests"]
     assert len(pull_requests) == 1
     assert list(pull_requests.values())[0]["head_sha"] == "head-sha-revised"

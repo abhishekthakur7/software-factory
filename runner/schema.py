@@ -227,7 +227,11 @@ TABLES: tuple[Table, ...] = (
             Column("source_kind", "TEXT"),
             Column("source_ref", "TEXT"),
             Column("title", "TEXT"),
-            Column("data_class", "TEXT"),
+            # Settles once, at S0's classification of the ticket's source
+            # payload -- never at insert, since a Jira-sourced ticket has
+            # no data class until its source is read and joined against the
+            # target repositories' own classes.
+            Column("data_class", "TEXT", once="data_class"),
             Column("trust_profile_hash", "TEXT"),
             Column("trust_approval_set_hash", "TEXT"),
             Column("service", "TEXT"),

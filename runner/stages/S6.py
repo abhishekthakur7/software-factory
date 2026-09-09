@@ -22,12 +22,13 @@ import sqlite3
 import subprocess
 from pathlib import Path
 
-import yaml
-
-from runner import artefact_registry, artefacts, canonical, checklist, freshness, owners, publication, queue, record, recipes, reviewer_sets, waivers
+from runner import (
+    artefact_registry, artefacts, canonical, checklist, freshness, owners, project, publication, queue, record,
+    recipes, reviewer_sets, waivers,
+)
 from runner.checks import exclusion
 from runner.fs import write_text
-from runner.paths import PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
+from runner.paths import REPO_ROOT, RUNS_DIR
 from runner.stages import S4, S5
 
 ARTEFACT_KIND = "packet"
@@ -386,9 +387,9 @@ def _gather_packet_inputs(
     ).stdout
     write_text(diff_path, diff_text)
 
-    project = yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    project_cfg = project.pilot()
     catalogue = recipes.load_catalogue()
-    test_globs = _test_globs([r for r in (project.get("recipes") or []) if r], catalogue)
+    test_globs = _test_globs([r for r in (project_cfg.get("recipes") or []) if r], catalogue)
 
     return {
         "ticket": {

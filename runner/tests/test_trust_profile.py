@@ -70,9 +70,7 @@ def test_committed_fixture_profile_validates_against_the_schema():
     assert profile.admitted_scopes["repositories"] == ("fixture-project",)
     assert profile.admitted_scopes["jira_projects"] == ("FIX",)
     assert profile.admitted_scopes["confluence_spaces"] == ("FIX",)
-    assert set(profile.routes) == {
-        "hosted_model", "governed_export_display", "github_pr", "slack_digest", "jira_feedback",
-    }
+    assert set(profile.routes) == set(trust_profile.ROUTE_IDS)
 
 
 @pytest.mark.parametrize("field_path", REQUIRED_FIELD_PATHS, ids=REQUIRED_FIELD_PATHS)
@@ -237,12 +235,27 @@ def test_artefact_past_retention_is_flagged_distinct_from_one_still_inside_the_w
 
 def test_every_route_the_walk_crosses_names_its_provider_reader_roles_and_deliverer():
     profile = trust_profile.load_trust_profile(FIXTURES_DIR / "profile.yaml")
-    assert set(profile.routes) == {
-        "hosted_model", "governed_export_display", "github_pr", "slack_digest", "jira_feedback",
-    }
+    assert set(profile.routes) == set(trust_profile.ROUTE_IDS)
     for route_id, route in profile.routes.items():
         assert route.provider
         assert route.reader_roles
-        expected_deliverer = "live" if route_id == "hosted_model" else "stub"
+        expected_deliverer = "live" if route_id in trust_profile.LIVE_ROUTES else "stub"
         assert route.deliverer == expected_deliverer
-    assert profile.routes["github_pr"].operations == ("pr_create", "pr_update")
+    for route_id in trust_profile.GITHUB_ROUTE_IDS:
+        assert profile.routes[route_id].operations == ("pr_create", "pr_update")
+
+
+# ---------------------------------------------------------------------------
+# a repository's own configured classes join the same way any other
+# class set does.
+# ---------------------------------------------------------------------------
+
+def test_repository_class_joins_a_repositorys_configured_classes():
+    profile = trust_profile.load_trust_profile(trust_profile.DEFAULT_TRUST_PROFILE_PATH)
+    assert profile.repository_data_classes["fixture-project"] == ("internal", "confidential")
+    assert trust_profile.repository_class(profile, "fixture-project") == "confidential"
+
+
+def test_repository_class_is_none_for_a_repository_the_profile_names_no_classes_for():
+    profile = trust_profile.load_trust_profile(FIXTURES_DIR / "profile.yaml")
+    assert trust_profile.repository_class(profile, "fixture-project") is None

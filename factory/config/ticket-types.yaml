@@ -6,6 +6,18 @@
 # estimate, it maps to feature.
 small_feature_max_points: 3
 
+# The pilot's Jira field keys the intake field gate reads, logical name to
+# the actual field a Jira issue payload carries them under. `issue_type`
+# is also `atlassian_read`'s own `issuetype` field, named here again under
+# its logical name so `runner.checks.intake_fields.check` never has to
+# know a Jira field's raw key by heart.
+jira_fields:
+  acceptance_criteria: customfield_10010
+  owner: assignee
+  parent_link: parent
+  confluence_link: customfield_10011
+  issue_type: issuetype
+
 types:
   bug:
     jira_issue_types: [Bug]

@@ -544,5 +544,5 @@ def test_before_dispatch_supersedes_a_stale_pending_intent_and_sends_nothing(con
     assert row["last_error"]
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     assert deliverer._load()["repositories"] == {}

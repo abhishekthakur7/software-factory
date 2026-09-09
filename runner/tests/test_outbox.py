@@ -283,7 +283,7 @@ def test_pending_pr_create_reconciles_an_existing_matching_pull_request_before_c
 
     scenario = REMOTE_SCENARIOS["existing_pull_request"]
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     deliverer.seed_pull_request(
         scenario["repository"], scenario["identity"], head_ref=scenario["head_ref"],
         target_ref=scenario["target_ref"], head_sha=scenario["head_sha"], body_hash=fixture_pr_body_hash(),
@@ -306,7 +306,7 @@ def test_must_reject_pr_create_over_an_unexpected_remote_head(conn, runs_dir, pr
 
     scenario = REMOTE_SCENARIOS["unexpected_head"]
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     deliverer.set_branch_head(scenario["repository"], scenario["ref"], scenario["sha"])
 
     outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
@@ -337,7 +337,7 @@ def test_pending_pr_update_requires_the_previously_reconciled_head_and_updates_t
     assert row["remote_pr_identity"] == pr_identity
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     pull_requests = deliverer._load()["repositories"]["fixture-project"]["pull_requests"]
     assert pull_requests.keys() == {pr_identity}
     assert pull_requests[pr_identity]["head_sha"] == "head-sha-2"
@@ -355,7 +355,7 @@ def test_must_reject_pr_update_race_on_unexpected_remote_head(conn, runs_dir, pr
     stored_head = record.get(conn, "ticket", ticket_id)["last_remote_head_sha"]
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     deliverer.set_branch_head("fixture-project", "feature/fixture-outbox", "raced-away-commit")
 
     record.update(conn, "ticket", ticket_id, head_sha="head-sha-2")
@@ -376,7 +376,7 @@ def test_pr_update_against_a_pull_request_from_a_driven_create_reconciles_withou
     give_real_base(conn, runs_dir, ticket_id)
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     driven_identity = "fixture-project#driven-2"
     deliverer.set_branch_head("fixture-project", "feature/fixture-outbox", "head-sha-1")
     deliverer.seed_pull_request(
@@ -447,7 +447,7 @@ def test_must_reject_by_construction_a_rolled_back_transaction_leaves_neither_ro
 
 def test_stub_deliverer_holds_remote_state_across_calls(tmp_path):
     """R-T-11: branch head, pull-request identity, and body hash persist across separate `StubDeliverer` instances."""
-    state_path = tmp_path / "remote" / "github_pr.json"
+    state_path = tmp_path / "remote" / "github_scratch.json"
     first = StubDeliverer(state_path)
     first.set_branch_head("fixture-project", "feature/x", "sha-1")
     first.seed_pull_request(
@@ -473,7 +473,7 @@ def test_stub_driven_to_a_duplicate_key_returns_the_stored_receipt_not_a_second_
     key = record.get(conn, "external_write", intent_id)["idempotency_key"]
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     seeded = Receipt(
         remote_identity="fixture-project#seeded", remote_pr_identity="fixture-project#seeded",
         remote_head_sha="head-sha-1", body_hash=fixture_pr_body_hash(), payload_digest=record.get(conn, "external_write", intent_id)["payload_digest"],
@@ -505,7 +505,7 @@ def test_crash_before_send_leaves_the_row_pending_and_retry_produces_one_object(
     row = record.get(conn, "external_write", intent_id)
     assert row["state"] == "reconciled"
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     assert len(deliverer._load()["repositories"]["fixture-project"]["pull_requests"]) == 1
 
 
@@ -526,7 +526,7 @@ def test_crash_after_remote_success_reconciles_to_the_same_object_on_retry(conn,
     row = record.get(conn, "external_write", intent_id)
     assert row["state"] == "reconciled"
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     assert len(deliverer._load()["repositories"]["fixture-project"]["pull_requests"]) == 1
 
 
@@ -546,7 +546,7 @@ def test_crash_before_local_commit_reconciles_by_remote_identity_on_retry(conn, 
     row = record.get(conn, "external_write", intent_id)
     assert row["state"] == "reconciled"
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     assert len(deliverer._load()["repositories"]["fixture-project"]["pull_requests"]) == 1
 
 
@@ -735,7 +735,7 @@ def test_full_quorum_produces_one_pr_create_then_a_revision_produces_one_pr_upda
     assert update_row["revision"] == 2
 
     profile = load_trust_profile(profile_path)
-    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_pr'].id}.json")
+    deliverer = StubDeliverer(runs_dir / "remote" / f"{profile.routes['github_scratch'].id}.json")
     pull_requests = deliverer._load()["repositories"]["fixture-project"]["pull_requests"]
     assert len(pull_requests) == 1
     assert list(pull_requests.values())[0]["head_sha"] == "head-sha-revised"

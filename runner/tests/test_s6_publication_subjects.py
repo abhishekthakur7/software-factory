@@ -96,7 +96,7 @@ def approve(
 
 
 def _write_project_config(path: Path, *, name: str, target_branch: str) -> None:
-    path.write_text(yaml.safe_dump({"name": name, "target_branch": target_branch}))
+    path.write_text(yaml.safe_dump({"projects": [{"name": name, "target_branch": target_branch}]}))
 
 
 def test_publication_target_folds_operation_repository_refs_identity_and_heads(conn):

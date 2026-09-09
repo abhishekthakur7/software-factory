@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import artefact_registry, artefacts, git_trees, governance, manifest, record, recipes, rubrics
+from runner import artefact_registry, artefacts, git_trees, governance, manifest, project, record, recipes, rubrics
 from runner.checks import artefact_structure, plan_rubric
 from runner.db import connect
 from runner.fs import write_text
@@ -31,7 +31,7 @@ RUBRIC_FIXTURES_DIR = EVAL_DIR / "fixtures"
 
 LIMITS = yaml.safe_load((FACTORY_DIR / "config" / "limits.yaml").read_text())
 CATALOGUE = recipes.load_catalogue()
-PROJECT_RECIPES = yaml.safe_load((FACTORY_DIR / "config" / "project.yaml").read_text())["recipes"]
+PROJECT_RECIPES = project.pilot()["recipes"]
 
 RULE_CASES = [case for case in EVAL_SPEC["cases"] if "rule" in case]
 assert any(c["expect"] == "plan_rubric_ok" for c in RULE_CASES) and any(c["expect"] == "plan_rubric_reject" for c in RULE_CASES)

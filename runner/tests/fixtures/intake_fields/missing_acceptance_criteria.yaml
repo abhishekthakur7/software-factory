@@ -1,0 +1,7 @@
+# Otherwise-complete, but the acceptance-criteria field is blank.
+customfield_10010: ""
+assignee: abhishek
+parent: FIX-10
+customfield_10011: null
+issuetype: Story
+summary: Apply a discount without a page reload

@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import governance, guard, record
+from runner import governance, guard, record, trust_profile
 from runner.db import connect
 from runner.paths import REPO_ROOT
 
@@ -123,9 +123,7 @@ def test_proposal_carries_metadata_only(profile_paths):
     assert proposal.trust_role_identities == {
         "security_approver": "abhishek", "legal_data_governance_approver": "abhishek",
     }
-    assert set(proposal.route_ids) == {
-        "hosted_model", "governed_export_display", "github_pr", "slack_digest", "jira_feedback",
-    }
+    assert set(proposal.route_ids) == set(trust_profile.ROUTE_IDS)
 
 
 # ---------------------------------------------------------------------------

@@ -33,11 +33,11 @@ import yaml
 
 from runner import (
     approvals, artefact_registry, artefacts, binding, canonical, checklist, freshness, git_trees, owners, plan_tuple,
-    queue, record, recipes, reviewer_sets, transitions,
+    project, queue, record, recipes, reviewer_sets, transitions,
 )
 from runner.checks import exclusion, regression_only
 from runner.fs import write_bytes, write_text
-from runner.paths import FACTORY_DIR, PROJECT_CONFIG, REPO_ROOT, RUNS_DIR
+from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
 
 # `Test strategy.criteria`'s `AC-n` shape -- the only criteria cell the
 # both-views rerun treats as a real behaviour claim; a `no_behaviour_change`
@@ -87,7 +87,7 @@ def _repo(runs_dir: Path, ticket_id: int) -> Path:
 
 
 def _project_config() -> dict:
-    return yaml.safe_load(Path(PROJECT_CONFIG).read_text())
+    return project.pilot()
 
 
 def _limits_config() -> dict:
@@ -222,9 +222,9 @@ def _preflight(
     return {"review_tuple_id": review_tuple_id, "plan_row": plan_row, "planned_slots": planned_slots, "components": components, "repo": repo}, None
 
 
-def _vendor_classpath(project: dict) -> str:
+def _vendor_classpath(project_cfg: dict) -> str:
     """Every jar already materialised under `project.yaml`'s configured vendor path, or `""` when none has been built yet."""
-    vendor_dir = REPO_ROOT / project["vendor"]
+    vendor_dir = REPO_ROOT / project_cfg["vendor"]
     if not vendor_dir.is_dir():
         return ""
     return os.pathsep.join(str(p) for p in sorted(vendor_dir.rglob("*.jar")))
@@ -554,10 +554,10 @@ def run(
     components = preflight["components"]
     repo = preflight["repo"]
 
-    project = _project_config()
-    project_recipes = [r for r in (project.get("recipes") or []) if r]
+    project_cfg = _project_config()
+    project_recipes = [r for r in (project_cfg.get("recipes") or []) if r]
     catalogue = recipes.load_catalogue()
-    vendor_classpath = _vendor_classpath(project)
+    vendor_classpath = _vendor_classpath(project_cfg)
 
     base_sha, head_sha = plan_row["base_sha"], ticket["head_sha"]
     base_checkout, head_checkout, base_copy, head_copy = _checkouts(repo, base_sha, head_sha, run_dir)
@@ -581,7 +581,7 @@ def run(
         conn, stage_run_id, check_name="size_gate", script=SIZE_GATE_SCRIPT, review_tuple_id=review_tuple_id,
         trust_json_over_exit_code=True,
         args=["--plan", str(plan_artefact["path"]), "--tier", tier, "--diff", str(diff_path),
-              "--tiers-config", str(TIERS_PATH), "--project-config", str(PROJECT_CONFIG)],
+              "--tiers-config", str(TIERS_PATH), "--project-config", str(project.DEFAULT_PROJECT_CONFIG_PATH)],
     )
     blocking_results.append(("size_gate", size_payload.get("result", "blind_spot"), size_cr_id))
 
@@ -612,7 +612,7 @@ def run(
         review_tuple_id=review_tuple_id,
         args=["--plan", str(plan_artefact["path"]), "--verdicts", str(verdicts_path), "--tests-base", str(tests_base_path),
               "--tests-head", str(tests_head_path), "--declarations", str(declarations_path),
-              "--generated-paths", ",".join(project.get("generated_paths") or [])],
+              "--generated-paths", ",".join(project.load().get("generated_paths") or [])],
     )
     blocking_results.append(("behavior_contract_evidence", bce_payload.get("result", "blind_spot"), bce_cr_id))
 

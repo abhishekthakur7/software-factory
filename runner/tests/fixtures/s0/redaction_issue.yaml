@@ -1,0 +1,15 @@
+# A raw Jira issue payload carrying a field the atlassian_read route does
+# not admit (reporter), so a test can prove the guard's redaction is
+# faithful to the permitted fields rather than an unfiltered copy.
+customfield_10010: >-
+  Given a user opens the export dialog, when they click export, then a
+  file downloads.
+assignee: abhishek
+parent: FIX-0
+customfield_10011: null
+issuetype: Story
+estimate: 2
+labels: []
+summary: Add an export button
+description: Add an export button to the ticket list toolbar.
+reporter: someone-else
