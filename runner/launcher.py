@@ -96,11 +96,13 @@ def _build_child_env(
     env["FACTORY_RUN_OUT"] = str(out_dir)
     if envelope_path is not None:
         env["FACTORY_ENVELOPE_PATH"] = str(envelope_path)
-    # Overrides whatever TMPDIR the allowlist may have copied from the
-    # launching process: the sandbox profile only grants write access to
-    # this run's own scratch directory, so the child's own TMPDIR must
-    # point there too, not at the host's ambient temp directory.
+    # Overrides whatever TMPDIR and HOME the allowlist copied from the
+    # launching process: the sandbox profile grants write access only to
+    # this run's own scratch directory, and the host home directory is
+    # unreadable inside it -- a tool such as git treats a denied read of
+    # `~/.gitconfig` as fatal, where a missing file is fine.
     env["TMPDIR"] = str(tmp_dir)
+    env["HOME"] = str(tmp_dir)
     proxy_url = f"http://127.0.0.1:{proxy_port}"
     env["HTTPS_PROXY"] = proxy_url
     env["HTTP_PROXY"] = proxy_url

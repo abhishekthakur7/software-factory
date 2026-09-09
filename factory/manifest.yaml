@@ -583,7 +583,7 @@ files:
   - path: factory/evals/sandbox/escape/fixtures/ok/probe.py
     content_hash: 9b5c1a680a7b530b823dc749299cb52f5a03d9a96ce5b5466b7ab13bd14f4025
   - path: factory/evals/sandbox/escape/fixtures/paths/probe.py
-    content_hash: 6eb7b7cede464c922ce4aa27e4b71189ca95d60c187a0afd2ed91cf5f90930ec
+    content_hash: 6942f39c776fb1002bc6257610097abb0cc4ad9aa6e85529941c32916f24f6ae
   - path: factory/evals/sandbox/escape/fixtures/sockets/probe.py
     content_hash: 4ba47ab661b34b40d71884c95c5614330ba61be78978dc6c94512fd256a515cb
   - path: factory/evals/sandbox/escape/fixtures/source-immutability/probe.py
