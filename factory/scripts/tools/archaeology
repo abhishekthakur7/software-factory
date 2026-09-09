@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""Two-step archaeology on a candidate list: `git blame`, then the issues its commits name.
+
+Standalone: no import of `runner`. Reads a JSON candidate list (the
+brief's own `Touched area candidates` rows, one `{"path", "symbol",
+"self_evident"}` object each) and, for every candidate that is not
+self-evident, runs `git blame --line-porcelain` over the whole file inside
+`--worktree` to find every commit that touched it, extracts issue keys
+from those commits' full messages with one regex, and reads each issue
+through the loopback proxy's route contract: `POST <proxy>/routes/<route>`
+with `{"method": "issue.get", "params": {"key": ...}}`, taking the
+response's `excerpt` when `inline` is true or the file at `artefact_path`
+otherwise. `symbol` narrows nothing today -- blame runs over the whole
+file either way, since resolving a symbol to its own line range needs a
+source-level resolver this script does not build -- it only threads
+through to the candidate's own `path` field in the printed result, so a
+caller can render `path#symbol` in a history table. A self-evident
+candidate is skipped outright: it gets no row in the result at all,
+matching the brief's own "not self-evident" scope.
+"""
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+ISSUE_KEY_RE = re.compile(r"[A-Z][A-Z0-9]+-[0-9]+")
+_BLAME_HEADER_RE = re.compile(r"^([0-9a-f]{40}) \d+ \d+")
+
+# The classification rule, in one place: a candidate whose commits name no
+# issue is `unexplained`; any named issue closed as one of these
+# resolutions makes the candidate `contradictory`; every named issue
+# resolved (and none contradictory) makes it `explained`; anything else
+# (an unresolved issue, or every read failing) is `unexplained`.
+CONTRADICTORY_RESOLUTIONS = frozenset({"Won't Do", "Duplicate"})
+RESOLVED_STATUSES = frozenset({"Done", "Resolved", "Closed"})
+
+REQUEST_TIMEOUT_SECONDS = 20
+
+
+def _blame_commit_shas(worktree: Path, path: str) -> list[str]:
+    """Every commit `git blame --line-porcelain` names for `path`, in first-seen order, deduplicated."""
+    result = subprocess.run(
+        ["git", "blame", "--line-porcelain", "--", path], cwd=worktree, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return []
+    shas: list[str] = []
+    seen: set[str] = set()
+    for line in result.stdout.splitlines():
+        match = _BLAME_HEADER_RE.match(line)
+        if match and match.group(1) not in seen:
+            seen.add(match.group(1))
+            shas.append(match.group(1))
+    return shas
+
+
+def _commit_message(worktree: Path, sha: str) -> str:
+    result = subprocess.run(["git", "log", "-1", "--format=%B", sha], cwd=worktree, capture_output=True, text=True)
+    return result.stdout if result.returncode == 0 else ""
+
+
+def _issue_keys(worktree: Path, shas: list[str]) -> list[str]:
+    keys: list[str] = []
+    seen: set[str] = set()
+    for sha in shas:
+        for key in ISSUE_KEY_RE.findall(_commit_message(worktree, sha)):
+            if key not in seen:
+                seen.add(key)
+                keys.append(key)
+    return keys
+
+
+def _read_issue(proxy: str, route: str, key: str) -> dict | None:
+    """The issue payload for `key`, or `None` when the route call or its body could not be read.
+
+    A read failure here is never fatal to the script: it leaves the
+    candidate's classification to fall back on whatever other named
+    issues did resolve, or `unexplained` when none did.
+    """
+    body = json.dumps({"method": "issue.get", "params": {"key": key}}).encode()
+    request = urllib.request.Request(
+        f"{proxy.rstrip('/')}/routes/{route}", data=body, headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+            envelope = json.loads(response.read())
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, ValueError):
+        return None
+    if envelope.get("exit_status") != 200:
+        return None
+    try:
+        if envelope.get("inline"):
+            return json.loads(envelope.get("excerpt") or "")
+        artefact_path = envelope.get("artefact_path")
+        return json.loads(Path(artefact_path).read_text()) if artefact_path else None
+    except (OSError, json.JSONDecodeError, TypeError):
+        return None
+
+
+def _classify(issue_keys: list[str], issues: list[dict]) -> tuple[str, str]:
+    if not issue_keys:
+        return "unexplained", "no issue named in the commit history touching this candidate"
+    contradictory = next((i for i in issues if i.get("resolution") in CONTRADICTORY_RESOLUTIONS), None)
+    if contradictory is not None:
+        return "contradictory", f"issue {contradictory.get('key')} is closed as {contradictory.get('resolution')}"
+    if issues and all(i.get("status") in RESOLVED_STATUSES for i in issues):
+        resolved_keys = ", ".join(i.get("key", "") for i in issues)
+        return "explained", f"issue(s) {resolved_keys} resolved and consistent with the change"
+    unresolved = [i.get("key", "") for i in issues if i.get("status") not in RESOLVED_STATUSES] or issue_keys
+    return "unexplained", f"issue(s) {', '.join(unresolved)} named but not resolved"
+
+
+def _classify_candidate(worktree: Path, candidate: dict, *, proxy: str, route: str) -> dict:
+    path = candidate["path"]
+    symbol = candidate.get("symbol")
+    shas = _blame_commit_shas(worktree, path)
+    issue_keys = _issue_keys(worktree, shas)
+    read_issues = [issue for issue in (_read_issue(proxy, route, key) for key in issue_keys) if issue is not None]
+    classification, why = _classify(issue_keys, read_issues)
+    return {
+        "path": path, "symbol": symbol, "commits": shas, "issues": issue_keys,
+        "classification": classification, "why": why,
+    }
+
+
+def _default_proxy() -> str | None:
+    """The loopback proxy this process was launched under, from the sandbox's own env injection.
+
+    A caller building `argv` ahead of the launch that starts the proxy
+    cannot know its port in advance -- `--proxy` exists for a caller (or a
+    test's own stand-in server) that does know a specific address; a
+    sandboxed production run leaves it unset and this reads the port the
+    launcher already put in its environment.
+    """
+    port = os.environ.get("FACTORY_PROXY_PORT")
+    return f"http://127.0.0.1:{port}" if port else None
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="archaeology")
+    parser.add_argument("--worktree", required=True)
+    parser.add_argument("--candidates", required=True)
+    parser.add_argument("--proxy")
+    parser.add_argument("--route", required=True)
+    args = parser.parse_args(argv)
+
+    try:
+        candidates = json.loads(Path(args.candidates).read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        print(json.dumps({"ok": False, "reason": f"cannot read candidates file: {exc}"}))
+        return 1
+
+    proxy = args.proxy or _default_proxy()
+    if proxy is None:
+        print(json.dumps({"ok": False, "reason": "no --proxy given and FACTORY_PROXY_PORT is unset"}))
+        return 1
+
+    worktree = Path(args.worktree)
+    results = [
+        _classify_candidate(worktree, candidate, proxy=proxy, route=args.route)
+        for candidate in candidates if not candidate.get("self_evident")
+    ]
+    print(json.dumps({"candidates": results}))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -23,7 +23,7 @@ files:
   - path: factory/config/exclusions.yaml
     content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
   - path: factory/config/limits.yaml
-    content_hash: 455e87459b9b83d03581c450aec18650fd8dc37901e2d5ad44b5f3ee5ecfdac4
+    content_hash: e16d0eef1a657d548bc75543c2920d8868efd617f0dae10ef6f0ce2a7fd7b591
   - path: factory/config/owners.yaml
     content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
   - path: factory/config/pricing.yaml
@@ -37,7 +37,7 @@ files:
   - path: factory/config/sandbox/build-profile.sb
     content_hash: 985ba848d2f7390bef1b2d1a3991ec2097fa934eebe42fbc573a887a1661d0c6
   - path: factory/config/sandbox.yaml
-    content_hash: 244f44c53c9cc7c7fc1d23ea07c2ec83537be06c4e5e57e1199ebcf4aa0d7d28
+    content_hash: 0c3eb15a38d64d6af2601991ad07ae8ee7dc8f0b3da27571a2d9e583061189e1
   - path: factory/config/sensitive-paths.yaml
     content_hash: d6f425fafb63a7a0fc5c0e51fe676ea0d2a097a8a4a9a796acee4ecba09e76af
   - path: factory/config/service-tiers.yaml
@@ -1032,6 +1032,8 @@ files:
     content_hash: 7a807f7c77fa45b9ea4a272793d381b5ce608a547b968fc16078ab851747b569
   - path: factory/scripts/checks/source_declaration_diff
     content_hash: 5ce0b73d7cb9b9494b3b490070c881e299834ae82e00cc232f7c1c486b196ae1
+  - path: factory/scripts/tools/archaeology
+    content_hash: 0671182c8252f8a5bd2c6a29b27a9475a053e1ee67bc03ff3112e09a5c7188a1
   - path: factory/scripts/tools/export
     content_hash: e3b238ffa0f8c1ca1b82c3f16c665da86b931bd6daec94a5e94b9363ab960b5f
   - path: factory/scripts/tools/handoff_ready

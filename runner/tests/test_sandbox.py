@@ -504,7 +504,7 @@ def test_proxy_admits_only_allowlisted_host_port_pairs():
 def test_runtime_key_reaches_the_hosted_model_endpoint_only_through_the_loopback_proxy(tmp_path):
     """The agent sandbox's own network-outbound rule admits loopback only; HTTPS_PROXY is the one route out."""
     doc = yaml.safe_load(REAL_SANDBOX_PATH.read_text())
-    assert doc["policies"]["enforced"]["proxy_allowlist"]["S1"] == ["hosted_model"]
+    assert doc["policies"]["enforced"]["proxy_allowlist"]["S1"] == ["hosted_model", "atlassian_read"]
     result = _run_real_probe(
         tmp_path,
         "import socket, json\n"

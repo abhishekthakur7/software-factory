@@ -53,10 +53,16 @@ policies:
       registry:
         host: pypi.org
         port: 443
+      atlassian_read:
+        host: api.atlassian.com
+        port: 443
     # Route ids the loopback proxy tunnels to, per stage; every stage
     # absent here gets no network at all beyond the loopback proxy itself.
+    # `atlassian_read` is S1 only: S1's own archaeology is the one place a
+    # stage sandbox reads a Jira issue, and every other stage's absence
+    # here is itself the boundary that keeps that route out of them.
     proxy_allowlist:
-      S1: [hosted_model]
+      S1: [hosted_model, atlassian_read]
       S2: [hosted_model]
       S3: [hosted_model]
       S4: [hosted_model]
