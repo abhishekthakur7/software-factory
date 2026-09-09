@@ -10,3 +10,4 @@ runs/
 __pycache__/
 .pytest_cache/
 .claude/worktrees/
+.codegraph/
