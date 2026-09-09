@@ -74,7 +74,7 @@ def launch_probe(
     tmp_path: Path, probe_source: Path, *, role: str, stage: str = "S1", extra_argv: tuple = (),
     env_source: dict | None = None, ticket_dir: Path | None = None, worktree_path: Path | None = None,
     copy_dir: Path | None = None, build_dir: Path | None = None, scratch_dir: Path | None = None,
-    cache_dir: Path | None = None,
+    cache_dir: Path | None = None, routes=None,
 ) -> dict:
     """Run `probe_source` for real under the committed Seatbelt profile for `role`; return its one stdout JSON line.
 
@@ -84,6 +84,10 @@ def launch_probe(
     or the test tree readable from inside the sandbox. A launch the OS
     policy did not actually wrap, or a probe with no parseable output,
     fails here rather than letting a caller read a refusal into silence.
+    `routes` reaches the launcher unchanged, for a probe that dispatches a
+    call through the sandbox's `POST /routes/<route_id>` handler; this
+    function's own `run_dir` convention below (`tmp_path / "run"`) is
+    exactly what a caller's `RouteService.run_dir` must match.
     """
     run_dir = tmp_path / "run"
     scratch = run_dir / "tmp"
@@ -95,7 +99,7 @@ def launch_probe(
         run_dir=run_dir, argv=[sys.executable, str(probe_copy), *extra_argv], role=role, policy="enforced",
         cwd=tmp_path, wall_clock_seconds=20, stage=stage, ticket_dir=ticket_dir, worktree_path=worktree_path,
         copy_dir=copy_dir, build_dir=build_dir, scratch_dir=scratch_dir, cache_dir=cache_dir,
-        env_source=env_source, sandbox_path=REAL_SANDBOX_PATH,
+        env_source=env_source, sandbox_path=REAL_SANDBOX_PATH, routes=routes,
     )
     assert result.os_policy_applied is True, "a probe must run under a real OS-enforced profile"
     assert result.stdout_json is not None, f"probe produced no parseable JSON; stderr: {result.stderr_text}"

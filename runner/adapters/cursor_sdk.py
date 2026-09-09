@@ -25,7 +25,7 @@ import yaml
 
 from runner import artefact_registry, budgets, canonical, credentials
 from runner import envelope as envelope_mod
-from runner import launcher, record, run_ledger
+from runner import launcher, record, run_ledger, tool_results
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR, RUNS_DIR
 
@@ -111,29 +111,24 @@ def _has_immutable_build(model_resolved: str | None) -> bool:
     return model_resolved is not None and bool(_BUILD_SUFFIX_RE.search(model_resolved))
 
 
-def _excerpt(lines: list[str], rule: dict) -> str:
-    head = lines[: rule["excerpt_head_lines"]]
-    tail = lines[-rule["excerpt_tail_lines"] :] if rule["excerpt_tail_lines"] else []
-    max_bytes = rule["excerpt_max_bytes_per_end"]
-    head_text = "\n".join(head).encode()[:max_bytes].decode(errors="ignore")
-    tail_text = "\n".join(tail).encode()[:max_bytes].decode(errors="ignore")
-    return f"{head_text}\n...\n{tail_text}"
-
-
 def _record_tool_calls(
     conn: sqlite3.Connection, *, ticket_id: int, stage_run_id: int, tool_calls: list[dict],
     run_dir: Path, inline_rule: dict,
 ) -> tuple[int, ...]:
     """One governed `tool_call` row per call; a result over the inline limit lands as a `tool_result` artefact.
 
-    A result within the limit is recorded by digest and byte count alone
-    (`inline = 1`) -- it already reached the agent's own context
+    Every result the worker reports already reached the agent as text (a
+    string, or a value this function serializes to its canonical JSON), so
+    shaping always runs with `media_type="text/plain"` -- `tool_results.shape`'s
+    non-text case belongs to the proxy's raw-bytes calls, never a direct
+    call's. A result within the limit is recorded by digest and byte count
+    alone (`inline = 1`) -- it already reached the agent's own context
     transiently through the runtime, so the ledger's job is proving it was
     small and unmodified, not storing a second copy. A result over the
-    limit is written whole to `results/tool_calls/<seq>.txt`, registered
-    as a `tool_result` artefact, and given a sidecar excerpt file at
-    `<seq>.excerpt.txt` next to it -- discoverable by that naming
-    convention rather than by an extra column.
+    limit is written whole to `results/tool_calls/<seq>.txt`, registered as
+    a `tool_result` artefact, and given a sidecar excerpt file at
+    `<seq>.excerpt.txt` next to it when the shaping produced one --
+    discoverable by that naming convention rather than by an extra column.
     """
     ids: list[int] = []
     for call in tool_calls:
@@ -146,16 +141,15 @@ def _record_tool_calls(
         )
         args_digest = hashlib.sha256(args_text.encode()).hexdigest() if args_text is not None else None
         result_digest = hashlib.sha256(result_text.encode()).hexdigest() if result_text is not None else None
-        result_bytes = len(result_text.encode()) if result_text is not None else None
         result_artefact_id = None
-        inline = True
+        shaped = None
         if result_text is not None:
-            lines = result_text.splitlines()
-            inline = len(lines) <= inline_rule["max_lines"] and result_bytes <= inline_rule["max_bytes"]
-            if not inline:
+            shaped = tool_results.shape(result_text.encode(), media_type="text/plain", rule=inline_rule)
+            if not shaped.inline:
                 full_path = run_dir / "results" / "tool_calls" / f"{seq}.txt"
                 write_text(full_path, result_text)
-                write_text(run_dir / "results" / "tool_calls" / f"{seq}.excerpt.txt", _excerpt(lines, inline_rule))
+                if shaped.excerpt is not None:
+                    write_text(run_dir / "results" / "tool_calls" / f"{seq}.excerpt.txt", shaped.excerpt)
                 result_artefact_id = artefact_registry.register(
                     conn, ticket_id=ticket_id, kind="tool_result", path=full_path, stage_run_id=stage_run_id,
                 )
@@ -164,7 +158,8 @@ def _record_tool_calls(
             stage_run_id=stage_run_id, seq=seq, tool=call.get("tool"), tool_version=call.get("tool_version"),
             args_digest=args_digest, result_digest=result_digest, result_artefact=result_artefact_id,
             duration_ms=call.get("duration_ms"), tokens=call.get("tokens"),
-            result_bytes=result_bytes, inline=1 if inline else 0,
+            result_bytes=shaped.result_bytes if shaped is not None else None,
+            inline=1 if (shaped is None or shaped.inline) else 0,
         )
         ids.append(row_id)
     return tuple(ids)

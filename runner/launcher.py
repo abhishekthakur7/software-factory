@@ -222,6 +222,7 @@ def launch(
     runtime_key_env_name: str = RUNTIME_KEY_ENV_NAME,
     envelope_path: Path | None = None,
     sandbox_path: Path = SANDBOX_PATH,
+    routes: proxy.RouteService | None = None,
 ) -> LaunchResult:
     """Run `argv` as the sandbox child: build its environment, apply its OS policy, check its integrity.
 
@@ -232,7 +233,9 @@ def launch(
     `results/exit.json` (which also carries `os_policy`, whether this
     launch's argv actually ran under a Seatbelt profile). A loopback proxy
     scoped to `stage`'s own endpoint allowlist runs for the lifetime of the
-    child and is stopped in `finally`, whether or not the child timed out.
+    child and is stopped in `finally`, whether or not the child timed out;
+    `routes` is that proxy's `POST /routes/<route_id>` dispatch table --
+    every such call refuses with `404` when it is left `None`.
     `wall_clock_seconds=None` means no timeout is enforced by this call.
     The child's stdout is parsed as one JSON document (its last non-blank
     line, matching the worker contract); a non-JSON or empty stdout leaves
@@ -250,7 +253,7 @@ def launch(
     results_dir.mkdir(parents=True, exist_ok=True)
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    run_proxy = proxy.start(_resolve_proxy_allowlist(policy_doc, stage))
+    run_proxy = proxy.start(_resolve_proxy_allowlist(policy_doc, stage), routes)
     try:
         env = _build_child_env(
             policy_doc, role, env_source=env_source, runtime_key_value=runtime_key_value,
