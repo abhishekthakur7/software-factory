@@ -555,7 +555,7 @@ files:
   - path: factory/evals/sandbox/escape/fixtures/base-head-isolation/probe.py
     content_hash: bca54c32f9546c01b212b89783465193e6640b57a7e1c4123ef4581b4ab307af
   - path: factory/evals/sandbox/escape/fixtures/copy-disposal/probe.py
-    content_hash: 4322016d528049bc55cc71b3b888a6445ddf5510e455546571583dbf739c1afe
+    content_hash: 2655aef4dad88ee28f6f99af8f1308bfe24a60111a727ff98f9446324049867b
   - path: factory/evals/sandbox/escape/fixtures/credentials/probe.py
     content_hash: 5de2cf9e7e8c6d19825bcd39003e03fa9f2cda260d1179d25f0b0892c8ca9e3b
   - path: factory/evals/sandbox/escape/fixtures/environment/probe.py

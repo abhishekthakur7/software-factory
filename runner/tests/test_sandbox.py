@@ -93,11 +93,9 @@ def _tiny_repo(root: Path) -> Path:
     return root
 
 
-# ---------------------------------------------------------------------------
-# Criteria 1-2: the profile files exist, run for real, and enforce their
-# documented shape (mount/writability/egress for agent; copy-scoped writes,
-# no credential, and a narrow process-exec allowlist for build).
-# ---------------------------------------------------------------------------
+# The profile files exist, run for real, and enforce their documented
+# shape (mount/writability/egress for agent; copy-scoped writes, no
+# credential, and a narrow process-exec allowlist for build).
 
 
 def test_agent_profile_file_exists_and_the_os_policy_is_available_on_this_host():
@@ -213,10 +211,7 @@ def test_build_profile_admits_loopback_only_no_direct_egress_at_s5(tmp_path):
     assert result.stdout_json == {"denied": True}
 
 
-# ---------------------------------------------------------------------------
-# Criterion 3: sandbox.yaml's os_profile digests equal the profiles' own
-# content hash.
-# ---------------------------------------------------------------------------
+# sandbox.yaml's os_profile digests equal the profiles' own content hash.
 
 
 def test_sandbox_yaml_os_profile_digests_equal_the_profiles_own_content_hash():
@@ -226,10 +221,8 @@ def test_sandbox_yaml_os_profile_digests_equal_the_profiles_own_content_hash():
         assert os_policy.digest(REPO_ROOT / entry["path"]) == entry["digest"], role
 
 
-# ---------------------------------------------------------------------------
-# Criterion 4: sandbox.yaml's proxy_allowlist names route id, host and port
+# sandbox.yaml's proxy_allowlist names the route id, host and port
 # admitted per stage.
-# ---------------------------------------------------------------------------
 
 
 def _resolve_allowlist(policy: dict, stage: str) -> list:
@@ -253,9 +246,7 @@ def test_sandbox_yaml_proxy_allowlist_resolves_to_route_host_port_per_stage():
     assert _resolve_allowlist(policy, "S0") == []
 
 
-# ---------------------------------------------------------------------------
-# Criterion 5: sandbox.yaml names the disposable-copy location.
-# ---------------------------------------------------------------------------
+# sandbox.yaml names the disposable-copy location.
 
 
 def test_sandbox_yaml_names_the_disposable_copy_location():
@@ -264,9 +255,7 @@ def test_sandbox_yaml_names_the_disposable_copy_location():
     assert location == "runs/tickets/{ticket_id}/copies/{stage_run_id}"
 
 
-# ---------------------------------------------------------------------------
-# Criterion 6: the launcher applies the OS policy through os_policy.py.
-# ---------------------------------------------------------------------------
+# The launcher applies the OS policy through os_policy.py.
 
 
 def test_launcher_applies_the_os_policy_and_records_it_in_exit_json(tmp_path):
@@ -283,11 +272,9 @@ def test_launcher_records_os_policy_false_when_the_policy_names_no_profiles(tmp_
     assert exit_doc["os_policy"] is False
 
 
-# ---------------------------------------------------------------------------
-# Criterion 7: the sandbox digest is computed over the OS profile, the
-# proxy allowlist, and the runtime's sandbox configuration together, and
+# The sandbox digest is computed over the OS profile, the proxy
+# allowlist, and the runtime's sandbox configuration together, and
 # differs from the digest a run recorded before this policy landed.
-# ---------------------------------------------------------------------------
 
 
 def test_sandbox_digest_differs_from_the_pre_os_enforcement_digest(tmp_path):
@@ -304,11 +291,9 @@ def test_sandbox_digest_changes_with_the_stage_and_with_the_runs_directory(tmp_p
     assert s1 != elsewhere
 
 
-# ---------------------------------------------------------------------------
-# Criteria 8-9: the manifest's sandbox-policy entry names the OS profile,
-# proxy allowlist, and credential roles admitted per stage; only an agent
-# stage admits runtime_key.
-# ---------------------------------------------------------------------------
+# The manifest's sandbox-policy entry names the OS profile, proxy
+# allowlist, and credential roles admitted per stage; only an agent stage
+# admits runtime_key.
 
 
 def test_manifest_sandbox_policy_names_os_profiles_proxy_allowlist_and_credential_roles():
@@ -327,10 +312,8 @@ def test_manifest_admits_runtime_key_for_agent_stages_and_none_for_build_s0_s5_s
         assert roles[scope] == (), scope
 
 
-# ---------------------------------------------------------------------------
-# Criterion 10: credentials.fetch is called at the moment of use and never
-# returns into a row, an artefact, a log, or a build sandbox's environment.
-# ---------------------------------------------------------------------------
+# credentials.fetch is called at the moment of use and never returns
+# into a row, an artefact, a log, or a build sandbox's environment.
 
 
 def _open_ticket(conn, tmp_path):
@@ -438,9 +421,7 @@ def test_credentials_fetch_is_never_called_when_the_stage_admits_no_role(tmp_pat
     assert calls == []
 
 
-# ---------------------------------------------------------------------------
-# Criterion 11: runtime.yaml's runtime_key entry.
-# ---------------------------------------------------------------------------
+# runtime.yaml's runtime_key entry.
 
 
 def test_runtime_yaml_runtime_key_entry_carries_role_scope_spend_cap_rotation_never_value():
@@ -454,9 +435,7 @@ def test_runtime_yaml_runtime_key_entry_carries_role_scope_spend_cap_rotation_ne
     assert "value" not in entry
 
 
-# ---------------------------------------------------------------------------
-# Criterion 12: the hosted_model route carries credential_role: runtime_key.
-# ---------------------------------------------------------------------------
+# The hosted_model route carries credential_role: runtime_key.
 
 
 def test_trust_profile_hosted_model_route_carries_credential_role_runtime_key():
@@ -464,9 +443,7 @@ def test_trust_profile_hosted_model_route_carries_credential_role_runtime_key():
     assert profile.routes["hosted_model"].credential_roles == ("runtime_key",)
 
 
-# ---------------------------------------------------------------------------
-# Criteria 13-15: the loopback proxy.
-# ---------------------------------------------------------------------------
+# The loopback proxy.
 
 
 def test_proxy_starts_one_process_on_127_0_0_1_and_the_port_reaches_the_sandbox_environment(tmp_path):
@@ -542,9 +519,7 @@ def test_runtime_key_reaches_the_hosted_model_endpoint_only_through_the_loopback
     assert result.stdout_json == {"direct_egress_denied": True}
 
 
-# ---------------------------------------------------------------------------
-# Criteria 16-19: copy-on-write copies.
-# ---------------------------------------------------------------------------
+# Copy-on-write copies.
 
 
 def test_copies_provision_creates_apfs_clones_with_empty_disposable_directories(tmp_path):
@@ -595,10 +570,8 @@ def test_recheck_is_true_when_the_checkout_is_untouched_and_false_once_modified(
     assert copies.recheck(source, head_sha) is False
 
 
-# ---------------------------------------------------------------------------
-# Criteria 20-21: registered inputs stay read-only (worktree/copies are the
-# named exceptions); results/ is read-only from inside every sandbox.
-# ---------------------------------------------------------------------------
+# Registered inputs stay read-only (worktree/copies are the named
+# exceptions); results/ is read-only from inside every sandbox.
 
 
 def test_ticket_dir_is_readable_but_writing_it_is_refused(tmp_path):
@@ -648,9 +621,7 @@ def test_results_subpath_is_read_only_from_inside_every_role(tmp_path):
         assert result.stdout_json == {"denied": True}, role
 
 
-# ---------------------------------------------------------------------------
-# Criterion 23: factory/ and runs/factory.sqlite are absent from every mount.
-# ---------------------------------------------------------------------------
+# factory/ and runs/factory.sqlite are absent from every mount.
 
 
 def test_factory_and_runs_sqlite_are_unreadable_from_inside_the_agent_sandbox(tmp_path):

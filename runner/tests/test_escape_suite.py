@@ -31,7 +31,7 @@ REAL_SANDBOX_PATH = REPO_ROOT / "factory" / "config" / "sandbox.yaml"
 if not os_policy.available():
     pytest.fail(
         "sandbox-exec cannot run the agent profile on this host; the escape suite fails "
-        "outright rather than skip (R-I-14 criterion 35)",
+        "outright rather than skip",
         pytrace=False,
     )
 
