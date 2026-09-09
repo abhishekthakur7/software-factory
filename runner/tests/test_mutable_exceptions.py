@@ -24,7 +24,9 @@ ALLOWED_COLUMNS = {
         "opened_at", "factory_completed_at", "closed_at", "close_reason",
         "pr_url", "pr_identity", "last_remote_head_sha", "last_pr_body_hash",
         "base_sha", "target_base_sha", "branch", "worktree_path", "head_sha",
-        "factory_manifest_hash", "updated_at",
+        "factory_manifest_hash", "external_revision_count", "updated_at",
+        "final_head_sha", "final_target_base_sha", "final_pr_body_hash", "merge_sha",
+        "required_checks_disposition", "approval_disposition", "outcome_actor_role", "outcome_observed_at",
     },
     "stage_run": {
         "outcome", "failure_kind", "started_at", "heartbeat_at",
