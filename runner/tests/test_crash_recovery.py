@@ -20,8 +20,8 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, artefacts, cli, git_trees, governance, manifest, outbox, owners, plan_tuple, record,
-    run_ledger,
+    approvals, artefact_registry, artefacts, git_trees, governance, manifest, operations, outbox, owners, plan_tuple,
+    record, run_ledger,
 )
 from runner.db import connect
 from runner.paths import FACTORY_DIR
@@ -181,7 +181,7 @@ def test_killed_stage_run_restarted_produces_no_duplicate_row_for_the_attempt(co
     conn.commit()
 
     monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
@@ -277,7 +277,7 @@ def test_outbox_reconciles_before_a_fresh_attempt_opens(conn, tmp_path, monkeypa
     dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="S5", lease_seconds=-1)
     conn.commit()
 
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
 
     intent = conn.execute(
         "SELECT * FROM external_write WHERE ticket_id = ?", (ticket_id,)
@@ -351,7 +351,7 @@ def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monk
 
     if stage == "S1":
         monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"

@@ -14,7 +14,7 @@ import subprocess
 
 import pytest
 
-from runner import cli, git_trees, manifest, queue, record, run_ledger
+from runner import git_trees, manifest, operations, queue, record, run_ledger
 from runner.db import connect
 from runner.paths import FACTORY_DIR
 
@@ -89,7 +89,7 @@ def test_stop_terminates_the_running_stage_records_aborted_human_and_escalates(c
 
     # `escalation` is tagged mechanically regardless of which human typed `factory stop`:
     # the tag's own provenance is the runner's, not the caller's own identity.
-    result = cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="stopped for a manual check")
+    result = operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="stopped for a manual check")
 
     assert "stopped" in result
     run = record.get(conn, "stage_run", run_id)
@@ -111,7 +111,7 @@ def test_stop_keeps_a_run_s_own_reasoning_summary_over_the_stop_note(conn):
     run_id = _open_live_run(conn, ticket_id, stage="S4")
     run_ledger.record_reasoning_summary(conn, run_id, "the agent's own report")
 
-    cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="a stop note")
+    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="a stop note")
 
     assert record.get(conn, "stage_run", run_id)["reasoning_summary"] == "the agent's own report"
 
@@ -128,10 +128,10 @@ def test_must_reject_every_command_but_stop_while_a_run_is_live(conn, tmp_path):
     )
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="question", ref=f"question:{question_id}")
 
-    assert "live run" in cli.pause(conn, ticket_id)
-    assert "live run" in cli.resume(conn, ticket_id, actor=ABHISHEK)
-    assert "live run" in cli.run(conn, ticket_id, "S4", runs_dir=tmp_path)
-    assert "live run" in cli.advance(conn, ticket_id, tmp_path)
+    assert "live run" in operations.pause(conn, ticket_id)
+    assert "live run" in operations.resume(conn, ticket_id, actor=ABHISHEK)
+    assert "live run" in operations.run(conn, ticket_id, "S4", runs_dir=tmp_path)
+    assert "live run" in operations.advance(conn, ticket_id, tmp_path)
     with pytest.raises(queue.ActionRefused, match="live run"):
         queue.act(conn, item_id=item_id, action="answer", actor=ABHISHEK, runs_dir=tmp_path)
 
@@ -141,7 +141,7 @@ def test_must_reject_every_command_but_stop_while_a_run_is_live(conn, tmp_path):
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
 
-    result = cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
+    result = operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
     assert "stopped" in result
     assert record.get(conn, "stage_run", run_id)["outcome"] == "aborted_human"
 
@@ -167,14 +167,14 @@ def test_pause_and_stop_leave_the_running_stage_s_registered_artefacts_untouched
     before_bytes = artefact_path.read_bytes()
     before_count = conn.execute("SELECT COUNT(*) FROM artefact").fetchone()[0]
 
-    cli.pause(conn, ticket_id)
+    operations.pause(conn, ticket_id)
 
     assert record.get(conn, "stage_run", run_id)["inputs"] == before_run_inputs
     assert artefact_path.read_bytes() == before_bytes
     assert dict(record.get(conn, "artefact", artefact_id)) == before_row
     assert conn.execute("SELECT COUNT(*) FROM artefact").fetchone()[0] == before_count
 
-    cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
+    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
 
     assert record.get(conn, "stage_run", run_id)["inputs"] == before_run_inputs
     assert artefact_path.read_bytes() == before_bytes
@@ -192,7 +192,7 @@ def test_pause_takes_effect_at_the_next_boundary_not_immediately(conn, tmp_path)
     ticket_id = _ticket_in(conn, "context")
     record.update(conn, "ticket", ticket_id, pause_requested=1)  # set directly: proves the durable column is read
 
-    result = cli.advance(conn, ticket_id, tmp_path)
+    result = operations.advance(conn, ticket_id, tmp_path)
 
     assert result == f"ticket {ticket_id}: paused at context"
     assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
@@ -211,10 +211,10 @@ def test_a_pause_request_at_a_boundary_never_opens_a_second_manual_pause_item(co
     `advance` call while still paused opens no duplicate `manual_pause` item
     and still runs nothing."""
     ticket_id = _ticket_in(conn, "context")
-    cli.pause(conn, ticket_id)
+    operations.pause(conn, ticket_id)
 
-    cli.advance(conn, ticket_id, tmp_path)
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
 
     items = conn.execute(
         "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'manual_pause'", (ticket_id,)
@@ -228,10 +228,10 @@ def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_pat
     item and clears the pause flag, and the next `advance` runs the stage the
     pause had held."""
     ticket_id = _s1_ready_ticket(conn, tmp_path)
-    cli.pause(conn, ticket_id)
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.pause(conn, ticket_id)
+    operations.advance(conn, ticket_id, tmp_path)
 
-    result = cli.resume(conn, ticket_id, actor=ABHISHEK)
+    result = operations.resume(conn, ticket_id, actor=ABHISHEK)
 
     assert "resolved" in result
     ticket = record.get(conn, "ticket", ticket_id)
@@ -242,7 +242,7 @@ def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_pat
     assert item["resolved_at"] is not None
 
     monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
 
     # S1's own agent invocation opens a second, child `stage_run` under
     # the same stage name once it passes, so one stage running is two rows.
@@ -253,7 +253,7 @@ def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_pat
 def test_must_reject_resume_with_no_open_pause_to_resume(conn):
     """a ticket with no open `manual_pause` item refuses `resume`."""
     ticket_id = _ticket_in(conn, "context")
-    result = cli.resume(conn, ticket_id, actor=ABHISHEK)
+    result = operations.resume(conn, ticket_id, actor=ABHISHEK)
     assert "no open pause" in result
 
 
@@ -267,7 +267,7 @@ def test_show_reports_stage_attempt_elapsed_budget_and_pause_state(conn, tmp_pat
     ticket_id = _ticket_in(conn, "implementing", tier_final="light")
     _open_live_run(conn, ticket_id, stage="S4")
 
-    output = cli.show(conn, ticket_id)
+    output = operations.show(conn, ticket_id)
 
     assert "current: S4 attempt 1" in output
     assert "elapsed" in output
@@ -282,12 +282,12 @@ def test_show_lists_a_paused_ticket_s_registered_output_artefact(conn, tmp_path,
     outputs, and reports the pause as pending."""
     ticket_id = _s1_ready_ticket(conn, tmp_path)
     monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
-    cli.advance(conn, ticket_id, tmp_path)  # S1 runs for real and passes, registering `brief`
+    operations.advance(conn, ticket_id, tmp_path)  # S1 runs for real and passes, registering `brief`
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
-    cli.pause(conn, ticket_id)
+    operations.pause(conn, ticket_id)
 
-    cli.advance(conn, ticket_id, tmp_path)  # paused at the clarifying boundary before S2 ever starts
-    output = cli.show(conn, ticket_id)
+    operations.advance(conn, ticket_id, tmp_path)  # paused at the clarifying boundary before S2 ever starts
+    output = operations.show(conn, ticket_id)
 
     assert "brief.md" in output
     assert "pause pending: True" in output

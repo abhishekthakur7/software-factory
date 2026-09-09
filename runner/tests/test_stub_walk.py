@@ -1,5 +1,5 @@
 """The stub walk: one synthetic ticket from `intake` to `pr_opened` through
-every stub stage `S0`-`S6`, `cli.advance`, and the human decisions its
+every stub stage `S0`-`S6`, `operations.advance`, and the human decisions its
 gates need -- the milestone's exit test for the stage interface, proven
 end to end before any stage becomes real.
 
@@ -29,7 +29,7 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, checklist, cli, envelope, git_trees, governance, guard, launcher, manifest,
+    approvals, artefact_registry, checklist, envelope, git_trees, governance, guard, launcher, manifest, operations,
     owners, project, publication, queue, recipes, record, run_ledger, setup, stages, tickets, waivers,
 )
 from runner.adapters import cursor_sdk
@@ -215,7 +215,7 @@ def _kill_and_restart(conn, ticket_id, stage, tmp_path):
     follows it with no duplicate row for the killed attempt.
     """
     dead_id = _open_dead_run(conn, ticket_id=ticket_id, stage=stage, lease_seconds=-1)
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
@@ -231,7 +231,7 @@ def _kill_and_restart(conn, ticket_id, stage, tmp_path):
 def _kill_and_record_s5_security_blind_spot(conn, ticket_id, tmp_path) -> tuple[int, int]:
     """Restart S5 once and retain its sole waivable security gap for the review tuple waiver."""
     dead_id = _open_dead_run(conn, ticket_id=ticket_id, stage="S5", lease_seconds=-1)
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
@@ -376,7 +376,7 @@ def _run_walk(tmp_path) -> WalkResult:
     _seed_ticket_source(conn, ticket_id, tmp_path)
 
     # criterion 14: a stage invoked from a state the transition table does not permit is refused and recorded.
-    wrong_state_outcome = cli.run(conn, ticket_id, "S4", runs_dir=tmp_path)
+    wrong_state_outcome = operations.run(conn, ticket_id, "S4", runs_dir=tmp_path)
     assert wrong_state_outcome == "refused"
     wrong_state_row = conn.execute(
         "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id LIMIT 1", (ticket_id,)
@@ -390,7 +390,7 @@ def _run_walk(tmp_path) -> WalkResult:
         (ticket_id,),
     ).fetchone()
     queue.act(conn, item_id=eligibility_item["id"], action="granted", actor=ABHISHEK, runs_dir=tmp_path)
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
 
     # A real, fetchable worktree: the now-real S1 needs one to run its
@@ -444,14 +444,14 @@ def _run_walk(tmp_path) -> WalkResult:
     assert record.get(conn, "ticket", ticket_id)["state"] == "plan_review"
 
     _grant_plan_approval(conn, ticket_id, tmp_path)
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
 
     # criterion 16 (stop half): a live S4 run stopped ends `aborted_human`
     # and escalates; resuming the escalation returns the ticket to `implementing`.
     stopped_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
     # `escalation` is tagged mechanically regardless of which human typed `factory stop`.
-    cli.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="paused for a manual look")
+    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="paused for a manual look")
     assert record.get(conn, "stage_run", stopped_run_id)["outcome"] == "aborted_human"
     assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
     escalation_item = conn.execute(
@@ -475,16 +475,16 @@ def _run_walk(tmp_path) -> WalkResult:
     # criterion 16 (pause half), 6, 8, 12: a pending pause takes effect at
     # the next boundary, before S5 ever starts, and repeating the same
     # boundary opens no duplicate `manual_pause` item.
-    cli.pause(conn, ticket_id)
-    paused_result = cli.advance(conn, ticket_id, tmp_path)
+    operations.pause(conn, ticket_id)
+    paused_result = operations.advance(conn, ticket_id, tmp_path)
     assert paused_result == f"ticket {ticket_id}: paused at checks"
-    cli.advance(conn, ticket_id, tmp_path)
+    operations.advance(conn, ticket_id, tmp_path)
     manual_pause_items = conn.execute(
         "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'manual_pause'", (ticket_id,)
     ).fetchall()
     assert len(manual_pause_items) == 1
     assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = 'S5'", (ticket_id,)).fetchone()[0] == 0
-    cli.resume(conn, ticket_id, actor=ABHISHEK)
+    operations.resume(conn, ticket_id, actor=ABHISHEK)
 
     # S5 is a real driver now: it runs the pilot project's own Java
     # recipes over real base/head checkouts, so without a JDK it cannot
@@ -504,25 +504,33 @@ def _run_walk(tmp_path) -> WalkResult:
     security_evidence = record.get(conn, "artefact", security_result["evidence_artefact"])
     assert security_evidence is not None and Path(security_evidence["path"]).is_file()
     expires_at = (datetime.fromisoformat(record.now()) + timedelta(days=1)).isoformat()
-    message = cli.waive(
-        conn, ticket_id=ticket_id, policy_id="recipe-execution-gap", check_result_id=security_blind_spot_id,
-        human_verdict_id=None, actor=ABHISHEK, reason="security feeds are unavailable in the fixture environment",
-        scope="fixture_security head recipe", controls="local secret and static checks remain recorded", evidence=[security_evidence["id"]],
-        expires_at=expires_at,
+    red_check_item = conn.execute(
+        "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'red_check' AND resolved_at IS NULL ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    message = queue.act(
+        conn, item_id=red_check_item["id"], action="waiver", actor=ABHISHEK, evidence=[security_evidence["id"]],
+        fields={
+            "policy_id": "recipe-execution-gap", "check_result_id": security_blind_spot_id,
+            "reason": "security feeds are unavailable in the fixture environment",
+            "scope": "fixture_security head recipe", "controls": "local secret and static checks remain recorded",
+            "expires_at": expires_at,
+        },
+        runs_dir=tmp_path,
     )
-    assert message.startswith("waiver ")
-    security_waiver_id = int(message.split()[1].rstrip(":"))
+    assert "waiver" in message and "issued" in message
+    security_waiver_id = int(message.split("waiver ")[1].split()[0])
     assert waivers.validity(conn, security_waiver_id).valid
     conn.commit()
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
     _kill_and_restart(conn, ticket_id, "S6", tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
 
-    cli.advance(conn, ticket_id, tmp_path)  # checks_gate: both S5 and S6 passed
+    operations.advance(conn, ticket_id, tmp_path)  # checks_gate: both S5 and S6 passed
     assert record.get(conn, "ticket", ticket_id)["state"] == "review"
 
     _grant_packet_approval(conn, ticket_id, tmp_path)
-    cli.advance(conn, ticket_id, tmp_path)  # reconciles the pr_create intent, then review_quorum_reconciled
+    operations.advance(conn, ticket_id, tmp_path)  # reconciles the pr_create intent, then review_quorum_reconciled
 
     manifest_hash_after = _manifest_hash()
 

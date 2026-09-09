@@ -113,3 +113,5 @@ tickets:
   T-B-02: []
   T-B-03: []
   T-B-04: []
+  T-B-05:
+  - scripts/tools/fixture_from_export

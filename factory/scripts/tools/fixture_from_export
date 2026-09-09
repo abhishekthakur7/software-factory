@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Turn one governed ticket export into the first redacted fixture under the `tickets/` eval kind.
+
+Standalone by design, like `manifest_hash` and `report`: no import of
+`runner`, so building an eval fixture from an export directory the
+control plane already wrote never needs the trusted control plane loaded
+again. The export directory is copied verbatim -- its own `manifest.json`
+already carries the content hash a reviewer or a later reader can check
+the copy against -- and the redaction review this script writes down
+records who looked at it, when, which fields they redacted, and that
+same content hash, so a later reader of the eval directory never has to
+reconstruct any of it from git history.
+"""
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+import yaml
+
+DEFAULT_TARGET_FAILURE_MODES = ["FM-25"]
+
+
+def _repo_root() -> Path:
+    result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit("not inside a git repository; pass --root")
+    return Path(result.stdout.strip())
+
+
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="fixture_from_export")
+    parser.add_argument("export_dir", type=Path)
+    parser.add_argument("ticket_id")
+    parser.add_argument("--reviewer", required=True)
+    parser.add_argument("--redacted-fields", default="", dest="redacted_fields")
+    parser.add_argument("--root", type=Path, default=None)
+    parser.add_argument("--now", default=None)
+    return parser.parse_args(argv)
+
+
+def build_fixture(
+    export_dir: Path, ticket_id: str, *, reviewer: str, redacted_fields: list[str], root: Path, now: str,
+) -> Path:
+    """Copy `export_dir` under `root/factory/evals/tickets/<ticket_id>/fixtures/export/` and write its `eval.yaml`.
+
+    Refuses (`FileNotFoundError`) before copying anything when
+    `export_dir` carries no `manifest.json`: its `content_hash` is what
+    the redaction review below names as `export_content_hash`, so there
+    is nothing honest to write without it.
+    """
+    manifest_path = export_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"no manifest.json under {export_dir}")
+    manifest = json.loads(manifest_path.read_text())
+
+    ticket_eval_dir = root / "factory" / "evals" / "tickets" / str(ticket_id)
+    fixture_export_dir = ticket_eval_dir / "fixtures" / "export"
+    if fixture_export_dir.exists():
+        shutil.rmtree(fixture_export_dir)
+    shutil.copytree(export_dir, fixture_export_dir)
+
+    spec = {
+        "owner": reviewer,
+        "target_failure_modes": list(DEFAULT_TARGET_FAILURE_MODES),
+        "redaction_review": {
+            "reviewer_identity": reviewer,
+            "reviewed_at": now,
+            "redacted_fields": redacted_fields,
+            "export_content_hash": manifest["content_hash"],
+        },
+        "cases": [{"name": "export", "fixture": "fixtures/export", "expect": "ok"}],
+    }
+    (ticket_eval_dir / "eval.yaml").write_text(yaml.safe_dump(spec, sort_keys=False))
+    return ticket_eval_dir
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    root = args.root if args.root is not None else _repo_root()
+    redacted_fields = [field for field in args.redacted_fields.split(",") if field]
+    now = args.now or datetime.now(UTC).isoformat(timespec="seconds")
+
+    try:
+        ticket_eval_dir = build_fixture(
+            args.export_dir, args.ticket_id, reviewer=args.reviewer, redacted_fields=redacted_fields,
+            root=root, now=now,
+        )
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    print(f"ticket {args.ticket_id}: fixture written to {ticket_eval_dir}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,18 +1,17 @@
-"""The `factory` command: `advance`, `run`, `show`, `pause`, `resume`, `stop`, `queue`, `act`, `abandon`, `refresh-base`, `migrate-manifest`, `export`, `import`, `purge`, `tag`, `report`.
+"""The `factory` command: `advance`, `run`, `show`, `pause`, `resume`, `stop`, `queue`, `act`, `abandon`, `refresh-base`, `migrate-manifest`, `export`, `import`, `purge`, `tag`, `report`, `graduate`, `digest`.
 
-Each verb is a thin wrapper over an in-process function (`runner.operations`
-for the verbs with no module of their own) so tests and any later API call
-the function directly without going through argument parsing at all.
-`show`'s `--artefact` form and every human decision `act` accepts,
-`waiver` issuance included, both route through this same thin-wrapper
-convention rather than a dedicated CLI-only code path.
+Every verb maps to exactly one name `runner.stage_interface` exports, so
+this module is only argument parsing: it imports nothing else from
+`runner/` but `runner.paths`, and a test (or any later API client) calls
+the exported function directly without going through argument parsing at
+all. `show --artefact` is the `show` verb's governed-artefact form, and
+every human decision `act` accepts, waiver issuance and batch verdicts
+included, arrives as one `fields` mapping of that action's own flags.
 """
 import argparse
 from pathlib import Path
 
-from runner import export, freshness, graduation, manifest, queue, refresh_base, tags
-from runner.db import connect
-from runner.operations import advance, digest_open_items, pause, report, resume, run, show, show_artefact, stop
+from runner import stage_interface as api
 from runner.paths import RUNS_DIR
 
 
@@ -72,8 +71,8 @@ def main(argv: list[str] | None = None) -> int:
     act_parser.add_argument("--self-contained", dest="self_contained", choices=("yes", "no"))
     act_parser.add_argument("--consequential", choices=("yes", "no"))
     act_parser.add_argument("--hard-to-reverse", dest="hard_to_reverse", choices=("yes", "no"))
-    # A waiver's own flags, shared with `--verdict` (the covered human
-    # verdict's id) and `--evidence` above rather than duplicated.
+    # A waiver's own flags; `--verdict` above doubles as the covered human
+    # verdict's id and `--evidence` as its evidence list.
     act_parser.add_argument("--policy", dest="policy_id")
     act_parser.add_argument("--check-result", type=int, dest="check_result_id")
     act_parser.add_argument("--reason")
@@ -172,29 +171,29 @@ def main(argv: list[str] | None = None) -> int:
     # The run tree lives beside the database: one root holds every piece of
     # run state, so pointing `--db` elsewhere moves the artefacts with it.
     runs_dir = args.db.parent
-    conn = connect(args.db)
+    conn = api.connect(args.db)
     try:
         if args.verb == "advance":
-            print(advance(conn, args.ticket_id, runs_dir))
+            print(api.advance(conn, args.ticket_id, runs_dir))
         elif args.verb == "run":
-            print(run(conn, args.ticket_id, args.stage, runs_dir))
+            print(api.run_stage(conn, args.ticket_id, args.stage, runs_dir=runs_dir))
         elif args.verb == "show":
             if args.artefact_id is not None:
                 if not args.actor:
                     raise SystemExit("show --artefact requires --actor")
-                print(show_artefact(conn, args.artefact_id, actor=args.actor))
+                print(api.show_artefact(conn, args.artefact_id, actor=args.actor))
             elif args.ticket_id is not None:
-                print(show(conn, args.ticket_id))
+                print(api.show(conn, args.ticket_id))
             else:
                 raise SystemExit("show requires a ticket_id or --artefact")
         elif args.verb == "pause":
-            print(pause(conn, args.ticket_id))
+            print(api.pause(conn, args.ticket_id))
         elif args.verb == "resume":
-            print(resume(conn, args.ticket_id, actor=args.actor, runs_dir=runs_dir))
+            print(api.resume(conn, args.ticket_id, actor=args.actor, runs_dir=runs_dir))
         elif args.verb == "stop":
-            print(stop(conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note))
+            print(api.stop(conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note))
         elif args.verb == "queue":
-            print(queue.list_queue(conn, include_resolved=args.show_all))
+            print(api.queue(conn, include_resolved=args.show_all))
         elif args.verb == "act":
             evidence = [int(item) for item in args.evidence.split(",")] if args.evidence else None
             fields = {
@@ -206,39 +205,38 @@ def main(argv: list[str] | None = None) -> int:
                 "through": args.through, "root": args.root, "severity": args.severity,
                 "occurred_at": args.occurred_at, "event": args.event, "attribution": args.attribution,
                 "disposition": args.disposition, "remediation_ref": args.remediation_ref, "category": args.category,
-                "verdicts_file": args.file,
+                "verdicts_file": args.file, "consequential": args.consequential, "hard_to_reverse": args.hard_to_reverse,
+                "policy_id": args.policy_id, "check_result_id": args.check_result_id, "reason": args.reason,
+                "scope": args.scope, "controls": args.controls, "expires_at": args.expires_at,
             }
-            print(queue.act(
+            print(api.act(
                 conn, item_id=args.item_id, ticket_id=args.ticket_id, action=args.action, actor=args.actor,
                 bucket=args.bucket, note=args.note, to=args.to, fm_id=args.fm,
                 category=args.category, severity=args.severity, option=args.option,
                 tier=args.tier, line=args.line, key=args.key, verdict=args.verdict,
                 evidence=evidence, waiver=args.waiver, self_contained=args.self_contained,
-                consequential=args.consequential, hard_to_reverse=args.hard_to_reverse,
-                policy_id=args.policy_id, check_result_id=args.check_result_id, reason=args.reason,
-                scope=args.scope, controls=args.controls, expires_at=args.expires_at,
                 fields=fields, runs_dir=runs_dir,
             ))
         elif args.verb == "abandon":
-            print(queue.abandon(
+            print(api.abandon(
                 conn, args.ticket_id, actor=args.actor, fm_id=args.fm, note=args.note, runs_dir=runs_dir,
             ))
         elif args.verb == "refresh-base":
-            print(refresh_base.refresh_base(
+            print(api.refresh_base(
                 conn, args.ticket_id, actor=args.actor, note=args.note,
-                target_branch=freshness.target_branch(), runs_dir=runs_dir,
+                target_branch=api.target_branch(), runs_dir=runs_dir,
             ))
         elif args.verb == "migrate-manifest":
-            print(manifest.migrate(conn, actor=args.actor, note=args.note))
+            print(api.migrate_manifest(conn, actor=args.actor, note=args.note))
         elif args.verb == "tag":
-            print(tags.tag(
+            print(api.tag(
                 conn, target=args.target, kind=args.kind, fm_id=args.fm,
                 actor=args.actor, note=args.note, severity=args.severity,
                 resolves_tag_id=args.resolves, resolution_evidence_ref=args.resolution_evidence,
             ))
         elif args.verb == "report":
             print(
-                report(
+                api.report(
                     args.db,
                     manifest_hash=args.manifest_hash,
                     window_days=args.window_days,
@@ -248,27 +246,27 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.verb == "graduate":
             if args.graduate_verb == "evaluate":
-                print(graduation.evaluate(conn, cutoff=args.cutoff))
+                print(api.graduate_evaluate(conn, cutoff=args.cutoff))
             elif args.graduate_verb == "approve":
-                print(graduation.approve(
+                print(api.graduate_approve(
                     conn, args.report_artefact_id, actor=args.actor, config_path=args.config_path,
                     config_hash=args.config_hash, expires_at=args.expires_at, note=args.note,
                 ))
             elif args.graduate_verb == "reject":
-                print(graduation.reject(
+                print(api.graduate_approve(
                     conn, args.report_artefact_id, actor=args.actor, config_path=args.config_path,
-                    config_hash=args.config_hash, expires_at=args.expires_at, note=args.note,
+                    config_hash=args.config_hash, decision="reject", expires_at=args.expires_at, note=args.note,
                 ))
         elif args.verb == "digest":
-            print(digest_open_items(conn, runs_dir))
+            print(api.digest(conn, runs_dir))
         elif args.verb == "export":
-            result = export.export_ticket(conn, args.ticket_id, runs_dir=runs_dir)
+            result = api.export(conn, args.ticket_id, runs_dir=runs_dir)
             print(f"ticket {args.ticket_id}: exported to {result['export_dir']}")
         elif args.verb == "import":
-            result = export.import_export(conn, args.export_dir, runs_dir=runs_dir)
+            result = api.import_record(conn, args.export_dir, runs_dir=runs_dir)
             print(f"imported ticket {result['ticket_id']} from {args.export_dir}")
         elif args.verb == "purge":
-            print(export.purge_export(conn, args.export_dir))
+            print(api.purge(conn, args.export_dir))
         conn.commit()
     finally:
         conn.close()

@@ -337,10 +337,9 @@ def _override(
 
 
 def _question_override(
-    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, note: str | None, fm_id: str | None,
-    consequential: str | None, hard_to_reverse: str | None,
+    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, note: str | None, fm_id: str | None, fields: dict,
 ) -> None:
-    """Correct a question's `consequential` and/or `hard_to_reverse` flag through `questions.correct_flag`.
+    """Correct a question's `consequential` and/or `hard_to_reverse` flag (`fields`) through `questions.correct_flag`.
 
     Distinct from `_override` above (an eligibility item's tier
     correction): this writes no ticket field and resolves no item -- a
@@ -353,6 +352,7 @@ def _question_override(
     table, _, raw_id = (item["ref"] or "").partition(":")
     if table != "question" or not raw_id:
         raise ActionRefused(f"question item {item['id']} names no question: {item['ref']!r}")
+    consequential, hard_to_reverse = fields.get("consequential"), fields.get("hard_to_reverse")
     if consequential is None and hard_to_reverse is None:
         raise ActionRefused("override requires --consequential and/or --hard-to-reverse")
     if not note:
@@ -716,11 +716,15 @@ def _write_packet_defect(conn: sqlite3.Connection, *, target: str, actor: str, n
 
 
 def _issue_waiver(
-    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, policy_id: str | None,
-    check_result_id: int | None, human_verdict_id: str | None, reason: str | None, scope: str | None,
-    controls: str | None, evidence: list[int] | None, expires_at: str | None,
+    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, human_verdict_id: str | None,
+    evidence: list[int] | None, fields: dict,
 ) -> int:
     """Issue a waiver over `item`'s ticket through `waivers.issue`, the one policy-checked write a waiver ever takes.
+
+    `fields` carries the waiver's own flags (`policy_id`, `check_result_id`,
+    `reason`, `scope`, `controls`, `expires_at`); the covered human verdict
+    and the evidence list arrive through the `--verdict` and `--evidence`
+    flags every verdict action already has.
 
     Never resolves `item`: `waivers.issue` already resolves a `red_check`
     itself, through `queue.resolve_by_waiver`, once every blocking result
@@ -729,11 +733,14 @@ def _issue_waiver(
     """
     from runner import waivers
 
+    missing = [name for name in ("policy_id", "reason", "scope", "controls", "expires_at") if not fields.get(name)]
+    if missing:
+        raise ActionRefused(f"waiver requires {', '.join('--' + name.replace('_id', '').replace('_', '-') for name in missing)}")
     return waivers.issue(
-        conn, ticket_id=item["ticket_id"], policy_id=policy_id, check_result_id=check_result_id,
+        conn, ticket_id=item["ticket_id"], policy_id=fields["policy_id"], check_result_id=fields.get("check_result_id"),
         human_verdict_id=int(human_verdict_id) if human_verdict_id is not None else None,
-        actor=actor, reason=reason or "", scope=scope or "", compensating_controls=controls or "",
-        evidence_ids=evidence or [], expires_at=expires_at or "",
+        actor=actor, reason=fields["reason"], scope=fields["scope"], compensating_controls=fields["controls"],
+        evidence_ids=evidence or [], expires_at=fields["expires_at"],
     )
 
 
@@ -758,14 +765,6 @@ def act(
     evidence: list[int] | None = None,
     waiver: int | None = None,
     self_contained: str | None = None,
-    consequential: str | None = None,
-    hard_to_reverse: str | None = None,
-    policy_id: str | None = None,
-    check_result_id: int | None = None,
-    reason: str | None = None,
-    scope: str | None = None,
-    controls: str | None = None,
-    expires_at: str | None = None,
     fields: dict | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
     runs_dir: Path = RUNS_DIR,
@@ -862,17 +861,12 @@ def act(
 
     if action == "waiver":
         waiver_id = _issue_waiver(
-            conn, item, actor=actor, policy_id=policy_id, check_result_id=check_result_id,
-            human_verdict_id=verdict, reason=reason, scope=scope, controls=controls,
-            evidence=evidence, expires_at=expires_at,
+            conn, item, actor=actor, human_verdict_id=verdict, evidence=evidence, fields=fields or {},
         )
         return f"queue item {item_id}: waiver {waiver_id} issued"
 
     if kind == "question" and action == "override":
-        _question_override(
-            conn, item, actor=actor, note=note, fm_id=fm_id,
-            consequential=consequential, hard_to_reverse=hard_to_reverse,
-        )
+        _question_override(conn, item, actor=actor, note=note, fm_id=fm_id, fields=fields or {})
         return f"queue item {item_id}: override recorded"
 
     if kind == "pr_outcome" and action in ("revision", "outcome"):

@@ -65,7 +65,7 @@ def test_question_override_corrects_a_flag_records_the_reason_and_leaves_the_ite
 
     queue.act(
         conn, item_id=item_id, action="override", actor=ABHISHEK,
-        consequential="yes", note="answering this also changes a public interface", fm_id="FM-07",
+        fields={"consequential": "yes"}, note="answering this also changes a public interface", fm_id="FM-07",
     )
 
     after = record.get(conn, "question", question_id)
@@ -264,9 +264,12 @@ def test_a_policy_permitted_waiver_is_accepted_through_act(conn, tmp_path):
     evidence_id = artefact_registry.latest(conn, ticket_id, "plan")["id"]
 
     result = queue.act(
-        conn, item_id=item_id, action="waiver", actor=ABHISHEK, policy_id=PLAN_POLICY_ID, verdict=str(verdict_id),
-        reason="owner mismatch is understood and accepted", scope=f"ticket {ticket_id}: {instance.rubric_line_id}",
-        controls="factory owner reviewed the brief by hand", evidence=[evidence_id], expires_at=_soon(),
+        conn, item_id=item_id, action="waiver", actor=ABHISHEK, verdict=str(verdict_id), evidence=[evidence_id],
+        fields={
+            "policy_id": PLAN_POLICY_ID, "reason": "owner mismatch is understood and accepted",
+            "scope": f"ticket {ticket_id}: {instance.rubric_line_id}",
+            "controls": "factory owner reviewed the brief by hand", "expires_at": _soon(),
+        },
     )
     assert "waiver" in result and "issued" in result
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
@@ -281,9 +284,13 @@ def test_must_reject_a_waiver_from_an_actor_the_exact_policy_does_not_authorise(
     with pytest.raises(waivers.WaiverRefused):
         queue.act(
             conn, item_id=item_id, action="waiver", actor="not_a_reviewer", owners_path=owners_path,
-            policy_id=REVIEW_POLICY_ID, check_result_id=check_result_id,
-            reason="known generated-API gap, reviewed by hand", scope=f"ticket {ticket_id}: behavior_contract_evidence",
-            controls="manual diff review", evidence=[evidence_id], expires_at=_soon(),
+            evidence=[evidence_id],
+            fields={
+                "policy_id": REVIEW_POLICY_ID, "check_result_id": check_result_id,
+                "reason": "known generated-API gap, reviewed by hand",
+                "scope": f"ticket {ticket_id}: behavior_contract_evidence",
+                "controls": "manual diff review", "expires_at": _soon(),
+            },
         )
     assert conn.execute("SELECT COUNT(*) FROM waiver WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 0
 

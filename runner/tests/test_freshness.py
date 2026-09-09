@@ -17,7 +17,7 @@ import pytest
 import yaml
 
 from runner import (
-    approvals, artefact_registry, artefacts, binding, canonical, cli, freshness, gates, git_trees, manifest, operations, outbox,
+    approvals, artefact_registry, artefacts, binding, canonical, freshness, gates, git_trees, manifest, operations, outbox,
     owners, plan_tuple, publication, record, refresh_base, transitions,
 )
 from runner.db import connect
@@ -136,7 +136,7 @@ def test_before_s4_is_fresh_when_the_target_has_not_moved(conn, tmp_path):
 
 
 def test_advance_refuses_s4_on_a_stale_base_and_queues_exactly_one_red_check(conn, tmp_path, monkeypatch):
-    """R-S5-12: the due-stage boundary in `cli.advance`."""
+    """R-S5-12: the due-stage boundary in `operations.advance`."""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="implementing")
@@ -150,7 +150,7 @@ def test_advance_refuses_s4_on_a_stale_base_and_queues_exactly_one_red_check(con
     _write_files(source, fixture["target_commit"]["files"])
     _commit_all(source, fixture["target_commit"]["message"])
 
-    message = cli.advance(conn, ticket_id, runs_dir=runs_dir)
+    message = operations.advance(conn, ticket_id, runs_dir=runs_dir)
     assert "stale" in message
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
     red_checks = conn.execute(
@@ -160,7 +160,7 @@ def test_advance_refuses_s4_on_a_stale_base_and_queues_exactly_one_red_check(con
     assert red_checks[0]["ref"].startswith("check_result:")
 
     # a second advance call finds the same open red_check and queues no second one
-    cli.advance(conn, ticket_id, runs_dir=runs_dir)
+    operations.advance(conn, ticket_id, runs_dir=runs_dir)
     red_checks = conn.execute(
         "SELECT * FROM queue_item WHERE ticket_id = ? AND kind = 'red_check'", (ticket_id,)
     ).fetchall()
