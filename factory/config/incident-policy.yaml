@@ -1,0 +1,50 @@
+# The production and control-defect incident policy: the severity levels a
+# human or the runner may record, each control category's default
+# severity, the closed attribution and disposition value sets a
+# production-incident disposition must fit, and the remediation rule that
+# gates a `remediated` disposition on a real reference.
+
+# The full severity scale, most to least severe. Both a production
+# incident's human-entered severity and a control-defect event's
+# (human- or policy-derived) severity are validated against this set.
+severity_levels: [sev1, sev2, sev3, sev4]
+
+# Every control category's default severity, read when a control-defect
+# event is written with no severity of its own: execution_boundary (an
+# agent or repository build escaping its sandboxed execution boundary),
+# data_boundary (data crossing an unapproved trust boundary),
+# approval_binding (an approval standing after what it approved changed),
+# reviewer_enforcement (a required reviewer slot not actually satisfied),
+# and audit_reconstruction (the record failing to reconstruct what
+# happened). Every category defaults to sev2 in the pilot; a later
+# calibration may split them without changing this file's shape.
+control_categories:
+  data_boundary: sev2
+  execution_boundary: sev2
+  approval_binding: sev2
+  reviewer_enforcement: sev2
+  audit_reconstruction: sev2
+
+# A human-recorded production incident's severity is validated against the
+# same scale every other severity in this file uses; named here so a
+# reader of the policy sees the rule stated for this record kind too,
+# rather than only inferring it from severity_levels' reuse.
+production_incident:
+  severity_from: severity_levels
+
+# production_disposition.attribution's closed set: whether the incident is
+# attributable to this ticket's own change, not attributable to it, or not
+# yet determined.
+attribution_values: [attributable, not_attributable, undetermined]
+
+# production_disposition.disposition's closed set: the incident's
+# remediation state.
+disposition_values: [open, remediated, accepted, not_applicable]
+
+# A `remediated` disposition must carry at least one remediation reference
+# prefixed with one of these -- a catalogue failure mode
+# (`catalogue:<FM-id>`) or a rubric line (`rubric:<path>`) -- so "remediated"
+# always points at what actually changed; every other reference shape is
+# refused.
+remediation_rule:
+  remediated_requires_ref_prefixes: ["catalogue:", "rubric:"]

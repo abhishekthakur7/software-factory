@@ -28,8 +28,8 @@ from pathlib import Path
 import yaml
 
 from runner import (
-    approvals, artefact_registry, artefacts, binding, canonical, freshness, git_trees, plan_tuple, project, queue,
-    record, recipes, reviewer_sets, run_ledger, schema, tags, transitions,
+    approvals, artefact_registry, artefacts, binding, canonical, freshness, git_trees, incident_policy, plan_tuple,
+    project, queue, record, recipes, reviewer_sets, run_ledger, schema, tags, transitions,
 )
 from runner.checks import red_route
 from runner.fs import write_text
@@ -716,14 +716,15 @@ def _control_defect(conn: sqlite3.Connection, ticket: sqlite3.Row, stage_run_id:
     counting reads only `outcome`/`failure_kind`, and neither
     `sandbox_violation` nor `fail`/`recipe_binding` ever qualifies.
     """
+    severity = incident_policy.severity_for(CONTROL_CATEGORY)
     tag_id = tags.tag(
         conn, target=f"stage_run:{stage_run_id}", kind="control_defect", fm_id=CONTROL_DEFECT_FM_ID,
-        actor=RUNNER_ACTOR, severity="sev2", note=f"control defect: {failure_kind}",
+        actor=RUNNER_ACTOR, severity=severity, note=f"control defect: {failure_kind}",
     )
     record.insert(
         conn, "incident_observation", ticket_id=ticket["id"], record_kind="control_defect_event",
         control_category=CONTROL_CATEGORY, recorder_identity=RUNNER_ACTOR, created_at=record.now(),
-        tag_id=tag_id, occurred_at=record.now(), severity="sev2", note=f"control defect: {failure_kind}",
+        tag_id=tag_id, occurred_at=record.now(), severity=severity, note=f"control defect: {failure_kind}",
     )
     transitions.apply(conn, ticket["id"], ESCALATE_EVENT)
     queue.open_item(

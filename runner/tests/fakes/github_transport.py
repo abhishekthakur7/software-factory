@@ -47,7 +47,7 @@ class FakeGitHubTransport:
         identity = str(len(self.pull_requests) + 1)
         row = {
             "identity": identity, "head_sha": self.branches[key], "body_hash": canonical.content_hash({"pr_body": body}),
-            "state": "open", "target_ref": target_ref,
+            "state": "open", "target_ref": target_ref, "body": body,
         }
         self.pull_requests[key] = row
         return identity, dict(row)
@@ -57,5 +57,13 @@ class FakeGitHubTransport:
         row = next((row for (repo, _ref), row in self.pull_requests.items() if repo == repository and row["identity"] == identity), None)
         if row is None or row["state"] != "open":
             raise GitHubRemoteRefused("pull request is not open")
-        row.update(head_sha=next(sha for (repo, ref), sha in self.branches.items() if repo == repository and self.pull_requests[(repo, ref)] is row), target_ref=target_ref, body_hash=canonical.content_hash({"pr_body": body}))
+        row.update(head_sha=next(sha for (repo, ref), sha in self.branches.items() if repo == repository and self.pull_requests[(repo, ref)] is row), target_ref=target_ref, body_hash=canonical.content_hash({"pr_body": body}), body=body)
         return dict(row)
+
+    def pull_request_body(self, repository: str, identity: str) -> Mapping:
+        """The observed-outcome locator read: the remote pull request's current head SHA and body text."""
+        self.calls.append(("pull_request_body", {"repository": repository, "identity": identity}))
+        row = next((row for (repo, _ref), row in self.pull_requests.items() if repo == repository and row["identity"] == identity), None)
+        if row is None:
+            raise GitHubRemoteRefused(f"no such pull request: {repository}#{identity}")
+        return {"head_sha": row["head_sha"], "body": row.get("body", "")}

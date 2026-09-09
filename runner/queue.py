@@ -52,8 +52,14 @@ ACTIONS: dict[str, frozenset[str]] = {
     "escalation": frozenset({"resume", "send_back", "abandon"}),
     "manual_pause": frozenset({"resume", "stop", "send_back"}),
     "rubric_inspection": frozenset({"close_inspection"}),
-    "pr_outcome": frozenset(),
+    "pr_outcome": frozenset({"revision", "outcome"}),
 }
+
+# Ticket-scoped actions `act` dispatches with no queue item at all --
+# `--ticket <id>` and no `item_id` -- each recording a row in the
+# production-coverage or incident series independently of, and any time
+# after, the `pr_outcome` item's own `outcome` action.
+TICKET_ACTIONS: frozenset[str] = frozenset({"exposure", "coverage", "incident_event", "disposition"})
 
 CONTROL_EVENT = "control_event"
 
@@ -573,33 +579,6 @@ def _resume(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
     transitions.apply(conn, item["ticket_id"], event)
 
 
-def _record_control_event(
-    conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, owners_obj: owners.Owners,
-    category: str | None, severity: str | None, fm_id: str | None, note: str | None,
-) -> None:
-    if not category:
-        raise ActionRefused("control_event requires --category")
-    if not severity:
-        raise ActionRefused("control_event requires --severity")
-    record.insert(
-        conn,
-        "incident_observation",
-        ticket_id=item["ticket_id"],
-        record_kind="control_defect_event",
-        control_category=category,
-        recorder_identity=actor,
-        recorder_role=_actor_role(owners_obj, actor),
-        occurred_at=record.now(),
-        severity=severity,
-        note=note,
-        created_at=record.now(),
-    )
-    tags.tag(
-        conn, target=f"queue_item:{item['id']}", kind="control_defect",
-        fm_id=fm_id, actor=actor, note=note, severity=severity,
-    )
-
-
 def _clear_blocked_on(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
     ticket = record.get(conn, "ticket", item["ticket_id"])
     if ticket is not None and ticket["blocked_on"] == item["id"]:
@@ -638,7 +617,8 @@ def _write_packet_defect(conn: sqlite3.Connection, *, target: str, actor: str, n
 def act(
     conn: sqlite3.Connection,
     *,
-    item_id: int,
+    item_id: int | None = None,
+    ticket_id: int | None = None,
     action: str,
     actor: str,
     bucket: str | None = None,
@@ -655,10 +635,11 @@ def act(
     evidence: list[int] | None = None,
     waiver: int | None = None,
     self_contained: str | None = None,
+    fields: dict | None = None,
     owners_path: Path = owners.DEFAULT_OWNERS_PATH,
     runs_dir: Path = RUNS_DIR,
 ) -> str:
-    """Record a human decision on `item_id` and, where the action permits it, apply its effect.
+    """Record a human decision on `item_id`, or a ticket-scoped observation on `ticket_id`, and apply its effect.
 
     Raises `LookupError` for an unknown item and `ActionRefused` for every
     other refusal: an already-resolved item, an action not in this kind's
@@ -674,7 +655,28 @@ def act(
     exact `approval_record` (a plan or review decision), `question` (an
     answer), or `failure_history` artefact (an escalation) the false
     self-containedness answer was about (R-H-8).
+
+    With `item_id` omitted and `ticket_id` given, `action` must be one of
+    `TICKET_ACTIONS`: the production-coverage and incident series a ticket
+    may extend at any time after its outcome is recorded, with no queue
+    item involved and nothing to resolve.
     """
+    if item_id is None:
+        if ticket_id is None:
+            raise ActionRefused("act requires either item_id or ticket_id")
+        if action not in TICKET_ACTIONS:
+            raise ActionRefused(f"action {action!r} is not a ticket-scoped action; must be one of {sorted(TICKET_ACTIONS)}")
+        owners_obj = owners.load_owners(owners_path)
+        if actor not in _known_identities(owners_obj):
+            raise ActionRefused(f"unknown actor identity: {actor!r}")
+        # Deferred import: `outcome` imports this module at its own top
+        # level for `queue.ActionRefused` and `queue.abandon`, so importing
+        # it back here at module scope would cycle -- the same shape as
+        # the `control` import above.
+        from runner import outcome
+        getattr(outcome, action)(conn, ticket_id=ticket_id, actor=actor, owners_obj=owners_obj, fields=fields or {})
+        return f"ticket {ticket_id}: {action} recorded"
+
     item = record.get(conn, "queue_item", item_id)
     if item is None:
         raise LookupError(f"no such queue item: {item_id}")
@@ -716,11 +718,21 @@ def act(
         raise ActionRefused(f"action {action!r} requires --self-contained yes|no")
 
     if action == CONTROL_EVENT:
-        _record_control_event(
-            conn, item, actor=actor, owners_obj=owners_obj, category=category,
-            severity=severity, fm_id=fm_id, note=note,
+        from runner import outcome
+        outcome.control_event(
+            conn, item, actor=actor, owners_obj=owners_obj,
+            fields={"category": category, "severity": severity, "fm_id": fm_id, "note": note},
         )
         return f"queue item {item_id}: control event recorded"
+
+    if kind == "pr_outcome" and action in ("revision", "outcome"):
+        from runner import outcome
+        getattr(outcome, action)(
+            conn, ticket_id=item["ticket_id"], actor=actor, owners_obj=owners_obj,
+            fields=fields or {}, runs_dir=runs_dir,
+        )
+        _resolve(conn, item, actor=actor, action=action, note=note, bucket=bucket, owners_obj=owners_obj)
+        return f"queue item {item_id}: resolved with {action}"
 
     if action == "verdict":
         # A verdict resolves the item only on a `fail` (a send-back); a

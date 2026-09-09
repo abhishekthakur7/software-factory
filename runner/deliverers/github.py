@@ -35,6 +35,7 @@ class GitHubTransport(Protocol):
     def push_branch(self, repository: str, ref: str, head_sha: str, expected_head: str | None) -> None: ...
     def create_pull_request(self, repository: str, *, head_ref: str, target_ref: str, body: str) -> tuple[str, Mapping]: ...
     def update_pull_request(self, repository: str, identity: str, *, target_ref: str, body: str) -> Mapping: ...
+    def pull_request_body(self, repository: str, identity: str) -> Mapping: ...
 
 
 class GitHubRemoteRefused(RemoteRefused):
@@ -157,6 +158,13 @@ class GitHubRestClient:
         row = self._request("PATCH", f"/repos/{repository}/pulls/{identity}", {"base": target_ref, "body": body})
         return self._pr(row)
 
+    def pull_request_body(self, repository: str, identity: str) -> Mapping:
+        """The remote pull request's current head SHA and body text, for the observed-outcome locator read."""
+        row = self._request("GET", f"/repos/{repository}/pulls/{identity}")
+        if row is None:
+            raise GitHubRemoteRefused(f"no such pull request: {repository}#{identity}")
+        return {"head_sha": row["head"]["sha"], "body": row.get("body") or ""}
+
 
 class GitHubDeliverer:
     """A pull-request deliverer over an injected remote client, safe for fake or live use."""
@@ -211,6 +219,9 @@ class GitHubDeliverer:
 
     def open_pull_request(self, repository: str, head_ref: str) -> tuple[str, Mapping] | None:
         return self._remote().open_pull_request(repository, head_ref)
+
+    def pull_request_body(self, repository: str, identity: str) -> Mapping:
+        return self._remote().pull_request_body(repository, identity)
 
     @staticmethod
     def _receipt(intent: Mapping, identity: str, pull_request: Mapping) -> Receipt:

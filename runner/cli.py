@@ -45,8 +45,9 @@ def main(argv: list[str] | None = None) -> int:
     queue_parser.add_argument("--all", action="store_true", dest="show_all")
 
     act_parser = subparsers.add_parser("act")
-    act_parser.add_argument("item_id", type=int)
+    act_parser.add_argument("item_id", type=int, nargs="?")
     act_parser.add_argument("action")
+    act_parser.add_argument("--ticket", type=int, dest="ticket_id")
     act_parser.add_argument("--actor", required=True)
     act_parser.add_argument("--bucket")
     act_parser.add_argument("--note")
@@ -62,6 +63,30 @@ def main(argv: list[str] | None = None) -> int:
     act_parser.add_argument("--evidence")
     act_parser.add_argument("--waiver", type=int)
     act_parser.add_argument("--self-contained", dest="self_contained", choices=("yes", "no"))
+    # The manual outcome record's own flags: `revision`'s target stage
+    # reuses `--to`/`--fm`/`--note` above; every other name here is unique
+    # to `outcome`, `exposure`, `coverage`, `incident_event`, and
+    # `disposition`, so they are collected into one `fields` mapping
+    # rather than becoming twenty separate `queue.act` parameters.
+    act_parser.add_argument("--result", choices=("merged", "abandoned"))
+    act_parser.add_argument("--head-sha", dest="head_sha")
+    act_parser.add_argument("--target-base-sha", dest="target_base_sha")
+    act_parser.add_argument("--merge-sha", dest="merge_sha")
+    act_parser.add_argument("--checks", choices=("green", "waived", "red", "unknown"))
+    act_parser.add_argument("--checks-reason", dest="checks_reason")
+    act_parser.add_argument("--observed-at", dest="observed_at")
+    act_parser.add_argument("--body-file", dest="body_file")
+    act_parser.add_argument("--pr-identity", dest="pr_identity")
+    act_parser.add_argument("--observed-head-sha", dest="observed_head_sha")
+    act_parser.add_argument("--start")
+    act_parser.add_argument("--source")
+    act_parser.add_argument("--through")
+    act_parser.add_argument("--root")
+    act_parser.add_argument("--occurred-at", dest="occurred_at")
+    act_parser.add_argument("--event")
+    act_parser.add_argument("--attribution")
+    act_parser.add_argument("--disposition")
+    act_parser.add_argument("--remediation-ref", dest="remediation_ref")
 
     abandon_parser = subparsers.add_parser("abandon")
     abandon_parser.add_argument("ticket_id", type=int)
@@ -138,12 +163,23 @@ def main(argv: list[str] | None = None) -> int:
             print(queue.list_queue(conn, include_resolved=args.show_all))
         elif args.verb == "act":
             evidence = [int(item) for item in args.evidence.split(",")] if args.evidence else None
+            fields = {
+                "to": args.to, "fm_id": args.fm, "note": args.note,
+                "result": args.result, "head_sha": args.head_sha, "target_base_sha": args.target_base_sha,
+                "merge_sha": args.merge_sha, "checks": args.checks, "checks_reason": args.checks_reason,
+                "observed_at": args.observed_at, "body_file": args.body_file, "pr_identity": args.pr_identity,
+                "observed_head_sha": args.observed_head_sha, "start": args.start, "source": args.source,
+                "through": args.through, "root": args.root, "severity": args.severity,
+                "occurred_at": args.occurred_at, "event": args.event, "attribution": args.attribution,
+                "disposition": args.disposition, "remediation_ref": args.remediation_ref, "category": args.category,
+            }
             print(queue.act(
-                conn, item_id=args.item_id, action=args.action, actor=args.actor,
+                conn, item_id=args.item_id, ticket_id=args.ticket_id, action=args.action, actor=args.actor,
                 bucket=args.bucket, note=args.note, to=args.to, fm_id=args.fm,
                 category=args.category, severity=args.severity, option=args.option,
                 tier=args.tier, line=args.line, key=args.key, verdict=args.verdict,
-                evidence=evidence, waiver=args.waiver, self_contained=args.self_contained, runs_dir=runs_dir,
+                evidence=evidence, waiver=args.waiver, self_contained=args.self_contained,
+                fields=fields, runs_dir=runs_dir,
             ))
         elif args.verb == "abandon":
             print(queue.abandon(

@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runner import control, digest, freshness, gates, outbox, project, queue, record, run_ledger, transitions, waivers
+from runner import control, digest, freshness, gates, outbox, outcome, project, queue, record, run_ledger, transitions, waivers
 from runner.paths import FACTORY_DIR, RUNS_DIR
 from runner.stages import DRIVERS, run_stage
 from runner.state_table import STAGE_STATE
@@ -110,6 +110,11 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
     if event is None:
         return f"ticket {ticket_id} is waiting on a human at {ticket['state']}"
     transitions.apply(conn, ticket_id, event)
+    if event == "review_quorum_reconciled":
+        # Non-blocking: the ticket is already in `pr_opened` and stays
+        # there whether or not the item opens, so a caller has no reason
+        # to see this queueing fail `advance` itself.
+        outcome.open_pr_outcome_item(conn, ticket_id)
     return f"ticket {ticket_id}: {event}"
 
 

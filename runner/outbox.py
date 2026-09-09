@@ -352,10 +352,21 @@ def _guard_outbox(
     )
 
 
+def route_and_deliverer(route_id: str, *, profile_path: Path, runs_dir: Path):
+    """The trust profile's `route_id` route and that route's deliverer.
+
+    Public so a caller outside the outbox -- the observed-outcome locator
+    read, which has no `external_write` intent to dispatch by operation --
+    can resolve the same GitHub route (`GITHUB_ROUTE_ID`) and deliverer
+    `_route_and_deliverer` below resolves for a pull-request intent.
+    """
+    route = trust_profile.load_trust_profile(profile_path).routes[route_id]
+    return route, deliverer_for(route, runs_dir)
+
+
 def _route_and_deliverer(write: sqlite3.Row, *, profile_path: Path, runs_dir: Path):
     """The trust-profile route `write`'s operation dispatches through, and that route's deliverer."""
-    route = trust_profile.load_trust_profile(profile_path).routes[ROUTE_FOR_OPERATION[write["operation"]]]
-    return route, deliverer_for(route, runs_dir)
+    return route_and_deliverer(ROUTE_FOR_OPERATION[write["operation"]], profile_path=profile_path, runs_dir=runs_dir)
 
 
 def _receipt_from_pull_request(write: sqlite3.Row, identity: str, pr: Mapping, now: str | None) -> Receipt:
