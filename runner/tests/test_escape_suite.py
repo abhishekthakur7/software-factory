@@ -184,7 +184,7 @@ def test_credentials_probe_no_ambient_credential_material_ever_surfaces(tmp_path
 
 
 def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from_every_mount(tmp_path):
-    """R-T-2 criteria 16-17: an unregistered file beside a registered one is invisible to `artefact_registry.latest`
+    """R-T-2: an unregistered file beside a registered one is invisible to `artefact_registry.latest`
     and absent from the next stage's sandbox, even though both files sit in the very same ticket directory."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn)
