@@ -29,7 +29,7 @@ files:
   - path: factory/config/pricing.yaml
     content_hash: 97eacffbad3dda9e6764f831eaa46c122a1db03a8108dfdb09159f603c0cd160
   - path: factory/config/project.yaml
-    content_hash: 6f5b4dc04354ff64653227ada29290e691b417fca97fea209cd9d25a8a6b2d40
+    content_hash: d0c055b7733d9dfddc81a9cb3515e1da966b6261654f98a8565911f94d90c9ec
   - path: factory/config/runtime.yaml
     content_hash: 26be69a13d9d9a481151f609f6d43c1cc2de013fb4610ab13e1706f1303520c4
   - path: factory/config/sandbox.yaml
@@ -39,11 +39,11 @@ files:
   - path: factory/config/service-tiers.yaml
     content_hash: d807d77e152a5af34391de17bc01262b37b5ba521e3d243d5ba8ac60d200c1af
   - path: factory/config/ticket-types.yaml
-    content_hash: 191d96ef01d4bb295c9f1f2f45f65fe528596ace0129b999f624b05016fc8fbc
+    content_hash: 7fd872b82fdbbc0ad9d5be592ce8008b9d7edac83b3cd614d2bff87723fa1971
   - path: factory/config/tiers.yaml
     content_hash: ead3cce3050dc53e9813b1a09aca41117f2c2d0719f6be67929258e28ff7c88d
   - path: factory/config/trust-profile.yaml
-    content_hash: 2a84c78281fdf7d584e8f8eaf8853a20ac85e1af28671f3c24ab46bb78bf7549
+    content_hash: 92dafbb803dcae8cf7b620d3358720ebe77ea1619ef9e8f7062d96a54a8d2ace
   - path: factory/config/waiver-policy.yaml
     content_hash: 5946acc82e75dcd4686e797cdfed0a465940ab66897dbd8c817f00e8619ef59c
   - path: factory/evals/adapters/cursor_sdk/eval.yaml
@@ -378,8 +378,12 @@ files:
     content_hash: d3386b69b1732881f4208c02b3790d0fd292cbe18851f7429c498aaacfe633d3
   - path: factory/evals/bootstrap/T-A-35/plan.md
     content_hash: 8b05b814ae92fc2f64456204eb0c75fefd688be568cc33f0adf93c8e1b7f4d62
+  - path: factory/evals/bootstrap/T-AB-04/brief.md
+    content_hash: 93966579fbdce3e6890c6cf028eb5b7063ae828e6a54a89f205f6f3420acd2c5
+  - path: factory/evals/bootstrap/T-AB-04/plan.md
+    content_hash: 99dc75d2f8f398f1e5a1a9933682b2d32f4f44f5d9666fbe27ab1c29e3ec70ae
   - path: factory/evals/bootstrap/eval.yaml
-    content_hash: bc78e24496efb84afc6a35892d839e7557600bc5d141f96d27b04ecae3158042
+    content_hash: f8497e339819f2bcf92b15810a7ffb3ac8014ba0653a360221308320771711ed
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml

@@ -97,8 +97,8 @@ routes:
     max_class: confidential
     deliverer: stub
 
-  github_pr:
-    purpose: open or update the ticket's pull request on the admitted repository
+  github_pilot:
+    purpose: open or update the ticket's pull request on the pilot repository
     operations: [pr_create, pr_update]
     fields: [branch_ref, head_sha, pr_body, target_ref]
     provider: github_rest_api
@@ -109,6 +109,102 @@ routes:
     subprocessors: [github]
     residency: us
     reader_roles: [ticket_engineer, s6_reviewer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: internal
+    deliverer: stub
+
+  github_scratch:
+    purpose: open or update the ticket's pull request on the throwaway scratch repository, standing in for the pilot repository until it is real
+    operations: [pr_create, pr_update]
+    fields: [branch_ref, head_sha, pr_body, target_ref]
+    provider: github_rest_api
+    processing_location: github_cloud
+    storage_location: github_hosted_repository
+    logging_terms: provider_audit_log
+    training_reuse_terms: no_training_reuse
+    subprocessors: [github]
+    residency: us
+    reader_roles: [ticket_engineer, s6_reviewer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: internal
+    deliverer: stub
+
+  atlassian_read:
+    purpose: read a ticket's linked Jira issue for the intake field gate and later stage archaeology
+    fields: [customfield_10010, assignee, parent, customfield_10011, issuetype, summary, description, labels, estimate]
+    provider: atlassian_jira_cloud_api
+    processing_location: provider_cloud
+    storage_location: none_transient
+    logging_terms: provider_audit_log
+    training_reuse_terms: no_training_reuse
+    subprocessors: [atlassian]
+    residency: us
+    reader_roles: [ticket_engineer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: confidential
+    deliverer: live
+
+  baseline_read:
+    purpose: read the target repository's baseline coverage and defect history, and the Jira issues its commits reference, for archaeology and drift baselines
+    fields: [baseline_metric, issue_reference, commit_sha]
+    provider: internal_baseline_service
+    processing_location: factory_host
+    storage_location: none_transient
+    logging_terms: audit_logged
+    training_reuse_terms: not_applicable
+    subprocessors: []
+    residency: us
+    reader_roles: [ticket_engineer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: internal
+    deliverer: stub
+
+  registry:
+    purpose: resolve a service's own dependency coordinates against the shared artifact registry for impact scanning
+    fields: [artifact_coordinate, dependency_graph]
+    provider: internal_artifact_registry
+    processing_location: factory_host
+    storage_location: none_transient
+    logging_terms: audit_logged
+    training_reuse_terms: not_applicable
+    subprocessors: []
+    residency: us
+    reader_roles: [ticket_engineer]
+    export_rule:
+      allowed_formats: []
+      max_class: public
+    retention_days: 0
+    rule_set_hash: *rule_set_hash
+    max_class: internal
+    deliverer: stub
+
+  vulnerability_feed:
+    purpose: check a dependency's known vulnerabilities against the security team's feed before a build recipe pins it
+    fields: [package_coordinate, advisory_id, severity]
+    provider: internal_vulnerability_feed
+    processing_location: factory_host
+    storage_location: none_transient
+    logging_terms: audit_logged
+    training_reuse_terms: not_applicable
+    subprocessors: []
+    residency: us
+    reader_roles: [ticket_engineer]
     export_rule:
       allowed_formats: []
       max_class: public
