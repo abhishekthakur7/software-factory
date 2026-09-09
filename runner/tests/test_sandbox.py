@@ -238,7 +238,8 @@ def test_sandbox_yaml_proxy_allowlist_resolves_to_route_host_port_per_stage():
     policy = doc["policies"]["enforced"]
     endpoints = policy["endpoints"]
     assert _resolve_allowlist(policy, "S1") == [
-        proxy.Endpoint(route_id="hosted_model", host=endpoints["hosted_model"]["host"], port=endpoints["hosted_model"]["port"])
+        proxy.Endpoint(route_id="hosted_model", host=endpoints["hosted_model"]["host"], port=endpoints["hosted_model"]["port"]),
+        proxy.Endpoint(route_id="atlassian_read", host=endpoints["atlassian_read"]["host"], port=endpoints["atlassian_read"]["port"]),
     ]
     assert _resolve_allowlist(policy, "S5") == [
         proxy.Endpoint(route_id="registry", host=endpoints["registry"]["host"], port=endpoints["registry"]["port"])

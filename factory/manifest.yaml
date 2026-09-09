@@ -506,6 +506,8 @@ files:
     content_hash: b46090a1061fac87268e6a76402677092159e0afd5f3e21e36f4bc79eecc260f
   - path: factory/evals/rubrics/S3/fixtures/contracts_reject/plan.md
     content_hash: 63b5a75a40d7bbea9d96a7b3b1dc37662f432be6dfc9e81f4a8df75ea0972633
+  - path: factory/evals/rubrics/S3/fixtures/dry_run_brief/brief.md
+    content_hash: 812c441d151e395935cfa27fe84bdb4e406a105efc71096abca9818c6eb3e3cb
   - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-10.yaml
     content_hash: 787362e86c7ee87e97d0119ef95e98d25da6ede5c0b4b8e17ab36eb73dada00a
   - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-2.yaml
@@ -798,6 +800,14 @@ files:
     content_hash: 1168bddad007141507fd2799173cfc0dd1fa6854cc07f37baf3c3ad078f61497
   - path: factory/evals/scripts/checks/source_declaration_diff/fixtures/unchanged_but_changed/plan.md
     content_hash: dc6481bd70d4ff9c94fec95a9f1c5e95adf3960bbf7dac4beff3de217e056e59
+  - path: factory/evals/scripts/tools/archaeology/eval.yaml
+    content_hash: 50d939e778d563ac8e432521bb80a57ba49738f08b73a104b13263bb941f282d
+  - path: factory/evals/scripts/tools/archaeology/fixtures/resolved_issue/candidates.json
+    content_hash: 3613c858c0cc5a769c05b48c419789b60f328ad0655bc283585511a23377dec0
+  - path: factory/evals/scripts/tools/archaeology/fixtures/resolved_issue/issue_FIX-1.json
+    content_hash: cb40cc11c43bbc59a4b068154565506e236d75f303abcd4fd53fb2337b3197c6
+  - path: factory/evals/scripts/tools/archaeology/fixtures/unreadable_candidates_file/candidates.json
+    content_hash: 00130c0cfbbf34060d11eaea7f8051fd8100ec86541a013ce40697da71b30430
   - path: factory/evals/scripts/tools/export/eval.yaml
     content_hash: 06ca00c2b4116dd8e6a6320c00cf7e3763a54fd3e44dc256883b6bbcf32808ca
   - path: factory/evals/scripts/tools/export/fixtures/permitted_ticket/README.md
@@ -1035,7 +1045,7 @@ files:
   - path: factory/scripts/checks/source_declaration_diff
     content_hash: 5ce0b73d7cb9b9494b3b490070c881e299834ae82e00cc232f7c1c486b196ae1
   - path: factory/scripts/tools/archaeology
-    content_hash: 0671182c8252f8a5bd2c6a29b27a9475a053e1ee67bc03ff3112e09a5c7188a1
+    content_hash: a909bf39d22608106543cbc3a117bfe49ae2b40529f59da5c4cdf8103ead4e62
   - path: factory/scripts/tools/export
     content_hash: e3b238ffa0f8c1ca1b82c3f16c665da86b931bd6daec94a5e94b9363ab960b5f
   - path: factory/scripts/tools/handoff_ready

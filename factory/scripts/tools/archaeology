@@ -41,6 +41,14 @@ RESOLVED_STATUSES = frozenset({"Done", "Resolved", "Closed"})
 
 REQUEST_TIMEOUT_SECONDS = 20
 
+# A sandboxed launch always sets HTTPS_PROXY/HTTP_PROXY to its own loopback
+# proxy's address; urllib's default opener consults those and would tunnel
+# this call through it instead of connecting to `--proxy` directly, which
+# is itself already the address to call, not a further hop through another
+# proxy. This opener ignores the environment so `--proxy` is always the
+# actual destination.
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 
 def _blame_commit_shas(worktree: Path, path: str) -> list[str]:
     """Every commit `git blame --line-porcelain` names for `path`, in first-seen order, deduplicated."""
@@ -87,7 +95,7 @@ def _read_issue(proxy: str, route: str, key: str) -> dict | None:
         f"{proxy.rstrip('/')}/routes/{route}", data=body, headers={"Content-Type": "application/json"}, method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        with _OPENER.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             envelope = json.loads(response.read())
     except (urllib.error.URLError, OSError, json.JSONDecodeError, ValueError):
         return None
