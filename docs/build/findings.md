@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Status | Draft v0.4 |
+| Status | Draft v0.5 |
 | Date | 2026-09-10 |
 | Owner | Abhishek Thakur |
 | Reviewed against | `docs/prd/prd.md` v0.18 and its parts; `docs/design/hld/README.md` v0.3 and the L1/L2 files; `docs/design/milestones.md` v0.7 section 3 and Appendix A; `docs/design/tickets/A.md`, `AB.md`, `B.md` |
-| Reviewed code | `runner/`, `factory/`, `tools/`, `runner/tests/` at commit 332b84c (tree clean) |
+| Reviewed code | `runner/`, `factory/`, `tools/`, `runner/tests/` at commit 332b84c (tree clean). File paths and the line ranges of the open findings were re-pointed at commit 66dc571 after the stage rename; line ranges inside fixed findings are as of 332b84c |
 | Out of scope | T-B-06 (live connections, `factory doctor`, runbooks) and T-B-07 (the dry run on the pilot host), not yet built; every PRD row marked Later |
 | Test baseline | `uv run pytest runner/tests -q`: 1857 passed, 4 skipped, 14m44s at v0.1; 1882 passed, 4 skipped, 15m08s after v0.4. The four skips are the loud real-host skips (Cursor key, two Atlassian Keychain reads, the live closing run) |
 
@@ -37,14 +37,14 @@ The owner's rule: the factory cannot yet open a real pull request, so security h
 
 | Finding | Disposition | Decision or note |
 |---|---|---|
-| G-01 fix round return | fixed 2026-09-10 | A passing fix round applies `s4_pass` in the transaction that closes its `validation_only` run; the next `advance` runs a fresh S5 |
+| G-01 fix round return | fixed 2026-09-10 | A passing fix round applies `implementation_pass` in the transaction that closes its `validation_only` run; the next `advance` runs a fresh S5 |
 | G-02 send-back from `escalated` | fixed 2026-09-10 | The three `escalated` exits are `send_back_to_{planning,clarifying,context}`, the vocabulary every other open item uses; `checks` and `implementing` stay refused |
 | G-03 S4 validation unsandboxed | fixed 2026-09-10 | `_validate_task` passes the sandbox run directory, so validation goes through the enforced build launch like S5. The bare-subprocess branch of `recipes.run` remains for the recipe unit tests; no production caller reaches it, and a to-do at the branch says why it stays and what replaces it |
 | G-04 guard seats | closed by decision, rest deferred; code aligned 2026-09-10 | Guard covers outside content, the baseline import, display, outbox and export in Initial (R-T-9 narrowed); stage output, mounts, logs and dispatch are R-T-13 (Later). `CROSSINGS` now declares exactly those five, S0's intake is decided under `ingress`, and an undeclared crossing denies with `crossing_not_declared`. To-do at each deferred seat: `runner/guard.py` (the tuple), `runner/artefact_registry.py`, `runner/launcher.py`, `runner/adapters/cursor_sdk.py` and `runner/sandbox/proxy.py` (dispatch) |
-| G-05 registry policy | deferred | R-S5-15 (Later); R-S5-2 and R-I-14 narrowed. To-do in `runner/stages/S5.py` and `runner/recipes.py` |
+| G-05 registry policy | deferred | R-S5-15 (Later); R-S5-2 and R-I-14 narrowed. To-do in `runner/stages/checks.py` and `runner/recipes.py` |
 | G-06 pilot repository entry | wait | Environment work under the live-connection ticket; the single-entry loader changes then |
 | G-07 retry evidence feed | fixed 2026-09-10 | `_validate_task` registers the validation recipe's output as a `task_validation_evidence` artefact on the `task_validation` check result; attempt N+1 of the same task under the same plan-item version stages the last verification failure's evidence through `_red_evidence_artefact_ids`, skipping over intervening infrastructure failures. Evidence never crosses tasks or plan versions |
-| G-08 removal return, bad hand-back | fixed 2026-09-10 | S5 preflight applies `checks_removal_return` on the accidental case, recording the offending paths as an `exclusion` failure with evidence and a `removal_route` marker; S4 reads the marker the way it reads `fix_round_route` and runs a removal round through the fix-round machinery, confined by rerunning the exclusion decision over the round's diff instead of the plan's scope table, then `validation_only` and `s4_pass`. A removal round is stored as `run_kind = fix_round` and draws on the fix-round cap, since `limits.yaml` has no separate entry; a failed or capped round opens one `red_check`. A ticket at `checks` with no recorded branch, head or worktree applies `checks_bad_handback` before the freshness check and resumes the ordinary per-task loop under its own bound |
+| G-08 removal return, bad hand-back | fixed 2026-09-10 | S5 preflight applies `checks_removal_return` on the accidental case, recording the offending paths as an `exclusion` failure with evidence and a `removal_route` marker; S4 reads the marker the way it reads `fix_round_route` and runs a removal round through the fix-round machinery, confined by rerunning the exclusion decision over the round's diff instead of the plan's scope table, then `validation_only` and `implementation_pass`. A removal round is stored as `run_kind = fix_round` and draws on the fix-round cap, since `limits.yaml` has no separate entry; a failed or capped round opens one `red_check`. A ticket at `checks` with no recorded branch, head or worktree applies `checks_bad_handback` before the freshness check and resumes the ordinary per-task loop under its own bound |
 | G-09 pre-dispatch mismatch routes | fixed 2026-09-10 | The outbox's pre-dispatch recheck records the mismatched component in `external_write.last_error` under a `predispatch_mismatch:` prefix, widest first: target base or trust profile moved routes to `context`; a newer plan tuple or an invalid plan waiver routes to `planning`; a review-subject, head or destination mismatch routes to `checks`, which `review_gate` also uses as the fail-safe when no component was recorded |
 | G-10 baseline freeze | fix | Freeze regardless of count; the gate reports a short baseline as unavailable |
 | G-11 disposition values | fix | The entity table's set wins; fix the config, the loader and the pinning test |
@@ -83,8 +83,8 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Kind: gap. Slice: stages S4 to S6.
 - Spec: R-S4-9, `docs/prd/04-S4-implementation.md:11`: "After hand-back the runner executes every task's validation recipes once as a `validation_only` run, then S5 reruns in full." `docs/design/hld/L1-ticket-walk.md` diagram 2 loop 2a draws the S5 rerun directly after the validation pass. `docs/prd/prd.md:71`.
 - Ticket criterion: T-A-29 criterion 23 presupposes the rerun; T-A-29's Out list assigns "the live S5 rerun after a fix round's validation pass" to T-A-30, whose criteria never mention it. No ticket owns the return leg.
-- Code: `runner/stages/S4.py:1020-1044` `_run_fix_round` returns `"pass"` without applying `PASS_EVENT` (`s4_pass`), unlike the ordinary task path at `runner/stages/S4.py:1090-1096`. The state table has only `("implementing", "s4_pass") -> "checks"` as the way back (`runner/state_table.py:122`). On the next `factory advance`, `_due_stage` (`runner/operations.py:34-60`) finds S4 always due in `implementing`, and `run_next` (`runner/stages/S4.py:1070`) re-enters `_fix_round_routed`, which reads the same latest S5 run's `fix_round_route` result (`runner/stages/S4.py:838-846`) and is still true. A second fix round starts against a ticket that already passed; the two-round cap in `factory/config/limits.yaml` is exhausted on phantom rounds and the ticket lands on a human `red_check` with reason `cap_reached`.
-- Tests: `runner/tests/test_s4_fix_round.py` asserts state after a budget abort (`escalated`) and after a cap refusal (`implementing`) but never after a successful round; no test drives `advance` from a fix-round pass into a fresh S5 run. `runner/tests/test_s5_ab_fix_routing.py` covers routing into the round only.
+- Code: `runner/stages/implementation.py:1020-1044` `_run_fix_round` returns `"pass"` without applying `PASS_EVENT` (`implementation_pass`), unlike the ordinary task path at `runner/stages/implementation.py:1090-1096`. The state table has only `("implementing", "implementation_pass") -> "checks"` as the way back (`runner/state_table.py:122`). On the next `factory advance`, `_due_stage` (`runner/operations.py:34-60`) finds S4 always due in `implementing`, and `run_next` (`runner/stages/implementation.py:1070`) re-enters `_fix_round_routed`, which reads the same latest S5 run's `fix_round_route` result (`runner/stages/implementation.py:838-846`) and is still true. A second fix round starts against a ticket that already passed; the two-round cap in `factory/config/limits.yaml` is exhausted on phantom rounds and the ticket lands on a human `red_check` with reason `cap_reached`.
+- Tests: `runner/tests/test_implementation_fix_round.py` asserts state after a budget abort (`escalated`) and after a cap refusal (`implementing`) but never after a successful round; no test drives `advance` from a fix-round pass into a fresh S5 run. `runner/tests/test_checks_ab_fix_routing.py` covers routing into the round only.
 - Verified by the orchestrator: read `_run_fix_round`, `run_next`, `_fix_round_routed`, `_due_stage`.
 - Why it matters at B: a red lint or unit result on the pilot ticket takes exactly this path. The definition of done requires the bounded fix round to complete before anyone is asked; as built it cannot.
 
@@ -93,7 +93,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Kind: gap. Slice: control plane.
 - Spec: `docs/prd/02-3-ticket-states.md:23` (`escalated` row): "Verification exhaustion may only move to `planning` or earlier for a superseding plan-item version and new approval, or abandon." `docs/prd/02-3-ticket-states.md:25`: send-back is allowed "from any open queue item (plan approval, red check, packet approval, escalation, or manual pause)".
 - Ticket criteria: T-A-12 criterion 8 (`escalation` accepts `send_back`), T-A-17 criterion 10, T-A-04 criterion 33.
-- Code: `runner/state_table.py:154-156` names the `escalated` exits `escalation_verification_resolved_to_{planning,clarifying,context}`; every other state uses `send_back_to_{to}`. `runner/queue.py:572-576` `_send_back` always applies `send_back_to_{to}` regardless of kind or state. Every production site that opens an `escalation` item moves the ticket to `escalated` first (`runner/control.py:128-133`, `runner/budgets.py:138-141`, `runner/refresh_base.py:83-84`, `runner/stages/S4.py:729-741`). So `factory act <escalation> send_back --to planning` on a real ticket raises `TransitionRefused`. Nothing in `runner/` outside tests ever applies an `escalation_verification_resolved_to_*` event. `runner/queue.py:658-663` `_resume` refuses a verification-exhaustion escalation and tells the operator to use `send_back --to planning`, the route that is broken.
+- Code: `runner/state_table.py:154-156` names the `escalated` exits `escalation_verification_resolved_to_{planning,clarifying,context}`; every other state uses `send_back_to_{to}`. `runner/queue.py:572-576` `_send_back` always applies `send_back_to_{to}` regardless of kind or state. Every production site that opens an `escalation` item moves the ticket to `escalated` first (`runner/control.py:128-133`, `runner/budgets.py:138-141`, `runner/refresh_base.py:83-84`, `runner/stages/implementation.py:729-741`). So `factory act <escalation> send_back --to planning` on a real ticket raises `TransitionRefused`. Nothing in `runner/` outside tests ever applies an `escalation_verification_resolved_to_*` event. `runner/queue.py:658-663` `_resume` refuses a verification-exhaustion escalation and tells the operator to use `send_back --to planning`, the route that is broken.
 - Tests: `runner/tests/test_act.py:237-250` says in its docstring that `escalated` has no `send_back_to_*` row "so the escalation/send_back combination is exercised against a ticket seeded in `checks` instead"; `runner/tests/test_stage_interface.py`'s `_SEND_BACK_STATES` maps `escalation` to `checks` for the same reason. `runner/tests/test_state_table.py:521-534` applies the literal event string only.
 - Verified by the orchestrator: grep of `send_back_to_` and `escalation_verification_resolved` across `runner/` outside tests.
 - Why it matters at B: three failed S4 attempts on the pilot ticket leave it in a state no `act` action can move to `planning`; abandon is the only exit.
@@ -103,7 +103,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Kind: gap. Slice: execution boundary.
 - Spec: R-I-14, `docs/prd/03-stage-interface.md:24`: "Every agent invocation and repository/build recipe runs inside an OS-enforced sandbox identified by immutable policy or image digest." Milestone AB Sandbox shape (`docs/design/milestones.md:161`) names no stage carve-out. `docs/design/hld/L2-execution-boundary.md` diagram 2, S4 row.
 - Ticket criterion: T-AB-01 covers R-I-14 for every recipe; no ticket exempts S4 validation.
-- Code: `runner/recipes.py:run` has two branches. With `sandbox_run_dir` it goes through `launcher.launch(role="build", policy="enforced", ...)` and refuses a run without an applied OS policy (`runner/recipes.py:394-425`). Without it, it falls through to a bare `subprocess.run` (`runner/recipes.py:427` onward). `runner/stages/S4.py:694-697` `_validate_task` is the only caller in the codebase that omits `sandbox_run_dir`; `runner/stages/S5.py:283`, `runner/stages/S5.py:415` and `runner/adoption.py:52` all pass it.
+- Code: `runner/recipes.py:run` has two branches. With `sandbox_run_dir` it goes through `launcher.launch(role="build", policy="enforced", ...)` and refuses a run without an applied OS policy (`runner/recipes.py:394-425`). Without it, it falls through to a bare `subprocess.run` (`runner/recipes.py:427` onward). `runner/stages/implementation.py:694-697` `_validate_task` is the only caller in the codebase that omits `sandbox_run_dir`; `runner/stages/checks.py:283`, `runner/stages/checks.py:415` and `runner/adoption.py:52` all pass it.
 - Tests: `runner/tests/test_capability_boundary.py` calls `_validate_task` only to assert the `recipe_binding` refusal of a shell string. Nothing asserts that a validation recipe ran under the build profile.
 - Verified by the orchestrator: read both branches of `recipes.run` and the S4 call.
 - Why it matters at B: the validation recipe is the one process that runs against the agent-writable worktree after every task attempt. Charter C10 and the AB exit test require the OS policy on it.
@@ -113,7 +113,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Kind: gap. Slices: trust and binding; HLD conformance (their findings merged).
 - Spec: R-T-9, `docs/prd/02-1-ticket-record.md:19`: "one runner-owned guard outside stages and adapters is the sole path for content-bearing ingress, persistence, display, sandbox mounting, logs, model/MCP/tool dispatch, outbox payloads, and exports. Each content decision writes one `guard_decision`." `docs/design/hld/README.md:17`: "Every content-bearing crossing passes the guard (C5) and leaves one `guard_decision` row." `docs/design/hld/L2-control-plane.md` seats C5 on X2 persistence ("every write from C2, C3, C6, C8 and C9 fans in to C5_seat"), X3 dispatch and X7 mounts. Milestone A Guard shape: "Route enforcement on every content-bearing crossing ... a secret hit denies and is never stored."
 - Ticket criteria: T-A-07 criteria 8 and 9 name all eight crossings; criterion 8 admits bare-module fixtures only for sandbox mounting, outbox payloads and exports.
-- Code: `runner/guard.py:27-29` declares eight crossings. Production call sites of `guard.decide`: `runner/stages/S0.py:255` (Jira intake, crossing name `s0_intake`, outside the declared tuple), `runner/baseline.py:61` (`persistence`, baseline import only), `runner/operations.py:258` (`display`, `show_artefact` only), `runner/outbox.py:336` (`outbox`), `runner/export.py:136` (`export`). No call site uses `sandbox_mount`, `logs` or `dispatch`. `runner/launcher.py:stage_inputs` (the X7 mount path) and `runner/adapters/cursor_sdk.py:_record_tool_calls` never import the guard. `runner/artefact_registry.register` takes `guard_decision_id` defaulting to `None`, and every registration in `runner/stages/S1.py` to `S6.py`, `runner/adapters/cursor_sdk.py`, `runner/sandbox/proxy.py` and `runner/outcome.py` passes none: briefs, criteria, plans, handoffs, check evidence, tool results, packets and PR bodies enter the record with no classification, no secret scan and no decision row. Only the S0 ticket source, the export manifest and the outbox receipt carry one.
+- Code: `runner/guard.py:27-29` declares eight crossings. Production call sites of `guard.decide`: `runner/stages/intake.py:255` (Jira intake, crossing name `s0_intake`, outside the declared tuple), `runner/baseline.py:61` (`persistence`, baseline import only), `runner/operations.py:258` (`display`, `show_artefact` only), `runner/outbox.py:336` (`outbox`), `runner/export.py:136` (`export`). No call site uses `sandbox_mount`, `logs` or `dispatch`. `runner/launcher.py:stage_inputs` (the X7 mount path) and `runner/adapters/cursor_sdk.py:_record_tool_calls` never import the guard. `runner/artefact_registry.register` takes `guard_decision_id` defaulting to `None`, and every registration in `runner/stages/context_gathering.py` to `human_review.py`, `runner/adapters/cursor_sdk.py`, `runner/sandbox/proxy.py` and `runner/outcome.py` passes none: briefs, criteria, plans, handoffs, check evidence, tool results, packets and PR bodies enter the record with no classification, no secret scan and no decision row. Only the S0 ticket source, the export manifest and the outbox receipt carry one.
 - Tests: `runner/tests/test_guard.py` exercises all eight names against the bare module with hand-built operations. `runner/tests/test_stub_walk.py:702` counts decision rows over the stub walk but only for the crossings that exist. No test asserts that a stage-registered artefact or a tool result obtained a decision.
 - Verified by the orchestrator: grep of `guard.decide(` and `crossing=` across `runner/` outside tests.
 - Reading: the spot checks of the trust rule held (recipe id checked against the plan's approved list, model from the manifest, credential role a literal), so no case was found where untrusted content selected a tool, recipe, mount, model or credential. The gap is the persistence and dispatch seats themselves: an agent output containing a secret is stored, and a downgrade through those paths is invisible to any audit of `guard_decision`. If the owner decides R-T-9's "persistence" was meant narrowly (external content only), then the HLD text and T-A-07 criteria 8 and 9 must be narrowed to match; otherwise the missing seats must be added. Either way the document and the code disagree today.
@@ -124,7 +124,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 
 - Kind: gap. Slices: execution boundary; stages S4 to S6 (merged).
 - Spec: R-S5-2, `docs/prd/04-S5-cleanup-pass.md`: dependency verification runs "with the same declared registry/cache policy" and "a required network source outside the recipe allowlist" blocks. T-AB-08 criteria 1 and 9 (`sandbox.yaml`'s S5 `proxy_allowlist` admits only the recipe-declared registry endpoints under route id `registry`). Milestone AB "Absent at A" names "any registry route" as something AB adds.
-- Code: `factory/config/sandbox.yaml`'s `proxy_allowlist` names S1 to S4 only, and `endpoints` holds `hosted_model` and `atlassian_read` only. Every recipe in `factory/config/command-recipes.yaml` declares `network: none`. `runner/stages/S5.py:695` passes `"--allowed-registry", ""` as a literal. No file under `factory/config/` carries a registry allowlist.
+- Code: `factory/config/sandbox.yaml`'s `proxy_allowlist` names S1 to S4 only, and `endpoints` holds `hosted_model` and `atlassian_read` only. Every recipe in `factory/config/command-recipes.yaml` declares `network: none`. `runner/stages/checks.py:695` passes `"--allowed-registry", ""` as a literal. No file under `factory/config/` carries a registry allowlist.
 - Tests: `runner/tests/test_dep_verify.py` calls the script directly with `--allowed-registry registry.example`; the S5 call path with the empty string is untested. `runner/tests/test_recipes.py:226` refuses a `network: registry` recipe, which passes only because S5 has no route at all.
 - Verified by the orchestrator: grep of `sandbox.yaml`, `command-recipes.yaml`, the S5 call.
 - Note: the pilot repository's own recipes wait on the pilot repository (G-06), but the route, the endpoint shape and the configuration source for the allowlist are AB mechanism and can be built on the fixture project.
@@ -134,23 +134,23 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Kind: gap (environment part known). Slices: stages S0 to S3; observability (merged).
 - Spec: Milestone AB Git trees shape (`docs/design/milestones.md`): "The pilot repository as a pinned source checkout outside this repository, named in `project.yaml` beside the fixture project, a ticket pinning one of the two." T-AB-04 criteria 13 to 16 (pilot rows in `service-tiers.yaml`, the pilot entry in `project.yaml`, the pilot's context index entries).
 - Code: `factory/config/project.yaml:7-24` has one entry, `fixture-project`. `runner/project.py:32-43` `pilot()` raises unless `projects` has exactly one entry, so the design's "beside the fixture project" cannot be expressed. `service-tiers.yaml`, `sensitive-paths.yaml` and `factory/index/*.md` describe the fixture project only.
-- Tests: `runner/tests/test_pilot_config.py` reads the committed file, so "the pilot" it checks is the fixture project. `runner/tests/test_s1_archaeology.py:424` skips with "no real pilot repository exists yet".
+- Tests: `runner/tests/test_pilot_config.py` reads the committed file, so "the pilot" it checks is the fixture project. `runner/tests/test_context_gathering_archaeology.py:424` skips with "no real pilot repository exists yet".
 - Owner context: `docs/build/T-AB-04/brief.md:19-23` records that no real pilot repository, Jira key or Keychain item existed when AB was built. The environment half belongs with T-B-06. The code half does not: the single-entry loader and the fixture-only configuration files are AB scope and block T-AB-04's own criteria.
 
 ### G-07. Ordinary S4 retries do not feed the failed attempt's evidence into the next invocation
 
 - Kind: gap. Slice: stages S4 to S6.
 - Spec: `docs/prd/prd.md:70`: "A failed attempt closes with its evidence and feeds the next fresh attempt; three failed attempts escalate."
-- Code: `runner/stages/S4.py:446-452` builds the invocation inputs as handoff, plan and criteria only. The fix-round path at `runner/stages/S4.py:973-978` adds the failing recipe outputs through `_red_evidence_artefact_ids`; the retry path has no equivalent. `_failure_history_payload` (`runner/stages/S4.py:745-784`) is assembled only at the third failure.
-- Tests: `runner/tests/test_s4_task_loop.py:248` asserts a fresh handoff version and distinct run ids, not the inputs of attempt two.
+- Code: `runner/stages/implementation.py:446-452` builds the invocation inputs as handoff, plan and criteria only. The fix-round path at `runner/stages/implementation.py:973-978` adds the failing recipe outputs through `_red_evidence_artefact_ids`; the retry path has no equivalent. `_failure_history_payload` (`runner/stages/implementation.py:745-784`) is assembled only at the third failure.
+- Tests: `runner/tests/test_implementation_task_loop.py:248` asserts a fresh handoff version and distinct run ids, not the inputs of attempt two.
 - Why it matters at B: a second attempt has no governed record of why the first failed, which is what the sentence exists to guarantee; the report's first-attempt versus later-attempt reliability figure rests on it.
 
 ### G-08. `checks_removal_return` and `checks_bad_handback` exist only as state-table rows
 
 - Kind: gap. Slice: control plane (confirmed against the S5 driver).
 - Spec: `docs/prd/02-3-ticket-states.md:19` (`checks` row): "an accidental Initial-sensitive path may return to S4 for removal, while a path required by the plan closes `pilot_excluded`." T-A-04 criterion 18; T-A-20 criterion 19.
-- Code: `runner/state_table.py:128-129` declares both events. `runner/checks/exclusion.py:107-136` `decide_at_checks` returns `checks_removal_return` for the accidental case, but `_STAGE_EVENTS` (`runner/checks/exclusion.py:32-36`) has no mapping for it and `runner/stages/S5.py:160-179` acts only on `checks_sensitive_path_required`; the accidental case falls through to a generic structural failure. `checks_bad_handback` is applied nowhere outside its own test.
-- Tests: `runner/tests/test_s5_order.py:248-256` documents the gap in its docstring. `runner/tests/test_exclusion.py:193-197` and `runner/tests/test_state_table.py:363-369` apply the literal event only.
+- Code: `runner/state_table.py:128-129` declares both events. `runner/checks/exclusion.py:107-136` `decide_at_checks` returns `checks_removal_return` for the accidental case, but `_STAGE_EVENTS` (`runner/checks/exclusion.py:32-36`) has no mapping for it and `runner/stages/checks.py:160-179` acts only on `checks_sensitive_path_required`; the accidental case falls through to a generic structural failure. `checks_bad_handback` is applied nowhere outside its own test.
+- Tests: `runner/tests/test_checks_order.py:248-256` documents the gap in its docstring. `runner/tests/test_exclusion.py:193-197` and `runner/tests/test_state_table.py:363-369` apply the literal event only.
 - Why it matters at B: the spec's automatic return to S4 for removal is replaced by a `red_check` whose send-back targets never include `implementing`.
 
 ### G-09. A pre-dispatch mismatch routes only to `checks`, never to `planning` or `context`
@@ -174,7 +174,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Kind: deviation. Slice: external systems.
 - Spec: `docs/prd/02-2-entities.md:149`: disposition is `open`, `remediated`, `reviewed_no_change`.
 - Code: `factory/config/incident-policy.yaml:42` has `[open, remediated, accepted, not_applicable]`, enforced by `runner/incident_policy.py:57-60` and `runner/outcome.py:328-330`. `runner/tests/test_graduation_clauses.py:54` seeds `reviewed_no_change` through a helper that bypasses that validation, so the writer would refuse the value the graduation reader is tested with.
-- Tests: `runner/tests/test_outcome_incident.py:90` pins the yaml's set.
+- Tests: `runner/tests/test_outcome_incident.py:89` pins the yaml's set.
 
 ### G-12. `question.consequential`, `hard_to_reverse` and `blocking` are mutable in place beyond R-T-3's exception
 
@@ -199,20 +199,20 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Code: `runner/artefacts.py:167` `TEST_SIZES = ("small", "medium", "large")`; `runner/checks/plan_rubric.py:185-186` fails any other size. No branch requires a `proves` reason for `none`.
 - Tests: no fixture or test uses `none`.
 
-### G-15. `factory/rubrics/S0.md` is still the T-A-01 stub
+### G-15. `factory/rubrics/intake.md` is still the T-A-01 stub
 
 - Kind: gap. Slice: stages S0 to S3.
 - Spec: `docs/prd/04-S0-intake.md:17` declares rubric lines for R-S0-1, R-S0-2, R-S0-5 and R-S0-6; Milestone A Rubric shape: "Files generated from the rows, script lines only."
-- Code: `factory/rubrics/S0.md` is seven lines reading "Stub rubric for the intake stage's mechanical gate; real checklist lands in a later ticket." S1 to S3 carry real content. No ticket after T-A-01 lists the file.
-- Tests: `factory/evals/rubrics/S0/` checks front matter only.
-- Note: the four rows are enforced directly in `runner/checks/intake_fields.py`, `runner/checks/exclusion.py` and `runner/stages/S0.py`, so behaviour is unaffected; the manifest pins a rubric hash with nothing behind it.
+- Code: `factory/rubrics/intake.md` is seven lines reading "Stub rubric for the intake stage's mechanical gate; real checklist lands in a later ticket." S1 to S3 carry real content. No ticket after T-A-01 lists the file.
+- Tests: `factory/evals/rubrics/intake/` checks front matter only.
+- Note: the four rows are enforced directly in `runner/checks/intake_fields.py`, `runner/checks/exclusion.py` and `runner/stages/intake.py`, so behaviour is unaffected; the manifest pins a rubric hash with nothing behind it.
 
 ### G-16. The S2 forced-category pre-fill from an S0 exclusion can never fire
 
 - Kind: gap. Slice: stages S0 to S3.
 - Spec: R-S2-4, `docs/prd/04-S2-requirements-clarification.md:12`; T-A-24 criterion 13.
-- Code: `runner/stages/S2.py:158-174` reads an S0 `check_result` named `exclusion`; S0 never writes one (`runner/stages/S0.py` around line 487 applies the transition only). The comment at `runner/stages/S2.py:62-66` says so. Under R-S0-8 a migration or permissions match excludes the ticket at `intake`, so no ticket reaching S2 can carry such a record.
-- Tests: `runner/tests/test_s2_criteria.py` inserts the row by hand.
+- Code: `runner/stages/clarification.py:158-174` reads an S0 `check_result` named `exclusion`; S0 never writes one (`runner/stages/intake.py` around line 487 applies the transition only). The comment at `runner/stages/clarification.py:62-66` says so. Under R-S0-8 a migration or permissions match excludes the ticket at `intake`, so no ticket reaching S2 can carry such a record.
+- Tests: `runner/tests/test_clarification_criteria.py` inserts the row by hand.
 - Decision needed: either S0 records a passing exclusion check with the closed categories, or the row's clause is retired as unreachable under R-S0-8.
 
 ### G-17. `config/tools.yaml` does not exist; the tool-attachment table is a generic list inside the manifest
@@ -235,7 +235,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Kind: deviation. Slice: trust and binding.
 - Spec: R-S5-13 and charter section 6 state the non-waivable set as an absolute list.
 - Code: `runner/waivers.py:263-264` refuses a condition only if `policy.never_waivable` (loaded from the yaml, `runner/waivers.py:91-111`) names it; no code constant backs the list.
-- Tests: `runner/tests/test_s5_waivers.py:505` proves the yaml-to-code wiring, not an invariant that survives an edited file.
+- Tests: `runner/tests/test_checks_waivers.py:505` proves the yaml-to-code wiring, not an invariant that survives an edited file.
 - Mitigation: the file is manifest-hashed and changes only by reviewed pull request.
 
 ### G-20. The digest scheduler cannot express D42's cadence
@@ -255,7 +255,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
   - Criterion 17 (the escape suite's `credentials` category re-run against the pilot ticket's own sandbox) is exercised only by the skipped live test; `runner/tests/test_escape_suite.py` runs the category against a generic sandbox.
   - Criterion 21 (`factory/evals/tickets/<pilot ticket id>/` exists and is listed in the manifest) has not landed: `factory/evals/tickets/` does not exist; the tests write the fixture to a temporary root only.
   - T-AB-07 criterion 11 (one Slack post on the closing run) has neither a test nor a loud skip in `runner/tests/test_digest.py`.
-  - T-AB-04 and T-AB-05's real-server criteria skip loudly in `runner/tests/test_s0.py:527-556` and `runner/tests/test_s1_archaeology.py:418-424`.
+  - T-AB-04 and T-AB-05's real-server criteria skip loudly in `runner/tests/test_intake.py:534-550` and `runner/tests/test_context_gathering_archaeology.py:418-424`.
 - Note: criteria 17 and 21 and the real-server legs are the known placeholder for the live run and wait on T-B-06 and T-B-07. Criteria 19 and 20 and the digest criterion can be tested on the fixture project today and are the actionable part.
 
 ## 5. Minor
@@ -279,7 +279,7 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Gap, HLD conformance. `docs/design/milestones.md` Appendix B X9 names the gate as the pull request's check; `runner/gate.py` exists but no `.github/` workflow or root `CODEOWNERS` invokes it. R-F-9 (branch protection) is Later; decision 5 of milestones section 3 says "required" at AB means required by R-F-4's reviewed-change path, so this may be intended. Confirm.
 
 ### G-28. `incident_observation.factory_manifest_hash` is never populated
-- Deviation, external systems. `runner/schema.py:849` declares the column; `runner/outcome.py` (six writers) and `runner/stages/S4.py:724-728` omit it. R-O-4's per-manifest filter cannot slice incidents or control defects.
+- Deviation, external systems. `runner/schema.py:861` declares the column; `runner/outcome.py` (six writers) and `runner/stages/implementation.py:791-795` omit it. R-O-4's per-manifest filter cannot slice incidents or control defects.
 
 ### G-29. `outcome_actor_role` and the incident reviewer role are constants, not read from `owners.yaml`
 - Simplification, external systems. `runner/outcome.py:48-49`; T-B-01 criterion 12 says "read from `owners.yaml`". The module docstring records the shortcut.
@@ -288,22 +288,22 @@ The HLD followed the PRD to v0.4 the same day: `L2-control-plane.md` draws the I
 - Untested, trust. `factory/config/owners.yaml:14-19`; `runner/tests/test_owners.py:63-69` compares two dict objects, not identity values. T-A-06 criterion 8. Harmless while sensitive work is excluded from Initial.
 
 ### G-31. Queue latency averages per-item intervals, not the union of a batch
-- Deviation, observability. `docs/prd/06-observability.md` measure table: "the union of open intervals ... a batch counts once". `runner/schema.py:993-1007` averages each item's own span. Overstates latency when a round opens several items.
+- Deviation, observability. `docs/prd/06-observability.md` measure table: "the union of open intervals ... a batch counts once". `runner/schema.py:1029-1041` averages each item's own span. Overstates latency when a round opens several items.
 
 ### G-32. `fixture_from_export` copies the export verbatim; the redaction review is metadata only
 - Simplification, observability. `factory/scripts/tools/fixture_from_export:44-71` `copytree` with no stripping or verification of `redacted_fields`; `runner/evals.py:_redaction_review_missing_fields` checks the four fields are present. Real risk once a real export is the input.
 
 ### G-33. `dependents_invalidated` is computed but never consulted
-- Gap, stages S0 to S3. `runner/questions.py:297-337` has no caller; the plan-tuple hash already blocks stale plan approvals, but no report or queue item tells the human which artefacts went stale (R-S2-11).
+- Gap, stages S0 to S3. `runner/questions.py:343-382` has no caller; the plan-tuple hash already blocks stale plan approvals, but no report or queue item tells the human which artefacts went stale (R-S2-11).
 
 ### G-34. Provisional marking covers only driver-derived questions
-- Gap, stages S0 to S3. R-S2-12: criteria depending on an open non-blocking question are `provisional`. `runner/stages/S2.py:429-452` marks them only for the agreement-check and contradiction cases, not an agent-raised non-blocking question naming a criterion.
+- Gap, stages S0 to S3. R-S2-12: criteria depending on an open non-blocking question are `provisional`. `runner/stages/clarification.py:430-443` marks them only for the agreement-check and contradiction cases, not an agent-raised non-blocking question naming a criterion.
 
 ### G-35. `control.stop` stamps the same note on every open run
-- Minor, control plane. `runner/control.py:113-121` writes the stop note as the reasoning summary of every open run lacking one; wrong once parent and child runs are open together. Untested either way.
+- Minor, control plane. `runner/control.py:117-124` writes the stop note as the reasoning summary of every open run lacking one; wrong once parent and child runs are open together. Untested either way.
 
 ### G-36. The packet's blind-spot relabelling for impact and declaration entries is unreachable from the real S6 driver
-- Untested, stages S4 to S6. `factory/scripts/tools/packet_render.py:38-42,116-130` keys on an entry `kind` that `runner/stages/S6.py:222-235` never sets; only the standalone eval fixture exercises it. The underlying checks already self-report `blind_spot`, so the branch is dead rather than wrong.
+- Untested, stages S4 to S6. `factory/scripts/tools/packet_render.py:41-45,114-116` keys on an entry `kind` that `runner/stages/human_review.py:222-235` never sets; only the standalone eval fixture exercises it. The underlying checks already self-report `blind_spot`, so the branch is dead rather than wrong.
 
 ## 6. Known simplifications, confirmed present
 
@@ -311,8 +311,8 @@ Listed so the owner can confirm each stays accepted.
 
 | Simplification | Where | Matters at B |
 |---|---|---|
-| Fix-round "recipes cleared" inferred from the next `validation_only` run by id adjacency | `runner/stages/S6.py:246-263` | Cosmetic in the evidence table |
-| Intent and scrutiny split on a literal `Scrutiny:` marker | `runner/stages/S6.py:129-137` | A plan without the marker leaves scrutiny empty in the packet |
+| Fix-round "recipes cleared" inferred from the next `validation_only` run by id adjacency | `runner/stages/human_review.py:246-263` | Cosmetic in the evidence table |
+| Intent and scrutiny split on a literal `Scrutiny:` marker | `runner/stages/human_review.py:129-137` | A plan without the marker leaves scrutiny empty in the packet |
 | The adapter test fixture `sandbox.yaml` carries no `os_profiles`, so routine stage and walk tests never pay for `sandbox-exec` | `runner/tests/fixtures/adapter/sandbox.yaml` | The escape suite and `test_sandbox.py` cover the real profiles; combined with G-03 it means no test ever runs S4 validation under the OS policy |
 | `queue.act` keeps the older per-flag kwargs beside `fields` | `runner/queue.py` | None |
 | Waiver flags reuse `--verdict` and `--evidence` | `runner/queue.py:_issue_waiver` | None |
@@ -322,10 +322,10 @@ Also confirmed loud, not silent: the two Atlassian Keychain skips and the Cursor
 
 ## 7. Doc drift
 
-- T-A-25 criterion 23 says the readiness table's `hash` column binds the plan version; `docs/prd/08-configuration.md:35` says each row's hash is that condition's own source, never the plan hash. The code follows the configuration file (`runner/tests/test_s3_structure.py::test_registered_plan_hash_binds_the_readiness_rows_source_hashes`). Fix the ticket text.
+- T-A-25 criterion 23 says the readiness table's `hash` column binds the plan version; `docs/prd/08-configuration.md:35` says each row's hash is that condition's own source, never the plan hash. The code follows the configuration file (`runner/tests/test_planning_structure.py::test_registered_plan_hash_binds_the_readiness_rows_source_hashes`). Fix the ticket text.
 - `docs/design/hld/L2-execution-boundary.md` "Not drawn" says only C6 and C3 write tool-result rows; the proxy does (G-25).
 - `docs/design/hld/L2-control-plane.md` seats the guard on X2 persistence, X3 dispatch and X7 mounts; the code seats it on five narrower crossings (G-04). One of the two must change.
-- `docs/design/hld/L2-control-plane.md` diagram 3 draws the final reviewer-set check inside the S5 ordered list; the code runs it first thing in the S6 driver (`runner/stages/S6.py:92-134`), before assembly, which satisfies R-S6-6 in substance.
+- `docs/design/hld/L2-control-plane.md` diagram 3 draws the final reviewer-set check inside the S5 ordered list; the code runs it first thing in the S6 driver (`runner/stages/human_review.py:92-134`), before assembly, which satisfies R-S6-6 in substance.
 
 ## 8. Verified as implemented
 
@@ -361,6 +361,7 @@ What the reviewers checked and found to match, by slice. The per-slice reports c
 
 ## Revision history
 
+- **v0.5, 2026-09-10.** Paths re-pointed after commit 66dc571 renamed the stage-coded files: `runner/stages/<code>.py` is now `intake.py`, `context_gathering.py`, `clarification.py`, `planning.py`, `implementation.py`, `checks.py` or `human_review.py`; the rubric stub is `factory/rubrics/intake.md`; the test files carry the stage name; the pass event is `implementation_pass`. Line ranges in the open findings (G-10, G-11, G-16, G-20, G-21, G-28, G-31, G-33 to G-36) checked against the current files and corrected where the fixes had moved them. Finding text otherwise unchanged.
 - **v0.4, 2026-09-10.** Six major findings closed in code by parallel fixers: G-07, G-08, G-09, G-12, G-13 and G-14, each with end-to-end tests driven through the real drivers. Section 2a rows updated with what was built and the two simplifications taken (a removal round shares the fix round's `run_kind` and cap; `answer.question_version_hash` stays unwritten). Finding text unchanged.
 - **v0.3, 2026-09-10.** The four blocking findings closed in code: G-01, G-02 and G-03 fixed with the end-to-end tests section 10 asked for; G-04's declared crossing set and the S0 intake name aligned to the narrowed R-T-9, with an undeclared crossing now denied. Section 2a rows updated; finding text unchanged.
 - **v0.2, 2026-09-10.** Section 2a added with the owner's decisions and the disposition of every finding; PRD v0.19 applied (three Later rows, four rows narrowed, decision 55) and to-do notes placed at the seven code seams the deferred items would occupy. Finding text unchanged.

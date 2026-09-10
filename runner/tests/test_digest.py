@@ -29,7 +29,7 @@ def _live_slack(conn, tmp_path, monkeypatch):
     return post_tool
 
 
-def test_r_h_3_empty_queue_records_a_digest_run_without_an_external_write(tmp_path):
+def test_empty_queue_records_a_digest_run_without_an_external_write(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         assert digest.run(conn, channel=None, cadence="daily", now=datetime(2026, 1, 2, tzinfo=UTC), runs_dir=tmp_path, dispatch=False) is None
@@ -39,7 +39,7 @@ def test_r_h_3_empty_queue_records_a_digest_run_without_an_external_write(tmp_pa
         conn.close()
 
 
-def test_r_h_3_same_slot_and_item_list_reuses_the_one_digest_intent(tmp_path):
+def test_same_slot_and_item_list_reuses_the_one_digest_intent(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         _seed(conn)
@@ -54,7 +54,7 @@ def test_r_h_3_same_slot_and_item_list_reuses_the_one_digest_intent(tmp_path):
         conn.close()
 
 
-def test_r_h_3_item_age_is_snapshotted_at_the_slot_boundary_for_idempotency(tmp_path):
+def test_item_age_is_snapshotted_at_the_slot_boundary_for_idempotency(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         _seed(conn)
@@ -65,7 +65,7 @@ def test_r_h_3_item_age_is_snapshotted_at_the_slot_boundary_for_idempotency(tmp_
         conn.close()
 
 
-def test_r_h_3_reconciled_digest_slot_posts_once_through_the_guarded_slack_outbox(tmp_path, monkeypatch):
+def test_reconciled_digest_slot_posts_once_through_the_guarded_slack_outbox(tmp_path, monkeypatch):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         _seed(conn)
@@ -83,7 +83,7 @@ def test_r_h_3_reconciled_digest_slot_posts_once_through_the_guarded_slack_outbo
         conn.close()
 
 
-def test_r_h_3_pending_digest_slot_dispatches_once_when_a_retry_reaches_send(tmp_path, monkeypatch):
+def test_pending_digest_slot_dispatches_once_when_a_retry_reaches_send(tmp_path, monkeypatch):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         _seed(conn)
@@ -118,7 +118,7 @@ def test_must_retain_an_ambiguous_sending_digest_without_another_slack_post(tmp_
         conn.close()
 
 
-def test_r_h_3_slack_delivery_uses_the_intent_channel_and_only_the_guarded_item_fields(monkeypatch):
+def test_slack_delivery_uses_the_intent_channel_and_only_the_guarded_item_fields(monkeypatch):
     post_tool = FakeSlackPostTool()
     monkeypatch.setattr("runner.deliverers.slack.credentials.fetch", lambda role: "credential")
     receipt = SlackDeliverer(post_tool).digest(
@@ -129,7 +129,7 @@ def test_r_h_3_slack_delivery_uses_the_intent_channel_and_only_the_guarded_item_
     assert receipt.remote_identity == "slack:C-bound:123.456"
 
 
-def test_r_h_3_slack_mcp_initializes_parses_sse_and_uses_the_configured_argument_mapping(monkeypatch):
+def test_slack_mcp_initializes_parses_sse_and_uses_the_configured_argument_mapping(monkeypatch):
     requests = []
     replies = iter([
         '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26"}}',
@@ -157,7 +157,7 @@ def test_r_h_3_slack_mcp_initializes_parses_sse_and_uses_the_configured_argument
     assert all(request.headers["Mcp-protocol-version"] == "2025-03-26" for request in requests)
 
 
-def test_must_reject_r_h_3_slack_mcp_tool_error_before_a_receipt(monkeypatch):
+def test_must_reject_slack_mcp_tool_error_before_a_receipt(monkeypatch):
     replies = iter([
         '{"jsonrpc":"2.0","id":1,"result":{}}', '',
         '{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"post_digest","inputSchema":{"properties":{"channel":{},"text":{}},"required":["channel","text"]}}]}}',
@@ -173,7 +173,7 @@ def test_must_reject_r_h_3_slack_mcp_tool_error_before_a_receipt(monkeypatch):
         SlackMCPPostTool("post_digest", {"channel": "channel", "text": "text"})({"channel": "C1", "text": "digest"}, "credential")
 
 
-def test_must_reject_r_h_3_populated_queue_without_a_configured_channel(tmp_path):
+def test_must_reject_populated_queue_without_a_configured_channel(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         _seed(conn)
@@ -183,7 +183,7 @@ def test_must_reject_r_h_3_populated_queue_without_a_configured_channel(tmp_path
         conn.close()
 
 
-def test_r_h_3_scheduler_plist_uses_the_configured_cadence_and_channel(tmp_path):
+def test_scheduler_plist_uses_the_configured_cadence_and_channel(tmp_path):
     path = setup.write_digest_launchd_entry(
         {"digest": {"channel": "C123", "cadence": "weekly"}}, tmp_path, tmp_path / "factory", tmp_path / "factory.sqlite",
     )
@@ -194,7 +194,7 @@ def test_r_h_3_scheduler_plist_uses_the_configured_cadence_and_channel(tmp_path)
     assert "digest" in plist
 
 
-def test_r_h_3_scheduler_plist_escapes_paths_and_channels_without_changing_schedule(tmp_path):
+def test_scheduler_plist_escapes_paths_and_channels_without_changing_schedule(tmp_path):
     executable = tmp_path / "factory & digest"
     db_path = tmp_path / "runs & queue" / "factory.sqlite"
     document = plistlib.loads(setup.digest_launchd_plist({"digest": {"channel": "C&123", "cadence": "daily"}}, executable, db_path).encode())
@@ -203,7 +203,7 @@ def test_r_h_3_scheduler_plist_escapes_paths_and_channels_without_changing_sched
     assert document["StartCalendarInterval"] == {"Hour": 9, "Minute": 0}
 
 
-def test_r_h_3_digest_tool_runs_an_empty_database_as_a_subprocess(tmp_path):
+def test_digest_tool_runs_an_empty_database_as_a_subprocess(tmp_path):
     db_path = tmp_path / "factory.sqlite"
     script = Path(__file__).parents[2] / "factory" / "scripts" / "tools" / "digest"
     result = subprocess.run([sys.executable, str(script), "--db", str(db_path)], capture_output=True, text=True, check=True)
