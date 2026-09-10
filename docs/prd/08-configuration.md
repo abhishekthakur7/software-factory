@@ -48,7 +48,7 @@ Not requirements. D42's accepted pilot defaults, owned by the engineer, live in 
 
 **Guardrail metrics in the rollout section.** At most 12.
 
-**Digest cadence** (D42). Twice per working day, Monday to Friday, 10:00 and 15:00 local, from a launchd entry (cron on Linux) installed by setup that runs `factory digest`; times, weekdays, and channel under the `digest` key of `project.yaml`, channel chosen by the engineer.
+**Digest cadence** (D42). Twice per working day, Monday to Friday, 10:00 and 15:00 local, from a launchd entry (cron on Linux) installed by setup that runs `factory digest`; times, weekdays, channel, and `immediate_kinds` under the `digest` key of `project.yaml`, channel chosen by the engineer. `immediate_kinds` names the queue-item kinds that post to the same channel the moment they open (R-H-3); default `[escalation]`, and the engineer may add `red_check` once non-waivable checks prove worth the interruption.
 
 **Index staleness default.** 90 days since `last_verified`, or any commit on the base branch touching the entry's `paths`.
 

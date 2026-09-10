@@ -154,13 +154,15 @@ Field lists are the minimum. Additional fields are allowed; removals are not. Co
 |---|---|
 | `id`, `stage_run_id`, `entry_path`, `entry_last_verified`, `stale` | Stale is computed from the entry's staleness rule at read time |
 
-**`score`**. One row per grader verdict on a stage run, from the observer pass, an eval, or a benchmark. Created with R-O-10 (Later).
+**`score`**. One row per grader verdict on a stage run, from the observer pass, an eval, or a benchmark. Created with R-O-10 (Later). Its shape was fixed on 2026-09-10 after the Mastra study (`docs/research/mastra-comparison.md`) so the table is created once: a grader with more than one step keeps the exact prompt and result of every step, a `batch_id` groups the rows one observer pass wrote, and the row points at the graded run and, separately, at the grader's own run for its cost.
 
 | Field | Meaning |
 |---|---|
 | `id`, `stage_run_id`, `grader_ref` | Grader by path and content hash |
 | `dimension` | A requirement id from section 4, or a named measure such as cost against tier budget |
-| `grade`, `evidence` | `insufficient_information` is a valid grade |
+| `grade`, `evidence` | `insufficient_information` is a valid grade; `evidence` is the final step's support |
+| `step_prompts`, `step_results`, `reason` | One prompt-and-result pair per grading step a multi-step grader ran, plus the final reasoning text, each under the section 8 limit for `reasoning_summary`; null for a single-step grader |
+| `batch_id`, `grader_run_id` | The observer pass or benchmark run that wrote this row; the grader's own `utility_run`, which carries its tokens and cost separately from the graded run |
 | `grader_model`, `context` | `context` is `observer`, `eval`, or `benchmark` |
 | `human_grade`, `graded_by` | Filled when the engineer grades the same item, for calibration (R-O-11) |
 | `scored_at` | |

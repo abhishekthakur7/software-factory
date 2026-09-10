@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Status | v0.8 |
-| Date | 2026-09-04 |
+| Status | v0.9 |
+| Date | 2026-09-10 |
 | Purpose | Rough requirements and tooling candidates that the charter deliberately excludes (tool selection, architecture). The PRD reads this file; the charter does not. |
 | Cites | `docs/charter.md` v0.9 |
 
@@ -96,7 +96,29 @@ Rows 4, 7, 9, 10, 11, and 14 were not research questions and are unchanged.
 
 Agent runtime for the initial version, decided by the user on 2026-09-04: the Cursor SDK as primary and Claude Code (CLI and Agent SDK) as secondary, with one custom agent definition per stage, each naming its model in the manifest (D31). Recorded on every run; the first benchmark per stage decides D5 for that stage (PRD section 11, item 19). R10b verified the Cursor SDK's telemetry surface and R10c its terms; see section 5. Before the first run: Privacy Mode enforced on the Cursor team account, a team spend limit set, and both recorded in `config/`.
 
+## 7. Candidates from the Mastra study, 2026-09-10
+
+Source: `docs/research/mastra-comparison.md` v0.1 and the packet reports under `docs/research/raw/mastra/`, a read of the Mastra monorepo (commit `64c1190de3`) against the PRD, the milestones and the built runner. The owner's rule for this section, decided 2026-09-10: an idea enters the PRD as a row only when a milestone takes it; until then it lives here with the row it would extend, so the reasoning is not lost. Two ideas went straight in as Initial rows (R-F-16 recorded runtime transcripts, R-T-14 secret-shaped text redaction) and the future `score` row's shape was fixed in section 2.2. The study's do-not-port list (section 7 of the comparison) is decided; nothing on it returns without a new citation.
+
+Owner's answers of 2026-09-10: the Claude Code adapter is built after the first pilot ticket, not before; the health report, the read-before-write guard (implementation stage only), the typed queue-action payloads with compare-and-set resolution, and the executor seam wait for the next milestone, the queue-action work after the first real send-back has exercised `factory act`; Later ideas stay here. The owner also decided that an escalation posts to the Slack channel at once instead of waiting for the next digest slot (row 16), amending R-H-3.
+
+| # | Idea | Stages | Cites | When | Would extend | Source |
+|---|---|---|---|---|---|---|
+| 15 | Deterministic health report: a pure function over the record naming expired leases, items past an age threshold and missing seats, each with a suggested repair; thresholds in `limits.yaml` | Cross-cutting | P11, FM-19, FM-21 | Next milestone | New R-O row beside R-O-1; `factory` command | A1-1 |
+| 16 | Urgent queue-item class: a kind in `immediate_kinds` creates an outbox digest intent at open time, additive to the scheduled digest, same minimised fields | H | P1, D17, FM-19 | Decided 2026-09-10: in the PRD as an amendment to R-H-3, Initial, `escalation` by default | R-H-3; section 8 digest cadence; `project.yaml` digest key | B-4, F-1 |
+| 17 | Read-before-write guard on the implementation worktree: a write to a file the attempt has not read, or that changed on disk since, is refused; per attempt | S4 | P5, FM-21 | Next milestone | New R-I row beside R-I-3 and R-I-11 | E-2 |
+| 18 | Typed payload schema per queue action and compare-and-set resolution: every `(kind, action)` pair declares its argument shape and is validated before any side effect; an item resolves with one guarded update and refuses on zero rows | H | P11, FM-25 | Next milestone, after the first real send-back | R-I-1 act on the queue | B-2, B-3 |
+| 19 | Named executor seam: a dispatcher protocol with exactly the methods `advance` calls; the fence stays outside it; import-graph test; no behaviour change | All | D27, FM-18 | Next milestone | R-I-1; HLD C2 | B-1 |
+| 20 | Cache-read and cache-write token fields on `stage_run`, null when not reported; price-table cost keeps a reported cache field | All | P7, FM-19 | Next milestone, once a second adapter reports them | R-I-13; `stage_run` | C-3.2 |
+| 21 | Seatbelt profile knowledge for the OS policy: `-p` inline profile, blanket read allow before subpath allows, the Mach-service allowlist; escape-suite case for the lookup allowlist | S4, S5 | C10, FM-23 | When the OS policy is built | R-I-14 | E-1 |
+| 22 | Run-detail expansion and single-run export: any `tool_call` expands to its full recorded input and output on request; one self-contained JSON per run with every reference resolved, truncation noted | Cross-cutting | P9, FM-10 | Next milestone | R-O-4, R-O-5 | F-6 |
+| 23 | Claude Code adapter against R-I-13 with one fixture set run against both adapters | S1 to S4 | D5, D31, FM-19 | After the first pilot ticket | R-I-13; HLD G1 from dashed to solid | C-3.1 |
+| 24 | Smaller code and text items needing no row: one failure-kind retry-policy lookup; the sentence "a confirmed finding may never be resolved by recording an assumption" in the planning and review skills; a two-cohort comparison helper with error counts beside the mean; an adapter output-shape drift check; observational lifecycle hooks as typed recipes; a declarative predicate grammar for the tiering and split rules once a third rule appears | Various | P2, P6, P8 | Next milestone | `runner/`, `factory/skills/`, `scripts/tools/` | A1-8, A1-5, D-3, D-8, C-3.5, E-6 |
+| 25 | Later, with landing rows: gate/scorer/threshold verdict (R-O-12, R-F-8); trajectory from `tool_call` rows with declarative expectations (R-S4-7); per-model-call tokens (after a Cursor SDK capability check); multi-select questions (R-S2); skill subdirectories (section 7 `skills/`); self-recognising bot identity, reconciliation sweep and decision idempotency keys (R-S7); OS backend enum (R-I-14); live progress and push status (R-O-8, R-I-1); prior-rejection feedback inline (a UI); backpressure vocabulary (D28 note for R-O-13); untrusted-checkout guard (R-I-14, when an agent reads an external PR); per-ticket autonomy flag (`ticket`, new R-H row, owner question first); explicit state kinds (`state_table.py`); BM25 prose search, compression retry, relevance ranking (R-S1); multi-window cost (R-I-10); header-aware excerpts (R-I-17); file history command (F1); age-based pruning (`limits.yaml`, R-O-13); coalesced digest counts (R-H-3); log search and latency percentiles (R-O-8) | Various | As each landing row | Later | Named per item | Comparison section 5 |
+
 ## Revision history
+
+- **v0.9, 2026-09-10.** Section 7 added from the Mastra study (`docs/research/mastra-comparison.md`): the owner's answers, eleven candidates with the rows they would extend, and the Later list. Two rows went straight into the PRD (R-F-16, R-T-14). Cites charter v0.14; read by PRD v0.21.
 
 - **v0.8, 2026-09-04.** Contract diff selected by the user after the PRD v0.5 review: generic source-level extraction with tree-sitter, japicmp Later. Dependency diff switched from a lockfile to the build tool's resolved list. Row 14 of section 6 updated. Cites charter v0.9; read by PRD v0.6.
 - **v0.7, 2026-09-04.** R10c absorbed: Cursor terms carry no restriction on unattended SDK use; Privacy Mode enforcement and a spend limit become setup steps. Section 5 gained the R10c row; section 6 runtime note amended. Consistency fixes from the PRD review: row 3 MVP wording names codegraph, row 4 runs on the branch diff and does not tag, row 6 no longer names one runtime, codegraph re-index runs before S1. Cites charter v0.9.
