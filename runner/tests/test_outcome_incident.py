@@ -1,4 +1,5 @@
 """Production incidents, their dispositions, `incident-policy.yaml`, and its two severity-deriving call sites."""
+import pytest
 import yaml
 
 from runner import incident_policy, queue, record
@@ -57,7 +58,7 @@ def test_disposition_supersedes_only_the_same_roots_earlier_disposition(conn):
     ).fetchone()
     queue.act(
         conn, ticket_id=ticket_id, action="disposition", actor=ABHISHEK,
-        fields={"event": str(event_b), "attribution": "not_attributable", "disposition": "accepted"},
+        fields={"event": str(event_b), "attribution": "not_attributable", "disposition": "reviewed_no_change"},
     )
     disposition_b = conn.execute(
         "SELECT * FROM incident_observation WHERE event_id = ? AND record_kind = 'production_disposition'", (event_b,)
@@ -79,6 +80,28 @@ def test_disposition_supersedes_only_the_same_roots_earlier_disposition(conn):
     assert second_a["supersedes"] == first_a["id"]
 
 
+def test_must_reject_a_disposition_value_outside_the_policys_closed_set(conn):
+    """A disposition the policy does not name is refused and writes no row."""
+    ticket_id = _seed_ticket(conn)
+    queue.act(
+        conn, ticket_id=ticket_id, action="incident_event", actor=ABHISHEK,
+        fields={"severity": "sev2", "occurred_at": "2025-02-01T00:00:00+00:00", "fm_id": "question_noise", "note": "elevated error rate"},
+    )
+    event_id = conn.execute(
+        "SELECT id FROM incident_observation WHERE ticket_id = ? AND record_kind = 'production_incident_event'", (ticket_id,)
+    ).fetchone()["id"]
+
+    with pytest.raises(queue.ActionRefused):
+        queue.act(
+            conn, ticket_id=ticket_id, action="disposition", actor=ABHISHEK,
+            fields={"event": str(event_id), "attribution": "attributable", "disposition": "not_applicable"},
+        )
+
+    assert conn.execute(
+        "SELECT count(*) AS n FROM incident_observation WHERE record_kind = 'production_disposition'"
+    ).fetchone()["n"] == 0
+
+
 def test_incident_policy_yaml_declares_every_required_shape():
     policy = yaml.safe_load(POLICY_PATH.read_text())
     assert policy["severity_levels"] == ["sev1", "sev2", "sev3", "sev4"]
@@ -86,7 +109,7 @@ def test_incident_policy_yaml_declares_every_required_shape():
     assert all(value == "sev2" for value in policy["control_categories"].values())
     assert policy["production_incident"]["severity_from"] == "severity_levels"
     assert set(policy["attribution_values"]) == {"attributable", "not_attributable", "undetermined"}
-    assert set(policy["disposition_values"]) == {"open", "remediated", "accepted", "not_applicable"}
+    assert set(policy["disposition_values"]) == {"open", "remediated", "reviewed_no_change"}
     assert set(policy["remediation_rule"]["remediated_requires_ref_prefixes"]) == {"catalogue:", "rubric:"}
 
 

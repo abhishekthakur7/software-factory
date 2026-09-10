@@ -5,11 +5,14 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+import yaml
+
 from runner import artefact_registry, canonical, guard, record, run_ledger, schema
 from runner.paths import FACTORY_DIR
 from runner.fs import write_text
 
 BASELINE_ROUTE = "baseline_read"
+LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 POST_PLAN_REVISIONS = schema.BASELINE_REVISIONS_MEASURE
 _REPORT = runpy.run_path(str(FACTORY_DIR / "scripts" / "tools" / "report"))
 REQUESTED_MEASURES = tuple(dict.fromkeys(_REPORT["baseline_measures"]().values()))
@@ -43,14 +46,13 @@ def _assert_no_factory_results(conn: sqlite3.Connection) -> None:
 
 
 def _assert_import_available(conn: sqlite3.Connection) -> None:
-    """A cohort is never replayed; an open cohort receives supplemental rows through the guarded write APIs."""
+    """A cohort is never replayed: one import writes and freezes the whole combined membership."""
     _assert_no_factory_results(conn)
     cohort = conn.execute(
-        "SELECT id, frozen_at FROM artefact WHERE kind = 'baseline_selection' ORDER BY id LIMIT 1"
+        "SELECT id FROM artefact WHERE kind = 'baseline_selection' ORDER BY id LIMIT 1"
     ).fetchone()
     if cohort is not None:
-        state = "frozen" if cohort["frozen_at"] is not None else "open"
-        raise BaselineImportRefused(f"{state} baseline cohort {cohort['id']} already exists; supplement the existing cohort through its API")
+        raise BaselineImportRefused(f"baseline cohort {cohort['id']} already exists; its membership froze at import")
 
 
 def guard_baseline_payload(conn, payload: dict, *, source: str, route_id: str = BASELINE_ROUTE, profile_path=None, owners_path=None) -> dict:
@@ -157,6 +159,12 @@ def add_measure(conn: sqlite3.Connection, cohort_id: int, ticket_id: int, *, mea
     )
 
 
+def _comparable_target(limits_path: Path) -> int:
+    """The supplemental cohort exists to reach the count the graduation gate needs comparable,
+    so both read the one configured value rather than each carrying its own."""
+    return int(yaml.safe_load(Path(limits_path).read_text())["graduation"]["baseline_min_comparable"])
+
+
 def _selection_path(runs_dir: Path, run_id: int) -> Path:
     path = runs_dir / "baseline" / str(run_id) / "selection.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -165,9 +173,10 @@ def _selection_path(runs_dir: Path, run_id: int) -> Path:
 
 def import_baseline(conn: sqlite3.Connection, *, atlassian, github, service: str, admitted_types: set[str], retrospective_cutoff: str,
                     supplemental: list[dict] | None = None, supplemental_cutoff: str | None = None, repository: str = "", runs_dir: Path,
-                    profile_path=None, owners_path=None) -> int:
+                    limits_path: Path = LIMITS_PATH, profile_path=None, owners_path=None) -> int:
     """Read, measure, and freeze one retrospective plus optional supplemental cohort."""
     _assert_import_available(conn)
+    comparable_target = _comparable_target(limits_path)
     run_id = run_ledger.open_utility_run(conn, kind="baseline_import", inputs=json.dumps({"service": service, "cutoff": retrospective_cutoff}))
     selection_path = None
     savepoint_open = False
@@ -221,7 +230,7 @@ def import_baseline(conn: sqlite3.Connection, *, atlassian, github, service: str
 
         prepared_retrospective = [read_member(ticket) for ticket in retrospective]
         observed = sum(results[POST_PLAN_REVISIONS]["status"] == "observed" for _ticket, results in prepared_retrospective)
-        prepared_supplemental = [read_member(ticket) for ticket in guarded_supplemental] if observed < 10 else []
+        prepared_supplemental = [read_member(ticket) for ticket in guarded_supplemental] if observed < comparable_target else []
 
         conn.execute("SAVEPOINT baseline_import_cohort")
         savepoint_open = True
@@ -233,16 +242,15 @@ def import_baseline(conn: sqlite3.Connection, *, atlassian, github, service: str
             ticket_id = add_ticket(conn, cohort_id, ticket)
             for name, outcome in results.items():
                 add_measure(conn, cohort_id, ticket_id, measure_name=name, definition_hash=definition_hashes[name], ticket=ticket, result=outcome)
-            return results[POST_PLAN_REVISIONS]["status"]
 
-        observed = sum(write_member(ticket, results) == "observed" for ticket, results in prepared_retrospective)
-        if observed < 10:
-            observed += sum(write_member(ticket, results) == "observed" for ticket, results in prepared_supplemental)
-        if observed >= 10:
-            record.update(conn, "artefact", cohort_id, frozen_at=record.now())
-            run_ledger.finish(conn, run_id, "pass", table="utility_run")
-        else:
-            run_ledger.finish(conn, run_id, "blocked", table="utility_run")
+        for ticket, results in (*prepared_retrospective, *prepared_supplemental):
+            write_member(ticket, results)
+        # Membership freezes whatever the history could supply: the cohort has to be fixed
+        # before any factory result exists, and a cohort too short to compare is the
+        # graduation gate's own verdict to report, not a reason to leave it open and
+        # backfillable once results are known.
+        record.update(conn, "artefact", cohort_id, frozen_at=record.now())
+        run_ledger.finish(conn, run_id, "pass", table="utility_run")
         conn.execute("RELEASE SAVEPOINT baseline_import_cohort")
         savepoint_open = False
         conn.commit()

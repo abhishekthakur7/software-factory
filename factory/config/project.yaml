@@ -39,7 +39,17 @@ scratch_repository:
 # it null makes a populated digest fail closed instead of choosing a target.
 digest:
   channel: null
-  cadence: daily
+  # Local wall-clock times, on the named weekdays, in the engineer's own
+  # zone: setup writes one scheduler entry per weekday and time.
+  times:
+    - "10:00"
+    - "15:00"
+  weekdays:
+    - monday
+    - tuesday
+    - wednesday
+    - thursday
+    - friday
   # The owner selects this name after Slack MCP tool discovery and app approval.
   mcp_post_tool: null
   mcp_post_arguments:

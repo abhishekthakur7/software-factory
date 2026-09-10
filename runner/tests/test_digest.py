@@ -1,5 +1,6 @@
 """The digest records one utility run and one idempotent, minimal outbox intent."""
 import json
+import os
 import plistlib
 import subprocess
 import sys
@@ -8,11 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from runner import digest, outbox, owners, record, setup, trust_profile
+from runner import credentials, digest, outbox, owners, project, record, setup, trust_profile
 from runner.db import connect
 from runner.deliverers.slack import SlackDeliverer, SlackMCPPostTool, SlackMCPUnavailable
 from runner.tests.fakes.slack_transport import FakeSlackPostTool
 from runner.tests import test_outbox as outbox_harness
+
+
+SCHEDULE = digest.Schedule.from_config(None, zone=UTC)
 
 
 def _seed(conn):
@@ -32,7 +36,7 @@ def _live_slack(conn, tmp_path, monkeypatch):
 def test_empty_queue_records_a_digest_run_without_an_external_write(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     try:
-        assert digest.run(conn, channel=None, cadence="daily", now=datetime(2026, 1, 2, tzinfo=UTC), runs_dir=tmp_path, dispatch=False) is None
+        assert digest.run(conn, channel=None, schedule=SCHEDULE, now=datetime(2026, 1, 2, 10, 5, tzinfo=UTC), runs_dir=tmp_path, dispatch=False) is None
         assert conn.execute("SELECT COUNT(*) FROM external_write").fetchone()[0] == 0
         assert conn.execute("SELECT kind, outcome FROM utility_run").fetchone()["outcome"] == "pass"
     finally:
@@ -43,9 +47,9 @@ def test_same_slot_and_item_list_reuses_the_one_digest_intent(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         _seed(conn)
-        now = datetime(2026, 1, 2, tzinfo=UTC)
-        first = digest.run(conn, channel="C123", cadence="daily", now=now, runs_dir=tmp_path, dispatch=False)
-        second = digest.run(conn, channel="C123", cadence="daily", now=now, runs_dir=tmp_path, dispatch=False)
+        now = datetime(2026, 1, 2, 10, 5, tzinfo=UTC)
+        first = digest.run(conn, channel="C123", schedule=SCHEDULE, now=now, runs_dir=tmp_path, dispatch=False)
+        second = digest.run(conn, channel="C123", schedule=SCHEDULE, now=now, runs_dir=tmp_path, dispatch=False)
         assert first == second
         assert conn.execute("SELECT COUNT(*) FROM external_write").fetchone()[0] == 1
         payload = conn.execute("SELECT path FROM artefact WHERE kind = 'outbox_payload'").fetchone()["path"]
@@ -58,8 +62,8 @@ def test_item_age_is_snapshotted_at_the_slot_boundary_for_idempotency(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     try:
         _seed(conn)
-        first = digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, 1, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
-        second = digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, 23, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
+        first = digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 10, 5, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
+        second = digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 14, 59, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
         assert first == second
     finally:
         conn.close()
@@ -70,8 +74,8 @@ def test_reconciled_digest_slot_posts_once_through_the_guarded_slack_outbox(tmp_
     try:
         _seed(conn)
         post_tool = _live_slack(conn, tmp_path, monkeypatch)
-        first = digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, 1, tzinfo=UTC), runs_dir=tmp_path)
-        second = digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, 23, tzinfo=UTC), runs_dir=tmp_path)
+        first = digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 10, 5, tzinfo=UTC), runs_dir=tmp_path)
+        second = digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 14, 59, tzinfo=UTC), runs_dir=tmp_path)
         assert first == second
         assert len(post_tool.calls) == 1
         assert record.get(conn, "external_write", first)["state"] == "reconciled"
@@ -88,9 +92,9 @@ def test_pending_digest_slot_dispatches_once_when_a_retry_reaches_send(tmp_path,
     try:
         _seed(conn)
         post_tool = _live_slack(conn, tmp_path, monkeypatch)
-        first = digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
+        first = digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 10, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
         assert record.get(conn, "external_write", first)["state"] == "pending"
-        second = digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, 12, tzinfo=UTC), runs_dir=tmp_path)
+        second = digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 12, tzinfo=UTC), runs_dir=tmp_path)
         assert first == second
         assert record.get(conn, "external_write", first)["state"] == "reconciled"
         assert len(post_tool.calls) == 1
@@ -103,7 +107,7 @@ def test_must_retain_an_ambiguous_sending_digest_without_another_slack_post(tmp_
     try:
         _seed(conn)
         post_tool = _live_slack(conn, tmp_path, monkeypatch)
-        intent_id = digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
+        intent_id = digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 10, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
         record.update(conn, "external_write", intent_id, state="sending")
         conn.commit()
         outbox._reconcile_sending(
@@ -112,7 +116,7 @@ def test_must_retain_an_ambiguous_sending_digest_without_another_slack_post(tmp_
         )
         assert record.get(conn, "external_write", intent_id)["state"] == "sending"
         with pytest.raises(outbox.IntentRefused, match="still sending"):
-            digest.run(conn, channel="C123", cadence="daily", now=datetime(2026, 1, 2, 12, tzinfo=UTC), runs_dir=tmp_path)
+            digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(2026, 1, 2, 12, tzinfo=UTC), runs_dir=tmp_path)
         assert post_tool.calls == []
     finally:
         conn.close()
@@ -178,29 +182,115 @@ def test_must_reject_populated_queue_without_a_configured_channel(tmp_path):
     try:
         _seed(conn)
         with pytest.raises(digest.DigestConfigurationError, match="channel"):
-            digest.run(conn, channel=None, cadence="daily", now=datetime(2026, 1, 2, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
+            digest.run(conn, channel=None, schedule=SCHEDULE, now=datetime(2026, 1, 2, 10, 5, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
     finally:
         conn.close()
 
 
-def test_scheduler_plist_uses_the_configured_cadence_and_channel(tmp_path):
+def test_scheduler_plist_carries_one_entry_per_scheduled_weekday_and_time(tmp_path):
+    """the default schedule runs the digest twice a day from Monday to
+    Friday, and the scheduler entry names all ten occurrences."""
     path = setup.write_digest_launchd_entry(
-        {"digest": {"channel": "C123", "cadence": "weekly"}}, tmp_path, tmp_path / "factory", tmp_path / "factory.sqlite",
+        {"digest": {"channel": "C123"}}, tmp_path, tmp_path / "factory", tmp_path / "factory.sqlite",
     )
-    plist = path.read_text()
+    document = plistlib.loads(path.read_bytes())
     assert path.name == "com.soft-factory.digest.plist"
-    assert "C123" in plist
-    assert "Weekday" in plist
-    assert "digest" in plist
+    assert document["EnvironmentVariables"] == {"FACTORY_DIGEST_CHANNEL": "C123"}
+    assert document["ProgramArguments"][-1] == "digest"
+    assert document["StartCalendarInterval"] == [
+        {"Weekday": weekday, "Hour": hour, "Minute": 0} for weekday in range(1, 6) for hour in (10, 15)
+    ]
 
 
 def test_scheduler_plist_escapes_paths_and_channels_without_changing_schedule(tmp_path):
+    """a configured weekday is written in launchd's own numbering, which
+    counts Sunday as zero, whatever the paths and channel contain."""
     executable = tmp_path / "factory & digest"
     db_path = tmp_path / "runs & queue" / "factory.sqlite"
-    document = plistlib.loads(setup.digest_launchd_plist({"digest": {"channel": "C&123", "cadence": "daily"}}, executable, db_path).encode())
+    document = plistlib.loads(setup.digest_launchd_plist(
+        {"digest": {"channel": "C&123", "times": ["07:30"], "weekdays": ["sunday"]}}, executable, db_path,
+    ).encode())
     assert document["ProgramArguments"] == [str(executable), "--db", str(db_path), "digest"]
     assert document["EnvironmentVariables"] == {"FACTORY_DIGEST_CHANNEL": "C&123"}
-    assert document["StartCalendarInterval"] == {"Hour": 9, "Minute": 0}
+    assert document["StartCalendarInterval"] == [{"Weekday": 0, "Hour": 7, "Minute": 30}]
+
+
+def test_must_reject_a_scheduler_entry_whose_schedule_names_no_time(tmp_path):
+    with pytest.raises(setup.SetupError, match="times"):
+        setup.digest_launchd_plist(
+            {"digest": {"channel": "C123", "times": []}}, tmp_path / "factory", tmp_path / "factory.sqlite",
+        )
+
+
+def test_each_scheduled_occurrence_earns_its_own_digest_intent(tmp_path):
+    """two runs inside one occurrence serve the same slot, while the day's
+    later occurrence and the same time on the next working day are separate
+    slots; a weekend run still serves the last working day's occurrence."""
+    conn = connect(tmp_path / "factory.sqlite")
+    try:
+        _seed(conn)
+        def at(*when):
+            return digest.run(conn, channel="C123", schedule=SCHEDULE, now=datetime(*when, tzinfo=UTC), runs_dir=tmp_path, dispatch=False)
+
+        morning, morning_again = at(2026, 1, 2, 10, 5), at(2026, 1, 2, 14, 59)
+        afternoon, weekend = at(2026, 1, 2, 15, 5), at(2026, 1, 4, 12)
+        next_working_day = at(2026, 1, 5, 10, 5)
+        assert morning == morning_again
+        assert weekend == afternoon
+        assert len({morning, afternoon, next_working_day}) == 3
+        slots = [row["schedule_slot"] for row in conn.execute("SELECT schedule_slot FROM external_write ORDER BY id")]
+        assert slots == ["2026-01-02T10:00", "2026-01-02T15:00", "2026-01-05T10:00"]
+    finally:
+        conn.close()
+
+
+def test_must_reject_a_schedule_that_names_no_times():
+    with pytest.raises(digest.DigestConfigurationError, match="times"):
+        digest.Schedule.from_config({"times": [], "weekdays": ["monday"]})
+
+
+def test_must_reject_a_time_that_is_not_a_time_of_day():
+    with pytest.raises(digest.DigestConfigurationError, match="HH:MM"):
+        digest.Schedule.from_config({"times": ["10 a.m."], "weekdays": ["monday"]})
+
+
+def test_must_reject_a_weekday_that_is_not_a_named_day():
+    """weekdays are named, never numbered, because every numbering in reach
+    starts the week on a different day."""
+    with pytest.raises(digest.DigestConfigurationError, match="weekday"):
+        digest.Schedule.from_config({"times": ["10:00"], "weekdays": [1]})
+
+
+@pytest.mark.skipif(
+    not os.environ.get("SOFT_FACTORY_DIGEST_CHANNEL"),
+    reason="SOFT_FACTORY_DIGEST_CHANNEL names no channel: the closing run needs a real Slack workspace to post into",
+)
+def test_closing_run_posts_once_to_the_real_slack_channel(tmp_path):
+    """the closing run posts the digest once to the configured Slack
+    channel, through the real Slack MCP server and the real deliverer, and
+    leaves exactly one dispatched external write behind.
+
+    Skipped loudly wherever the real Slack workspace is out of reach --
+    no channel named for this host, no `slack_digest` Keychain item, or
+    no post-tool binding chosen yet in `project.yaml`."""
+    if not credentials.available(credentials.SLACK_DIGEST_ROLE):
+        pytest.skip("no slack_digest Keychain item on this host: the real Slack MCP server cannot be authenticated")
+    settings = project.load().get("digest") or {}
+    if not (settings.get("channel") and settings.get("mcp_post_tool")):
+        pytest.skip("project.yaml carries no Slack channel and MCP post-tool binding: the owner chooses both after Slack app approval")
+
+    conn = connect(tmp_path / "factory.sqlite")
+    try:
+        _seed(conn)
+        outbox_harness._activate(conn, trust_profile.DEFAULT_TRUST_PROFILE_PATH, owners.DEFAULT_OWNERS_PATH)
+        intent_id = digest.run(
+            conn, channel=os.environ["SOFT_FACTORY_DIGEST_CHANNEL"],
+            schedule=digest.Schedule.from_config(settings), runs_dir=tmp_path,
+        )
+        assert conn.execute("SELECT COUNT(*) FROM external_write").fetchone()[0] == 1
+        assert record.get(conn, "external_write", intent_id)["state"] == "reconciled"
+    finally:
+        conn.close()
 
 
 def test_digest_tool_runs_an_empty_database_as_a_subprocess(tmp_path):

@@ -806,10 +806,10 @@ TABLES: tuple[Table, ...] = (
             Column("payload_artefact_id", "INTEGER", references="artefact.id"),
             Column("payload_digest", "TEXT"),
             # Immutable delivery binding for a digest: dispatch must use the
-            # channel and cadence slot reviewed when this intent was created,
-            # never whichever configuration happens to be current later.
+            # channel and scheduled occurrence reviewed when this intent was
+            # created, never whichever configuration happens to be current later.
             Column("digest_channel", "TEXT"),
-            Column("cadence_slot", "TEXT"),
+            Column("schedule_slot", "TEXT"),
             # Set by the dispatch attempt, not at intent creation: the guard
             # commits its own decision row, so guarding inside the
             # approval-plus-intent transaction would split that commit.

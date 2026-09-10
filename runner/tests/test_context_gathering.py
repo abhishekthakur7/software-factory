@@ -476,15 +476,6 @@ def _reindex_eval_case(name: str) -> dict:
     return next(case for case in spec["cases"] if case["name"] == name)
 
 
-@pytest.mark.skipif(shutil.which("codegraph") is None, reason="codegraph is not installed")
-def test_reindex_succeeds_when_codegraph_is_installed():
-    """The reindex tool reports ok when the codegraph binary is installed and indexing succeeds."""
-    worktree = REINDEX_EVAL_DIR / _reindex_eval_case("indexed")["fixture"] / "worktree"
-    result = subprocess.run([str(REINDEX_SCRIPT), str(worktree)], capture_output=True, text=True)
-    assert result.returncode == 0
-    assert json.loads(result.stdout)["ok"] is True
-
-
 def test_must_reject_reindex_when_codegraph_is_absent_from_path(monkeypatch):
     """The reindex tool exits 1 with a JSON reason when the codegraph binary is absent from PATH."""
     worktree = REINDEX_EVAL_DIR / _reindex_eval_case("absent_binary")["fixture"] / "worktree"

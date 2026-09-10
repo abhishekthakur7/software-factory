@@ -7,15 +7,17 @@ fixture project standing in for the pilot host; only the escape suite's `credent
 the live GitHub view need the real pilot ticket on the real pilot host, so those stay in the
 skipping-loudly live test at the bottom of this file.
 """
+import ast
 import json
 import os
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from runner import artefact_registry, canonical, capacity, evals, queue, record, stage_interface
+from runner import artefact_registry, canonical, capacity, evals, outbox, queue, record, stage_interface
 from runner.paths import FACTORY_DIR
 from runner.tests.test_stub_walk import ABHISHEK, HAS_JAVAC, _patch_fixture_runtime, _run_walk
 
@@ -30,6 +32,30 @@ FIXTURE_FROM_EXPORT_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "fixture_from_e
 _WALK_VERBS_IN_CATALOGUE = {"advance": "advance", "run": "run_stage", "pause": "pause", "resume": "resume", "stop": "stop", "act": "act"}
 
 _SKIP_NO_JAVAC = pytest.mark.skipif(not HAS_JAVAC, reason="javac/java not available: the walk cannot reach pr_opened without it")
+
+
+def _measure_block(report_text: str, title_prefix: str) -> list[str]:
+    """The indented lines the report printed under the one measure whose title starts with `title_prefix`.
+
+    Raises when no measure matches, so a measure the report stopped
+    printing at all fails the reading test rather than reading as empty.
+    """
+    lines = report_text.splitlines()
+    start = next(index for index, line in enumerate(lines) if line.startswith(title_prefix))
+    block: list[str] = []
+    for line in lines[start + 1:]:
+        if not line.startswith("  "):
+            break
+        block.append(line.strip())
+    return block
+
+
+def _measure_rows(report_text: str, title_prefix: str) -> list[dict]:
+    """The `key=value` lines of one measure's block as dicts; a status/reason block has none."""
+    return [
+        {key: ast.literal_eval(value) for key, value in (field.split("=", 1) for field in line.split(", "))}
+        for line in _measure_block(report_text, title_prefix) if "=" in line
+    ]
 
 
 @pytest.fixture(scope="module")
@@ -177,6 +203,57 @@ def test_the_pr_create_external_write_dispatches_no_earlier_than_the_quorum_comp
 
 
 @_SKIP_NO_JAVAC
+def test_the_dispatched_pull_request_intent_carries_the_subjects_both_gates_approved(pilot_walk):
+    """The pre-dispatch recheck let the pull request through on subjects that were still
+    the current ones: the dispatched intent's review subject is the one every `review`-gate
+    approval bound and the one the review packet was opened on, its review tuple is the ticket's
+    latest and stands at the ticket's own final head, the plan tuple that review tuple references
+    is the one the `plan`-gate approvals bound, and no write the walk left behind records a
+    pre-dispatch mismatch."""
+    conn, ticket_id = pilot_walk.conn, pilot_walk.ticket_id
+
+    external_write = conn.execute(
+        "SELECT * FROM external_write WHERE ticket_id = ? AND operation = 'pr_create' ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    ticket = record.get(conn, "ticket", ticket_id)
+    review_tuple = record.get(conn, "evidence_tuple", external_write["review_tuple_id"])
+    plan_tuple = record.get(conn, "evidence_tuple", review_tuple["plan_tuple_id"])
+    latest_review_tuple_id = conn.execute(
+        "SELECT MAX(id) AS id FROM evidence_tuple WHERE ticket_id = ? AND kind = 'review'", (ticket_id,)
+    ).fetchone()["id"]
+    packet_item = conn.execute(
+        "SELECT approval_subject_hash FROM queue_item WHERE ticket_id = ? AND kind = 'packet_approval' "
+        "ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+
+    assert external_write["state"] == "reconciled"
+    assert review_tuple["id"] == latest_review_tuple_id
+    assert review_tuple["head_sha"] == ticket["head_sha"]
+    assert review_tuple["target_base_sha"] == ticket["target_base_sha"]
+
+    review_subject_hashes = {
+        row["subject_hash"] for row in conn.execute(
+            "SELECT subject_hash FROM approval_record WHERE ticket_id = ? AND gate = 'review' AND decision = 'approve'",
+            (ticket_id,),
+        )
+    }
+    plan_subject_hashes = {
+        row["subject_hash"] for row in conn.execute(
+            "SELECT subject_hash FROM approval_record WHERE ticket_id = ? AND gate = 'plan' AND decision = 'approve'",
+            (ticket_id,),
+        )
+    }
+    assert review_subject_hashes == {external_write["review_approval_subject_hash"]}
+    assert packet_item["approval_subject_hash"] == external_write["review_approval_subject_hash"]
+    assert plan_subject_hashes == {plan_tuple["content_hash"]}
+
+    for row in conn.execute("SELECT last_error FROM external_write WHERE ticket_id = ?", (ticket_id,)):
+        assert not (row["last_error"] or "").startswith(outbox.PREDISPATCH_MISMATCH_PREFIX)
+
+
+@_SKIP_NO_JAVAC
 def test_fixture_from_export_over_the_walk_s_own_export_produces_a_directory_the_completeness_walk_accepts(pilot_walk, pilot_export, tmp_path):
     """`factory/scripts/tools/fixture_from_export` run over the pilot ticket's own
     governed export produces a `factory/evals/tickets/<id>/` directory under a temporary fixture
@@ -197,6 +274,65 @@ def test_fixture_from_export_over_the_walk_s_own_export_produces_a_directory_the
     ticket_eval_dir = fixture_root / "factory" / "evals" / "tickets" / str(ticket_id)
     evals.check(ticket_eval_dir)  # raises on failure; no exception is the assertion
     assert ticket_eval_dir in evals.expected_eval_dirs(fixture_root / "factory")
+
+
+@_SKIP_NO_JAVAC
+def test_the_measure_report_over_the_walk_s_record_separates_reliability_latency_attention_and_what_it_cannot_supply(pilot_walk):
+    """`stage_interface.report` over the closing run's own database tells four different
+    things apart. First-attempt reliability counts exactly one attempt for each stage the walk
+    killed before it ever ran, and none of them passed on that attempt: the killed run is the
+    first, the passing restart is a later attempt, and the child runs under it and the
+    implementation invocation the transition table refused are no first-attempt result at all.
+    Queue latency is the wait on the plan-approval item, in seconds off that item's own queued and
+    resolved instants, and covers only the item kinds the measure names -- the eligibility and
+    red-check items the walk also resolved are not waits on a decision. Active attention comes
+    from what each approver recorded and nothing else: at both gates one approval came through
+    the queue with a bucket and one was recorded directly with none, so an unrecorded bucket
+    is its own group rather than a zero or a latency stand-in. And a measure this fixture never
+    fed -- no generated test was ever judged -- reads as unavailable with a reason, never as a
+    zero share and never dropped from the panel."""
+    conn, ticket_id, tmp_path = pilot_walk.conn, pilot_walk.ticket_id, pilot_walk.tmp_path
+    # The report runs as its own process against the database file, so
+    # anything still open in this connection's transaction would be
+    # invisible to it.
+    conn.commit()
+
+    report_text = stage_interface.report(tmp_path / "factory.sqlite")
+
+    reliability = {
+        row["stage"]: (row["eligible_count"], row["passed_count"])
+        for row in _measure_rows(report_text, "share of stage runs passing on the first attempt")
+    }
+    assert reliability == {
+        stage: (1, 0)
+        for stage in ("intake", "context_gathering", "clarification", "planning", "checks", "human_review")
+    }
+
+    plan_approval_item = conn.execute(
+        "SELECT queued_at, resolved_at FROM queue_item WHERE ticket_id = ? AND kind = 'plan_approval' "
+        "ORDER BY id DESC LIMIT 1",
+        (ticket_id,),
+    ).fetchone()
+    waited_seconds = (
+        datetime.fromisoformat(plan_approval_item["resolved_at"])
+        - datetime.fromisoformat(plan_approval_item["queued_at"])
+    ).total_seconds()
+    latency_rows = _measure_rows(report_text, "queue latency at clarification, planning, human review")
+    assert [(row["stage"], row["tier"], row["item_count"]) for row in latency_rows] == [("planning", "standard", 1)]
+    assert latency_rows[0]["queue_latency_seconds"] == pytest.approx(waited_seconds, abs=0.001)
+
+    attention_rows = _measure_rows(report_text, "active attention at planning and human review")
+    assert {(row["stage"], row["tier"], row["decision"], row["bucket"]): row["record_count"] for row in attention_rows} == {
+        ("planning", "standard", "approve", "under_2m"): 1,
+        ("planning", "standard", "approve", None): 1,
+        ("human_review", "standard", "approve", "under_2m"): 1,
+        ("human_review", "standard", "approve", None): 1,
+    }
+
+    generated_tests_block = _measure_block(report_text, "share of generated tests kept after review")
+    assert len(generated_tests_block) == 2
+    assert generated_tests_block[0] == "status: unavailable"
+    assert generated_tests_block[1].startswith("reason: ")
 
 
 @_SKIP_NO_JAVAC

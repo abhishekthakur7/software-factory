@@ -277,7 +277,9 @@ def show_artefact(
 
 
 def digest_open_items(conn: sqlite3.Connection, runs_dir: Path = RUNS_DIR) -> str:
-    """Build and dispatch the configured cadence's digest through the transactional outbox."""
+    """Build and dispatch the scheduled digest through the transactional outbox."""
     config = project.load().get("digest") or {}
-    intent_id = digest.run(conn, channel=config.get("channel"), cadence=config.get("cadence", "daily"), runs_dir=runs_dir)
+    intent_id = digest.run(
+        conn, channel=config.get("channel"), schedule=digest.Schedule.from_config(config), runs_dir=runs_dir,
+    )
     return "digest: no open items" if intent_id is None else f"digest: intent {intent_id}"

@@ -37,9 +37,9 @@ production_incident:
 # yet determined.
 attribution_values: [attributable, not_attributable, undetermined]
 
-# production_disposition.disposition's closed set: the incident's
-# remediation state.
-disposition_values: [open, remediated, accepted, not_applicable]
+# production_disposition.disposition's closed set: the incident is still
+# open, was remediated, or was reviewed and needed no change.
+disposition_values: [open, remediated, reviewed_no_change]
 
 # A `remediated` disposition must carry at least one remediation reference
 # prefixed with one of these -- a catalogue failure mode

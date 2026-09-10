@@ -21,7 +21,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from runner.fs import write_text
-from runner import fs, project as project_config
+from runner import digest, fs, project as project_config
 from runner.paths import FACTORY_DIR, REPO_ROOT
 
 DEFAULT_PROJECT_CONFIG = project_config.DEFAULT_PROJECT_CONFIG_PATH
@@ -29,23 +29,28 @@ DEFAULT_SEED_DIR = FACTORY_DIR / "evals" / "fixture-project"
 
 
 def digest_launchd_plist(config: dict, executable: Path, db_path: Path) -> str:
-    """The launchd plist text for the configured digest cadence, without installing it."""
-    digest = config.get("digest") or {}
-    channel, cadence = digest.get("channel"), digest.get("cadence")
+    """The launchd plist text for the configured digest channel and schedule, without installing it."""
+    settings = config.get("digest") or {}
+    channel = settings.get("channel")
     if not isinstance(channel, str) or not channel:
         raise SetupError("digest scheduler requires a configured channel")
-    schedules = {
-        "hourly": {"Minute": 0},
-        "daily": {"Hour": 9, "Minute": 0},
-        "weekly": {"Weekday": 1, "Hour": 9, "Minute": 0},
-    }
-    if cadence not in schedules:
-        raise SetupError(f"unsupported digest cadence {cadence!r}")
+    try:
+        schedule = digest.Schedule.from_config(settings)
+    except digest.DigestConfigurationError as exc:
+        raise SetupError(str(exc)) from exc
+    # launchd fires one occurrence per dictionary and counts weekdays from
+    # Sunday, so the configured weekday-by-time matrix is written out as an
+    # array of single occurrences rather than one interval with lists in it.
+    occurrences = [
+        {"Weekday": (weekday + 1) % 7, "Hour": hour, "Minute": minute}
+        for weekday in schedule.weekdays
+        for hour, minute in schedule.times
+    ]
     return plistlib.dumps(
         {
             "Label": "com.soft-factory.digest",
             "ProgramArguments": [str(executable), "--db", str(db_path), "digest"],
-            "StartCalendarInterval": schedules[cadence],
+            "StartCalendarInterval": occurrences,
             "EnvironmentVariables": {"FACTORY_DIGEST_CHANNEL": channel},
         }
     ).decode()

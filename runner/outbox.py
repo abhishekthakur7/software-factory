@@ -187,7 +187,7 @@ KEY_COLUMNS: dict[str, tuple[str, ...]] = {
         "expected_prior_remote_head_sha",
         "pr_body_hash",
     ),
-    "digest": ("digest_channel", "cadence_slot", "payload_digest"),
+    "digest": ("digest_channel", "schedule_slot", "payload_digest"),
     "jira_feedback": ("ticket_id", "payload_digest"),
 }
 
@@ -231,7 +231,7 @@ def create_intent(
     expected_prior_remote_head_sha: str | None = None,
     remote_pr_identity: str | None = None,
     digest_channel: str | None = None,
-    cadence_slot: str | None = None,
+    schedule_slot: str | None = None,
 ) -> int:
     """Insert one `pending` intent for `operation` and return its id, or the id of the row its key already names.
 
@@ -269,7 +269,7 @@ def create_intent(
         ),
         "remote_pr_identity": remote_pr_identity,
         "digest_channel": digest_channel,
-        "cadence_slot": cadence_slot,
+        "schedule_slot": schedule_slot,
     }
     key = idempotency_key(operation, row)
 

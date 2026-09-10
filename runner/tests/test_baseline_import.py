@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from runner import baseline, governance, record, schema
+from runner import baseline, governance, graduation, record, schema
 from runner.db import connect
 from runner.paths import FACTORY_DIR
 from runner.readers.atlassian import AtlassianReader
@@ -99,7 +99,7 @@ def test_import_writes_observed_and_approximate_rows_then_freezes_the_selection(
                                          profile_path=profile_path, owners_path=owners_path)
 
     cohort = record.get(conn, "artefact", cohort_id)
-    assert cohort["utility_run_id"] is not None and cohort["frozen_at"] is None
+    assert cohort["utility_run_id"] is not None and cohort["frozen_at"] is not None
     assert conn.execute("SELECT COUNT(*) FROM ticket WHERE baseline = 1").fetchone()[0] == 2
     rows = conn.execute("SELECT measure, status, value FROM baseline_measure ORDER BY ticket_id, measure").fetchall()
     assert any(row["measure"] == baseline.POST_PLAN_REVISIONS and row["status"] == "observed" and row["value"] == 1 for row in rows)
@@ -108,7 +108,6 @@ def test_import_writes_observed_and_approximate_rows_then_freezes_the_selection(
     assert all(row["status"] == "approximate" for row in rows if row["measure"] in source_backed)
     assert {row["measure"] for row in rows} == set(baseline.REQUESTED_MEASURES)
     assert all(row["status"] == "unavailable" for row in rows if row["measure"] not in {*source_backed, baseline.POST_PLAN_REVISIONS})
-    record.update(conn, "artefact", cohort_id, frozen_at=record.now())
     with pytest.raises(baseline.FrozenCohortError):
         baseline.add_ticket(conn, cohort_id, _ticket("LATE-1"))
 
@@ -144,20 +143,55 @@ def test_must_reject_a_baseline_read_attempted_on_another_route(conn, tmp_path):
                                         profile_path=profile_path, owners_path=owners_path)
 
 
-def test_ten_comparable_observations_freeze_the_combined_cohort(conn, tmp_path):
+def test_a_retrospective_cohort_that_reaches_the_comparable_target_writes_no_supplemental_members(conn, tmp_path):
+    """Supplemental evidence joins the cohort only when the retrospective history falls short of the
+    count the graduation gate needs comparable."""
     profile_path, owners_path = _profile(tmp_path, conn)
     tickets = [_ticket(f"FIX-{number:02}", f"2026-01-{number:02}T00:00:00+00:00") for number in range(1, 11)]
+    supplemental = [_ticket("SUP-1", "2026-01-15T00:00:00+00:00")]
     histories = {ticket["id"]: {"decisions": [{"kind": "design_decision", "at": "2025-12-01T00:00:00+00:00"}],
-                                "source_locator": f"jira:{ticket['id']}", "pull_request_locator": _pr_locator(ticket['id'])} for ticket in tickets}
+                                "source_locator": f"jira:{ticket['id']}", "pull_request_locator": _pr_locator(ticket['id'])} for ticket in [*tickets, *supplemental]}
     atlassian = AtlassianReader(FakeAtlassianTransport({}, completed=tickets, histories=histories))
+    events = {_pr_locator(ticket["id"]): [{"kind": "revision", "at": "2025-12-02T00:00:00+00:00"}] for ticket in [*tickets, *supplemental]}
+    github = __import__("runner.readers.github", fromlist=["GitHubReader"]).GitHubReader(FakeGitHubTransport(history_by_ref=events))
+
+    cohort_id = baseline.import_baseline(conn, atlassian=atlassian, github=github, service="fixture-project", admitted_types={"small_feature"},
+                                         retrospective_cutoff="2026-02-01T00:00:00+00:00", supplemental=supplemental,
+                                         supplemental_cutoff="2026-02-01T00:00:00+00:00", repository="owner/repo", runs_dir=tmp_path,
+                                         profile_path=profile_path, owners_path=owners_path)
+
+    assert record.get(conn, "artefact", cohort_id)["frozen_at"] is not None
+    members = {row["source_ref"] for row in conn.execute("SELECT source_ref FROM ticket WHERE baseline = 1").fetchall()}
+    assert members == {ticket["id"] for ticket in tickets}
+
+
+def test_a_cohort_too_short_to_compare_still_freezes_and_the_gate_calls_the_baseline_unavailable(conn, tmp_path):
+    """The declared cohort freezes on whatever history could supply, and the graduation gate
+    reports fewer comparable observed values than it needs as an unavailable baseline."""
+    profile_path, owners_path = _profile(tmp_path, conn)
+    tickets = [_ticket(f"FIX-{number:02}", f"2026-01-{number:02}T00:00:00+00:00") for number in range(1, 3)]
+    histories = {ticket["id"]: {"decisions": [{"kind": "approved_plan", "at": "2025-12-01T00:00:00+00:00"}],
+                                "source_locator": f"jira:{ticket['id']}", "pull_request_locator": _pr_locator(ticket["id"])} for ticket in tickets}
     events = {_pr_locator(ticket["id"]): [{"kind": "revision", "at": "2025-12-02T00:00:00+00:00"}] for ticket in tickets}
+    atlassian = AtlassianReader(FakeAtlassianTransport({}, completed=tickets, histories=histories))
     github = __import__("runner.readers.github", fromlist=["GitHubReader"]).GitHubReader(FakeGitHubTransport(history_by_ref=events))
 
     cohort_id = baseline.import_baseline(conn, atlassian=atlassian, github=github, service="fixture-project", admitted_types={"small_feature"},
                                          retrospective_cutoff="2026-02-01T00:00:00+00:00", repository="owner/repo", runs_dir=tmp_path,
                                          profile_path=profile_path, owners_path=owners_path)
+    conn.commit()
 
     assert record.get(conn, "artefact", cohort_id)["frozen_at"] is not None
+    assert conn.execute("SELECT outcome FROM utility_run WHERE kind = 'baseline_import'").fetchone()["outcome"] == "pass"
+
+    report_id = graduation.evaluate(conn, limits_path=baseline.LIMITS_PATH, manifest_hash="baseline-cohort-manifest",
+                                    cutoff="2026-03-01T00:00:00", runs_dir=tmp_path)
+    conn.commit()
+
+    clause = json.loads(Path(record.get(conn, "artefact", report_id)["path"]).read_text())["clauses"]["baseline_revisions"]
+    assert clause["passed"] is False
+    assert clause["reasons"] == ["unavailable_baseline"]
+    assert clause["inputs"]["observed_comparable_count"] == 2
 
 
 def test_must_reject_a_new_import_after_a_frozen_cohort_exists(conn, tmp_path):
@@ -167,7 +201,7 @@ def test_must_reject_a_new_import_after_a_frozen_cohort_exists(conn, tmp_path):
     events = {_pr_locator(ticket["id"]): [{"kind": "revision", "at": "2025-12-02T00:00:00+00:00"}] for ticket in tickets}
     baseline.import_baseline(conn, atlassian=AtlassianReader(FakeAtlassianTransport({}, completed=tickets, histories=histories)), github=__import__("runner.readers.github", fromlist=["GitHubReader"]).GitHubReader(FakeGitHubTransport(history_by_ref=events)), service="fixture-project", admitted_types={"small_feature"}, retrospective_cutoff="2026-02-01T00:00:00+00:00", repository="owner/repo", runs_dir=tmp_path, profile_path=profile_path, owners_path=owners_path)
     atlassian, github = _empty_readers()
-    with pytest.raises(baseline.BaselineImportRefused, match="frozen baseline cohort"):
+    with pytest.raises(baseline.BaselineImportRefused, match="already exists"):
         baseline.import_baseline(conn, atlassian=atlassian, github=github, service="fixture-project", admitted_types={"small_feature"}, retrospective_cutoff="2026-02-01T00:00:00+00:00", repository="owner/repo", runs_dir=tmp_path, profile_path=profile_path, owners_path=owners_path)
     assert conn.execute("SELECT COUNT(*) FROM artefact WHERE kind = 'baseline_selection'").fetchone()[0] == 1
 
@@ -181,14 +215,12 @@ def test_must_reject_an_import_after_a_real_factory_result_exists(conn, tmp_path
     assert conn.execute("SELECT COUNT(*) FROM artefact WHERE kind = 'baseline_selection'").fetchone()[0] == 0
 
 
-def test_must_reject_reimport_of_an_open_cohort_and_direct_writes_after_a_real_result(conn, tmp_path):
+def test_must_reject_direct_baseline_writes_once_a_real_factory_result_exists(conn, tmp_path):
     profile_path, owners_path = _profile(tmp_path, conn)
-    ticket = _ticket("FIX-OPEN")
-    atlassian = AtlassianReader(FakeAtlassianTransport({}, completed=[ticket], histories={"FIX-OPEN": {"decisions": [], "source_locator": "jira:FIX-OPEN"}}))
+    ticket = _ticket("FIX-ONE")
+    atlassian = AtlassianReader(FakeAtlassianTransport({}, completed=[ticket], histories={"FIX-ONE": {"decisions": [], "source_locator": "jira:FIX-ONE"}}))
     github = __import__("runner.readers.github", fromlist=["GitHubReader"]).GitHubReader(FakeGitHubTransport(history_by_ref={}))
     cohort_id = baseline.import_baseline(conn, atlassian=atlassian, github=github, service="fixture-project", admitted_types={"small_feature"}, retrospective_cutoff="2026-02-01T00:00:00+00:00", repository="owner/repo", runs_dir=tmp_path, profile_path=profile_path, owners_path=owners_path)
-    with pytest.raises(baseline.BaselineImportRefused, match="open baseline cohort"):
-        baseline.import_baseline(conn, atlassian=atlassian, github=github, service="fixture-project", admitted_types={"small_feature"}, retrospective_cutoff="2026-02-01T00:00:00+00:00", repository="owner/repo", runs_dir=tmp_path, profile_path=profile_path, owners_path=owners_path)
     record.insert(conn, "ticket", baseline=0, state="merged", factory_completed_at=record.now())
     baseline_ticket_id = conn.execute("SELECT id FROM ticket WHERE baseline_cohort_id = ?", (cohort_id,)).fetchone()[0]
     with pytest.raises(baseline.BaselineImportRefused, match="factory result"):

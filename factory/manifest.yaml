@@ -13,7 +13,7 @@ files:
   - path: factory/catalogue/decisions.md
     content_hash: 2b8c5bec866c8c2ec792571f6f91c960e8360d04f9623e3407f0e3a26f3d2a38
   - path: factory/catalogue/failure-modes.md
-    content_hash: f499fcdba1a3ea7ad81572e5e2dc2158d3bff08e5713662ac4ed025e12664775
+    content_hash: 8621de3c58c5290b4a9b225ad8ec6d7243cb018bf773d90f1079788a337db84b
   - path: factory/config/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/config/artifact-to-service.yaml
@@ -23,7 +23,7 @@ files:
   - path: factory/config/exclusions.yaml
     content_hash: 80a74a27853f35d0dd32933159e229cf831cbc3d318dee433e209291a6c126ef
   - path: factory/config/incident-policy.yaml
-    content_hash: 5ef066bf0af07ceb8f046fbf48b228dd56caf645fabd1bd112fc1e09deaebf45
+    content_hash: a1b543a39d2c7ab4c08d017d5c0c8972a47ed8240ea0b0eea7d79b663e9fb62f
   - path: factory/config/limits.yaml
     content_hash: 7c3d0cfcf1f0b2bf32479e31a4e23fe2d9c5dd25ff7b2b2bf9e9bebaa62bb4d2
   - path: factory/config/owners.yaml
@@ -31,7 +31,7 @@ files:
   - path: factory/config/pricing.yaml
     content_hash: ba3870f9eb892e5374af4b7c1ceb24fa94d38fa431105164aba3109872ab7f0b
   - path: factory/config/project.yaml
-    content_hash: afc0997bf59144040caa9756d459766d76beb33b283c98c4268dac66d25f14e9
+    content_hash: 7a94f1b1665dbe47415cce049e10de9c0e3a0b3cc09383e3ca838025e1dd2c3e
   - path: factory/config/runtime.yaml
     content_hash: c0315bcd207fa9748851239f0770b6a1ac6e65d8ac48f048efad78cb88efcf51
   - path: factory/config/sandbox/agent-profile.sb
@@ -561,7 +561,7 @@ files:
   - path: factory/evals/rubrics/intake/fixtures/missing_front_matter/intake.md
     content_hash: bc0756c86edad30ed7eea846b43057ad1d81d2105823e31c6d0f5246aec0e50c
   - path: factory/evals/rubrics/intake/fixtures/ok/intake.md
-    content_hash: fc8c93b5682b8175fbc407df1915fbdbb92e14c7ff6c9499340fe4ea620a6a7e
+    content_hash: 7a27e6c0402696a4bb22142b84bf6276e2c9bc3a656ab81f509371d5eb162dfa
   - path: factory/evals/rubrics/planning/eval.yaml
     content_hash: ce7ba773e2f909894e3dfc98989672d9486abf42256fcda5597d1852816c4147
   - path: factory/evals/rubrics/planning/fixtures/abstraction_ok/plan.md
@@ -1143,7 +1143,7 @@ files:
   - path: factory/rubrics/implementation.md
     content_hash: a1daa13629523bbab4c6dd7df3b1f6961cc32454e3bca67b3d54e5bbbe4dcb06
   - path: factory/rubrics/intake.md
-    content_hash: fc8c93b5682b8175fbc407df1915fbdbb92e14c7ff6c9499340fe4ea620a6a7e
+    content_hash: 7a27e6c0402696a4bb22142b84bf6276e2c9bc3a656ab81f509371d5eb162dfa
   - path: factory/rubrics/planning.md
     content_hash: c3192cff33608b2458ff46d7dc4faa31977c62278392e63c582dd6b8392a1f3a
   - path: factory/scripts/checks/base_test_diff
