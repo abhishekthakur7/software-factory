@@ -26,7 +26,7 @@
     {"condition": "risk_map", "status": "pass", "source_artefact": "plan:3", "hash": "readyhash-2", "waiver_id": "", "note": ""}
   ],
   "approvals": [
-    {"id": 301, "gate": "plan", "slot_id": "s3_reviewer:1", "actor_identity": "abhishek", "role": "s3_reviewer", "decision": "approve", "decided_at": "2026-01-01T00:30:00+00:00", "expires_at": "2026-02-01T00:00:00+00:00", "content_hash": "apprhash-1"}
+    {"id": 301, "gate": "plan", "slot_id": "plan_reviewer:1", "actor_identity": "abhishek", "role": "plan_reviewer", "decision": "approve", "decided_at": "2026-01-01T00:30:00+00:00", "expires_at": "2026-02-01T00:00:00+00:00", "content_hash": "apprhash-1"}
   ],
   "waivers": [
     {"id": 501, "policy_id": "waiver-policy", "policy_version": "1", "subject_kind": "review_tuple", "scope": "declaration:WidgetUnitTest", "expires_at": "2026-03-01T00:00:00+00:00", "waived_check_result_id": 103, "waived_human_verdict_id": null, "content_hash": "waiverhash-1"}

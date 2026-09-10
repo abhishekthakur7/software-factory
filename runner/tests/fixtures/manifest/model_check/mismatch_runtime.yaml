@@ -1,6 +1,6 @@
 # A `runtime.yaml` fixture that accepts the fixture manifest's requested
 # model but runs a worker that always reports a different resolved one
-# (the `adapter` test suite's own `silent_fallback` case), proving R-I-4's
+# (the `adapter` test suite's own `silent_fallback` case), proving the
 # resolved-model-mismatch refusal registers no output.
 adapters:
   cursor_sdk:

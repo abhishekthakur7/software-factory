@@ -52,7 +52,7 @@ def conn(tmp_path):
 
 
 def test_the_conventions_entry_carries_the_six_required_front_matter_keys():
-    """R-F-6: every entry's front matter carries kind, source, owner,
+    """Every entry's front matter carries kind, source, owner,
     last_verified, staleness_rule, paths."""
     entries = {e.path.stem: e for e in context_index.load_entries(REAL_INDEX_DIR)}
     conventions = entries["conventions"]
@@ -64,7 +64,7 @@ def test_the_conventions_entry_carries_the_six_required_front_matter_keys():
 
 
 def test_the_index_carries_exactly_three_hand_written_entries_at_this_stage():
-    """R-F-6: conventions, sensitive-paths, and one caller entry -- no more, no fewer."""
+    """Conventions, sensitive-paths, and one caller entry -- no more, no fewer."""
     entries = context_index.load_entries(REAL_INDEX_DIR)
     assert {e.path.stem for e in entries} == {"conventions", "sensitive-paths", "callers"}
     kinds = {e.path.stem: e.kind for e in entries}
@@ -80,7 +80,7 @@ def test_an_entry_within_the_default_window_is_fresh():
 
 
 def test_an_entry_past_the_default_day_window_is_stale():
-    """R-F-6: more than the section 8 day count since `last_verified` is stale."""
+    """More than the section 8 day count since `last_verified` is stale."""
     entry = context_index.load_entries(FIXTURES_DIR / "stale_by_days")[0]
     limit = context_index.default_max_days()
     now = datetime(2026, 9, 8, tzinfo=timezone.utc)
@@ -92,20 +92,20 @@ def test_an_entry_past_the_default_day_window_is_stale():
 
 def test_must_reject_an_entry_with_no_last_verified_key_at_all():
     """A required front-matter key still missing entirely is a load-time error, distinct from
-    the key being present with a null value (which is R-F-6's own "always stale" case)."""
+    the key being present with a null value (which is its own "always stale" case)."""
     with pytest.raises(context_index.ContextIndexError):
         context_index.load_entries(FIXTURES_DIR / "missing_front_matter_key")
 
 
 def test_an_entry_with_last_verified_present_but_null_is_always_stale():
-    """R-F-6: no `last_verified` value marks the entry stale whatever the staleness rule says."""
+    """No `last_verified` value marks the entry stale whatever the staleness rule says."""
     entry = context_index.load_entries(FIXTURES_DIR / "no_last_verified")[0]
     assert entry.last_verified is None
     assert context_index.stale_reason(entry, now="2026-09-08T00:00:00+00:00") == "no last_verified"
 
 
 def test_a_day_fresh_entry_is_stale_when_a_base_branch_commit_touches_its_paths(tmp_path):
-    """R-F-6: the commit clause makes an entry stale even when the day rule alone would not."""
+    """The commit clause makes an entry stale even when the day rule alone would not."""
     entry = context_index.load_entries(FIXTURES_DIR / "base_branch_touched")[0]
     repo = tmp_path / "checkout"
     repo.mkdir()
@@ -142,11 +142,11 @@ def test_a_day_fresh_entry_survives_a_base_branch_commit_that_does_not_touch_its
 
 def _stage_run(conn) -> int:
     ticket_id = record.insert(conn, "ticket", state="context", opened_at=record.now())
-    return run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S1")
+    return run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="context_gathering")
 
 
 def test_a_read_stage_run_writes_one_index_use_row_per_entry_with_its_last_verified_date(conn):
-    """R-S1-7: every context index entry read is recorded in `index_use` with its last-verified date."""
+    """Every context index entry read is recorded in `index_use` with its last-verified date."""
     stage_run_id = _stage_run(conn)
     entry = context_index.load_entries(FIXTURES_DIR / "fresh")[0]
 
@@ -160,7 +160,7 @@ def test_a_read_stage_run_writes_one_index_use_row_per_entry_with_its_last_verif
 
 
 def test_a_stale_read_is_listed_stale_in_the_returned_reads(conn):
-    """R-S1-7: an entry past its staleness rule is listed as stale to the reading stage."""
+    """An entry past its staleness rule is listed as stale to the reading stage."""
     stage_run_id = _stage_run(conn)
     entry = context_index.load_entries(FIXTURES_DIR / "stale_by_days")[0]
 
@@ -174,8 +174,8 @@ def test_a_stale_read_is_listed_stale_in_the_returned_reads(conn):
     assert row["stale"] == 1
 
 
-def test_a_stale_read_writes_a_stale_index_tag_with_fm_17(conn):
-    """R-S1-7: a stale read writes a `tag` row with `event_kind = stale_index` and `fm_id = FM-17`."""
+def test_a_stale_read_writes_a_stale_index_tag_with_memory_rot(conn):
+    """A stale read writes a `tag` row with `event_kind = stale_index` and `fm_id = memory_rot`."""
     stage_run_id = _stage_run(conn)
     entry = context_index.load_entries(FIXTURES_DIR / "stale_by_days")[0]
 
@@ -185,7 +185,7 @@ def test_a_stale_read_writes_a_stale_index_tag_with_fm_17(conn):
         "SELECT * FROM tag WHERE ref = ? AND event_kind = 'stale_index'", (f"stage_run:{stage_run_id}",)
     ).fetchall()
     assert len(tags) == 1
-    assert tags[0]["fm_id"] == "FM-17"
+    assert tags[0]["fm_id"] == "memory_rot"
 
 
 def test_a_fresh_read_writes_no_stale_index_tag(conn):
@@ -212,7 +212,7 @@ def test_an_existing_but_empty_index_directory_loads_as_no_entries(tmp_path):
 
 
 def test_recording_reads_over_no_entries_writes_nothing_and_raises_nothing(conn):
-    """R-S1-7: an empty index is allowed; the reading stage records "no entries" rather than
+    """An empty index is allowed; the reading stage records "no entries" rather than
     failing, which starts from `record_reads` writing zero rows and raising nothing over `()`."""
     stage_run_id = _stage_run(conn)
 

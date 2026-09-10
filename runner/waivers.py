@@ -5,8 +5,8 @@ stored on it. It is derived here, at the moment of asking, from a `waiver`
 row that names the result and is valid right now -- a waiver that expires,
 or whose subject, evidence, policy, or actor authority no longer holds,
 stops covering the result without any row changing. Every reader that must
-show or gate on a result's effective status (the S6 evidence table, the
-checks gate, the dispatch recheck, a `policy_exception` tag) asks this
+show or gate on a result's effective status (the human_review evidence table, the
+checks stage's gate, the dispatch recheck, a `policy_exception` tag) asks this
 module rather than joining the two tables itself, so the rule for what a
 valid waiver is lives in exactly one place.
 
@@ -16,7 +16,7 @@ roles it covers. `issue` is the one writer of `waiver`: a check name or
 rubric line id in the never-waivable set is refused before any policy
 entry is even consulted, and a `fail` result is never waivable at all --
 only a declared `blind_spot` is. A successful review-tuple waiver shares
-the `red_check` item S5's own failures opened, resolving it through
+the `red_check` item the checks stage's own failures opened, resolving it through
 `queue.resolve_by_waiver` the moment the run's every blocking result is
 `pass` or validly waived; a human never reaches that resolution through
 `queue.act` directly. `validity` re-derives every reason a waiver no
@@ -24,7 +24,7 @@ longer holds -- expiry, a changed or retired policy, lost actor authority,
 a drifted subject, or changed evidence -- every reason checked
 independently rather than short-circuited on the first found. `recheck`
 answers the same question for every waiver currently bound into a
-ticket's plan and review tuples, for the S6 and dispatch rechecks another
+ticket's plan and review tuples, for the human_review and dispatch rechecks another
 builder wires in.
 """
 import fnmatch
@@ -43,9 +43,9 @@ from runner.paths import FACTORY_DIR
 DEFAULT_POLICY_PATH = FACTORY_DIR / "config" / "waiver-policy.yaml"
 
 # The `policy_exception` tag's failure-mode id: a waiver covers an
-# epistemic gap, the FM-14 "unknown impact" class named for R-S5-13 in the
+# epistemic gap, the unknown_impact "unknown impact" class in the
 # failure-mode catalogue, whichever stage recorded the blind spot.
-POLICY_EXCEPTION_FM_ID = "FM-14"
+POLICY_EXCEPTION_FM_ID = "unknown_impact"
 
 # `check_result.result`/`human_verdict.verdict` values a valid waiver may
 # cover. A `fail` is a defect, never an epistemic gap, so no waiver ever
@@ -151,7 +151,7 @@ def subject_hash(
     waiver must also track: the ticket's pinned manifest hash, trust-profile
     hash, the authority policy's hash, and this waiver policy's own hash. A
     check result's subject is simply its ticket's newest review tuple's
-    content hash: an S5 waiver binds the review tuple as a whole, so any
+    content hash: a checks-stage waiver binds the review tuple as a whole, so any
     later review tuple -- a fresh preflight after a fix round -- is
     automatically a different subject with nothing else to compute.
     Raises `WaiverRefused` when a review-tuple waiver names a ticket with
@@ -339,7 +339,7 @@ def issue(
 def _resolve_shared_red_check(
     conn: sqlite3.Connection, ticket_id: int, stage_run_id: int, waiver_id: int, *, now: str,
 ) -> None:
-    """Resolve the open `red_check` item S5 opened for `stage_run_id`, once every blocking result on it clears."""
+    """Resolve the open `red_check` item checks opened for `stage_run_id`, once every blocking result on it clears."""
     if not cleared(conn, stage_run_id, now=now):
         return
     item = conn.execute(
@@ -491,7 +491,7 @@ def recheck(conn: sqlite3.Connection, ticket_id: int, *, now: str | None = None)
     waiver over a `human_verdict` of this ticket, the same set the plan
     tuple's `plan_waiver_set_hash` binds. A review-tuple waiver is one
     naming a `check_result` bound (`evidence_tuple_id`) to the ticket's
-    newest review tuple. The S6 driver and the dispatch path call this at
+    newest review tuple. The human_review driver and the dispatch path call this at
     their own recheck points; this module's own tests exercise it
     directly rather than through either caller.
     """

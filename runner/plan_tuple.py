@@ -23,10 +23,10 @@ from runner.paths import RUNS_DIR
 
 # The sandbox policy every stage runs under; the plan tuple binds its
 # digest the same way `runner.envelope.build` does for a stage
-# invocation's own envelope, resolved for S3 -- the stage a plan tuple
+# invocation's own envelope, resolved for planning -- the stage a plan tuple
 # itself belongs to.
 SANDBOX_POLICY = "enforced"
-_SANDBOX_DIGEST_STAGE = "S3"
+_SANDBOX_DIGEST_STAGE = "planning"
 
 
 def _latest_hash(conn: sqlite3.Connection, ticket_id: int, kind: str) -> str | None:
@@ -115,7 +115,7 @@ def derive_components(conn: sqlite3.Connection, ticket: sqlite3.Row) -> binding.
 def ensure_current(conn: sqlite3.Connection, ticket: sqlite3.Row) -> int:
     """The ticket's latest plan-tuple id when it is still current, else a freshly created one.
 
-    `head_sha` is not a bound `PlanComponents` field, so an S4 hand-back
+    `head_sha` is not a bound `PlanComponents` field, so an implementation hand-back
     that only advances it never trips `plan_tuple_currency` here and no
     new subject is created; every other drift this module can see (a new
     answer, a superseded assumption, a corrected verdict, a fresh waiver,

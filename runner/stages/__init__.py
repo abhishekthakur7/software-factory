@@ -1,7 +1,7 @@
 """`run_stage`: the one path from "run this ticket's next stage" to a recorded `stage_run`.
 
-S4 is the one stage whose run rows the driver opens itself (see
-`S4.run_next`); `run_stage` still owns every refusal for it.
+implementation is the one stage whose run rows the driver opens itself (see
+`implementation.run_next`); `run_stage` still owns every refusal for it.
 
 Refusal comes before anything else: a missing ticket
 or an unknown stage name is refused before any `stage_run` exists, as a
@@ -10,7 +10,7 @@ wrong state is refused as that ticket's own `stage_run` with outcome
 `refused`, since the ticket and stage both exist and the refusal belongs
 to its run history. Otherwise the driver runs, its outcome and `ended_at`
 are recorded, and -- unless this is a `validation_only` run or the
-driver has no `PASS_EVENT` (S0, S5, S6: their exits are gates, not an
+driver has no `PASS_EVENT` (intake, checks, human_review: their exits are gates, not an
 automatic stage pass) -- a `pass` outcome applies that event. Every
 `stage_run`/`utility_run` write goes through `run_ledger`, never a direct
 `record.insert`/`record.update`, so attempt numbering and lease bookkeeping
@@ -18,7 +18,7 @@ live in exactly one place.
 
 A driver's `run` ordinarily returns a plain outcome string. A driver may
 instead return `(outcome, failure_kind)` when the outcome itself needs a
-`failure_kind` on the `stage_run` -- S5's stale-binding preflight refusal
+`failure_kind` on the `stage_run` -- the checks stage's stale-binding preflight refusal
 is the one case today -- so `run_ledger.finish` records it; every other
 driver keeps returning a bare string, which carries no `failure_kind`.
 """
@@ -29,10 +29,10 @@ from pathlib import Path
 from runner import manifest, record, run_ledger, transitions
 from runner.adapters import cursor_sdk
 from runner.paths import RUNS_DIR
-from runner.stages import S0, S1, S2, S3, S4, S5, S6
+from runner.stages import intake, context_gathering, clarification, planning, implementation, checks, human_review
 from runner.state_table import STAGE_STATE
 
-DRIVERS = {"S0": S0, "S1": S1, "S2": S2, "S3": S3, "S4": S4, "S5": S5, "S6": S6}
+DRIVERS = {"intake": intake, "context_gathering": context_gathering, "clarification": clarification, "planning": planning, "implementation": implementation, "checks": checks, "human_review": human_review}
 
 
 def run_stage(
@@ -67,12 +67,12 @@ def run_stage(
         run_ledger.finish(conn, stage_run_id, "refused")
         return "refused"
 
-    # S4 opens its own rows: its unit of execution is the plan task, and
+    # implementation opens its own rows: its unit of execution is the plan task, and
     # the columns that name one (`plan_item`, `plan_tuple_id`,
     # `verification_attempt`) are written at insert, so only the driver that
     # knows which task is next can open the row.
-    if stage == "S4":
-        return S4.run_next(conn, ticket, runs_dir=runs_dir, validation_only=validation_only)
+    if stage == "implementation":
+        return implementation.run_next(conn, ticket, runs_dir=runs_dir, validation_only=validation_only)
 
     stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=stage, run_kind=run_kind)
     driver = DRIVERS[stage]
@@ -105,21 +105,21 @@ def invoke_agent(
     gets a `pass` result with no run opened.
 
     `model_override` names a model other than the entry's `model_requested`
-    for one invocation -- the manifest's `restatement_model` for S2's
+    for one invocation -- the manifest's `restatement_model` for clarification's
     agreement-check children -- and is checked against the runtime's
     approved models exactly like the entry's own.
 
-    Every stage but `S0` first compares the ticket's `factory_manifest_hash`
+    Every stage but `intake` first compares the ticket's `factory_manifest_hash`
     pin against this resolution's own manifest hash: a missing pin, or one
     that no longer matches, is refused as a `utility_run` of kind
     `refused_request` before anything else runs, so no `stage_run` is ever
-    opened for it. `S0` is exempt since the pin is not written until
+    opened for it. `intake` is exempt since the pin is not written until
     eligibility is granted (see `gates.intake_gate`), by which point the
     ticket has already left `intake`.
     """
     tier = tier or ticket["tier_final"] or ticket["tier_provisional"] or "standard"
     entry = manifest.resolve(manifest.load(manifest_path), stage, tier)
-    if stage != "S0":
+    if stage != "intake":
         pinned = ticket["factory_manifest_hash"]
         if pinned is None or pinned != entry.manifest_hash:
             reason = (

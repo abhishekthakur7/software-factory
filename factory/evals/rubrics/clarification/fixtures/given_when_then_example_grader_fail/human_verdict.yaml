@@ -1,0 +1,13 @@
+# A seeded human_verdict document for the given_when_then_example grader line: the
+# example reads as a template with the details never filled in, so the
+# judgment fails even though it uses given/when/then and no banned
+# placeholder token.
+rubric_line_id: "given_when_then_example:grader"
+subject_item_key: "criterion:AC-2"
+verdict: fail
+note: >-
+  Example: "Given a customer, when they submit a request, then the
+  system responds appropriately" -- the reviewer found no real order,
+  amount, or outcome named anywhere, only generic stand-ins for each.
+reviewer_identity: abhishek
+reviewer_role: factory_owner

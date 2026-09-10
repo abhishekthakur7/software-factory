@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The size gate: a plan's own size estimate at S3, a real diff's line count at S5.
+"""The size gate: a plan's own size estimate at planning, a real diff's line count at checks.
 
 Standalone: no import of `runner`. Two modes share one threshold rule --
 under the tier's `size_gate` threshold (`tiers.yaml`) passes outright; over

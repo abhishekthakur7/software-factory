@@ -1,0 +1,50 @@
+subject: factory/agents/clarification.md
+owner: abhishek
+cases:
+  - name: ok
+    fixture: fixtures/ok
+    expect: ok
+  - name: missing_front_matter
+    fixture: fixtures/missing_front_matter
+    expect: reject
+  # The two cases below are not agent-definition conformance fixtures (no
+  # top-level .md file): `expect` here is the clarification driver's own outcome over
+  # the fixture's `out/questions.yaml`, read directly by
+  # runner/tests/test_clarification_questions.py rather than by the generic
+  # definition-conformance walk, which only looks at "ok"/"reject".
+  - name: question_round
+    fixture: fixtures/question_round
+    expect: blocked
+  - name: gate_rejected
+    fixture: fixtures/gate_rejected
+    expect: fail
+  - name: criteria_clean
+    fixture: fixtures/criteria_clean
+    expect: pass
+  - name: criteria_ambiguous
+    fixture: fixtures/criteria_ambiguous
+    expect: pass
+  - name: criteria_contradiction
+    fixture: fixtures/criteria_contradiction
+    expect: pass
+  - name: criteria_uncovered
+    fixture: fixtures/criteria_uncovered
+    expect: pass
+  - name: criteria_split_missing
+    fixture: fixtures/criteria_split_missing
+    expect: fail
+  - name: criteria_split_present
+    fixture: fixtures/criteria_split_present
+    expect: pass
+  - name: criteria_unformalisable
+    fixture: fixtures/criteria_unformalisable
+    expect: blocked
+  - name: criteria_unformalisable_resolved
+    fixture: fixtures/criteria_unformalisable_resolved
+    expect: pass
+  - name: criteria_open_category
+    fixture: fixtures/criteria_open_category
+    expect: blocked
+  - name: criteria_id_conflict
+    fixture: fixtures/criteria_id_conflict
+    expect: fail

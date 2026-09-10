@@ -1,7 +1,0 @@
-# A seeded human_verdict scenario for the R-S1-2 grader line: no write
-# path records a real human_verdict yet, so this document stands in as
-# the example a reviewer applying the rubric line's judgment would see.
-rubric_line_id: R-S1-2:grader
-subject: "We should switch the export handler to streamed CSV writes to fix the missing header row."
-verdict: fail
-reason: states a recommendation (switch to streamed writes) instead of facts alone

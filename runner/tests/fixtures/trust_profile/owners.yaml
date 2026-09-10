@@ -18,10 +18,10 @@ roles:
   ticket_engineer:
     identity: abhishek
     responsibilities: [sandbox_recipes]
-  s3_reviewer:
+  plan_reviewer:
     identity: abhishek
     responsibilities: [approvals]
-  s6_reviewer:
+  packet_reviewer:
     identity: abhishek
     responsibilities: [approvals]
   outcome_recorder:
@@ -32,5 +32,5 @@ roles:
     responsibilities: [incident_attribution_disposition]
 shared_identities:
   - identity: abhishek
-    roles: [factory_owner, service_owner, ticket_engineer, s3_reviewer, s6_reviewer, outcome_recorder, incident_reviewer]
+    roles: [factory_owner, service_owner, ticket_engineer, plan_reviewer, packet_reviewer, outcome_recorder, incident_reviewer]
     note: the pilot has one person, who holds all of these non-sensitive roles at once.

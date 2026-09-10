@@ -14,7 +14,7 @@ from runner.tests.test_freshness import TARGET_BRANCH, _clone_ticket, _commit_al
 from runner.tests.test_manifest import OWNERS_PATH as MIGRATION_OWNERS_PATH
 from runner.tests.test_manifest import _committed_copy
 from runner.tests.test_outcome_revision import seed_pr_opened_ticket, seed_pr_outcome_item
-from runner.tests.test_s5_waivers import (
+from runner.tests.test_checks_waivers import (
     PLAN_POLICY_ID, REVIEW_POLICY_ID, _owners_yaml, _plan_candidate_blind_spot, _register_evidence,
     _review_tuple_setup, _soon, issue_review_waiver,
 )
@@ -41,7 +41,7 @@ def test_eligibility_actions_are_each_accepted_and_shown_with_the_tickets_data_c
 
     kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK)
     if action == "override":
-        kwargs["fm_id"] = "FM-07"
+        kwargs["fm_id"] = "question_noise"
         kwargs["note"] = "tier bumped after a closer read"
     queue.act(conn, **kwargs)
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
@@ -55,8 +55,11 @@ def test_question_answer_and_accept_default_are_each_accepted(conn, action, kwar
 
 
 def test_question_override_corrects_a_flag_records_the_reason_and_leaves_the_item_open(conn):
-    """R-H-4, R-S2-8: the correction lands on the question row and its reason on a `flag_correction`
-    tag; the item itself is untouched by it and still answers normally afterward."""
+    """The correction appends a question row superseding the original -- which stays
+    readable and unchanged -- with the reason on a `flag_correction` tag; the item itself is
+    untouched by it and still answers normally afterward, against the corrected row."""
+    from runner import questions
+
     ticket_id, item_id = _seed_item(conn, "question")
     table, _, raw_id = record.get(conn, "queue_item", item_id)["ref"].partition(":")
     question_id = int(raw_id)
@@ -65,13 +68,19 @@ def test_question_override_corrects_a_flag_records_the_reason_and_leaves_the_ite
 
     queue.act(
         conn, item_id=item_id, action="override", actor=ABHISHEK,
-        fields={"consequential": "yes"}, note="answering this also changes a public interface", fm_id="FM-07",
+        fields={"consequential": "yes"}, note="answering this also changes a public interface", fm_id="question_noise",
     )
 
-    after = record.get(conn, "question", question_id)
-    assert after["consequential"] == 1
+    original = record.get(conn, "question", question_id)
+    assert original["consequential"] == before["consequential"]
+    assert original["state"] == "superseded"
+
+    corrected = questions.current_version(conn, question_id)
+    assert corrected["id"] != question_id
+    assert corrected["supersedes"] == question_id
+    assert corrected["consequential"] == 1
     tag_row = conn.execute(
-        "SELECT * FROM tag WHERE ref = ? AND event_kind = 'flag_correction'", (f"question:{question_id}",)
+        "SELECT * FROM tag WHERE ref = ? AND event_kind = 'flag_correction'", (f"question:{corrected['id']}",)
     ).fetchone()
     assert tag_row is not None
     assert tag_row["note"] == "answering this also changes a public interface"
@@ -79,19 +88,47 @@ def test_question_override_corrects_a_flag_records_the_reason_and_leaves_the_ite
 
     queue.act(conn, item_id=item_id, action="answer", actor=ABHISHEK, option=0, self_contained="yes")
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
+    assert questions.current_version(conn, question_id)["state"] == "answered"
 
 
 def test_must_reject_question_override_with_neither_flag_named(conn):
     _, item_id = _seed_item(conn, "question")
     with pytest.raises(queue.ActionRefused):
-        queue.act(conn, item_id=item_id, action="override", actor=ABHISHEK, note="a reason", fm_id="FM-07")
+        queue.act(conn, item_id=item_id, action="override", actor=ABHISHEK, note="a reason", fm_id="question_noise")
+
+
+def test_question_override_forwards_a_blocking_correction(conn):
+    """the queue action carries `--blocking` through to `questions.correct_flag` exactly like
+    `--consequential` and `--hard-to-reverse` above."""
+    from runner import questions
+
+    ticket_id, _ = _seed_item(conn, "question")
+    # `_seed_item` leaves `blocking` unset, and the column is append-only
+    # -- it cannot be set after the fact -- so a fresh row carries it
+    # from the insert instead.
+    blocking_question_id = record.insert(
+        conn, "question", ticket_id=ticket_id, stage="clarification", round=1, rank=1,
+        options='[{"label": "A", "consequence": "does A"}]', default_option=0, state="open", blocking=1,
+    )
+    blocking_item_id = queue.open_item(
+        conn, ticket_id=ticket_id, kind="question", ref=f"question:{blocking_question_id}",
+    )
+
+    queue.act(
+        conn, item_id=blocking_item_id, action="override", actor=ABHISHEK,
+        fields={"blocking": "no"}, note="downgraded after review", fm_id="question_noise",
+    )
+
+    tip = questions.current_version(conn, blocking_question_id)
+    assert tip["blocking"] == 0
+    assert tip["supersedes"] == blocking_question_id
 
 
 def test_plan_approval_decision_actions_are_each_accepted_only_approve_reading_a_verdict_row(conn, tmp_path):
     for action in ("redirect", "send_back", "abandon"):
         ticket_id, item_id = _seed_item(conn, "plan_approval")
         before = conn.execute("SELECT COUNT(*) FROM human_verdict WHERE ticket_id = ?", (ticket_id,)).fetchone()[0]
-        kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, fm_id="FM-07", runs_dir=tmp_path)
+        kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, fm_id="question_noise", runs_dir=tmp_path)
         if action in ("redirect", "send_back"):
             kwargs["to"] = "context"
             kwargs["note"] = "duplicates_existing_work: already built on another ticket"
@@ -124,7 +161,7 @@ def test_packet_approval_actions_are_each_accepted(conn, tmp_path, action):
     # `request_changes` on that same subject by the same actor is exactly
     # the fork the forked-head guard now refuses.
     ticket_id, item_id = _seed_item(conn, "packet_approval", tmp_path)
-    kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, fm_id="FM-07", runs_dir=tmp_path)
+    kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, fm_id="question_noise", runs_dir=tmp_path)
     if action in ("approve", "request_changes"):
         kwargs["bucket"] = "under_2m"
         kwargs["self_contained"] = "yes"
@@ -138,7 +175,7 @@ def test_packet_approval_actions_are_each_accepted(conn, tmp_path, action):
 def test_red_check_actions_are_each_accepted(conn, tmp_path):
     for action in ("send_back", "abandon"):
         _, item_id = _seed_item(conn, "red_check")
-        kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, fm_id="FM-07", runs_dir=tmp_path)
+        kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, fm_id="question_noise", runs_dir=tmp_path)
         if action == "send_back":
             kwargs["to"] = "context"
             kwargs["note"] = "duplicates_existing_work: already covered elsewhere"
@@ -151,13 +188,13 @@ def test_escalation_actions_are_each_accepted(conn, tmp_path):
         _, item_id = _seed_item(conn, "escalation")
         kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, self_contained="yes", runs_dir=tmp_path)
         if action == "abandon":
-            kwargs["fm_id"] = "FM-07"
+            kwargs["fm_id"] = "question_noise"
         queue.act(conn, **kwargs)
         assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
 
     _, item_id = _seed_item(conn, "escalation", tmp_path)
     queue.act(
-        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="question_noise",
         note="duplicates_existing_work: already covered elsewhere", self_contained="yes", runs_dir=tmp_path,
     )
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
@@ -169,7 +206,7 @@ def test_manual_pause_actions_are_each_accepted(conn, tmp_path):
         kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, runs_dir=tmp_path)
         if action == "send_back":
             kwargs["to"] = "context"
-            kwargs["fm_id"] = "FM-07"
+            kwargs["fm_id"] = "question_noise"
             kwargs["note"] = "duplicates_existing_work: already covered elsewhere"
         queue.act(conn, **kwargs)
         assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
@@ -186,7 +223,7 @@ def test_pr_outcome_actions_are_each_accepted(conn, tmp_path):
     item_id = seed_pr_outcome_item(conn, ticket_id)
     queue.act(
         conn, item_id=item_id, action="revision", actor=ABHISHEK,
-        fields={"to": "implementing", "fm_id": "FM-07", "note": "one more pass needed"}, runs_dir=tmp_path,
+        fields={"to": "implementing", "fm_id": "question_noise", "note": "one more pass needed"}, runs_dir=tmp_path,
     )
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
@@ -224,7 +261,7 @@ def test_ticket_scoped_incident_and_disposition_and_an_open_items_control_event_
     ticket_id = seed_pr_opened_ticket(conn)
     queue.act(
         conn, ticket_id=ticket_id, action="incident_event", actor=ABHISHEK,
-        fields={"severity": "sev3", "occurred_at": "2025-02-01T00:00:00+00:00", "fm_id": "FM-07", "note": "a real incident"},
+        fields={"severity": "sev3", "occurred_at": "2025-02-01T00:00:00+00:00", "fm_id": "question_noise", "note": "a real incident"},
     )
     event = conn.execute(
         "SELECT id FROM incident_observation WHERE ticket_id = ? AND record_kind = 'production_incident_event'",
@@ -242,7 +279,7 @@ def test_ticket_scoped_incident_and_disposition_and_an_open_items_control_event_
     _, item_id = _seed_item(conn, "red_check")
     result = queue.act(
         conn, item_id=item_id, action="control_event", actor=ABHISHEK, category="execution_boundary",
-        severity="sev2", fm_id="FM-09", note="observed drift", runs_dir=tmp_path,
+        severity="sev2", fm_id="parallel_fatigue", note="observed drift", runs_dir=tmp_path,
     )
     assert "control event recorded" in result
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
@@ -326,8 +363,8 @@ def test_pause_resume_and_stop_are_each_accepted(conn, tmp_path):
     assert record.get(conn, "ticket", ticket_id)["pause_requested"] == 0
 
     ticket_id2 = record.insert(conn, "ticket", state="implementing", opened_at=record.now())
-    record.insert(conn, "stage_run", ticket_id=ticket_id2, stage="S4", attempt=1)
-    result2 = operations.stop(conn, ticket_id2, actor=ABHISHEK, fm_id="FM-07")
+    record.insert(conn, "stage_run", ticket_id=ticket_id2, stage="implementation", attempt=1)
+    result2 = operations.stop(conn, ticket_id2, actor=ABHISHEK, fm_id="question_noise")
     assert "stopped" in result2
     assert record.get(conn, "ticket", ticket_id2)["state"] == "escalated"
 
@@ -357,7 +394,7 @@ def test_packet_defect_and_policy_exception_tags_and_their_resolution_chain_are_
 
 def test_abandon_and_purge_are_each_accepted(conn, tmp_path):
     ticket_id = record.insert(conn, "ticket", state="implementing", opened_at=record.now())
-    result = queue.abandon(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
+    result = queue.abandon(conn, ticket_id, actor=ABHISHEK, fm_id="question_noise")
     assert "abandoned" in result
     assert record.get(conn, "ticket", ticket_id)["state"] == "abandoned"
 

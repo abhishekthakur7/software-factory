@@ -1,4 +1,4 @@
-; Seatbelt profile for an agent invocation (S1-S4): everything is denied
+; Seatbelt profile for an agent invocation (context-gathering through implementation): everything is denied
 ; unless named below. `(import "system.sb")` is required, not decorative --
 ; on this host, a `(deny default)` profile that also grants `process-exec`
 ; aborts the sandboxed process outright (SIGABRT, no stderr) unless the
@@ -71,19 +71,19 @@
 ; `out/`, never by mutating an input.
 (allow file-read* file-test-existence (subpath (string-append run-dir "/inputs")))
 
-; The one writable destination a non-S4 invocation gets; `results/` is
+; The one writable destination a non-implementation invocation gets; `results/` is
 ; written only by the trusted launcher, after the child has already exited.
 (allow file-read* file-write* file-test-existence (subpath (string-append run-dir "/out")))
 (allow file-read* file-test-existence (subpath (string-append run-dir "/results")))
 (allow file-read* file-write* file-test-existence (subpath tmp-dir))
 
 ; The ticket's own checkout is what every agent stage reads its code from;
-; only S4's task loop edits it directly, and every other stage proposes
+; only implementation's task loop edits it directly, and every other stage proposes
 ; changes through `out/` for the trusted runner to apply. The checkout is
 ; a mount in its own right, not a registered input, so a file dropped
 ; elsewhere in the per-ticket directory stays out of reach.
 (allow file-read* file-test-existence (subpath worktree))
-(if (string=? stage "S4")
+(if (string=? stage "implementation")
     (allow file-write* (subpath worktree)))
 
 ; Outbound network never leaves the loopback proxy `runner/sandbox/proxy.py`

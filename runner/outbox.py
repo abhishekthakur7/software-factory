@@ -26,16 +26,20 @@ what it already knows before touching anything `pending`, so a row a
 crashed attempt left ambiguous is never raced against a fresh one under
 the same key. `_dispatch_pending` repeats the base-freshness check one
 last time, right before ever calling `dispatch`, for a `pr_create`/
-`pr_update` row that reaches that point: a target that moved after S5
-preflight approved the candidate supersedes the intent instead of ever
-reaching the deliverer.
+`pr_update` row that reaches that point, and pairs it with an independent
+recheck of the plan tuple and plan waivers the review's approvals bound:
+either one going stale supersedes the intent instead of ever reaching the
+deliverer, and `_predispatch_mismatch` records which binding component
+moved so the caller that reads the superseded row back (`gates.review_gate`)
+can redirect to the stage that actually needs to redo its work, rather than
+always falling back to a full re-check.
 """
 import json
 import sqlite3
 from pathlib import Path
 from typing import Mapping
 
-from runner import artefact_registry, canonical, freshness, guard, owners, queue, record, transitions, trust_profile, waivers
+from runner import artefact_registry, canonical, checklist, freshness, guard, owners, queue, record, transitions, trust_profile, waivers
 from runner import project
 from runner.deliverers import Deliverer, GitHubDeliverer, SlackDeliverer, SlackMCPPostTool, SlackMCPUnavailable, StubDeliverer
 from runner.trust_profile import Route
@@ -87,6 +91,77 @@ ROUTE_FOR_OPERATION: dict[str, str] = {
 
 class InjectedCrash(Exception):
     """A test asked `dispatch` to stop at one of its three crash-injection points."""
+
+
+# The prefix `_predispatch_mismatch` writes into `external_write.last_error`
+# and `gates.review_gate` reads back: the component name after the prefix
+# names which stage a pre-dispatch mismatch must redo, not the deliverer or
+# supersede reason free text everywhere else in `last_error` carries.
+PREDISPATCH_MISMATCH_PREFIX = "predispatch_mismatch"
+
+
+def _predispatch_mismatch(
+    conn: sqlite3.Connection,
+    write: sqlite3.Row,
+    fresh: freshness.Freshness,
+    *,
+    now: str | None,
+    owners_path: Path,
+    profile_path: Path,
+) -> tuple[str, str] | None:
+    """Which binding component, if any, a pre-dispatch recheck found stale, and why.
+
+    Checked widest-first, since a wider mismatch makes a narrower one
+    moot: a target base that moved past what the plan was bound to, or a
+    trust profile that no longer matches the one the review subject
+    bound, means the whole ticket predates the current world and must
+    re-derive from a fresh context pass. A plan tuple newer than the one
+    the review's approvals point at, or a plan-checklist waiver that no
+    longer holds, means only the plan moved -- the base and the review
+    packet are still good, but the approval was recorded against a plan
+    that no longer exists. Neither of those shows up in
+    `freshness.check`'s own reasons, which never re-derives from the plan
+    tuple once a review tuple exists, so both are checked here
+    independently of it. Anything narrower still -- the review subject,
+    the ticket's own head, or the destination the packet approvals bound
+    -- is exactly what `freshness.check`'s remaining reasons cover, and
+    only checks/human_review need to rebuild the packet for those.
+    """
+    ticket = record.get(conn, "ticket", write["ticket_id"])
+    plan_tuple = conn.execute(
+        "SELECT * FROM evidence_tuple WHERE ticket_id = ? AND kind = 'plan' ORDER BY id DESC LIMIT 1",
+        (write["ticket_id"],),
+    ).fetchone()
+    if plan_tuple is not None and fresh.fetched_target_head != plan_tuple["base_sha"]:
+        return "context", f"fetched target head {fresh.fetched_target_head} moved past the plan tuple's base"
+    if ticket is not None and fresh.fetched_target_head != ticket["target_base_sha"]:
+        return "context", f"fetched target head {fresh.fetched_target_head} moved past the ticket's target base"
+
+    review_tuple = (
+        record.get(conn, "evidence_tuple", write["review_tuple_id"]) if write["review_tuple_id"] is not None else None
+    )
+    if review_tuple is not None:
+        current_trust_hash = trust_profile.profile_hash(profile_path)
+        if review_tuple["trust_profile_hash"] and review_tuple["trust_profile_hash"] != current_trust_hash:
+            return "context", "the trust profile bound to the review subject has changed"
+
+        if (
+            plan_tuple is not None
+            and review_tuple["plan_tuple_id"] is not None
+            and plan_tuple["id"] != review_tuple["plan_tuple_id"]
+        ):
+            return "planning", "a newer plan tuple exists than the one the review's approvals bound"
+
+        if any(
+            not waivers.validity(conn, row["id"], now=now, owners_path=owners_path).valid
+            for row in checklist.waiver_set(conn, write["ticket_id"])
+        ):
+            return "planning", "a waiver bound to the plan checklist no longer holds"
+
+    if not fresh.fresh:
+        return "checks", "; ".join(fresh.reasons)
+    return None
+
 
 # The `external_write` columns each operation's idempotency key is taken
 # over. A pull-request intent is keyed by what it publishes and where; an
@@ -655,8 +730,15 @@ def _dispatch_pending(
         conn, write["ticket_id"], boundary=freshness.BEFORE_DISPATCH,
         target_branch=freshness.target_branch(project_path), runs_dir=runs_dir,
     )
-    if not fresh.fresh:
-        record.update(conn, "external_write", write["id"], state="superseded", last_error="; ".join(fresh.reasons))
+    mismatch = _predispatch_mismatch(
+        conn, write, fresh, now=now, owners_path=owners_path, profile_path=profile_path,
+    )
+    if mismatch is not None:
+        component, detail = mismatch
+        record.update(
+            conn, "external_write", write["id"], state="superseded",
+            last_error=f"{PREDISPATCH_MISMATCH_PREFIX}:{component}: {detail}",
+        )
         conn.commit()
         return
 

@@ -212,7 +212,7 @@ def test_import_persists_a_row_for_every_report_measure_view(conn, tmp_path):
 
 
 def test_selection_keeps_ten_newest_completed_agent_assisted_tickets_and_exclusions(conn, tmp_path):
-    """R-O-6: selection records its cutoff, query, immutable locators, and every exclusion."""
+    """Selection records its cutoff, query, immutable locators, and every exclusion."""
     profile_path, owners_path = _profile(tmp_path, conn)
     tickets = [_ticket(f"FIX-{number:02}", f"2026-01-{number:02}T00:00:00+00:00") for number in range(1, 12)]
     tickets += [{**_ticket("FIX-MANUAL"), "agent_assisted": False}, {**_ticket("FIX-OPEN"), "status": "Open"}]
@@ -230,7 +230,7 @@ def test_selection_keeps_ten_newest_completed_agent_assisted_tickets_and_exclusi
 
 
 def test_supplemental_cohort_requires_same_endpoint_and_reuses_measure_definitions(conn, tmp_path):
-    """R-O-6: a short retrospective adds a separately-cut-off, endpoint-equivalent supplemental cohort."""
+    """A short retrospective adds a separately-cut-off, endpoint-equivalent supplemental cohort."""
     profile_path, owners_path = _profile(tmp_path, conn)
     retrospective = [_ticket(f"RET-{number}") for number in range(2)]
     supplemental = [_ticket(f"SUP-{number}", "2026-01-15T00:00:00+00:00") for number in range(8)]
@@ -358,7 +358,7 @@ def test_partial_cohort_write_rolls_back_rows_and_selection_but_preserves_a_refu
 
 
 def test_committed_profile_admits_the_normalized_reader_contract(conn, tmp_path):
-    """R-O-6: committed baseline fields match the reader's normalized evidence without test-only widening."""
+    """Committed baseline fields match the reader's normalized evidence without test-only widening."""
     proposal = governance.propose()
     for role in ("security_approver", "legal_data_governance_approver"):
         governance.decide(conn, proposal, actor_identity="abhishek", role=role, decision="approve", expires_at=FAR_FUTURE, attestation_version="v1", attestation_hash=role)
@@ -368,7 +368,7 @@ def test_committed_profile_admits_the_normalized_reader_contract(conn, tmp_path)
 
 
 def test_must_reject_raw_ticket_and_measure_inserts_after_a_cohort_freezes(conn, tmp_path):
-    """R-O-6: the database trigger protects frozen cohorts even when callers skip helpers."""
+    """The database trigger protects frozen cohorts even when callers skip helpers."""
     profile_path, owners_path = _profile(tmp_path, conn)
     tickets = [_ticket(f"FIX-{number:02}", f"2026-01-{number:02}T00:00:00+00:00") for number in range(1, 11)]
     histories = {ticket["id"]: {"decisions": [{"kind": "approved_plan", "at": "2025-12-01T00:00:00+00:00"}], "source_locator": "jira", "pull_request_locator": _pr_locator(ticket['id'])} for ticket in tickets}
@@ -383,7 +383,7 @@ def test_must_reject_raw_ticket_and_measure_inserts_after_a_cohort_freezes(conn,
 
 
 def test_real_github_transport_uses_a_numeric_pull_request_locator_not_a_jira_key():
-    """R-O-6: the real REST seam resolves only a GitHub PR locator before fetching history."""
+    """The real REST seam resolves only a GitHub PR locator before fetching history."""
     seen = []
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -404,7 +404,7 @@ def test_real_github_transport_uses_a_numeric_pull_request_locator_not_a_jira_ke
 
 
 def test_must_mark_malformed_or_non_attributable_revision_history_unavailable():
-    """R-O-6: malformed timestamps and unclassified remote events never become observed zero."""
+    """Malformed timestamps and unclassified remote events never become observed zero."""
     history = {"decisions": [{"kind": "approved_plan", "at": "2026-01-01T00:00:00+00:00"}], "source_locator": "jira:FIX-1", "pull_request_locator": _pr_locator("FIX-1")}
     result = baseline.measures(history, [{"kind": "opened", "at": "not-a-time"}])
     assert result[baseline.POST_PLAN_REVISIONS] == {"value": None, "status": "unavailable", "unavailable_reason": "pull-request history is malformed or not attributable"}

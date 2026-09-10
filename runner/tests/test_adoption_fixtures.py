@@ -1,4 +1,4 @@
-"""Required mechanical fixture replays for adoption (R-F-14)."""
+"""Required mechanical fixture replays for adoption."""
 import os
 import json
 import sqlite3
@@ -17,7 +17,7 @@ EVAL_ROOT = ROOT / "factory/evals"
 
 @pytest.mark.parametrize("name", ["incident-history", "control-history", "coverage-history"])
 def test_history_replay_preserves_prior_evidence_and_rejects_rewriting_it(tmp_path, name):
-    """R-F-14: seeded history survives reopening and the write path refuses evidence replacement."""
+    """Seeded history survives reopening and the write path refuses evidence replacement."""
     directory = EVAL_ROOT / "record" / name
     evals.check(directory)
     spec = yaml.safe_load((directory / "eval.yaml").read_text())
@@ -48,7 +48,7 @@ def test_history_replay_preserves_prior_evidence_and_rejects_rewriting_it(tmp_pa
 
 
 def test_every_configured_recipe_runs_in_both_copies_and_disposes_them(tmp_path):
-    """R-F-14: the configured current base produces retained recipe evidence and no surviving copies."""
+    """The configured current base produces retained recipe evidence and no surviving copies."""
     from runner.adoption import dry_run_recipes
 
     directory = EVAL_ROOT / "sandbox/copy-disposal"
@@ -81,7 +81,7 @@ def test_every_configured_recipe_runs_in_both_copies_and_disposes_them(tmp_path)
 
 
 def test_recipe_crash_still_records_disposal_and_preserves_immutable_checkouts(tmp_path, monkeypatch):
-    """R-F-14/R-I-14: a failed recipe cannot leave writable copies or erase the disposal evidence."""
+    """A failed recipe cannot leave writable copies or erase the disposal evidence."""
     from runner import recipes
     from runner.adoption import dry_run_recipes
 

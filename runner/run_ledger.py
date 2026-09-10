@@ -282,7 +282,7 @@ def budget(stage: str, tier: str) -> dict:
     """The `{tokens, wall_clock_seconds}` budget for one run of `stage` at `tier`.
 
     `wall_clock_seconds` is `None` where `tiers.yaml` overrides it for the
-    stage (S5's build commands carry their own timeout), read as data rather
+    stage (the checks stage's build commands carry their own timeout), read as data rather
     than special-cased here.
     """
     budgets = _tiers_config()["budgets"]
@@ -291,6 +291,6 @@ def budget(stage: str, tier: str) -> dict:
     return resolved
 
 
-def s4_per_ticket_budget(tier: str) -> dict:
-    """The cumulative `{tokens, wall_clock_seconds}` budget across one ticket's S4 task invocations."""
-    return dict(_tiers_config()["s4_per_ticket"][tier])
+def implementation_per_ticket_budget(tier: str) -> dict:
+    """The cumulative `{tokens, wall_clock_seconds}` budget across one ticket's implementation task invocations."""
+    return dict(_tiers_config()["implementation_per_ticket"][tier])

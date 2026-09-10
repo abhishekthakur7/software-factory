@@ -60,7 +60,7 @@ _FIRST_PAGE_SECTIONS: tuple[str, ...] = ("Intent and scrutiny", "Readiness", "Ri
 
 # Shell interpolation and redirection a typed `validation_args` cell must
 # never carry -- the same category `runner.recipes` refuses at dispatch,
-# checked again here so a plan naming free-form shell fails at S3, before
+# checked again here so a plan naming free-form shell fails at the planning stage, before
 # any recipe would ever run it.
 _SHELL_TOKENS: tuple[str, ...] = (";", "|", "&&", "$(", "`", ">")
 

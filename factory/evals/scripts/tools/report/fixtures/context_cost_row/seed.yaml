@@ -5,7 +5,7 @@
 - table: stage_run
   fields:
     ticket_id: 1
-    stage: S4
+    stage: implementation
     tier: light
     manifest_hash: m1
     attempt: 1

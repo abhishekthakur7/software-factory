@@ -3,7 +3,7 @@
 
 Every ticket's own builder writes its brief and plan under `docs/build/`
 before building; this tool copies that pair, byte for byte, into the
-bootstrap eval directory so R-F-2's completeness walk has a real fixture
+bootstrap eval directory so the eval catalogue's completeness walk has a real fixture
 set that grows with the tickets, rather than one hand authored and left to
 rot. A ticket whose `docs/build/` pair has since been removed loses its
 bootstrap copy too, so the fixture set never outlives its source.
@@ -39,14 +39,31 @@ def _valid_eval_dir_rels(factory_root: Path) -> set[str]:
     return {str(p.relative_to(evals_root)) for p in evals.expected_eval_dirs(factory_root)}
 
 
+# Ticket plans written before the stages had names cite the agent, skill
+# and rubric files by the stage's code; the files themselves now carry the
+# stage's name. The plans are historical documents copied byte for byte, so
+# the translation lives here rather than in them.
+_LEGACY_STAGE_FILE_STEMS = {
+    "S0": "intake",
+    "S1": "context_gathering",
+    "S2": "clarification",
+    "S3": "planning",
+    "S4": "implementation",
+    "S5": "checks",
+    "S6": "human_review",
+    "S7": "merge",
+}
+
+
 def _agent_skill_rubric_rel(token: str) -> str | None:
-    """A rubric/agent/skill markdown path (e.g. `factory/rubrics/S3.md`) -> its eval-dir relpath."""
+    """A rubric/agent/skill markdown path (e.g. `factory/rubrics/planning.md`) -> its eval-dir relpath."""
     parts = token.rstrip("/").split("/")
     if len(parts) < 3 or parts[0] != "factory" or parts[1] not in ("agents", "skills", "rubrics"):
         return None
     if not parts[-1].endswith(".md"):
         return None
     stem = parts[-1][: -len(".md")]
+    stem = _LEGACY_STAGE_FILE_STEMS.get(stem, stem)
     if parts[1] == "skills" and len(parts) == 4 and parts[2] == "shared":
         return f"skills/shared/{stem}"
     if len(parts) != 3:
@@ -67,6 +84,10 @@ def _evals_rel(token: str, valid: set[str]) -> str | None:
     if not token.startswith("factory/evals/"):
         return None
     candidate = token[len("factory/evals/"):].rstrip("/")
+    segments = candidate.split("/")
+    if len(segments) >= 2 and segments[0] in ("agents", "skills", "rubrics"):
+        segments[1] = _LEGACY_STAGE_FILE_STEMS.get(segments[1], segments[1])
+        candidate = "/".join(segments)
     for rel in valid:
         if candidate == rel or candidate.startswith(rel + "/"):
             return rel

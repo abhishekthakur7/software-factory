@@ -38,8 +38,8 @@ def _runtime_path(tmp_path: Path, *, models: tuple[str, ...] = ("claude-sonnet-5
 
 def _entry(**overrides) -> manifest.Entry:
     fields = dict(
-        stage="S1", tier="standard", agent="factory/agents/S1.md", skill="factory/skills/S1.md",
-        shared_skills=(), rubric="factory/rubrics/S1.md", tool_allowlist=("read_file", "write_file"),
+        stage="context_gathering", tier="standard", agent="factory/agents/context_gathering.md", skill="factory/skills/context_gathering.md",
+        shared_skills=(), rubric="factory/rubrics/context_gathering.md", tool_allowlist=("read_file", "write_file"),
         budget_source="factory/config/tiers.yaml", budget={"tokens": 400000, "wall_clock_seconds": 1200},
         runtime_adapter="cursor_sdk", runtime_version="1.0.31", model_requested="claude-sonnet-5",
         grader_model="claude-sonnet-5", sandbox_policy="enforced", credential_roles=(), toolchain={"jdk": "17"},
@@ -86,7 +86,7 @@ def _open(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Criteria 1-7 (R-I-2): fresh invocation, governed inputs, rubric, no
+# Criteria 1-7: fresh invocation, governed inputs, rubric, no
 # user-level config, rerun from record, reconstructable envelope, child runs.
 # ---------------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ def test_setting_sources_is_empty_so_no_user_level_runtime_configuration_reaches
 
 
 def test_invocation_receives_the_ticket_governed_artefacts_and_their_hashes(tmp_path):
-    """the written envelope names every registered artefact's id and hash, in the R-I-2 input set."""
+    """the written envelope names every registered artefact's id and hash, the governed input set for the run."""
     conn = _open(tmp_path)
     ticket = _ticket(conn, tmp_path)
     source_path = tmp_path / "ticket_source.md"
@@ -137,7 +137,7 @@ def test_a_second_invocation_opens_its_own_run_dir_with_nothing_from_the_first(t
 
 
 def test_envelope_reconstructs_from_the_record_alone_with_matching_hashes_and_versions(tmp_path):
-    """export/reconstruct fixture: every hash and version identity reconstruct recovers matches what build wrote (R-I-15)."""
+    """export/reconstruct fixture: every hash and version identity reconstruct recovers matches what build wrote."""
     conn = _open(tmp_path)
     ticket = _ticket(conn, tmp_path)
     result = _invoke(conn, tmp_path, "settled", ticket=ticket)
@@ -173,7 +173,7 @@ def test_a_child_invocation_records_its_own_run_separate_from_its_parent(tmp_pat
 
 
 # ---------------------------------------------------------------------------
-# Criteria 8-11 (R-I-13): cost-basis fixtures.
+# Criteria 8-11: cost-basis fixtures.
 # ---------------------------------------------------------------------------
 
 
@@ -214,7 +214,7 @@ def test_null_fixture_leaves_cost_fields_null_and_unavailable(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Criterion 12 (R-I-13): silent-fallback fixture.
+# Criterion 12: silent-fallback fixture.
 # ---------------------------------------------------------------------------
 
 
@@ -233,7 +233,7 @@ def test_silent_fallback_fixture_reports_the_model_actually_used_never_the_reque
 
 
 # ---------------------------------------------------------------------------
-# Criterion 13 (R-I-13): every available field returned.
+# Criterion 13: every available field returned.
 # ---------------------------------------------------------------------------
 
 
@@ -252,7 +252,7 @@ def test_settled_fixture_returns_every_available_field(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Criteria 14, 17 (R-I-13, R-I-17): tool_call rows and the inline limit.
+# Criteria 14, 17: tool_call rows and the inline limit.
 # ---------------------------------------------------------------------------
 
 
@@ -267,7 +267,7 @@ def test_one_governed_tool_call_row_is_recorded_per_call(tmp_path):
 
 
 def test_small_tool_result_is_inline_and_large_one_is_a_result_artefact_with_an_excerpt(tmp_path):
-    """R-I-17's tool-result inline limit: a result over limits.yaml's bound is stored, not returned inline."""
+    """The tool-result inline limit: a result over limits.yaml's bound is stored, not returned inline."""
     conn = _open(tmp_path)
     result = _invoke(conn, tmp_path, "with_tool_calls")
     rows = conn.execute(
@@ -289,7 +289,7 @@ def test_small_tool_result_is_inline_and_large_one_is_a_result_artefact_with_an_
 
 
 # ---------------------------------------------------------------------------
-# Criterion 15 (R-I-13): missing runtime fields stay null.
+# Criterion 15: missing runtime fields stay null.
 # ---------------------------------------------------------------------------
 
 
@@ -306,7 +306,7 @@ def test_missing_runtime_fields_stay_null_never_estimated(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Criterion 16 (R-I-13): adoption gate / eval directory.
+# Criterion 16: adoption gate / eval directory.
 # ---------------------------------------------------------------------------
 
 
@@ -328,7 +328,7 @@ def test_eval_directory_cases_pass_the_adapter(tmp_path):
 
 
 def test_must_reject_unavailable_model_before_any_run_is_opened(tmp_path):
-    """R-I-4: a requested model absent from runtime.yaml's list is refused before anything starts, no output registered."""
+    """A requested model absent from runtime.yaml's list is refused before anything starts, no output registered."""
     conn = _open(tmp_path)
     entry = _entry(model_requested="claude-opus-5")
     result = _invoke(conn, tmp_path, "settled", entry=entry)
@@ -338,15 +338,15 @@ def test_must_reject_unavailable_model_before_any_run_is_opened(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Criteria 25, 26, 27, 28 (R-I-15): governance binding, replayability, field
+# Criteria 25, 26, 27, 28: governance binding, replayability, field
 # completeness, provider request id.
 # ---------------------------------------------------------------------------
 
 
-def test_governance_binding_fixture_binds_trust_hashes_and_no_approval_subject_outside_s3_s5_s6(tmp_path):
+def test_governance_binding_fixture_binds_trust_hashes_and_no_approval_subject_outside_planning_checks_human_review(tmp_path):
     conn = _open(tmp_path)
     ticket = _ticket(conn, tmp_path, trust_profile_hash="tph-x", trust_approval_set_hash="tash-x")
-    result = _invoke(conn, tmp_path, "settled", ticket=ticket, entry=_entry(stage="S1"))
+    result = _invoke(conn, tmp_path, "settled", ticket=ticket, entry=_entry(stage="context_gathering"))
     envelope_path = tmp_path / "runs" / "tickets" / str(ticket["id"]) / "runs" / str(result.stage_run_id) / "envelope.json"
     written = json.loads(envelope_path.read_text())
     assert written["trust_profile_hash"] == "tph-x"
@@ -354,7 +354,7 @@ def test_governance_binding_fixture_binds_trust_hashes_and_no_approval_subject_o
     assert written["approval_subject_hash"] is None
 
 
-def test_governance_binding_fixture_binds_the_plan_approval_subject_for_s3(tmp_path):
+def test_governance_binding_fixture_binds_the_plan_approval_subject_for_planning(tmp_path):
     conn = _open(tmp_path)
     ticket = _ticket(conn, tmp_path)
     plan_row = {
@@ -363,14 +363,14 @@ def test_governance_binding_fixture_binds_the_plan_approval_subject_for_s3(tmp_p
     plan_row["content_hash"] = canonical.content_hash(plan_row)
     record.insert(conn, "evidence_tuple", **plan_row)
 
-    result = _invoke(conn, tmp_path, "settled", ticket=ticket, entry=_entry(stage="S3"))
+    result = _invoke(conn, tmp_path, "settled", ticket=ticket, entry=_entry(stage="planning"))
     envelope_path = tmp_path / "runs" / "tickets" / str(ticket["id"]) / "runs" / str(result.stage_run_id) / "envelope.json"
     written = json.loads(envelope_path.read_text())
     assert written["approval_subject_hash"] == plan_row["content_hash"]
 
 
 def test_unavailable_provider_field_fixture_no_build_suffix_is_best_effort(tmp_path):
-    """R-I-15: a model_resolved with no immutable build/version suffix sets replayability best_effort, naming the gap."""
+    """A model_resolved with no immutable build/version suffix sets replayability best_effort, naming the gap."""
     conn = _open(tmp_path)
     result = _invoke(conn, tmp_path, "no_build_suffix")
     assert result.replayability == "best_effort"
@@ -382,7 +382,7 @@ def test_unavailable_provider_field_fixture_no_build_suffix_is_best_effort(tmp_p
 
 
 def test_unavailable_provider_field_fixture_retention_blind_spot_is_best_effort(tmp_path):
-    """R-I-15: a tool result that cannot lawfully be retained also sets replayability best_effort."""
+    """A tool result that cannot lawfully be retained also sets replayability best_effort."""
     conn = _open(tmp_path)
     result = _invoke(conn, tmp_path, "retention_blind_spot")
     assert result.replayability == "best_effort"
@@ -406,7 +406,7 @@ def test_exact_replayability_when_model_resolved_names_an_immutable_build(tmp_pa
 
 
 def test_envelope_records_ordered_inputs_hashes_versions_digests_and_tool_allowlist(tmp_path):
-    """criterion 27: the written envelope carries every field R-I-15 names."""
+    """The written envelope carries every field the governance-binding contract names."""
     conn = _open(tmp_path)
     result = _invoke(conn, tmp_path, "settled")
     envelope_path = tmp_path / "runs" / "tickets" / "1" / "runs" / str(result.stage_run_id) / "envelope.json"
@@ -446,7 +446,7 @@ def test_provider_request_id_is_recorded_where_available(tmp_path):
 )
 def test_real_worker_invokes_the_hosted_model(tmp_path):
     envelope_path = tmp_path / "envelope.json"
-    envelope_path.write_text(json.dumps({"model_requested": "claude-sonnet-5", "stage": "S1"}))
+    envelope_path.write_text(json.dumps({"model_requested": "claude-sonnet-5", "stage": "context_gathering"}))
     os.environ["FACTORY_RUN_OUT"] = str(tmp_path)
     result = cursor_sdk_worker.main([str(cursor_sdk_worker.__file__), str(envelope_path)])
     assert result == 0

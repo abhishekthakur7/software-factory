@@ -17,10 +17,10 @@ roles:
   ticket_engineer:
     identity: alice
     responsibilities: [sandbox_recipes]
-  s3_reviewer:
+  plan_reviewer:
     identity: alice
     responsibilities: [approvals]
-  s6_reviewer:
+  packet_reviewer:
     identity: bob
     responsibilities: [approvals]
   outcome_recorder:
@@ -31,5 +31,5 @@ roles:
     responsibilities: [incident_attribution_disposition]
 shared_identities:
   - identity: alice
-    roles: [factory_owner, service_owner, ticket_engineer, s3_reviewer, outcome_recorder, incident_reviewer]
+    roles: [factory_owner, service_owner, ticket_engineer, plan_reviewer, outcome_recorder, incident_reviewer]
     note: the test fixture's engineer identity holds these non-sensitive roles at once.

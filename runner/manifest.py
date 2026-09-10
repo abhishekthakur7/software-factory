@@ -2,7 +2,7 @@
 
 `load` parses and validates `factory/manifest.yaml` end to end -- every
 `files` entry, every stage's `default` entry and any tier override, the
-null/non-null split between script-only stages (`S0`, `S5`, `S6`) and
+null/non-null split between script-only stages (`intake`, `checks`, `human_review`) and
 agent-driven ones, and the budget-key shape of whichever `tiers.yaml` the
 manifest's `budget` field names -- so a malformed manifest never reaches
 `resolve`. Loading the real project manifest also refuses a stage entry
@@ -44,17 +44,17 @@ from runner.state_table import TERMINAL_STATES
 MANIFEST_PATH = FACTORY_DIR / "manifest.yaml"
 MANIFEST_HASH_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "manifest_hash"
 
-STAGES: tuple[str, ...] = ("S0", "S1", "S2", "S3", "S4", "S5", "S6")
+STAGES: tuple[str, ...] = ("intake", "context_gathering", "clarification", "planning", "implementation", "checks", "human_review")
 TIERS: tuple[str, ...] = ("light", "standard", "heavy")
 
 # The stages with no agent behind them: their manifest entry carries no
 # agent, skill, or model identity, only the script-only infrastructure
 # fields every stage shares (rubric, budget, sandbox, toolchain, ...).
-NULL_MODEL_STAGES: frozenset[str] = frozenset({"S0", "S5", "S6"})
+NULL_MODEL_STAGES: frozenset[str] = frozenset({"intake", "checks", "human_review"})
 
 # Every field a stage's `default` entry must carry; a tier override may
 # name any subset of these to override the default's value for that field
-# alone. `restatement_model` is required in addition, but only on `S2`.
+# alone. `restatement_model` is required in addition, but only on `clarification`.
 REQUIRED_ENTRY_FIELDS: tuple[str, ...] = (
     "agent", "skill", "shared_skills", "rubric", "tool_allowlist",
     "budget", "runtime_adapter", "runtime_version",
@@ -63,13 +63,13 @@ REQUIRED_ENTRY_FIELDS: tuple[str, ...] = (
 _ALL_ENTRY_FIELDS: tuple[str, ...] = REQUIRED_ENTRY_FIELDS + ("restatement_model",)
 
 # The only keys a budget mapping in tiers.yaml may carry, at any level
-# (by_tier, a per-stage override, or s4_per_ticket).
+# (by_tier, a per-stage override, or implementation_per_ticket).
 ALLOWED_BUDGET_KEYS: frozenset[str] = frozenset({"tokens", "wall_clock_seconds"})
 
 # The sandboxes the manifest's sandbox-policy entry admits credential roles
 # into: every stage's agent sandbox by stage name, plus the build sandbox
 # a recipe runs in, which no stage name covers.
-SANDBOX_POLICY_SCOPES: tuple[str, ...] = ("S0", "S1", "S2", "S3", "S4", "S5", "S6", "build")
+SANDBOX_POLICY_SCOPES: tuple[str, ...] = ("intake", "context_gathering", "clarification", "planning", "implementation", "checks", "human_review", "build")
 SANDBOX_POLICY_ROLES: tuple[str, ...] = ("agent", "build")
 
 # An exact package version or digest, never a range: digits and dots only.
@@ -159,12 +159,12 @@ def _check_known_keys(stage: str, name: str, entry: dict, path: Path) -> None:
     unknown = set(entry) - set(_ALL_ENTRY_FIELDS)
     if unknown:
         raise ManifestError(f"{path}: stage {stage!r} entry {name!r} has unknown field(s) {sorted(unknown)}")
-    if "restatement_model" in entry and stage != "S2":
-        raise ManifestError(f"{path}: stage {stage!r} entry {name!r} names 'restatement_model' outside S2")
+    if "restatement_model" in entry and stage != "clarification":
+        raise ManifestError(f"{path}: stage {stage!r} entry {name!r} names 'restatement_model' outside clarification")
 
 
 def _check_required_keys(stage: str, entry: dict, path: Path) -> None:
-    required = REQUIRED_ENTRY_FIELDS + (("restatement_model",) if stage == "S2" else ())
+    required = REQUIRED_ENTRY_FIELDS + (("restatement_model",) if stage == "clarification" else ())
     missing = [field_name for field_name in required if field_name not in entry]
     if missing:
         raise ManifestError(f"{path}: stage {stage!r} default entry missing field(s) {missing}")
@@ -284,8 +284,8 @@ def _validate_budget_keys(root: Path, budget_rel_path: str, path: Path) -> None:
         _check_budget_key_set(tier_budget, f"{path}: {budget_rel_path} budgets.by_tier.{tier_name}")
     for stage_name, stage_override in budgets.get("overrides", {}).items():
         _check_budget_key_set(stage_override, f"{path}: {budget_rel_path} budgets.overrides.{stage_name}")
-    for tier_name, tier_budget in budget_doc.get("s4_per_ticket", {}).items():
-        _check_budget_key_set(tier_budget, f"{path}: {budget_rel_path} s4_per_ticket.{tier_name}")
+    for tier_name, tier_budget in budget_doc.get("implementation_per_ticket", {}).items():
+        _check_budget_key_set(tier_budget, f"{path}: {budget_rel_path} implementation_per_ticket.{tier_name}")
 
 
 def _load_sandbox_policy(raw: object, path: Path) -> dict:
@@ -473,7 +473,7 @@ def migrate(
     qualifies for the slot's quorum. Quorum is one distinct `factory_owner`
     approval; when it holds, every ticket outside `TERMINAL_STATES` whose
     `factory_manifest_hash` differs from the new hash is migrated: one
-    `check_result` names the ids of its artefacts registered from `S1`
+    `check_result` names the ids of its artefacts registered from `context_gathering`
     onward (the artefacts themselves are untouched, append-only rows),
     `transitions.apply` returns it to `context` through the
     `migrate_manifest` event, and `factory_manifest_hash` is re-pinned.
@@ -511,7 +511,7 @@ def migrate(
             for row in conn.execute(
                 "SELECT a.id FROM artefact a JOIN stage_run sr ON sr.id = a.stage_run_id "
                 "WHERE a.ticket_id = ? AND sr.stage != ? ORDER BY a.id",
-                (ticket["id"], "S0"),
+                (ticket["id"], "intake"),
             ).fetchall()
         ]
         row = {

@@ -35,7 +35,7 @@ THIN_BEFORE_PATH = Path(__file__).parent / "fixtures" / "sandbox" / "thin_before
 
 def _envelope_stub(tmp_path: Path) -> Path:
     path = tmp_path / "envelope.json"
-    path.write_text(json.dumps({"stage": "S1", "model_requested": "claude-sonnet-5"}))
+    path.write_text(json.dumps({"stage": "context_gathering", "model_requested": "claude-sonnet-5"}))
     return path
 
 
@@ -55,7 +55,7 @@ _PROBE_COUNTER = {"n": 0}
 
 
 def _run_real_probe(
-    tmp_path: Path, code: str, *, role: str = "agent", stage: str = "S1", extra_argv: tuple = (), **launch_kwargs,
+    tmp_path: Path, code: str, *, role: str = "agent", stage: str = "context_gathering", extra_argv: tuple = (), **launch_kwargs,
 ):
     """Run `code` as a standalone script under the real, committed OS-enforced profile; return the `LaunchResult`."""
     _PROBE_COUNTER["n"] += 1
@@ -127,7 +127,7 @@ def test_agent_profile_permits_writes_to_out_and_denies_writes_to_results(tmp_pa
     assert result.stdout_json == {"out_ok": True, "results_denied": True}
 
 
-def test_agent_profile_permits_a_worktree_write_at_s4_and_denies_it_at_every_other_stage(tmp_path):
+def test_agent_profile_permits_a_worktree_write_at_implementation_and_denies_it_at_every_other_stage(tmp_path):
     worktree = tmp_path / "worktree"
     worktree.mkdir()
     code = (
@@ -140,12 +140,12 @@ def test_agent_profile_permits_a_worktree_write_at_s4_and_denies_it_at_every_oth
         "print(json.dumps({'denied': denied}))\n"
     )
     result_s4 = _run_real_probe(
-        tmp_path, code, stage="S4", worktree_path=worktree, extra_argv=(str(worktree),),
+        tmp_path, code, stage="implementation", worktree_path=worktree, extra_argv=(str(worktree),),
     )
     assert result_s4.stdout_json == {"denied": False}
 
     result_s1 = _run_real_probe(
-        tmp_path, code, stage="S1", worktree_path=worktree, extra_argv=(str(worktree),),
+        tmp_path, code, stage="context_gathering", worktree_path=worktree, extra_argv=(str(worktree),),
     )
     assert result_s1.stdout_json == {"denied": True}
 
@@ -183,7 +183,7 @@ def test_build_profile_permits_writes_to_the_copy_and_disposables_and_denies_els
         "print(json.dumps({'results': results}))\n"
     )
     result = _run_real_probe(
-        tmp_path, code, role="build", stage="S5",
+        tmp_path, code, role="build", stage="checks",
         extra_argv=(str(copy_dir), str(build_dir), str(scratch_dir), str(cache_dir), str(elsewhere)),
         copy_dir=copy_dir, build_dir=build_dir, scratch_dir=scratch_dir, cache_dir=cache_dir,
     )
@@ -195,7 +195,7 @@ def test_build_role_receives_no_credential_of_any_kind(tmp_path):
     assert "runtime_key" not in result.integrity.environment_names
 
 
-def test_build_profile_admits_loopback_only_no_direct_egress_at_s5(tmp_path):
+def test_build_profile_admits_loopback_only_no_direct_egress_at_checks(tmp_path):
     result = _run_real_probe(
         tmp_path,
         "import socket, json\n"
@@ -205,7 +205,7 @@ def test_build_profile_admits_loopback_only_no_direct_egress_at_s5(tmp_path):
         "except OSError:\n"
         "    denied = True\n"
         "print(json.dumps({'denied': denied}))\n",
-        role="build", stage="S5", copy_dir=tmp_path / "copy", build_dir=tmp_path / "build",
+        role="build", stage="checks", copy_dir=tmp_path / "copy", build_dir=tmp_path / "build",
         scratch_dir=tmp_path / "scratch", cache_dir=tmp_path / "cache",
     )
     assert result.stdout_json == {"denied": True}
@@ -237,12 +237,12 @@ def test_sandbox_yaml_proxy_allowlist_resolves_to_route_host_port_per_stage():
     doc = yaml.safe_load(REAL_SANDBOX_PATH.read_text())
     policy = doc["policies"]["enforced"]
     endpoints = policy["endpoints"]
-    assert _resolve_allowlist(policy, "S1") == [
+    assert _resolve_allowlist(policy, "context_gathering") == [
         proxy.Endpoint(route_id="hosted_model", host=endpoints["hosted_model"]["host"], port=endpoints["hosted_model"]["port"]),
         proxy.Endpoint(route_id="atlassian_read", host=endpoints["atlassian_read"]["host"], port=endpoints["atlassian_read"]["port"]),
     ]
-    assert _resolve_allowlist(policy, "S5") == []
-    assert _resolve_allowlist(policy, "S0") == []
+    assert _resolve_allowlist(policy, "checks") == []
+    assert _resolve_allowlist(policy, "intake") == []
 
 
 # sandbox.yaml names the disposable-copy location.
@@ -277,17 +277,17 @@ def test_launcher_records_os_policy_false_when_the_policy_names_no_profiles(tmp_
 
 
 def test_sandbox_digest_differs_from_the_pre_os_enforcement_digest(tmp_path):
-    before = envelope.sandbox_digest("thin", sandbox_path=THIN_BEFORE_PATH, stage="S1", runs_dir=tmp_path)
-    after = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="S1", runs_dir=tmp_path)
+    before = envelope.sandbox_digest("thin", sandbox_path=THIN_BEFORE_PATH, stage="context_gathering", runs_dir=tmp_path)
+    after = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="context_gathering", runs_dir=tmp_path)
     assert before != after
 
 
 def test_sandbox_digest_changes_with_the_stage_and_with_the_runs_directory(tmp_path):
-    s1 = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="S1", runs_dir=tmp_path)
-    s5 = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="S5", runs_dir=tmp_path)
-    elsewhere = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="S1", runs_dir=tmp_path / "elsewhere")
-    assert s1 != s5
-    assert s1 != elsewhere
+    context_gathering_digest = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="context_gathering", runs_dir=tmp_path)
+    checks_digest = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="checks", runs_dir=tmp_path)
+    elsewhere = envelope.sandbox_digest("enforced", sandbox_path=REAL_SANDBOX_PATH, stage="context_gathering", runs_dir=tmp_path / "elsewhere")
+    assert context_gathering_digest != checks_digest
+    assert context_gathering_digest != elsewhere
 
 
 # The manifest's sandbox-policy entry names the OS profile, proxy
@@ -302,12 +302,12 @@ def test_manifest_sandbox_policy_names_os_profiles_proxy_allowlist_and_credentia
     assert set(m.sandbox_policy["credential_roles"]) == set(manifest.SANDBOX_POLICY_SCOPES)
 
 
-def test_manifest_admits_runtime_key_for_agent_stages_and_none_for_build_s0_s5_s6():
+def test_manifest_admits_runtime_key_for_agent_stages_and_none_for_build_intake_checks_s6():
     m = manifest.load()
     roles = m.sandbox_policy["credential_roles"]
-    for stage in ("S1", "S2", "S3", "S4"):
+    for stage in ("context_gathering", "clarification", "planning", "implementation"):
         assert roles[stage] == ("runtime_key",), stage
-    for scope in ("S0", "S5", "S6", "build"):
+    for scope in ("intake", "checks", "human_review", "build"):
         assert roles[scope] == (), scope
 
 
@@ -334,8 +334,8 @@ def _fixture_runtime_path(tmp_path):
 
 def _entry_admitting_runtime_key() -> manifest.Entry:
     return manifest.Entry(
-        stage="S1", tier="standard", agent="factory/agents/S1.md", skill="factory/skills/S1.md",
-        shared_skills=(), rubric="factory/rubrics/S1.md", tool_allowlist=("read_file",),
+        stage="context_gathering", tier="standard", agent="factory/agents/context_gathering.md", skill="factory/skills/context_gathering.md",
+        shared_skills=(), rubric="factory/rubrics/context_gathering.md", tool_allowlist=("read_file",),
         budget_source="factory/config/tiers.yaml", budget={"tokens": 400000, "wall_clock_seconds": 1200},
         runtime_adapter="cursor_sdk", runtime_version="1.0.31", model_requested="claude-sonnet-5",
         grader_model="claude-sonnet-5", sandbox_policy="enforced", credential_roles=("runtime_key",),
@@ -353,7 +353,7 @@ def test_credential_value_never_appears_in_any_row_file_or_stderr(tmp_path):
         return subprocess.CompletedProcess(args, 0, stdout=secret + "\n", stderr="")
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="standard", entry=_entry_admitting_runtime_key(),
+        conn, ticket=ticket, stage="context_gathering", tier="standard", entry=_entry_admitting_runtime_key(),
         runs_dir=tmp_path / "runs", runtime_path=_fixture_runtime_path(tmp_path), sandbox_path=SANDBOX_PATH,
         env_source={"PATH": os.environ.get("PATH", ""), "FIXTURE_ADAPTER_CASE": "settled"},
         credential_run=_fake_run,
@@ -379,7 +379,7 @@ def test_credential_unavailable_is_recorded_as_an_infrastructure_failure_never_a
         return subprocess.CompletedProcess(args, 44, stdout="", stderr="not found")
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="standard", entry=_entry_admitting_runtime_key(),
+        conn, ticket=ticket, stage="context_gathering", tier="standard", entry=_entry_admitting_runtime_key(),
         runs_dir=tmp_path / "runs", runtime_path=_fixture_runtime_path(tmp_path), sandbox_path=SANDBOX_PATH,
         env_source={"PATH": os.environ.get("PATH", ""), "FIXTURE_ADAPTER_CASE": "settled"},
         credential_run=_failing_run,
@@ -402,8 +402,8 @@ def test_credentials_fetch_is_never_called_when_the_stage_admits_no_role(tmp_pat
         return subprocess.CompletedProcess(args, 0, stdout="should-never-be-called\n", stderr="")
 
     entry = manifest.Entry(
-        stage="S5", tier="standard", agent="factory/agents/S1.md", skill="factory/skills/S1.md",
-        shared_skills=(), rubric="factory/rubrics/S1.md", tool_allowlist=("read_file",),
+        stage="checks", tier="standard", agent="factory/agents/context_gathering.md", skill="factory/skills/context_gathering.md",
+        shared_skills=(), rubric="factory/rubrics/context_gathering.md", tool_allowlist=("read_file",),
         budget_source="factory/config/tiers.yaml", budget={"tokens": 400000, "wall_clock_seconds": 1200},
         runtime_adapter="cursor_sdk", runtime_version="1.0.31", model_requested="claude-sonnet-5",
         grader_model="claude-sonnet-5", sandbox_policy="enforced", credential_roles=(),
@@ -411,7 +411,7 @@ def test_credentials_fetch_is_never_called_when_the_stage_admits_no_role(tmp_pat
         rubric_hash="r", manifest_hash="m",
     )
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S5", tier="standard", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="checks", tier="standard", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=_fixture_runtime_path(tmp_path), sandbox_path=SANDBOX_PATH,
         env_source={"PATH": os.environ.get("PATH", ""), "FIXTURE_ADAPTER_CASE": "settled"},
         credential_run=_spy_run,
@@ -503,7 +503,7 @@ def test_proxy_admits_only_allowlisted_host_port_pairs():
 def test_runtime_key_reaches_the_hosted_model_endpoint_only_through_the_loopback_proxy(tmp_path):
     """The agent sandbox's own network-outbound rule admits loopback only; HTTPS_PROXY is the one route out."""
     doc = yaml.safe_load(REAL_SANDBOX_PATH.read_text())
-    assert doc["policies"]["enforced"]["proxy_allowlist"]["S1"] == ["hosted_model", "atlassian_read"]
+    assert doc["policies"]["enforced"]["proxy_allowlist"]["context_gathering"] == ["hosted_model", "atlassian_read"]
     result = _run_real_probe(
         tmp_path,
         "import socket, json\n"
@@ -574,8 +574,8 @@ def test_recheck_is_true_when_the_checkout_is_untouched_and_false_once_modified(
 
 
 def test_an_unregistered_ticket_dir_file_is_neither_readable_nor_writable(tmp_path):
-    """The agent profile mounts only the run's own staged `inputs/`, never the ticket directory as a whole
-    (R-T-2): a file sitting in the ticket directory that no invocation staged as a registered input is
+    """The agent profile mounts only the run's own staged `inputs/`, never the ticket directory as a whole:
+    a file sitting in the ticket directory that no invocation staged as a registered input is
     refused on read exactly like it is on write."""
     ticket_dir = tmp_path / "ticket"
     ticket_dir.mkdir()
@@ -602,14 +602,14 @@ def test_an_unregistered_ticket_dir_file_is_neither_readable_nor_writable(tmp_pa
 
 def test_results_subpath_is_read_only_from_inside_every_role(tmp_path):
     for role, kwargs, stage in (
-        ("agent", {"ticket_dir": tmp_path / "agent-ticket"}, "S1"),
+        ("agent", {"ticket_dir": tmp_path / "agent-ticket"}, "context_gathering"),
         (
             "build",
             {
                 "copy_dir": tmp_path / "copy", "build_dir": tmp_path / "build",
                 "scratch_dir": tmp_path / "scratch", "cache_dir": tmp_path / "cache",
             },
-            "S5",
+            "checks",
         ),
     ):
         result = _run_real_probe(
@@ -667,7 +667,7 @@ def test_factory_and_runs_sqlite_are_unreadable_from_inside_the_build_sandbox(tm
         "except OSError:\n"
         "    db_denied = True\n"
         "print(json.dumps({'factory_denied': factory_denied, 'db_denied': db_denied}))\n",
-        role="build", stage="S5", copy_dir=tmp_path / "copy", build_dir=tmp_path / "build",
+        role="build", stage="checks", copy_dir=tmp_path / "copy", build_dir=tmp_path / "build",
         scratch_dir=tmp_path / "scratch", cache_dir=tmp_path / "cache", extra_argv=(str(REPO_ROOT),),
     )
     assert result.stdout_json == {"factory_denied": True, "db_denied": True}

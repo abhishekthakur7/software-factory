@@ -1,9 +1,9 @@
 """The plan tuple: derived components, currency, the planned reviewer-set derivation, and the
-`plan_review_gate`'s real quorum, currency, and freshness checks (R-S3-15).
+`plan_review_gate`'s real quorum, currency, and freshness checks.
 
-`factory/rubrics/S3.md` is still a stub while a parallel effort builds it; wherever a test here
-needs a real, complete checklist it drives the same small `factory/evals/rubrics/S3/fixtures/checklist/`
-rubric/artefact set `test_s3_checklist.py` uses, through `queue.act`'s own `verdict` and `approve`
+`factory/rubrics/planning.md` is still a stub while a parallel effort builds it; wherever a test here
+needs a real, complete checklist it drives the same small `factory/evals/rubrics/planning/fixtures/checklist/`
+rubric/artefact set `test_planning_checklist.py` uses, through `queue.act`'s own `verdict` and `approve`
 actions -- the production path, not a hand-seeded tuple.
 """
 import json
@@ -23,14 +23,14 @@ from runner.db import connect
 from runner.owners import load_owners
 from runner.paths import FACTORY_DIR
 from runner.reviewer_sets import Slot
-from runner.stages import S3
+from runner.stages import planning
 
 REVIEWER_SETS_FIXTURES = Path(__file__).parent / "fixtures" / "reviewer_sets"
 OWNERS = load_owners(REVIEWER_SETS_FIXTURES / "owners.yaml")
 SENSITIVE_PATHS = yaml.safe_load((REVIEWER_SETS_FIXTURES / "sensitive-paths.yaml").read_text())
-PILOT_IDENTITY = OWNERS.roles["s3_reviewer"]["identity"]  # "alice", this fixture's single-person pilot
+PILOT_IDENTITY = OWNERS.roles["plan_reviewer"]["identity"]  # "alice", this fixture's single-person pilot
 
-CHECKLIST_FIXTURE_DIR = FACTORY_DIR / "evals" / "rubrics" / "S3" / "fixtures" / "checklist"
+CHECKLIST_FIXTURE_DIR = FACTORY_DIR / "evals" / "rubrics" / "planning" / "fixtures" / "checklist"
 
 ABHISHEK = "abhishek"  # the real, committed owners.yaml's own single pilot identity
 
@@ -104,7 +104,7 @@ def _register_checklist_artefacts(conn, ticket_id) -> None:
         artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=CHECKLIST_FIXTURE_DIR / f"{kind}.md")
     for _ in range(2):
         record.insert(
-            conn, "question", ticket_id=ticket_id, stage="S2", round=1, rank=1,
+            conn, "question", ticket_id=ticket_id, stage="clarification", round=1, rank=1,
             options="[]", state="answered", blocking=0,
         )
 
@@ -130,14 +130,14 @@ def _planned_ticket_with_complete_checklist(conn, tmp_path, *, slots=None) -> tu
     """A ticket in `plan_review`, cloned from a real repo, with a complete checklist and a fresh plan tuple.
 
     `slots` overrides the planned reviewer set's own slots (default: the
-    pilot's one `s3_reviewer` slot, real owners.yaml identity `abhishek`
+    pilot's one `plan_reviewer` slot, real owners.yaml identity `abhishek`
     so `queue.act`'s own actor-identity check accepts it).
     """
     ticket_id, source = _cloned_ticket(conn, tmp_path, state="planning")
     _register_checklist_artefacts(conn, ticket_id)
-    slots = slots if slots is not None else [Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=ABHISHEK, min_count=1)]
+    slots = slots if slots is not None else [Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=ABHISHEK, min_count=1)]
     reviewer_set_id = _reviewer_set(conn, ticket_id, slots)
-    item_id = queue.open_item(conn, ticket_id=ticket_id, kind="plan_approval", stage="S3", reviewer_set_id=reviewer_set_id)
+    item_id = queue.open_item(conn, ticket_id=ticket_id, kind="plan_approval", stage="planning", reviewer_set_id=reviewer_set_id)
     record.update(conn, "ticket", ticket_id, state="plan_review")
     _complete_checklist(conn, ticket_id, item_id)
     return ticket_id, item_id
@@ -156,8 +156,8 @@ def test_derive_planned_always_includes_the_pilot_slot_plus_codeowners_slots(tmp
         owners=OWNERS, sensitive_paths={}, authority_policy_hash="policy-hash", membership_snapshot_hash="members-hash",
     )
 
-    pilot = next(s for s in derivation.slots if s.source_rule == "s3_reviewer_role")
-    assert (pilot.role, pilot.owner) == ("s3_reviewer", PILOT_IDENTITY)
+    pilot = next(s for s in derivation.slots if s.source_rule == "plan_reviewer_role")
+    assert (pilot.role, pilot.owner) == ("plan_reviewer", PILOT_IDENTITY)
     codeowners_slot = next(s for s in derivation.slots if s.matched_path == "README.md")
     assert codeowners_slot.owner == "alice"
     row = record.get(conn, "reviewer_set", derivation.id)
@@ -178,14 +178,14 @@ def test_derive_planned_stands_in_with_only_the_pilot_slot_when_the_repo_has_no_
         owners=OWNERS, sensitive_paths={}, authority_policy_hash="policy-hash", membership_snapshot_hash="members-hash",
     )
     assert len(derivation.slots) == 1
-    assert derivation.slots[0].source_rule == "s3_reviewer_role"
+    assert derivation.slots[0].source_rule == "plan_reviewer_role"
     assert derivation.blocked is False
 
 
 def test_derive_planned_leaves_a_codeowners_uncovered_path_unblocked(tmp_path):
     """Unlike `derive_actual`, a planned-scope path neither CODEOWNERS nor the sensitive-path
     map claims does not block: the plan's own forecast of scope is not the real diff, and the
-    real diff's actual reviewer set is what must resolve every touched path, at S6."""
+    real diff's actual reviewer set is what must resolve every touched path, at human_review."""
     conn = _conn(tmp_path)
     sha = _commit_codeowners(_init_repo(tmp_path), "CODEOWNERS_precedence")  # covers *.md and src/**/*.py only
     repo = tmp_path / "repo"
@@ -200,7 +200,7 @@ def test_derive_planned_leaves_a_codeowners_uncovered_path_unblocked(tmp_path):
     assert len(derivation.slots) == 1  # only the pilot slot; docs/notes.txt matches nothing
 
 
-def test_s3_scope_paths_takes_touch_create_delete_and_a_discretion_glob_contributes_nothing():
+def test_planning_scope_paths_takes_touch_create_delete_and_a_discretion_glob_contributes_nothing():
     """The plan's own `Scope and discretion` table: `touch`/`create`/`delete` rows contribute
     their path, a `discretion` row's glob does not (it names a pattern, not one path)."""
     plan_text = (
@@ -211,7 +211,7 @@ def test_s3_scope_paths_takes_touch_create_delete_and_a_discretion_glob_contribu
         "| src/c.py | delete | removes c |\n"
         "| src/**/*.tmp | discretion | may touch generated files |\n"
     )
-    assert S3._scope_paths(plan_text) == ["src/a.py", "src/b.py", "src/c.py"]
+    assert planning._scope_paths(plan_text) == ["src/a.py", "src/b.py", "src/c.py"]
 
 
 
@@ -234,7 +234,7 @@ def test_the_completing_verdict_creates_a_plan_tuple_whose_hash_is_recomputable_
 def test_partial_quorum_over_two_required_slots_withholds_the_gate(tmp_path):
     conn = _conn(tmp_path)
     unlinked_b = Slot(source_rule="extra_slot", owner="second-reviewer", min_count=1)
-    slot_a = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=ABHISHEK, min_count=1, distinct_from=(unlinked_b.slot_id,))
+    slot_a = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=ABHISHEK, min_count=1, distinct_from=(unlinked_b.slot_id,))
     slot_b = replace(unlinked_b, distinct_from=(slot_a.slot_id,))
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path, slots=[slot_a, slot_b])
 
@@ -255,7 +255,7 @@ def test_partial_quorum_over_two_required_slots_withholds_the_gate(tmp_path):
 def test_identity_separation_violation_withholds_quorum_even_with_a_row_on_each_slot(tmp_path):
     conn = _conn(tmp_path)
     unlinked_b = Slot(source_rule="extra_slot", owner=ABHISHEK, min_count=1)
-    slot_a = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=ABHISHEK, min_count=1, distinct_from=(unlinked_b.slot_id,))
+    slot_a = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=ABHISHEK, min_count=1, distinct_from=(unlinked_b.slot_id,))
     slot_b = replace(unlinked_b, distinct_from=(slot_a.slot_id,))
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path, slots=[slot_a, slot_b])
 
@@ -307,12 +307,12 @@ def test_derive_planned_marks_a_sensitive_scope_path_and_offers_only_its_routes(
     )
     assert derivation.sensitive is True
     assert derivation.blocked is True
-    assert derivation.routes == ("s4_removal", "pilot_excluded")
+    assert derivation.routes == ("implementation_removal", "pilot_excluded")
     # the pilot slot is still present alongside the sensitive-path slot
-    assert any(s.source_rule == "s3_reviewer_role" for s in derivation.slots)
+    assert any(s.source_rule == "plan_reviewer_role" for s in derivation.slots)
 
 
-def _s3_ready_ticket(conn, tmp_path):
+def _planning_ready_ticket(conn, tmp_path):
     source = _init_repo(tmp_path)
     ticket_id = record.insert(
         conn, "ticket", state="intake", opened_at=record.now(), tier_final="light",
@@ -330,12 +330,12 @@ def _s3_ready_ticket(conn, tmp_path):
 
 
 def test_a_plan_scope_touching_a_sensitive_path_applies_the_pilot_exclusion(tmp_path, monkeypatch):
-    """R-S0-8: a plan whose own scope names a path `sensitive-paths.yaml` maps rejects the
-    ticket through S3's own `exclusion` check_result and the `s3_exclusion` event."""
+    """A plan whose own scope names a path `sensitive-paths.yaml` maps rejects the
+    ticket through planning's own `exclusion` check_result and the `planning_exclusion` event."""
     conn = _conn(tmp_path)
-    ticket_id = _s3_ready_ticket(conn, tmp_path)
+    ticket_id = _planning_ready_ticket(conn, tmp_path)
 
-    out_dir = tmp_path / "s3_out"
+    out_dir = tmp_path / "planning_out"
     out_dir.mkdir()
     (out_dir / "plan.md").write_text(
         "## Scope and discretion\n\n| path | action | reason |\n|---|---|---|\n"
@@ -343,7 +343,7 @@ def test_a_plan_scope_touching_a_sensitive_path_applies_the_pilot_exclusion(tmp_
     )
     monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(out_dir))
     from runner.stages import run_stage
-    outcome = run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+    outcome = run_stage(conn, ticket_id, "planning", runs_dir=tmp_path)
 
     assert outcome == "fail"
     ticket = record.get(conn, "ticket", ticket_id)
@@ -357,7 +357,7 @@ def test_a_plan_scope_touching_a_sensitive_path_applies_the_pilot_exclusion(tmp_
 
 
 
-def test_an_s4_hand_backs_head_sha_change_alone_leaves_the_plan_tuple_current(tmp_path):
+def test_an_implementation_hand_backs_head_sha_change_alone_leaves_the_plan_tuple_current(tmp_path):
     conn = _conn(tmp_path)
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path)
     row = _latest_plan_tuple(conn, ticket_id)
@@ -375,7 +375,7 @@ def test_an_open_question_withholds_the_gate_even_with_full_approval(tmp_path):
     conn = _conn(tmp_path)
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path)
     record.insert(
-        conn, "question", ticket_id=ticket_id, stage="S2", round=1, rank=1,
+        conn, "question", ticket_id=ticket_id, stage="clarification", round=1, rank=1,
         options="[]", state="open", blocking=0,
     )
     ticket = record.get(conn, "ticket", ticket_id)
@@ -408,11 +408,11 @@ def test_an_expired_approval_requires_a_fresh_one_on_the_same_subject(tmp_path):
     conn = _conn(tmp_path)
     ticket_id, item_id = _planned_ticket_with_complete_checklist(conn, tmp_path)
     row = _latest_plan_tuple(conn, ticket_id)
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=ABHISHEK, min_count=1)
+    slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=ABHISHEK, min_count=1)
 
     expired_id = approvals.record_approval(
         conn, gate="plan", subject_hash=row["content_hash"], slot_id=slot.slot_id, actor_identity=ABHISHEK,
-        role="s3_reviewer", decision="approve", authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
+        role="plan_reviewer", decision="approve", authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
         attestation_version="v1", attestation_hash="att-expired", ticket_id=ticket_id,
         expires_at="2000-01-01T00:00:00+00:00",
     )
@@ -424,7 +424,7 @@ def test_an_expired_approval_requires_a_fresh_one_on_the_same_subject(tmp_path):
     # treats as a fork and refuses regardless of either row's own expiry.
     approvals.record_approval(
         conn, gate="plan", subject_hash=row["content_hash"], slot_id=slot.slot_id, actor_identity=ABHISHEK,
-        role="s3_reviewer", decision="approve", authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
+        role="plan_reviewer", decision="approve", authority_policy_hash="policy-1", membership_snapshot_hash="members-1",
         attestation_version="v1", attestation_hash="att-fresh", ticket_id=ticket_id, supersedes=expired_id,
     )
     ticket = record.get(conn, "ticket", ticket_id)

@@ -7,7 +7,7 @@ States are the only orchestration the initial version has (D24, D27). A stage ma
 | State | Entered from | Leaves when |
 |---|---|---|
 | `intake` | Ticket picked up; also where a ticket beyond the parallel limit waits (R-I-10) | S0 scripts pass and the human decides eligibility (`eligibility` item); a mechanical failure or a decline goes to `rejected` |
-| `rejected` | S0 fails the mechanical gate, the ticket is outside pilot scope, the human declines, or S1/S3/S5 discovers an Initial exclusion | Terminal; `close_reason = rejected_at_s0` or `pilot_excluded`, with the discovered reason and evidence |
+| `rejected` | S0 fails the mechanical gate, the ticket is outside pilot scope, the human declines, or S1/S3/S5 discovers an Initial exclusion | Terminal; `close_reason = rejected_at_intake` or `pilot_excluded`, with the discovered reason and evidence |
 | `context` | Eligibility granted; a send-back or base refresh from any later state | S1 passes; an S1 blocker is a blocking question and the run ends `blocked`; an Initial exclusion goes to `rejected` |
 | `clarifying` | S1 pass; a send-back from any later state | S2 exit (R-S2-12) with no open blocking question; an S2 run that raises a blocking question ends `blocked` and reruns from the record when it is answered |
 | `planning` | S2 exit; a send-back from `plan_review`, `checks`, `review`, or `escalated` | S3 produces the criteria-and-plan approval bundle; an Initial exclusion goes to `rejected` |

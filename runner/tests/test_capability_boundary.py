@@ -29,7 +29,7 @@ from runner import git_trees, manifest, record, run_ledger, tickets
 from runner.adapters import cursor_sdk
 from runner.db import connect
 from runner.sandbox import os_policy
-from runner.stages import S4
+from runner.stages import implementation
 from runner.tests.support import launch_probe
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "capability_boundary"
@@ -66,7 +66,7 @@ def _committed_copy(tmp_path: Path, source: Path, name: str) -> Path:
     return repo
 
 
-def _resolved_entry(tmp_path: Path, stage: str = "S1", tier: str = "light") -> manifest.Entry:
+def _resolved_entry(tmp_path: Path, stage: str = "context_gathering", tier: str = "light") -> manifest.Entry:
     repo = _committed_copy(tmp_path, ENTRY_FIXTURE, "entry_repo")
     m = manifest.load(repo / "factory" / "manifest.yaml")
     return manifest.resolve(m, stage, tier)
@@ -99,13 +99,13 @@ def _tiny_pushless_repo(root: Path) -> Path:
 def test_stage_run_tool_allowlist_never_admits_a_workspace_level_mcp_server(tmp_path):
     """The resolved `stage_run.tool_allowlist` comes from the manifest entry alone; an env-carried
     workspace tool name never merges into it."""
-    entry = _resolved_entry(tmp_path, "S1", "light")
+    entry = _resolved_entry(tmp_path, "context_gathering", "light")
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn)
     ticket = record.get(conn, "ticket", ticket_id)
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="context_gathering", tier="light", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=_fixture_runtime_path(tmp_path), sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
         env_source={"PATH": os.environ.get("PATH", ""), "CURSOR_MCP_SERVERS": "workspace_leaked_tool"},
     )
@@ -126,13 +126,13 @@ def test_a_server_named_by_an_mcp_config_inside_the_worktree_is_unreachable(tmp_
     mcp_config.write_text(json.dumps({"mcpServers": {"workspace_leaked_tool": {"host": "mcp.example.test", "port": 443}}}))
 
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "mcp_config" / "probe.py", role="agent", stage="S1",
+        tmp_path, FIXTURES_DIR / "mcp_config" / "probe.py", role="agent", stage="context_gathering",
         ticket_dir=tmp_path / "ticket", worktree_path=worktree, extra_argv=(str(mcp_config),),
     )
     assert payload == {"attempted": True, "refused": True, "read": True}
 
 
-# A recipe invocation at a stage other than S4 attempting to write into the ticket worktree.
+# A recipe invocation at a stage other than implementation attempting to write into the ticket worktree.
 
 def test_a_build_profile_recipe_run_writing_the_worktree_is_refused(tmp_path):
     """A recipe invocation runs under the build profile against a copy; the build profile never even
@@ -140,7 +140,7 @@ def test_a_build_profile_recipe_run_writing_the_worktree_is_refused(tmp_path):
     worktree_shaped_path = tmp_path / "worktree"
     worktree_shaped_path.mkdir()
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "source_write" / "probe.py", role="build", stage="S4",
+        tmp_path, FIXTURES_DIR / "source_write" / "probe.py", role="build", stage="implementation",
         copy_dir=tmp_path / "copy", build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
         cache_dir=tmp_path / "cache", extra_argv=(str(worktree_shaped_path),),
     )
@@ -153,7 +153,7 @@ def test_a_relative_traversal_from_the_worktree_to_the_host_home_directory_is_re
     worktree = tmp_path / "worktree"
     worktree.mkdir()
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "traversal" / "probe.py", role="agent", stage="S4",
+        tmp_path, FIXTURES_DIR / "traversal" / "probe.py", role="agent", stage="implementation",
         ticket_dir=tmp_path / "ticket", worktree_path=worktree, extra_argv=(str(worktree),),
     )
     assert payload == {"attempted": True, "refused": True}
@@ -166,7 +166,7 @@ def test_a_symlink_inside_out_pointing_outside_every_mount_is_refused(tmp_path):
     link_path = out_dir / "escape_link"
     link_path.symlink_to(Path(os.path.expanduser("~")) / ".ssh")
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "symlink_out" / "probe.py", role="agent", stage="S1",
+        tmp_path, FIXTURES_DIR / "symlink_out" / "probe.py", role="agent", stage="context_gathering",
         ticket_dir=tmp_path / "ticket", extra_argv=(str(link_path),),
     )
     assert payload == {"attempted": True, "refused": True}
@@ -174,14 +174,14 @@ def test_a_symlink_inside_out_pointing_outside_every_mount_is_refused(tmp_path):
 
 # An agent-issued shell string in place of a typed recipe id.
 
-def test_must_reject_a_shell_string_arriving_through_the_s4_hand_backs_validation_recipe_field(tmp_path):
+def test_must_reject_a_shell_string_arriving_through_the_implementation_hand_backs_validation_recipe_field(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn)
     ticket = record.get(conn, "ticket", ticket_id)
-    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="implementation")
 
     task = {"validation_recipe": "; rm -rf / #", "validation_args": {}, "id": 1}
-    outcome, failure_kind = S4._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
+    outcome, failure_kind = implementation._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
 
     assert outcome == "fail"
     assert failure_kind == "recipe_binding"
@@ -209,10 +209,10 @@ def test_a_task_validation_recipe_is_launched_under_the_build_role_with_the_enfo
     )
     ticket_id = tickets.open_ticket(conn, worktree_path=str(worktree))
     ticket = record.get(conn, "ticket", ticket_id)
-    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="implementation")
 
     task = {"id": 1, "validation_recipe": "fixture_compile", "validation_args": {}}
-    outcome, failure_kind = S4._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
+    outcome, failure_kind = implementation._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
 
     assert outcome == "pass", failure_kind
     exit_json = (
@@ -225,7 +225,7 @@ def test_a_task_validation_recipe_is_launched_under_the_build_role_with_the_enfo
 def test_must_reject_a_task_validation_recipe_returning_without_an_applied_os_policy(tmp_path, monkeypatch):
     """Once `_validate_task` routes through `launcher.launch`, a launch that comes back
     without an applied Seatbelt profile is the same control defect `recipes.run` already
-    refuses for an S5 build recipe (`test_must_reject_a_build_result_without_policy_or_integrity_proof`
+    refuses for a checks build recipe (`test_must_reject_a_build_result_without_policy_or_integrity_proof`
     in `test_recipes.py`) -- never a silently accepted pass."""
     from runner import launcher
 
@@ -234,7 +234,7 @@ def test_must_reject_a_task_validation_recipe_returning_without_an_applied_os_po
     (worktree / "src" / "main" / "java" / "com" / "fixture").mkdir(parents=True)
     ticket_id = tickets.open_ticket(conn, worktree_path=str(worktree))
     ticket = record.get(conn, "ticket", ticket_id)
-    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+    stage_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="implementation")
 
     class _StubLaunched:
         os_policy_applied = False
@@ -247,7 +247,7 @@ def test_must_reject_a_task_validation_recipe_returning_without_an_applied_os_po
     monkeypatch.setattr(launcher, "launch", lambda **_: _StubLaunched())
 
     task = {"id": 1, "validation_recipe": "fixture_compile", "validation_args": {}}
-    outcome, failure_kind = S4._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
+    outcome, failure_kind = implementation._validate_task(conn, ticket, stage_run_id, task, runs_dir=tmp_path)
 
     assert outcome == "fail"
     assert failure_kind == "recipe_binding"
@@ -257,7 +257,7 @@ def test_must_reject_a_task_validation_recipe_returning_without_an_applied_os_po
 
 def test_no_ambient_credential_is_visible_from_inside_a_build_sandbox(tmp_path):
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "credentials_build" / "probe.py", role="build", stage="S5",
+        tmp_path, FIXTURES_DIR / "credentials_build" / "probe.py", role="build", stage="checks",
         copy_dir=tmp_path / "copy", build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
         cache_dir=tmp_path / "cache",
     )
@@ -266,12 +266,12 @@ def test_no_ambient_credential_is_visible_from_inside_a_build_sandbox(tmp_path):
 
 # A push attempt is refused from inside any sandbox.
 
-def test_must_reject_git_push_from_inside_an_s4_sandbox(tmp_path):
+def test_must_reject_git_push_from_inside_an_implementation_sandbox(tmp_path):
     """Even from a fully writable worktree mount, a push fails: the clone's push URL is disabled
     and the profile admits no network beyond the loopback proxy."""
     repo = _tiny_pushless_repo(tmp_path / "repo")
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "git_push" / "probe.py", role="agent", stage="S4",
+        tmp_path, FIXTURES_DIR / "git_push" / "probe.py", role="agent", stage="implementation",
         ticket_dir=tmp_path / "ticket", worktree_path=repo, extra_argv=(str(repo),),
     )
     assert payload == {"attempted": True, "refused": True}
@@ -280,7 +280,7 @@ def test_must_reject_git_push_from_inside_an_s4_sandbox(tmp_path):
 def test_must_reject_git_push_from_inside_a_build_sandbox(tmp_path):
     repo = _tiny_pushless_repo(tmp_path / "repo")
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "git_push" / "probe.py", role="build", stage="S5",
+        tmp_path, FIXTURES_DIR / "git_push" / "probe.py", role="build", stage="checks",
         copy_dir=repo, build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
         cache_dir=tmp_path / "cache", extra_argv=(str(repo),),
     )
@@ -290,7 +290,7 @@ def test_must_reject_git_push_from_inside_a_build_sandbox(tmp_path):
 # The resolved tool set is written to the record before the child ever launches.
 
 def test_stage_run_tool_allowlist_is_set_before_launcher_launch_is_ever_called(tmp_path, monkeypatch):
-    entry = _resolved_entry(tmp_path, "S1", "light")
+    entry = _resolved_entry(tmp_path, "context_gathering", "light")
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn)
     ticket = record.get(conn, "ticket", ticket_id)
@@ -310,7 +310,7 @@ def test_stage_run_tool_allowlist_is_set_before_launcher_launch_is_ever_called(t
     monkeypatch.setattr(launcher, "launch", _capturing_launch)
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="context_gathering", tier="light", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=_fixture_runtime_path(tmp_path), sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
     )
 

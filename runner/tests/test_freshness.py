@@ -103,8 +103,7 @@ def _approve_plan(conn, ticket_id, content_hash) -> None:
     )
 
 
-def test_before_s4_detects_target_movement_against_the_plan_tuple_and_ticket(conn, tmp_path):
-    """R-S5-12"""
+def test_before_implementation_detects_target_movement_against_the_plan_tuple_and_ticket(conn, tmp_path):
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="implementing")
@@ -113,7 +112,7 @@ def test_before_s4_detects_target_movement_against_the_plan_tuple_and_ticket(con
     _write_files(source, fixture["target_commit"]["files"])
     _commit_all(source, fixture["target_commit"]["message"])
 
-    fresh = freshness.check(conn, ticket_id, boundary=freshness.BEFORE_S4, target_branch=TARGET_BRANCH, runs_dir=runs_dir)
+    fresh = freshness.check(conn, ticket_id, boundary=freshness.BEFORE_IMPLEMENTATION, target_branch=TARGET_BRANCH, runs_dir=runs_dir)
 
     assert not fresh.fresh
     assert fresh.reasons
@@ -121,22 +120,21 @@ def test_before_s4_detects_target_movement_against_the_plan_tuple_and_ticket(con
     assert fresh.check_result_id is not None
 
 
-def test_before_s4_is_fresh_when_the_target_has_not_moved(conn, tmp_path):
-    """R-S5-12"""
+def test_before_implementation_is_fresh_when_the_target_has_not_moved(conn, tmp_path):
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="implementing")
     _plan_tuple(conn, ticket_id, trees.base_sha)
 
-    fresh = freshness.check(conn, ticket_id, boundary=freshness.BEFORE_S4, target_branch=TARGET_BRANCH, runs_dir=runs_dir)
+    fresh = freshness.check(conn, ticket_id, boundary=freshness.BEFORE_IMPLEMENTATION, target_branch=TARGET_BRANCH, runs_dir=runs_dir)
 
     assert fresh.fresh
     assert fresh.reasons == ()
     assert fresh.check_result_id is None
 
 
-def test_advance_refuses_s4_on_a_stale_base_and_queues_exactly_one_red_check(conn, tmp_path, monkeypatch):
-    """R-S5-12: the due-stage boundary in `operations.advance`."""
+def test_advance_refuses_implementation_on_a_stale_base_and_queues_exactly_one_red_check(conn, tmp_path, monkeypatch):
+    """The due-stage boundary in `operations.advance`."""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="implementing")
@@ -145,7 +143,7 @@ def test_advance_refuses_s4_on_a_stale_base_and_queues_exactly_one_red_check(con
     # `advance` reads the project's real target branch from the committed
     # `factory/config/project.yaml` ("main"), which the fixture's source
     # repository already uses -- no monkeypatch of that config is needed.
-    monkeypatch.setattr(operations, "_due_stage", lambda conn, ticket: "S4")
+    monkeypatch.setattr(operations, "_due_stage", lambda conn, ticket: "implementation")
 
     _write_files(source, fixture["target_commit"]["files"])
     _commit_all(source, fixture["target_commit"]["message"])
@@ -188,8 +186,8 @@ def _real_plan_quorum(conn, tmp_path, ticket_id) -> int:
         path.write_text(f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
 
-    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    identity = owners.load_owners().roles["plan_reviewer"]["identity"]
+    slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=identity, min_count=1)
     record.insert(
         conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-1",
         slots=json.dumps([slot.to_json()]),
@@ -200,7 +198,7 @@ def _real_plan_quorum(conn, tmp_path, ticket_id) -> int:
     subject_hash = record.get(conn, "evidence_tuple", tuple_id)["content_hash"]
     approvals.record_approval(
         conn, gate="plan", subject_hash=subject_hash, slot_id=slot.slot_id, actor_identity=identity,
-        role="s3_reviewer", decision="approve", authority_policy_hash="authority-1",
+        role="plan_reviewer", decision="approve", authority_policy_hash="authority-1",
         membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash="att-1",
         ticket_id=ticket_id,
     )
@@ -208,7 +206,7 @@ def _real_plan_quorum(conn, tmp_path, ticket_id) -> int:
 
 
 def test_plan_review_gate_withholds_plan_quorum_fresh_on_a_stale_base(conn, tmp_path):
-    """R-S5-12: the plan-approval commit boundary."""
+    """The plan-approval commit boundary."""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(
@@ -227,8 +225,8 @@ def test_plan_review_gate_withholds_plan_quorum_fresh_on_a_stale_base(conn, tmp_
     assert gates.plan_review_gate(conn, ticket, runs_dir=runs_dir) is None
 
 
-def test_s5_preflight_detects_target_movement(conn, tmp_path):
-    """R-S5-12: the S5 preflight boundary."""
+def test_checks_preflight_detects_target_movement(conn, tmp_path):
+    """The checks preflight boundary."""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="checks")
@@ -238,13 +236,13 @@ def test_s5_preflight_detects_target_movement(conn, tmp_path):
     _commit_all(source, fixture["target_commit"]["message"])
 
     fresh = freshness.check(
-        conn, ticket_id, boundary=freshness.S5_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
+        conn, ticket_id, boundary=freshness.CHECKS_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
     )
     assert not fresh.fresh
 
 
-def test_stage_s5_driver_fails_stale_binding_on_a_stale_base(conn, tmp_path):
-    """R-S5-12: the real stub S5 driver runs the preflight before writing any artefact."""
+def test_stage_checks_driver_fails_stale_binding_on_a_stale_base(conn, tmp_path):
+    """The real stub checks driver runs the preflight before writing any artefact."""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="checks")
@@ -253,31 +251,29 @@ def test_stage_s5_driver_fails_stale_binding_on_a_stale_base(conn, tmp_path):
     _write_files(source, fixture["target_commit"]["files"])
     _commit_all(source, fixture["target_commit"]["message"])
 
-    outcome = run_stage(conn, ticket_id, "S5", runs_dir=runs_dir)
+    outcome = run_stage(conn, ticket_id, "checks", runs_dir=runs_dir)
     assert outcome == "fail"
     stage_run = conn.execute(
-        "SELECT * FROM stage_run WHERE ticket_id = ? AND stage = 'S5' ORDER BY id DESC LIMIT 1", (ticket_id,)
+        "SELECT * FROM stage_run WHERE ticket_id = ? AND stage = 'checks' ORDER BY id DESC LIMIT 1", (ticket_id,)
     ).fetchone()
     assert stage_run["failure_kind"] == "stale_binding"
     assert artefact_registry.latest(conn, ticket_id, "check_evidence") is None
 
 
-def test_s5_preflight_binds_a_diff_hash_when_no_review_tuple_exists_yet(conn, tmp_path):
-    """R-S5-12"""
+def test_checks_preflight_binds_a_diff_hash_when_no_review_tuple_exists_yet(conn, tmp_path):
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="checks")
     _plan_tuple(conn, ticket_id, trees.base_sha)
 
     fresh = freshness.check(
-        conn, ticket_id, boundary=freshness.S5_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
+        conn, ticket_id, boundary=freshness.CHECKS_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
     )
     assert fresh.fresh
     assert fresh.diff_hash == canonical.content_hash({"diff": ""})
 
 
-def test_s5_preflight_requires_the_diff_to_match_the_bound_review_tuple(conn, tmp_path):
-    """R-S5-12"""
+def test_checks_preflight_requires_the_diff_to_match_the_bound_review_tuple(conn, tmp_path):
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="checks")
@@ -288,14 +284,13 @@ def test_s5_preflight_requires_the_diff_to_match_the_bound_review_tuple(conn, tm
     )
 
     fresh = freshness.check(
-        conn, ticket_id, boundary=freshness.S5_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
+        conn, ticket_id, boundary=freshness.CHECKS_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
     )
     assert not fresh.fresh
     assert any("diff" in reason for reason in fresh.reasons)
 
 
-def test_must_reject_s5_preflight_when_the_worktree_head_moved_past_ticket_head_sha(conn, tmp_path):
-    """R-S5-12"""
+def test_must_reject_checks_preflight_when_the_worktree_head_moved_past_ticket_head_sha(conn, tmp_path):
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="checks")
@@ -305,7 +300,7 @@ def test_must_reject_s5_preflight_when_the_worktree_head_moved_past_ticket_head_
     _commit_all(trees.worktree, "worktree head moves without updating ticket.head_sha")
 
     fresh = freshness.check(
-        conn, ticket_id, boundary=freshness.S5_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
+        conn, ticket_id, boundary=freshness.CHECKS_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
     )
     assert not fresh.fresh
     assert any("head_sha" in reason for reason in fresh.reasons)
@@ -313,7 +308,6 @@ def test_must_reject_s5_preflight_when_the_worktree_head_moved_past_ticket_head_
 
 
 def test_a_stale_result_invalidates_the_plan_and_review_tuples_it_named(conn, tmp_path):
-    """R-S5-12"""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="checks")
@@ -328,7 +322,7 @@ def test_a_stale_result_invalidates_the_plan_and_review_tuples_it_named(conn, tm
     assert freshness.invalidated_tuples(conn, ticket_id) == set()
 
     fresh = freshness.check(
-        conn, ticket_id, boundary=freshness.S5_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
+        conn, ticket_id, boundary=freshness.CHECKS_PREFLIGHT, target_branch=TARGET_BRANCH, runs_dir=runs_dir,
     )
     assert not fresh.fresh
 
@@ -344,19 +338,17 @@ def test_a_stale_result_invalidates_the_plan_and_review_tuples_it_named(conn, tm
 
 
 def test_a_fresh_result_writes_no_check_result_row(conn, tmp_path):
-    """R-S5-12"""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="checks")
     _plan_tuple(conn, ticket_id, trees.base_sha)
 
-    freshness.check(conn, ticket_id, boundary=freshness.BEFORE_S4, target_branch=TARGET_BRANCH, runs_dir=runs_dir)
+    freshness.check(conn, ticket_id, boundary=freshness.BEFORE_IMPLEMENTATION, target_branch=TARGET_BRANCH, runs_dir=runs_dir)
 
     assert conn.execute("SELECT COUNT(*) FROM check_result").fetchone()[0] == 0
 
 
 def test_refresh_base_preserves_a_dirty_build_and_records_the_new_base_and_head(conn, tmp_path):
-    """R-S5-12"""
     fixture = _load_fixture("clean_rebase")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="implementing")
@@ -390,7 +382,6 @@ def test_refresh_base_preserves_a_dirty_build_and_records_the_new_base_and_head(
 
 
 def test_refresh_base_escalates_a_conflicting_rebase_without_resolving_it(conn, tmp_path):
-    """R-S5-12"""
     fixture = _load_fixture("conflicting_rebase")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="implementing")
@@ -435,7 +426,6 @@ def test_refresh_base_escalates_a_conflicting_rebase_without_resolving_it(conn, 
 
 
 def test_must_reject_refresh_base_from_a_state_with_no_refresh_base_transition(conn, tmp_path):
-    """R-S5-12"""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="review")
@@ -450,7 +440,6 @@ def test_must_reject_refresh_base_from_a_state_with_no_refresh_base_transition(c
 
 
 def test_refresh_base_returns_to_context_and_requires_a_new_plan_approval(conn, tmp_path):
-    """R-S5-12"""
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(
@@ -490,14 +479,13 @@ def profile_paths(tmp_path):
 
 
 def test_before_dispatch_supersedes_a_stale_pending_intent_and_sends_nothing(conn, tmp_path, profile_paths):
-    """R-S5-12"""
     profile_path, owners_path = profile_paths
     fixture = _load_fixture("target_movement")
     source = _source_repo(tmp_path, fixture["seed"])
     ticket_id, trees, runs_dir = _clone_ticket(conn, tmp_path, source, state="review")
     _plan_tuple(conn, ticket_id, trees.base_sha)
 
-    slot = Slot(source_rule="owners", role="s6_reviewer")
+    slot = Slot(source_rule="owners", role="packet_reviewer")
     reviewer_set_id = record.insert(
         conn, "reviewer_set", ticket_id=ticket_id, kind="effective",
         content_hash="effective-set-1", slots=json.dumps([slot.to_json()]),
@@ -511,7 +499,7 @@ def test_before_dispatch_supersedes_a_stale_pending_intent_and_sends_nothing(con
     # `approval_record` for this gate now binds -- also needs one bound
     # blocking check result and packet/`pr_body` artefacts on record; a
     # bare review tuple is no longer enough to compute it.
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S5", attempt=1, outcome="pass")
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="checks", attempt=1, outcome="pass")
     record.insert(
         conn, "check_result", stage_run_id=stage_run_id, evidence_tuple_id=review_tuple_id,
         check_name="fixture_check", check_tier="blocking", source="runner", result="pass",

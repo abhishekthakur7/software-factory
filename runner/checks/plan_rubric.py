@@ -164,7 +164,8 @@ def contracts_declared(plan: artefacts.Artefact, *, questions: list[dict]) -> li
 def test_strategy_typed(
     plan: artefacts.Artefact, *, criteria_text: str | None, catalogue: dict, project_recipes: list[str],
 ) -> list[Finding]:
-    """Typed size/action, a `change`/`remove` row names its authority, a `large` row needs a registered end-to-end recipe."""
+    """Typed size/action, a `change`/`remove` row names its authority, a `large` row needs a registered end-to-end recipe,
+    and a `none` row -- no automated test at all -- carries its own reason and is only ever added, never changed or removed."""
     findings: list[Finding] = []
     no_behaviour_change_ids = {row.get("id") for row in _rows(plan, "Tasks") if _truthy(row.get("no_behaviour_change"))}
     known_ac_ids: set[str] = set()
@@ -193,18 +194,31 @@ def test_strategy_typed(
                 findings.append(Finding("test_strategy_typed", f"{test}: {action} row names no AC-n or no_behaviour_change task", "fail"))
         if size == "large" and not end_to_end_registered:
             findings.append(Finding("test_strategy_typed", f"{test}: large test planned with no registered end-to-end recipe", "fail"))
+        if size == "none":
+            # A `none` row names no real test asset, so there is nothing a `change`
+            # or `remove` action could act on -- only `add` makes sense.
+            if action and action != "add":
+                findings.append(Finding("test_strategy_typed", f"{test}: size none can only be added, not {action}", "fail"))
+            if not (row.get("proves") or "").strip():
+                findings.append(Finding("test_strategy_typed", f"{test}: size none with no reason given in proves", "fail"))
     return findings
 
 
 def test_mix_report(plan: artefacts.Artefact, *, limits: dict) -> str:
-    """The plan's `add`-row test counts against `limits.yaml`'s `test_mix` target, as one information line -- never a finding."""
+    """The plan's `add`-row test counts against `limits.yaml`'s `test_mix` target, as one information line -- never a finding.
+
+    A `none` row carries no automated test, so it is excluded from both the mix
+    and its own total: counting it would understate the small/medium/large share
+    of the tests actually planned.
+    """
     add_rows = [row for row in _rows(plan, "Test strategy") if (row.get("action") or "").strip() == "add"]
-    counts = {size: sum(1 for row in add_rows if (row.get("size") or "").strip() == size) for size in artefacts.TEST_SIZES}
+    automated_sizes = tuple(size for size in artefacts.TEST_SIZES if size != "none")
+    counts = {size: sum(1 for row in add_rows if (row.get("size") or "").strip() == size) for size in automated_sizes}
     total = sum(counts.values())
     target = limits.get("test_mix", {})
     parts = [
         f"{size} {counts[size]}/{total} (target {target.get(size, '?')})" if total else f"{size} 0 (target {target.get(size, '?')})"
-        for size in artefacts.TEST_SIZES
+        for size in automated_sizes
     ]
     return f"test mix over {total} add row(s): " + ", ".join(parts)
 

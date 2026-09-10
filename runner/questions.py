@@ -6,7 +6,7 @@ a round is either queued whole or refused whole. `record_answer` is the
 one place an `answer` row is written -- `queue.act`'s `answer` and
 `accept_default` actions both call it -- and it writes the append-only
 `assumption` row a `default_accepted` resolution creates in the same call.
-`accept_assumption` is the S3-reviewer path onto the same log for a
+`accept_assumption` is the planning-reviewer path onto the same log for a
 question nobody defaulted: `state = assumption_accepted`, one assumption
 row naming it. `supersede_assumption` is the only way an assumption's text
 changes: the prior row is never touched, a new row names it via
@@ -196,7 +196,7 @@ def record_answer(
 
 
 def accept_assumption(conn: sqlite3.Connection, question_id: int, *, actor: str, text: str) -> int:
-    """The S3-reviewer path: mark `question_id` `assumption_accepted` and write one assumption row naming it.
+    """The planning-reviewer path: mark `question_id` `assumption_accepted` and write one assumption row naming it.
 
     `actor` is not stored on the `assumption` row -- the table carries no
     reviewer-identity column -- but is accepted for symmetry with every
@@ -239,26 +239,66 @@ def supersede_assumption(
     )
 
 
+_QUESTION_CONTENT_FIELDS = (
+    "ticket_id", "stage", "round", "rank", "text", "affects", "reasoning", "options", "default_option",
+    "consequential", "consequential_reason", "hard_to_reverse", "hard_to_reverse_reason", "blocking",
+    "rank_inputs", "raised_by_answer",
+)
+
+
+def current_version(conn: sqlite3.Connection, question_id: int) -> sqlite3.Row:
+    """The tip of `question_id`'s lineage: the row nothing else's `supersedes` names.
+
+    A flag correction never edits a row in place, so a `ref` or a foreign
+    key recorded against an earlier id in the same lineage is still
+    valid -- it just no longer names the row a human or a gate should
+    act on. Every reader that was given a possibly-stale question id
+    calls this first rather than assuming the id it was handed is
+    already current.
+    """
+    row = record.get(conn, "question", question_id)
+    if row is None:
+        raise LookupError(f"no such question: {question_id}")
+    while True:
+        successor = conn.execute("SELECT * FROM question WHERE supersedes = ?", (row["id"],)).fetchone()
+        if successor is None:
+            return row
+        row = successor
+
+
 def correct_flag(
     conn: sqlite3.Connection, question_id: int, *, consequential: bool | None = None,
-    hard_to_reverse: bool | None = None, reason: str, actor: str, fm_id: str,
-) -> None:
-    """A human correcting `consequential` and/or `hard_to_reverse` in place, with the reason recorded as a tag.
+    hard_to_reverse: bool | None = None, blocking: bool | None = None, reason: str, actor: str, fm_id: str,
+) -> int:
+    """A human correcting `consequential`, `hard_to_reverse`, and/or `blocking` by appending a replacement row.
 
-    The two flag columns are mutable in place (a human correction), but
-    their `_reason` columns are not -- those hold the agent's own
-    original reasoning -- so the correction's reason lands as a
-    `flag_correction` tag on `question:<id>` instead of overwriting it.
+    `question_id` is resolved to its lineage's current tip first, so a
+    second correction on an already-corrected question supersedes the
+    live row rather than the original. The replacement copies every
+    content field from that tip verbatim except the flag(s) named here,
+    carries the tip's own (pre-correction) `state` forward unchanged --
+    the correction is about classification, never about whether the
+    question has been answered -- and names the tip in `supersedes`. The
+    tip itself is then moved to `superseded` and never written to again.
+    The `flag_correction` tag lands on the new row, not the old one: the
+    tag records why the row it is attached to holds the values it does,
+    and the old row's values need no explaining -- they are exactly what
+    the agent first wrote.
     """
-    if consequential is None and hard_to_reverse is None:
-        raise ValueError("correct_flag requires consequential or hard_to_reverse")
-    fields = {}
+    if consequential is None and hard_to_reverse is None and blocking is None:
+        raise ValueError("correct_flag requires consequential, hard_to_reverse, or blocking")
+    tip = current_version(conn, question_id)
+    fields = {name: tip[name] for name in _QUESTION_CONTENT_FIELDS}
     if consequential is not None:
         fields["consequential"] = 1 if consequential else 0
     if hard_to_reverse is not None:
         fields["hard_to_reverse"] = 1 if hard_to_reverse else 0
-    record.update(conn, "question", question_id, **fields)
-    tags.tag(conn, target=f"question:{question_id}", kind="flag_correction", fm_id=fm_id, actor=actor, note=reason)
+    if blocking is not None:
+        fields["blocking"] = 1 if blocking else 0
+    new_id = record.insert(conn, "question", supersedes=tip["id"], state=tip["state"], **fields)
+    record.update(conn, "question", tip["id"], state="superseded")
+    tags.tag(conn, target=f"question:{new_id}", kind="flag_correction", fm_id=fm_id, actor=actor, note=reason)
+    return new_id
 
 
 def assumption_log_hash(conn: sqlite3.Connection, ticket_id: int) -> str:
@@ -285,6 +325,12 @@ def open_blocking(conn: sqlite3.Connection, ticket_id: int, *, stage: str | None
     stage's exit in place and withholds `plan_review_gate`'s event, so a
     reviewer can never approve a plan while its ticket still owes an
     answer.
+
+    A row a flag correction has superseded never matches `state = 'open'`
+    (`correct_flag` moves it to `superseded` in the same call that
+    appends its replacement), so this needs no separate lineage-tip
+    filter: a blocking question corrected to non-blocking, or answered
+    under its corrected id, drops out of this result by construction.
     """
     query = "SELECT id FROM question WHERE ticket_id = ? AND blocking = 1 AND state = 'open'"
     params: list = [ticket_id]

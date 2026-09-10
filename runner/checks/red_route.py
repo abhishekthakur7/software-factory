@@ -1,7 +1,7 @@
-"""The fix-round route: whether an S5 red result set stays inside the machine's bounded repair loop.
+"""The fix-round route: whether the checks stage's red result set stays inside the machine's bounded repair loop.
 
 `classify` is pure over already-collected outcomes -- no filesystem, no
-subprocess, no database -- so the S5 driver assembles the recipe and check
+subprocess, no database -- so the checks stage's driver assembles the recipe and check
 results and this module only decides the route. `fix_round` requires every
 red result to be a lint or compile-type recipe, or a unit/integration test
 green at base and red at head, with no other check red and the per-ticket
@@ -20,7 +20,7 @@ _ELIGIBLE_TEST_LEVELS: tuple[str, ...] = ("unit", "integration")
 
 @dataclass(frozen=True)
 class RecipeOutcome:
-    """One recipe's base/head result, as the S5 driver observed it."""
+    """One recipe's base/head result, as the checks stage's driver observed it."""
 
     recipe_id: str
     kind: str  # "lint" | "compile" | "test" | "other" (recipes.RECIPE_KINDS)
@@ -31,7 +31,7 @@ class RecipeOutcome:
 
 @dataclass(frozen=True)
 class CheckOutcome:
-    """One non-recipe S5 check's result (`scope_diff`, `behavior_contract_evidence`, ...)."""
+    """One non-recipe check's result from the checks stage (`scope_diff`, `behavior_contract_evidence`, ...)."""
 
     check_name: str
     result: str  # "pass" | "fail" | "blind_spot"

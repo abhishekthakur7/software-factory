@@ -1,4 +1,4 @@
-"""The S6 race guard: recomputing the actual reviewer set immediately before packet assembly and dispatch.
+"""The human_review race guard: recomputing the actual reviewer set immediately before packet assembly and dispatch.
 
 Reuses `test_reviewer_sets.py`'s git-repo helpers rather than duplicating
 them, so the guard is exercised against the same real CODEOWNERS-reading
@@ -19,10 +19,10 @@ def conn(tmp_path):
     connection.close()
 
 
-def test_recompute_before_dispatch_writes_a_fresh_row_matching_s5_when_the_diff_did_not_move(conn, tmp_path):
-    """the race guard always writes a new `actual` row, but when nothing
-    changed between S5 preflight and S6 dispatch its content is identical
-    to the row S5 produced (R-S6-6)."""
+def test_recompute_before_dispatch_writes_a_fresh_row_matching_checks_when_the_diff_did_not_move(conn, tmp_path):
+    """The race guard always writes a new `actual` row, but when nothing
+    changed between checks preflight and human_review dispatch its content is identical
+    to the row checks produced."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     ticket_id = _ticket(conn)
@@ -31,34 +31,34 @@ def test_recompute_before_dispatch_writes_a_fresh_row_matching_s5_when_the_diff_
         changed_paths=["README.md"], owners=OWNERS, sensitive_paths={},
         authority_policy_hash="policy-hash", membership_snapshot_hash="members-hash",
     )
-    s5 = derive_actual(conn, **kwargs)
-    s6 = recompute_before_dispatch(conn, **kwargs)
+    checks_set = derive_actual(conn, **kwargs)
+    human_review_set = recompute_before_dispatch(conn, **kwargs)
 
-    assert s6.id != s5.id
-    s5_row = record.get(conn, "reviewer_set", s5.id)
-    s6_row = record.get(conn, "reviewer_set", s6.id)
-    assert s6_row["content_hash"] == s5_row["content_hash"]
-    assert not s5.blocked and not s6.blocked
+    assert human_review_set.id != checks_set.id
+    checks_row = record.get(conn, "reviewer_set", checks_set.id)
+    human_review_row = record.get(conn, "reviewer_set", human_review_set.id)
+    assert human_review_row["content_hash"] == checks_row["content_hash"]
+    assert not checks_set.blocked and not human_review_set.blocked
 
 
-def test_recompute_before_dispatch_diverges_from_s5_when_the_diff_moved(conn, tmp_path):
-    """a path added to the diff between S5 preflight and S6 dispatch makes
-    the race guard's row differ from S5's, invalidating the earlier one (R-S6-6)."""
+def test_recompute_before_dispatch_diverges_from_checks_when_the_diff_moved(conn, tmp_path):
+    """A path added to the diff between checks preflight and human_review dispatch makes
+    the race guard's row differ from checks's, invalidating the earlier one."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     ticket_id = _ticket(conn)
-    s5 = derive_actual(
+    checks_set = derive_actual(
         conn, ticket_id=ticket_id, repo_path=repo, target_base_sha=sha,
         changed_paths=["README.md"], owners=OWNERS, sensitive_paths={},
         authority_policy_hash="policy-hash", membership_snapshot_hash="members-hash",
     )
-    s6 = recompute_before_dispatch(
+    human_review_set = recompute_before_dispatch(
         conn, ticket_id=ticket_id, repo_path=repo, target_base_sha=sha,
         changed_paths=["README.md", "src/other/file.py"], owners=OWNERS, sensitive_paths={},
         authority_policy_hash="policy-hash", membership_snapshot_hash="members-hash",
     )
 
-    s5_row = record.get(conn, "reviewer_set", s5.id)
-    s6_row = record.get(conn, "reviewer_set", s6.id)
-    assert s6_row["content_hash"] != s5_row["content_hash"]
-    assert s6_row["path_set_hash"] != s5_row["path_set_hash"]
+    checks_row = record.get(conn, "reviewer_set", checks_set.id)
+    human_review_row = record.get(conn, "reviewer_set", human_review_set.id)
+    assert human_review_row["content_hash"] != checks_row["content_hash"]
+    assert human_review_row["path_set_hash"] != checks_row["path_set_hash"]

@@ -1,7 +1,0 @@
-# A seeded human_verdict scenario for the R-S1-11 grader line: the
-# plan's contracts table must restate the brief's impact evidence and
-# blind spots by name, not merely reference the brief in general terms.
-rubric_line_id: R-S1-11:grader
-subject: "brief names impact evidence for the 'order-service' consumer and a blind spot on inbound caller coverage; the plan's contracts table names neither."
-verdict: fail
-reason: the plan's contracts table does not restate the brief's impact evidence and blind spots by name

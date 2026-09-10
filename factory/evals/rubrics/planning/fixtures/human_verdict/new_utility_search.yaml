@@ -1,0 +1,5 @@
+# A seeded human_verdict scenario for the new_utility_search grader line.
+rubric_line_id: "new_utility_search:grader"
+subject: "New utility SlugGenerator records existing: 'none checked'."
+verdict: fail
+reason: the recorded search names no context-index entry and no component-catalogue entry checked before proposing the new utility

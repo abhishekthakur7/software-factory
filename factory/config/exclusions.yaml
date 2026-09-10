@@ -1,6 +1,6 @@
-# Every surface Initial pilot eligibility excludes (R-S0-8), each mapped to
-# the path globs and the case-insensitive text patterns S0 scans the ticket
-# title against. This is a lax first cut, seeded generously and plainly; the
+# Every surface initial pilot eligibility excludes, each mapped to the path
+# globs and the case-insensitive text patterns intake scans the ticket title
+# against. This is a lax first cut, seeded generously and plainly; the
 # owner narrows it once real tickets show which patterns are too broad or
 # too quiet. `sensitive_path`'s own path globs are read from
 # `sensitive-paths.yaml` rather than repeated here.

@@ -9,7 +9,7 @@ reconciled:
       ticket_id: $ticket
       kind: effective
       content_hash: effective-reviewer-set-8
-      slots: '[{"source_rule": "owners", "role": "s6_reviewer"}]'
+      slots: '[{"source_rule": "owners", "role": "packet_reviewer"}]'
   evidence_tuple:
     - as: review_tuple
       kind: review
@@ -21,8 +21,8 @@ reconciled:
       gate: review
       decision: approve
       subject_hash: review-subject-8
-      slot_id: "s6_reviewer||owners"
-      role: s6_reviewer
+      slot_id: "packet_reviewer||owners"
+      role: packet_reviewer
       actor_identity: reviewer-1
   artefact:
     - as: receipt_artefact

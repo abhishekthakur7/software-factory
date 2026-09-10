@@ -1,5 +1,5 @@
 # A `runtime.yaml` fixture whose `cursor_sdk` adapter names no model at
-# all: proves R-I-4's unavailable-model refusal fires before any
+# all: proves the unavailable-model refusal fires before any
 # `stage_run` opens, driven from a manifest-resolved `Entry` rather than a
 # hand-built one.
 adapters:

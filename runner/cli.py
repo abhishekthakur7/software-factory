@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     act_parser.add_argument("--self-contained", dest="self_contained", choices=("yes", "no"))
     act_parser.add_argument("--consequential", choices=("yes", "no"))
     act_parser.add_argument("--hard-to-reverse", dest="hard_to_reverse", choices=("yes", "no"))
+    act_parser.add_argument("--blocking", choices=("yes", "no"))
     # A waiver's own flags; `--verdict` above doubles as the covered human
     # verdict's id and `--evidence` as its evidence list.
     act_parser.add_argument("--policy", dest="policy_id")
@@ -206,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
                 "occurred_at": args.occurred_at, "event": args.event, "attribution": args.attribution,
                 "disposition": args.disposition, "remediation_ref": args.remediation_ref, "category": args.category,
                 "verdicts_file": args.file, "consequential": args.consequential, "hard_to_reverse": args.hard_to_reverse,
+                "blocking": args.blocking,
                 "policy_id": args.policy_id, "check_result_id": args.check_result_id, "reason": args.reason,
                 "scope": args.scope, "controls": args.controls, "expires_at": args.expires_at,
             }

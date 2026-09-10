@@ -25,7 +25,7 @@ from runner.paths import FACTORY_DIR
 INDEX_DIR = FACTORY_DIR / "index"
 LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 REQUIRED_KEYS: tuple[str, ...] = ("kind", "source", "owner", "last_verified", "staleness_rule", "paths")
-STALE_INDEX_FM = "FM-17"
+STALE_INDEX_FM = "memory_rot"
 
 
 class ContextIndexError(ValueError):

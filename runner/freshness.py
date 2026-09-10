@@ -6,7 +6,7 @@ against the project's configured target branch and returns the fetched
 tip, never a cached or locally-reasoned value. `check` is the one function
 every boundary calls; `boundary` only widens what is compared -- every
 boundary requires the fetched head to match the latest plan tuple's
-`base_sha` and the ticket's recorded `target_base_sha`, `S5_PREFLIGHT`
+`base_sha` and the ticket's recorded `target_base_sha`, `CHECKS_PREFLIGHT`
 additionally requires the worktree's actual HEAD to still be
 `ticket.head_sha` and, when it is, that head's diff against the plan
 tuple's base to hash to the latest review tuple's `diff_hash` (or, absent
@@ -31,11 +31,11 @@ from pathlib import Path
 from runner import canonical, project, publication, record
 from runner.paths import RUNS_DIR
 
-BEFORE_S4 = "before_s4"
-S5_PREFLIGHT = "s5_preflight"
+BEFORE_IMPLEMENTATION = "before_implementation"
+CHECKS_PREFLIGHT = "checks_preflight"
 BEFORE_DISPATCH = "before_dispatch"
 
-BOUNDARIES: tuple[str, ...] = (BEFORE_S4, S5_PREFLIGHT, BEFORE_DISPATCH)
+BOUNDARIES: tuple[str, ...] = (BEFORE_IMPLEMENTATION, CHECKS_PREFLIGHT, BEFORE_DISPATCH)
 
 # The pull-request operations a `BEFORE_DISPATCH` check looks for among the
 # ticket's `external_write` rows; mirrors `outbox.PR_OPERATIONS` without
@@ -71,7 +71,7 @@ class Freshness:
     boundary: str
     fetched_target_head: str
     reasons: tuple[str, ...] = ()
-    # Only ever set at `S5_PREFLIGHT`, and only when the worktree head still
+    # Only ever set at `CHECKS_PREFLIGHT`, and only when the worktree head still
     # matches: the diff hash the caller can bind onto a new review tuple,
     # computed once here rather than re-diffed by every caller.
     diff_hash: str | None = None
@@ -164,7 +164,7 @@ def check(
         )
 
     diff_hash = None
-    if boundary == S5_PREFLIGHT:
+    if boundary == CHECKS_PREFLIGHT:
         worktree = Path(ticket["worktree_path"])
         actual_head = _git(["rev-parse", "HEAD"], cwd=worktree).stdout.strip()
         if actual_head != ticket["head_sha"]:

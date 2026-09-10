@@ -43,7 +43,7 @@ class _FakeRoute:
 def _setup(tmp_path: Path):
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn, title="t")
-    stage_run_id = open_stage_run(conn, ticket_id=ticket_id, stage="S1")
+    stage_run_id = open_stage_run(conn, ticket_id=ticket_id, stage="context_gathering")
     conn.commit()
     return conn, ticket_id, stage_run_id
 
@@ -53,7 +53,7 @@ def _route_service(
     credential_roles: tuple[str, ...] = (), run_dir: Path | None = None,
 ) -> proxy.RouteService:
     return proxy.RouteService(
-        db_path=tmp_path / "factory.sqlite", ticket_id=ticket_id, stage_run_id=stage_run_id, stage="S1",
+        db_path=tmp_path / "factory.sqlite", ticket_id=ticket_id, stage_run_id=stage_run_id, stage="context_gathering",
         run_dir=run_dir if run_dir is not None else tmp_path / "run",
         routes={route_id: _FakeRoute(credential_roles=credential_roles)},
         inline_rule=_inline_rule(), relay=relay,
@@ -80,7 +80,7 @@ def _fixed_relay(media_type: str, content: bytes):
 
 
 def test_a_listed_route_call_reaches_the_relay_and_the_sandbox_gets_the_shaped_response(tmp_path):
-    """R-I-17: a listed route is dispatched through the proxy to the fake upstream, not returned to the agent directly."""
+    """A listed route is dispatched through the proxy to the fake upstream, not returned to the agent directly."""
     conn, ticket_id, stage_run_id = _setup(tmp_path)
     content = (FIXTURES_DIR / "small.txt").read_bytes()
     seen = {}
@@ -135,7 +135,7 @@ def test_post_refuses_with_404_when_the_launch_carries_no_route_service(tmp_path
 
 
 def test_small_result_is_returned_inline_and_also_written_to_results(tmp_path):
-    """R-I-17: a small result is inline and also lands in results/ with matching tool_call fields."""
+    """A small result is inline and also lands in results/ with matching tool_call fields."""
     conn, ticket_id, stage_run_id = _setup(tmp_path)
     content = (FIXTURES_DIR / "small.txt").read_bytes()
     routes = _route_service(
@@ -165,7 +165,7 @@ def test_small_result_is_returned_inline_and_also_written_to_results(tmp_path):
 
 
 def test_large_text_result_is_excerpted_and_the_stored_artefact_is_never_truncated(tmp_path):
-    """R-I-17: a large text result is excerpted head-and-tail, and the stored artefact keeps every byte."""
+    """A large text result is excerpted head-and-tail, and the stored artefact keeps every byte."""
     conn, ticket_id, stage_run_id = _setup(tmp_path)
     content = (FIXTURES_DIR / "large.txt").read_bytes()
     routes = _route_service(
@@ -192,7 +192,7 @@ def test_large_text_result_is_excerpted_and_the_stored_artefact_is_never_truncat
 
 
 def test_one_line_oversized_result_is_stored_but_returns_no_inline_payload(tmp_path):
-    """R-I-17: an oversized result with no line break has no head/tail split, so it is stored but carries no excerpt."""
+    """An oversized result with no line break has no head/tail split, so it is stored but carries no excerpt."""
     conn, ticket_id, stage_run_id = _setup(tmp_path)
     content = (FIXTURES_DIR / "one_line_oversized.txt").read_bytes()
     routes = _route_service(
@@ -215,7 +215,7 @@ def test_one_line_oversized_result_is_stored_but_returns_no_inline_payload(tmp_p
 
 
 def test_non_text_result_is_represented_by_size_media_type_and_digest_only(tmp_path):
-    """R-I-17: a non-text result carries no excerpt regardless of size, only size, media type, and digest."""
+    """A non-text result carries no excerpt regardless of size, only size, media type, and digest."""
     conn, ticket_id, stage_run_id = _setup(tmp_path)
     content = (FIXTURES_DIR / "binary.bin").read_bytes()
     routes = _route_service(
@@ -264,7 +264,7 @@ def test_the_seq_counter_continues_from_the_runs_existing_max_seq(tmp_path):
 
 
 def test_a_route_call_from_inside_the_agent_sandbox_reaches_the_relay_and_rereads_a_further_slice(tmp_path):
-    """R-I-17: a route call dispatched from inside the sandbox reaches the relay; the artefact lands in results/ and rereads by path."""
+    """A route call dispatched from inside the sandbox reaches the relay; the artefact lands in results/ and rereads by path."""
     conn, ticket_id, stage_run_id = _setup(tmp_path)
     content = (FIXTURES_DIR / "large.txt").read_bytes()
     seen = {}
@@ -278,11 +278,11 @@ def test_a_route_call_from_inside_the_agent_sandbox_reaches_the_relay_and_reread
     # artefact the proxy writes lands where the probe's launch actually ran.
     run_dir = tmp_path / "run"
     routes = proxy.RouteService(
-        db_path=tmp_path / "factory.sqlite", ticket_id=ticket_id, stage_run_id=stage_run_id, stage="S1",
+        db_path=tmp_path / "factory.sqlite", ticket_id=ticket_id, stage_run_id=stage_run_id, stage="context_gathering",
         run_dir=run_dir, routes={"hosted_model": _FakeRoute()}, inline_rule=_inline_rule(), relay=relay,
     )
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "route_call_probe.py", role="agent", stage="S1",
+        tmp_path, FIXTURES_DIR / "route_call_probe.py", role="agent", stage="context_gathering",
         ticket_dir=tmp_path / "ticket", extra_argv=("hosted_model", "1800", "8"), routes=routes,
     )
 
@@ -301,9 +301,9 @@ def test_a_route_call_from_inside_the_agent_sandbox_reaches_the_relay_and_reread
 
 
 def test_a_probe_writing_into_the_results_subpath_is_refused(tmp_path):
-    """R-I-17: the results subpath stays unwritable from inside the agent sandbox."""
+    """The results subpath stays unwritable from inside the agent sandbox."""
     payload = launch_probe(
-        tmp_path, FIXTURES_DIR / "write_results_probe.py", role="agent", stage="S1", ticket_dir=tmp_path / "ticket",
+        tmp_path, FIXTURES_DIR / "write_results_probe.py", role="agent", stage="context_gathering", ticket_dir=tmp_path / "ticket",
     )
     assert payload == {"attempted": True, "refused": True}
 
@@ -311,7 +311,7 @@ def test_a_probe_writing_into_the_results_subpath_is_refused(tmp_path):
 def test_an_agent_invocation_hands_the_proxy_its_route_service(tmp_path, monkeypatch):
     """`cursor_sdk.invoke` builds the run's `RouteService` over the same database file and run directory the
     launch uses, with the trust profile's routes and the live relay, so a routed call from inside a real
-    invocation is recorded rather than refused with 404 (R-I-17)."""
+    invocation is recorded rather than refused with 404."""
     import os
     import sys
 
@@ -331,8 +331,8 @@ def test_an_agent_invocation_hands_the_proxy_its_route_service(tmp_path, monkeyp
     runtime_path = tmp_path / "runtime.yaml"
     runtime_path.write_text(yaml.safe_dump(runtime_doc))
     entry = manifest.Entry(
-        stage="S1", tier="standard", agent="factory/agents/S1.md", skill="factory/skills/S1.md",
-        shared_skills=(), rubric="factory/rubrics/S1.md", tool_allowlist=("read_file",),
+        stage="context_gathering", tier="standard", agent="factory/agents/context_gathering.md", skill="factory/skills/context_gathering.md",
+        shared_skills=(), rubric="factory/rubrics/context_gathering.md", tool_allowlist=("read_file",),
         budget_source="factory/config/tiers.yaml", budget={"tokens": 400000, "wall_clock_seconds": 1200},
         runtime_adapter="cursor_sdk", runtime_version="1.0.31", model_requested="claude-sonnet-5",
         grader_model="claude-sonnet-5", sandbox_policy="enforced", toolchain={"jdk": "17"},
@@ -349,7 +349,7 @@ def test_an_agent_invocation_hands_the_proxy_its_route_service(tmp_path, monkeyp
 
     monkeypatch.setattr(launcher.proxy, "start", _capturing_start)
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="standard", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="context_gathering", tier="standard", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=runtime_path, sandbox_path=adapter_fixtures / "sandbox.yaml",
         env_source={"PATH": os.environ.get("PATH", ""), "FIXTURE_ADAPTER_CASE": "settled"},
     )

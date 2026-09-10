@@ -1,0 +1,50 @@
+---
+name: spec-and-plan-skill
+kind: skill
+stage: planning
+---
+
+# Plan, step by step
+
+1. Read the approved criteria, the brief, and the attached risk-map
+   artefact before writing anything.
+2. Write intent and scrutiny first — a reviewer should be able to stop
+   after the first page and understand the change.
+3. Carry the brief's `History` classification into the Archaeology and
+   characterization tests table unchanged; for every candidate classified
+   `unexplained` or `contradictory`, add a characterization test to Tasks
+   and name its id there. A row whose change alters captured behaviour
+   also gets named in Unknowns, for the human to rule load-bearing or
+   accidental.
+4. Fill Goals/non-goals, then Approach, then Alternatives — one table row
+   per rejected alternative, `rejected_because` naming a fact about cost,
+   risk, or capability, never the alternative restated.
+5. Fill Scope and discretion, Dependencies, Abstraction and separate debt
+   (a new shared abstraction cites three existing near-duplicates or a
+   named risk; a new utility records the search you ran and why each
+   candidate lost), Contracts (every touched function, module, endpoint,
+   event, or serialized shape, each of its ten fields `unchanged`,
+   `changed: <evidence>`, or `unknown`), and the semantic-contract
+   checklist.
+6. Build Tasks in dependency order; give each a recipe id from
+   `command-recipes.yaml`, never a shell string; tie every task to the
+   `AC-n` ids it serves, or flag it `no_behaviour_change` and give it its
+   own behaviour-preserving Test strategy row.
+7. Build Test strategy: size against the tier's target mix, `action`
+   add/change/remove, and what each row proves. A `change` or `remove` row
+   on a base test names the criterion or `no_behaviour_change` task that
+   authorizes it — nothing else may touch a base test.
+8. Write Rollout as five subsections for the human to execute after merge:
+   Flags (owner, removal condition, cleanup task), Ramp, Guardrails (a
+   query and a critical threshold for each, at most the section 8 limit),
+   Kill trigger (at least one row whose default response starts with
+   "rollback"), Log verification (a pass and a fail pattern for each).
+9. Name at least three risk-map places and why, one row per place in the
+   Risk map table, from the attached scan; a generic answer fails review.
+10. Estimate Size; if over the tier's threshold, justify it in the table
+    or propose a split.
+11. Write Assumptions (from the accepted defaults), Unknowns, and Required
+    approvers.
+12. Before finishing, check every `AC-n` is served by a task row and a
+    test row — an id served by neither fails structure before a human
+    ever reads it.

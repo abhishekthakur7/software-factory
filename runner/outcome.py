@@ -49,7 +49,7 @@ OUTCOME_RECORDER_ROLE = "outcome_recorder"
 INCIDENT_REVIEWER_ROLE = "incident_reviewer"
 
 APPROVAL_BINDING_CATEGORY = "approval_binding"
-MISMATCH_FM_ID = "FM-25"
+MISMATCH_FM_ID = "stale_approval"
 
 
 def revision(

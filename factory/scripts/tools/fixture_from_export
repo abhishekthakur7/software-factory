@@ -21,7 +21,7 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_TARGET_FAILURE_MODES = ["FM-25"]
+DEFAULT_TARGET_FAILURE_MODES = ["stale_approval"]
 
 
 def _repo_root() -> Path:

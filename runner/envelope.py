@@ -32,9 +32,9 @@ from runner.paths import FACTORY_DIR, REPO_ROOT, RUNS_DIR
 SANDBOX_PATH = FACTORY_DIR / "config" / "sandbox.yaml"
 
 # Stages whose stage_run binds a plan- or review-approval subject; every
-# other stage's envelope carries a null approval subject (R-I-15).
-PLAN_BOUND_STAGES = frozenset({"S3"})
-REVIEW_BOUND_STAGES = frozenset({"S5", "S6"})
+# other stage's envelope carries a null approval subject.
+PLAN_BOUND_STAGES = frozenset({"planning"})
+REVIEW_BOUND_STAGES = frozenset({"checks", "human_review"})
 
 
 class EnvelopeError(ValueError):
@@ -259,7 +259,7 @@ def build(
     stays adapter-agnostic rather than assuming which one is calling it.
     `input_artefact_ids` fixes the input set and its order when the stage
     driver knows exactly which artefacts this invocation reads (a
-    restatement child reads one subject, S2 reads the source and the
+    restatement child reads one subject, clarification reads the source and the
     brief); left None, every latest-version artefact of the ticket is an
     input, sorted by kind. `runs_dir` feeds `sandbox_digest` only.
     """

@@ -17,15 +17,15 @@ budgets:
     heavy:
       tokens: 1500000
       wall_clock_seconds: 3600
-  # S5 runs build commands that carry their own timeout, so no wall-clock
+  # checks runs build commands that carry their own timeout, so no wall-clock
   # budget applies there, at any tier.
   overrides:
-    S5:
+    checks:
       wall_clock_seconds: null
 
-# The cumulative budget across all of one ticket's S4 task invocations
+# The cumulative budget across all of one ticket's implementation task invocations
 # (plan-task runs, fix rounds, and their validation-only runs together).
-s4_per_ticket:
+implementation_per_ticket:
   light:
     tokens: 1000000
     wall_clock_seconds: 2700
@@ -46,14 +46,14 @@ reasoning_summary:
   max_words: 200
 
 # The size gate's changed-line threshold per tier, applied over the plan's
-# size table at S3 and over the real diff at S5. Heavy is tighter because
+# size table at planning and over the real diff at checks. Heavy is tighter because
 # reviewer attention matters more there.
 size_gate:
   light: 300
   standard: 300
   heavy: 200
 
-# S2 proposes a split when the criteria's estimate exceeds this share of
+# clarification proposes a split when the criteria's estimate exceeds this share of
 # the tier's size gate as lines, or this many files.
 split_threshold:
   share_of_size_gate: 0.6
@@ -80,8 +80,8 @@ length_limits:
   first_page_lines: 60
   instruction_file_lines: 300
 
-# S1's final-tier rule: raise one level when any of these holds. Never
-# lowered automatically.
+# The context-gathering stage's final-tier rule: raise one level when any
+# of these holds. Never lowered automatically.
 final_tier_rule:
   services_touched_at_least: 2
   files_touched_over: 10

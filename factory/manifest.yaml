@@ -1,47 +1,47 @@
 version: 1
 files:
-  - path: factory/agents/S1.md
-    content_hash: 7878803ae0bb57408744c036b46c8a6bc507de83773b4b8b76a6b65f982782d0
-  - path: factory/agents/S2.md
-    content_hash: 0e78685449f86e0a5ea192c6d3ba0986baa952efc521d283334c86a81aec9446
-  - path: factory/agents/S3.md
-    content_hash: c55ba0cf2ade2b485a72d8b3fbb98579ac9b18c47b02a74a5a7e67e4b9eee762
-  - path: factory/agents/S4.md
-    content_hash: f8995b3fffc890e43e2f98278f7605260785e70427c985e37846dccfc15b7d1f
+  - path: factory/agents/clarification.md
+    content_hash: 26255eb4815d916c17e7eb207898728878ed1d9842acbec099a2831b0b2e3c0f
+  - path: factory/agents/context_gathering.md
+    content_hash: b1c907280ce9a0088fa802432d90799d7c78a1d6a5515c43dd3fba4ef3a5e724
+  - path: factory/agents/implementation.md
+    content_hash: 954a206c3a7ef02c041e9c10de73a51a49803e1d639a71f21029dda1c4b04788
+  - path: factory/agents/planning.md
+    content_hash: c0e1dc76fa803f8eda93c5204b0e42ff8225abc4491f4df49a86a15acb59096f
   - path: factory/benchmarks/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/catalogue/decisions.md
     content_hash: 2b8c5bec866c8c2ec792571f6f91c960e8360d04f9623e3407f0e3a26f3d2a38
   - path: factory/catalogue/failure-modes.md
-    content_hash: 375da04b29b01b746c3d144ff53e49b84e7d09f3a32f41e664e064d36013bf23
+    content_hash: f499fcdba1a3ea7ad81572e5e2dc2158d3bff08e5713662ac4ed025e12664775
   - path: factory/config/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
   - path: factory/config/artifact-to-service.yaml
     content_hash: 0cba1d7191af7be150b9878286a250ec2f2337e6fa5981995f4d728bee71bf94
   - path: factory/config/command-recipes.yaml
-    content_hash: e122fc07163347a1c1812846fdf86c1f5f426a2d7e651602a1e9cb5fd08506c1
+    content_hash: 0e534a76f1d6892c58e762114cfefd692fa4bb37a741b79f5cb530c373032fc4
   - path: factory/config/exclusions.yaml
-    content_hash: d6ed38304ef5324bc791bbe8e942c561e1b105679e131ad8ffabf78d48a0dca7
+    content_hash: 80a74a27853f35d0dd32933159e229cf831cbc3d318dee433e209291a6c126ef
   - path: factory/config/incident-policy.yaml
     content_hash: 5ef066bf0af07ceb8f046fbf48b228dd56caf645fabd1bd112fc1e09deaebf45
   - path: factory/config/limits.yaml
-    content_hash: 9f04d5c6c112137496a04672e5cd14382cab060cc7fb8fabdc561bbe4327c03f
+    content_hash: 7c3d0cfcf1f0b2bf32479e31a4e23fe2d9c5dd25ff7b2b2bf9e9bebaa62bb4d2
   - path: factory/config/owners.yaml
-    content_hash: b60fef5452e1198616e82bd0a6c9730833d92592d0ff753dbcd58e46a6da99b5
+    content_hash: 93ce89fd87dca6fdf250ba7bcdd59e7c78b71599af9d8e20a3e35049f7122310
   - path: factory/config/pricing.yaml
-    content_hash: 97eacffbad3dda9e6764f831eaa46c122a1db03a8108dfdb09159f603c0cd160
+    content_hash: ba3870f9eb892e5374af4b7c1ceb24fa94d38fa431105164aba3109872ab7f0b
   - path: factory/config/project.yaml
     content_hash: afc0997bf59144040caa9756d459766d76beb33b283c98c4268dac66d25f14e9
   - path: factory/config/runtime.yaml
-    content_hash: c72a6244731f346284c50535ca35b94c7bee9ac41561cb6234499d672c455bca
+    content_hash: c0315bcd207fa9748851239f0770b6a1ac6e65d8ac48f048efad78cb88efcf51
   - path: factory/config/sandbox/agent-profile.sb
-    content_hash: 8e80db96e8ddbe540809e9e2151dade0c472e6dde23c083ca116d33e6e501e69
+    content_hash: 22e8ff135fd7af96c4dd21532b9e2f04bbd628a7c63bfeb3a0da966c7ea22c45
   - path: factory/config/sandbox/build-profile.sb
-    content_hash: c3b414b6fd80d1184e3e57b15eab7e7c3607087fef21df0610b1dd9d6269a1f6
+    content_hash: e44e4ef53c0cef81e11301af60748990f53d9c013b4d631beda63500a65f72ce
   - path: factory/config/sandbox.yaml
-    content_hash: ef0059bce31d41a2ddc2df3fc0b9bc88174e71a57a3e704dd09c716841372d96
+    content_hash: 3eeb4f6c4d64288c6f40e4a96fb0db11e2ccdffc4706987cdfb13924f8a27c7b
   - path: factory/config/security-checks.yaml
-    content_hash: 577ba3e166c505c0b6e4ec55dd01c215cd5e6ede27e9d72f46c8da11fb36e1e0
+    content_hash: 6d6bc265bf2a2ea2724721e26c9b91d94a743edafd92864c959b12fcdca95e07
   - path: factory/config/security-rules.yaml
     content_hash: 9c05198b4f8990e8b156fcc9f3f1e8df891c79d1e0397f535f87b700e992e801
   - path: factory/config/sensitive-paths.yaml
@@ -49,13 +49,13 @@ files:
   - path: factory/config/service-tiers.yaml
     content_hash: d807d77e152a5af34391de17bc01262b37b5ba521e3d243d5ba8ac60d200c1af
   - path: factory/config/ticket-types.yaml
-    content_hash: 7fd872b82fdbbc0ad9d5be592ce8008b9d7edac83b3cd614d2bff87723fa1971
+    content_hash: 4b2dcce162065d78a59866c44cd3ff465e572fe9134709ae612b7d3b533d8d34
   - path: factory/config/tiers.yaml
-    content_hash: ead3cce3050dc53e9813b1a09aca41117f2c2d0719f6be67929258e28ff7c88d
+    content_hash: 763a3c6c5c3a74b5c01f80202e1b56a2743cc7fcb836389eeed443ce56f817b9
   - path: factory/config/trust-profile.yaml
-    content_hash: b324ba664a311163813c9b68b4153296f40f0b6fdc094d7eb792262b370ff396
+    content_hash: 765059f32e0c0553a55f007ba510796260cc43325bcd7535cea7036a07ede7bb
   - path: factory/config/waiver-policy.yaml
-    content_hash: eb61803fd6d1806c5f70f102d6620c69d4df5439d72eb850e270bfd1a8bdfa77
+    content_hash: 2e5345b04910fd874bf102fe079ba2a91e3ff88817b55a13634657e7095295f5
   - path: factory/evals/adapters/cursor_sdk/eval.yaml
     content_hash: 75de1f296c47321983c29c57ef1b6fd2d282bd71bd7bace9e2d221b26127a4fb
   - path: factory/evals/adapters/cursor_sdk/fixtures/null_cost.json
@@ -68,186 +68,186 @@ files:
     content_hash: aeabaf6d9ca0cee8680570ff7a306f3ade3393b83651a51815906c52c8f01616
   - path: factory/evals/adapters/cursor_sdk/fixtures/silent_fallback.json
     content_hash: d69ee50b15b8c3862556a95ebb0ddea2663019525c3e62d6c13f5362588692d5
-  - path: factory/evals/agents/S1/eval.yaml
-    content_hash: bcb071f314377d9c59c3a967ddf1fbf952ba76365054d9c81a5f5b2b396a8c19
-  - path: factory/evals/agents/S1/fixtures/authoritative_build_graph/out/brief.md
-    content_hash: c3589ff5cd47cd75cc19fb34e788d660300dc2720efb6c1658c9310520436a27
-  - path: factory/evals/agents/S1/fixtures/config_dependency/out/brief.md
-    content_hash: 902a337055f513c4db692d45d485a881dcbeee72b257e78743a1fde8466900f9
-  - path: factory/evals/agents/S1/fixtures/eligibility_triggering_unknown/out/brief.md
-    content_hash: f591527b64eb5d7492bd32642ab1e126749627812c1e0a51a32abf947d1c8c94
-  - path: factory/evals/agents/S1/fixtures/http_dependency/out/brief.md
-    content_hash: 156e47b5d8ad7e3273ded790409801c7f760659f0ebb004efca6b2d8cb4e4166
-  - path: factory/evals/agents/S1/fixtures/messaging_dependency/out/brief.md
-    content_hash: 8369b90398cfc80ab24a6cd35ae8782fa8a5219343abe230370b984f1d73b43b
-  - path: factory/evals/agents/S1/fixtures/missing_front_matter/S1.md
-    content_hash: 23639892fef58f689b91e81c055299768550c89459e76d3d86758a1e56c59495
-  - path: factory/evals/agents/S1/fixtures/ok/S1.md
-    content_hash: 7878803ae0bb57408744c036b46c8a6bc507de83773b4b8b76a6b65f982782d0
-  - path: factory/evals/agents/S1/fixtures/plain_ok/out/brief.md
-    content_hash: c3589ff5cd47cd75cc19fb34e788d660300dc2720efb6c1658c9310520436a27
-  - path: factory/evals/agents/S1/fixtures/stale_catalogue/out/brief.md
-    content_hash: 80200c6a87f6fb3c1685b87a54a2a446f84af84bce5e377820e2e40eab764272
-  - path: factory/evals/agents/S1/fixtures/unmapped_package/out/brief.md
-    content_hash: e4ef03ef0835ce206e7802cb044cd8b4a48363811e647df9ee67ce55d3b87664
-  - path: factory/evals/agents/S2/eval.yaml
-    content_hash: 445d4f6dc0b985fdfc9bd7aa6e75e91bf408781f3bd8fb62f45ecd379848eed6
-  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/eval.yaml
+    content_hash: 910e0527913b8dc74dfb596fcac31f4f5b78a234e1399e54364bf7d6e4334f9e
+  - path: factory/evals/agents/clarification/fixtures/criteria_ambiguous/out/by_input/AC-1.1/restatement.md
     content_hash: aa7a06e03870b9833ab61fffaa43341822de07e2c6f4688abf941de74777c6e7
-  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_ambiguous/out/by_input/AC-1.2/restatement.md
     content_hash: 67715fae6e60f01daabd71f6aeddeb25a7f9d9467b0406fadfe0f342591373c7
-  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_ambiguous/out/by_input/AC-1.3/restatement.md
     content_hash: aa7a06e03870b9833ab61fffaa43341822de07e2c6f4688abf941de74777c6e7
-  - path: factory/evals/agents/S2/fixtures/criteria_ambiguous/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_ambiguous/out/criteria.md
     content_hash: ebf5597005fdfae3005e01bd5b68d003cfa862375e035523edc599624977c983
-  - path: factory/evals/agents/S2/fixtures/criteria_clean/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_clean/out/by_input/AC-1.1/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/criteria_clean/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_clean/out/by_input/AC-1.2/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/criteria_clean/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_clean/out/by_input/AC-1.3/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/criteria_clean/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_clean/out/criteria.md
     content_hash: bc2e95afe2295232104670890e493a4017d6da70d0aa5a4421186d9e33a3d48c
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_contradiction/out/by_input/AC-1.1/restatement.md
     content_hash: 466bf02b62336bfbeed87ff7856c556f98a15d5c4d73cf3e4f0dac5c09be1757
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_contradiction/out/by_input/AC-1.2/restatement.md
     content_hash: 466bf02b62336bfbeed87ff7856c556f98a15d5c4d73cf3e4f0dac5c09be1757
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_contradiction/out/by_input/AC-1.3/restatement.md
     content_hash: 466bf02b62336bfbeed87ff7856c556f98a15d5c4d73cf3e4f0dac5c09be1757
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-2.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_contradiction/out/by_input/AC-2.1/restatement.md
     content_hash: a247ac395b7181f3d8941af1316a40cf9c1989eb19fc3ea5a99504d09469e6f0
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-2.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_contradiction/out/by_input/AC-2.2/restatement.md
     content_hash: a247ac395b7181f3d8941af1316a40cf9c1989eb19fc3ea5a99504d09469e6f0
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/by_input/AC-2.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_contradiction/out/by_input/AC-2.3/restatement.md
     content_hash: a247ac395b7181f3d8941af1316a40cf9c1989eb19fc3ea5a99504d09469e6f0
-  - path: factory/evals/agents/S2/fixtures/criteria_contradiction/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_contradiction/out/criteria.md
     content_hash: 0cd4021fb015d54c5ef0b62d90dcf55f0c1672fb9f9c1fd3cda7b7f9e3d10e6f
-  - path: factory/evals/agents/S2/fixtures/criteria_id_conflict/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_id_conflict/out/criteria.md
     content_hash: 223dda6671d21f7069d45a753593d21ad273fa624e396720a6d4cc7f210f070f
-  - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_open_category/out/by_input/AC-1.1/restatement.md
     content_hash: f1114542a27da6af7ce66fae5d073d8dd176bfa855b75fd3409f01468cb588bb
-  - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_open_category/out/by_input/AC-1.2/restatement.md
     content_hash: f1114542a27da6af7ce66fae5d073d8dd176bfa855b75fd3409f01468cb588bb
-  - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_open_category/out/by_input/AC-1.3/restatement.md
     content_hash: f1114542a27da6af7ce66fae5d073d8dd176bfa855b75fd3409f01468cb588bb
-  - path: factory/evals/agents/S2/fixtures/criteria_open_category/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_open_category/out/criteria.md
     content_hash: 65867442e81b039e0f437148268de0ff0ace034427096e0bb8cab86ed2d1cc39
-  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_missing/out/by_input/AC-1.1/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_missing/out/by_input/AC-1.2/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_missing/out/by_input/AC-1.3/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_missing/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_missing/out/criteria.md
     content_hash: ec0f4035f10fb68b64ed48b6c9171e80949d05846197600d26108bdfd6d14de7
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_present/out/by_input/AC-1.1/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_present/out/by_input/AC-1.2/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_present/out/by_input/AC-1.3/restatement.md
     content_hash: f1bfd1560835565f93b1890272a489d7f5f9d52bebddf74ec118bd7c5d85631e
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_present/out/criteria.md
     content_hash: ec0f4035f10fb68b64ed48b6c9171e80949d05846197600d26108bdfd6d14de7
-  - path: factory/evals/agents/S2/fixtures/criteria_split_present/out/questions.yaml
+  - path: factory/evals/agents/clarification/fixtures/criteria_split_present/out/questions.yaml
     content_hash: dad377265bf2ae974921eb27d3c49547a68a8e8d9e352a1b55cae8278bafb69b
-  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_uncovered/out/by_input/AC-1.1/restatement.md
     content_hash: 361eb381928acb25afdb1a76a29d5409dba79fa3370fefe6015f1f94e5c72d44
-  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_uncovered/out/by_input/AC-1.2/restatement.md
     content_hash: 361eb381928acb25afdb1a76a29d5409dba79fa3370fefe6015f1f94e5c72d44
-  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_uncovered/out/by_input/AC-1.3/restatement.md
     content_hash: 361eb381928acb25afdb1a76a29d5409dba79fa3370fefe6015f1f94e5c72d44
-  - path: factory/evals/agents/S2/fixtures/criteria_uncovered/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_uncovered/out/criteria.md
     content_hash: b7351771dfa7c46298a6646291220b2b734de69bacc2e0c2da310fbb2f34b7f3
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_unformalisable/out/criteria.md
     content_hash: c3c3135d0acb0b207ab8c36a79603f7ea972bc6b730f5ea20f4cf34c5534d492
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.1/restatement.md
     content_hash: 462ad3eabbcdad0b506341064de0f240ea932814939853fbc077ef68aeb5d3aa
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.2/restatement.md
     content_hash: 462ad3eabbcdad0b506341064de0f240ea932814939853fbc077ef68aeb5d3aa
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_unformalisable_resolved/out/by_input/AC-1.3/restatement.md
     content_hash: 462ad3eabbcdad0b506341064de0f240ea932814939853fbc077ef68aeb5d3aa
-  - path: factory/evals/agents/S2/fixtures/criteria_unformalisable_resolved/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/criteria_unformalisable_resolved/out/criteria.md
     content_hash: 48c734b5a7d2f6acef1489a0603ec550c82cbbae25f5ee9fbb8501752be5dccb
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/gate_rejected/out/by_input/AC-1.1/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/gate_rejected/out/by_input/AC-1.2/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/gate_rejected/out/by_input/AC-1.3/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/gate_rejected/out/criteria.md
     content_hash: bc2e95afe2295232104670890e493a4017d6da70d0aa5a4421186d9e33a3d48c
-  - path: factory/evals/agents/S2/fixtures/gate_rejected/out/questions.yaml
+  - path: factory/evals/agents/clarification/fixtures/gate_rejected/out/questions.yaml
     content_hash: 61212039f11ee9bc451fc3346584cae64fb405c595491438b37d1009daf2a4b4
-  - path: factory/evals/agents/S2/fixtures/missing_front_matter/S2.md
+  - path: factory/evals/agents/clarification/fixtures/missing_front_matter/clarification.md
     content_hash: a2c54613d8c96f459db5ccb96b93ac3c675cbe691f970a24e5a317895ae471ee
-  - path: factory/evals/agents/S2/fixtures/ok/S2.md
-    content_hash: 0e78685449f86e0a5ea192c6d3ba0986baa952efc521d283334c86a81aec9446
-  - path: factory/evals/agents/S2/fixtures/question_round/out/by_input/AC-1.1/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/ok/clarification.md
+    content_hash: 26255eb4815d916c17e7eb207898728878ed1d9842acbec099a2831b0b2e3c0f
+  - path: factory/evals/agents/clarification/fixtures/question_round/out/by_input/AC-1.1/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/question_round/out/by_input/AC-1.2/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/question_round/out/by_input/AC-1.2/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/question_round/out/by_input/AC-1.3/restatement.md
+  - path: factory/evals/agents/clarification/fixtures/question_round/out/by_input/AC-1.3/restatement.md
     content_hash: 84e4f1907ec1d0612c40a2464af10fb0de10a5e2be97287454bb44f6520ccb00
-  - path: factory/evals/agents/S2/fixtures/question_round/out/criteria.md
+  - path: factory/evals/agents/clarification/fixtures/question_round/out/criteria.md
     content_hash: bc2e95afe2295232104670890e493a4017d6da70d0aa5a4421186d9e33a3d48c
-  - path: factory/evals/agents/S2/fixtures/question_round/out/questions.yaml
-    content_hash: d4c1d492399b755a43eb2b5d8033ed84c8acf93ff64cfd4ebe6cfbe61d919904
-  - path: factory/evals/agents/S3/eval.yaml
-    content_hash: c22133dfd650ec587d76d1880b48d41a7e42323804db852d96221cc53800cf3e
-  - path: factory/evals/agents/S3/fixtures/dangling_ac_id/out/plan.md
-    content_hash: 4de4b237077eb8581e8a61e0d8936652f34db97c02e65674ef497350d0796c7e
-  - path: factory/evals/agents/S3/fixtures/free_shell_command/out/plan.md
-    content_hash: d0bbbc0fbc8c10b498bdeb3e486541c93b7710f3f52a0a8c7b1d916728d87dc3
-  - path: factory/evals/agents/S3/fixtures/missing_front_matter/S3.md
-    content_hash: b9676847c33c7f408a5c1ac9ad84bab7944f06ef52e81c563fa2578058a26159
-  - path: factory/evals/agents/S3/fixtures/missing_table_column/out/plan.md
-    content_hash: 2eebb1cb11ce5fc41734c68aabc7dd4acdd752dc69ff1149ae5993cb1980d420
-  - path: factory/evals/agents/S3/fixtures/ok/S3.md
-    content_hash: dd76240591bfd70e1da0c8941cd918f304ce0f5e1dc5ee435589b69f7876abcc
-  - path: factory/evals/agents/S3/fixtures/ok/out/plan.md
-    content_hash: 94f414d82753c7cf9871d678923ed7f7bca4b23cd5756cd983ff0918ea3f007e
-  - path: factory/evals/agents/S3/fixtures/over_ceiling_prose/out/plan.md
-    content_hash: db226c35eac850f5f5d5f58e870cd44ef989e22967c3f529fd55be5769a865d2
-  - path: factory/evals/agents/S3/fixtures/over_ceiling_rows/out/plan.md
-    content_hash: b0c28bcf99f88e834a7cdbf6130a9db26f743095decf50fafb2298cb903f62a9
-  - path: factory/evals/agents/S3/fixtures/prose_only_task/out/plan.md
-    content_hash: 60c8493b4ddbf7284194b4674fb86b5e20f20fd3114deba2a449c472daa80e6e
-  - path: factory/evals/agents/S3/fixtures/readiness_outside_first_page/out/plan.md
-    content_hash: e973bb31fb06401707393d50f5d35f857b301ca4f87aa3bb25e63ef9ca2b0358
-  - path: factory/evals/agents/S3/fixtures/unflagged_task/out/plan.md
-    content_hash: c3f1244c75f11a9137c6775661b4dd26461d250c33efc5fe9be1d6f8c0939441
-  - path: factory/evals/agents/S3/fixtures/unregistered_recipe/out/plan.md
-    content_hash: e22f45c0cd32fa83a0ef205c232530ae33daf414ee01acaf95b25468b481b7ae
-  - path: factory/evals/agents/S3/fixtures/unserved_criterion/out/plan.md
-    content_hash: f10907bc5ac4b9392be0bebdca2e46db1b8ace6b3e82a227c76cdb8b5bb8fe69
-  - path: factory/evals/agents/S4/eval.yaml
-    content_hash: 76d4575fbff0e2b6405d9c578c597a00837c0eedf44c101033387d2784301a35
-  - path: factory/evals/agents/S4/fixtures/empty_deviations/out/handback.json
+  - path: factory/evals/agents/clarification/fixtures/question_round/out/questions.yaml
+    content_hash: a93c0f4dc907aa98f17d124b9ea1390bf2ca6c710e60561417c683cd883c011c
+  - path: factory/evals/agents/context_gathering/eval.yaml
+    content_hash: cf79d8c9b6190b4401b3f6b4581004a98d45c2cc451e322e7b25e8f8ab607cdc
+  - path: factory/evals/agents/context_gathering/fixtures/authoritative_build_graph/out/brief.md
+    content_hash: c3589ff5cd47cd75cc19fb34e788d660300dc2720efb6c1658c9310520436a27
+  - path: factory/evals/agents/context_gathering/fixtures/config_dependency/out/brief.md
+    content_hash: 902a337055f513c4db692d45d485a881dcbeee72b257e78743a1fde8466900f9
+  - path: factory/evals/agents/context_gathering/fixtures/eligibility_triggering_unknown/out/brief.md
+    content_hash: f591527b64eb5d7492bd32642ab1e126749627812c1e0a51a32abf947d1c8c94
+  - path: factory/evals/agents/context_gathering/fixtures/http_dependency/out/brief.md
+    content_hash: 156e47b5d8ad7e3273ded790409801c7f760659f0ebb004efca6b2d8cb4e4166
+  - path: factory/evals/agents/context_gathering/fixtures/messaging_dependency/out/brief.md
+    content_hash: 8369b90398cfc80ab24a6cd35ae8782fa8a5219343abe230370b984f1d73b43b
+  - path: factory/evals/agents/context_gathering/fixtures/missing_front_matter/context_gathering.md
+    content_hash: 23639892fef58f689b91e81c055299768550c89459e76d3d86758a1e56c59495
+  - path: factory/evals/agents/context_gathering/fixtures/ok/context_gathering.md
+    content_hash: b1c907280ce9a0088fa802432d90799d7c78a1d6a5515c43dd3fba4ef3a5e724
+  - path: factory/evals/agents/context_gathering/fixtures/plain_ok/out/brief.md
+    content_hash: c3589ff5cd47cd75cc19fb34e788d660300dc2720efb6c1658c9310520436a27
+  - path: factory/evals/agents/context_gathering/fixtures/stale_catalogue/out/brief.md
+    content_hash: 80200c6a87f6fb3c1685b87a54a2a446f84af84bce5e377820e2e40eab764272
+  - path: factory/evals/agents/context_gathering/fixtures/unmapped_package/out/brief.md
+    content_hash: e4ef03ef0835ce206e7802cb044cd8b4a48363811e647df9ee67ce55d3b87664
+  - path: factory/evals/agents/implementation/eval.yaml
+    content_hash: 27478926502d95b3af76e62f6f23f0e7e086635cb27d264b6a44ceb5fae0e0a2
+  - path: factory/evals/agents/implementation/fixtures/empty_deviations/out/handback.json
     content_hash: 41be7de2e70ed891fd8e260dd893fa39bd3570e608d7a91f4677e965bad32ace
-  - path: factory/evals/agents/S4/fixtures/fix_round_authorized/worktree/src/main/java/com/fixture/Widget.java
+  - path: factory/evals/agents/implementation/fixtures/fix_round_authorized/worktree/src/main/java/com/fixture/Widget.java
     content_hash: 78a8cd8d8b1fd7f2bc5a3f1b510c3ac91ed438cd992dc637f0b44946390ea185
-  - path: factory/evals/agents/S4/fixtures/fix_round_authorized/worktree/src/test/java/com/fixture/WidgetUnitTest.java
+  - path: factory/evals/agents/implementation/fixtures/fix_round_authorized/worktree/src/test/java/com/fixture/WidgetUnitTest.java
     content_hash: fcc4b9cd2033180a09b403aab2434b26c70c9749bab4d9e51e40c47c3344b3f0
-  - path: factory/evals/agents/S4/fixtures/fix_round_break_compile/worktree/src/main/java/com/fixture/Widget.java
+  - path: factory/evals/agents/implementation/fixtures/fix_round_break_compile/worktree/src/main/java/com/fixture/Widget.java
     content_hash: b65baa4a7cde53f52a5d29953fc4b824d42651de190ea18179e518b2989cc177
-  - path: factory/evals/agents/S4/fixtures/fix_round_out_of_scope/worktree/src/main/java/com/fixture/Unrelated.java
+  - path: factory/evals/agents/implementation/fixtures/fix_round_out_of_scope/worktree/src/main/java/com/fixture/Unrelated.java
     content_hash: 8caa0cf24dad73e6a042747cde475a16889bd33b9fb5b9b22756179fd0cbef08
-  - path: factory/evals/agents/S4/fixtures/fix_round_test_only/worktree/src/test/java/com/fixture/WidgetUnitTest.java
+  - path: factory/evals/agents/implementation/fixtures/fix_round_test_only/worktree/src/test/java/com/fixture/WidgetUnitTest.java
     content_hash: 47c7f8059837517b2e6cab95991b0ff20eb949add09bc89d786264c16bebcfb2
-  - path: factory/evals/agents/S4/fixtures/malformed_deviations/out/handback.json
+  - path: factory/evals/agents/implementation/fixtures/malformed_deviations/out/handback.json
     content_hash: d5bc322567f655f64eaf222fe5690d3cf69c0d11b10a30eb1d922d6c3b9e75eb
-  - path: factory/evals/agents/S4/fixtures/missing_deviations/out/handback.json
+  - path: factory/evals/agents/implementation/fixtures/missing_deviations/out/handback.json
     content_hash: ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356
-  - path: factory/evals/agents/S4/fixtures/missing_front_matter/S4.md
+  - path: factory/evals/agents/implementation/fixtures/missing_front_matter/implementation.md
     content_hash: e67482fb1f02ed7f2e06199e55eb45e08a755010caeb509aa4848fc5c7788951
-  - path: factory/evals/agents/S4/fixtures/no_handback/out/.gitkeep
+  - path: factory/evals/agents/implementation/fixtures/no_handback/out/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  - path: factory/evals/agents/S4/fixtures/ok/S4.md
-    content_hash: b425c771321e65b12b5b85bb107e8f2aa16c1570524f515a8ad26a4c27f732f8
-  - path: factory/evals/agents/S4/fixtures/ok/out/handback.json
+  - path: factory/evals/agents/implementation/fixtures/ok/implementation.md
+    content_hash: a97763f8977cd8f4a3dfd82f620ba0c85969d318667859e53f2eb29bf167392c
+  - path: factory/evals/agents/implementation/fixtures/ok/out/handback.json
     content_hash: 05dbb72e72f9cb5b6ab42e17b8faf0040fd20db4f3a568c49392dbcff3f03b8f
-  - path: factory/evals/agents/S4/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
+  - path: factory/evals/agents/implementation/fixtures/ok/worktree/src/main/java/com/fixture/Widget.java
     content_hash: 71b174c836aaac1871745b19280f7dc833578ff988a0cf09871cb816e51ac9cc
+  - path: factory/evals/agents/planning/eval.yaml
+    content_hash: 87b388a583b6457261da288be6c9fbdd4c93a825c4da8b342b42c77e27dcd4c9
+  - path: factory/evals/agents/planning/fixtures/dangling_ac_id/out/plan.md
+    content_hash: 0714d03c680fcc278cc800ed7f4ebfb511614bb97cabde326ce45de4f0b6e9c9
+  - path: factory/evals/agents/planning/fixtures/free_shell_command/out/plan.md
+    content_hash: 337eab4817df0caa17db0cba51cf60973677dc3f0eb52d7d15e74eafc3f9af5d
+  - path: factory/evals/agents/planning/fixtures/missing_front_matter/planning.md
+    content_hash: b9676847c33c7f408a5c1ac9ad84bab7944f06ef52e81c563fa2578058a26159
+  - path: factory/evals/agents/planning/fixtures/missing_table_column/out/plan.md
+    content_hash: 43a7f842c5a73fd46c2c9d479611b70e882b820f21aaa4344e8c45eebab645a6
+  - path: factory/evals/agents/planning/fixtures/ok/out/plan.md
+    content_hash: 6cfde9094b10f801371d1acc499171a41f5d9d27c07b9dbc86d061e34cf6d971
+  - path: factory/evals/agents/planning/fixtures/ok/planning.md
+    content_hash: 5fda8430d1f2c247b93309668cdb76e0a7214bf317668b3c35aca83338a6b15b
+  - path: factory/evals/agents/planning/fixtures/over_ceiling_prose/out/plan.md
+    content_hash: 49fdbcac26b1284278db21d63ef13cfa732ac6f5c39e2de559e611344ef4b10a
+  - path: factory/evals/agents/planning/fixtures/over_ceiling_rows/out/plan.md
+    content_hash: 752993b0909323d8d160e31fc24522d25c356fe773b1ec52419d08e8b275a99d
+  - path: factory/evals/agents/planning/fixtures/prose_only_task/out/plan.md
+    content_hash: 2a26f2e33f3102349195c7dab20f3e3dff80507629989351e2c4b0d89b9d1d98
+  - path: factory/evals/agents/planning/fixtures/readiness_outside_first_page/out/plan.md
+    content_hash: 0faed2031cb7b309bec9a2e6b9f30b41e6b8834aab78d2f448b72d9eb983baae
+  - path: factory/evals/agents/planning/fixtures/unflagged_task/out/plan.md
+    content_hash: 6b4c4ec665b9fd5d1d6e5526a115438ab82ec7c7e7972bbb115572580149e4d4
+  - path: factory/evals/agents/planning/fixtures/unregistered_recipe/out/plan.md
+    content_hash: 6be77f80b64a37212595d8ae253936bce0dcb4bf94878eb26f256ba02439a68e
+  - path: factory/evals/agents/planning/fixtures/unserved_criterion/out/plan.md
+    content_hash: b41739d7a4d9122c5a9ca1bbe551b64e1a546b6968b0340cd3c8bd32af6e848d
   - path: factory/evals/bootstrap/T-A-01/brief.md
     content_hash: 878bd07152dced1f3d0c8a6c316d7a8fdd511f94f63174644cf57848c688afcd
   - path: factory/evals/bootstrap/T-A-01/plan.md
@@ -453,7 +453,7 @@ files:
   - path: factory/evals/bootstrap/T-B-05/plan.md
     content_hash: f3a8c25b5b301d1e588f81cffc55eb2d9ad68415c17dc047dc0d59322891fe0a
   - path: factory/evals/bootstrap/eval.yaml
-    content_hash: fbaa6624fcb3a4aee6ce6999c8f6699c59a0495e470962ba82b5246e8a95a198
+    content_hash: 72f43bb4599ba75c4dbb1056666131ff6acf9857921b0c67b082c19e4d31f56b
   - path: factory/evals/fixture-project/CODEOWNERS
     content_hash: de53076efe1ee9e3f80cfad51aa1784246c5400c627f83ac648dfa27cbfbc583
   - path: factory/evals/fixture-project/pom.xml
@@ -479,165 +479,165 @@ files:
   - path: factory/evals/fixture-project/vendor/com/fixturevendor/util/1.0.0/util-1.0.0.pom
     content_hash: d3e87ff988dca4b9b13e212cbf474abd7e03e786e016f156c134edadf90ae07e
   - path: factory/evals/record/control-history/eval.yaml
-    content_hash: 8e1122e486faa05707506a9ab80dd45bac00cf862217d54cd5f3b452402dd5c7
+    content_hash: 1fc11c8f74b099976810f944fb7a738e8b4671f0386bc972795554a954b3129e
   - path: factory/evals/record/control-history/fixtures/history.yaml
     content_hash: a866cedc926b27cb9cad02d5a086b05b7a3a49bff8d70c6097695255bd53ad10
   - path: factory/evals/record/coverage-history/eval.yaml
-    content_hash: 268bf3753774ef58c7144ebd2b109f17d72116ac243fbfd529182e57660a9bf1
+    content_hash: 63c21d08e8d737b258aeb2fd144ed190c21f03f9a1c0568ba6da3d6070732c93
   - path: factory/evals/record/coverage-history/fixtures/history.yaml
-    content_hash: 36006aca02e72ed7449050a75b04f776d0c7611be5759999a3d0c996578bc64e
+    content_hash: 7b2e33a0cd80459a485d46eae5da6b98a206eba6e13209304555babf7040f455
   - path: factory/evals/record/incident-history/eval.yaml
-    content_hash: a299380adacb48f13f367e09b62b45027791b36b7e5bb8e302950cdf0d1bac85
+    content_hash: a42bdc7d90f3946839f263415cbdab598a23d79b68300c96d6628a22c59f9cf5
   - path: factory/evals/record/incident-history/fixtures/history.yaml
     content_hash: 102f131ad4f40154dbd8bff0e7616437888d5ca540b1d61b6a47cbd2da63d633
-  - path: factory/evals/rubrics/S0/eval.yaml
-    content_hash: 43da7a2ebb6392c4967a21b3b6267322f07c26504b227a4c2fb42dc2e01005f2
-  - path: factory/evals/rubrics/S0/fixtures/missing_front_matter/S0.md
-    content_hash: bc0756c86edad30ed7eea846b43057ad1d81d2105823e31c6d0f5246aec0e50c
-  - path: factory/evals/rubrics/S0/fixtures/ok/S0.md
-    content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
-  - path: factory/evals/rubrics/S1/eval.yaml
-    content_hash: 2f9740118e2fc9a7ea8adc8853e12dde2a4f6259a0797998a201ac6a3e30036a
-  - path: factory/evals/rubrics/S1/fixtures/fact_only_summary/summary.txt
-    content_hash: 3c5444bf07016a2de7ce79e9fe94b398fbefe75e31978f3cd3547743e58689a3
-  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-11.yaml
-    content_hash: 2071e6cb8151ddf811f26576fa971bdb851502b750c0b85103ae66146f20831e
-  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-2.yaml
-    content_hash: 84623f9331782c4e65a6f356f719f7b04ea96e748ca05e5190f6f7555e0a4483
-  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-3.yaml
-    content_hash: be933bbc9cc87b2487ff7e102e207d39f6e005683c1cec157c3c2f121f8490a3
-  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-4.yaml
-    content_hash: 65e2ff745c88092c38c7c38b3fbf17009a8a396b27cbba83bbf479e367c5fa06
-  - path: factory/evals/rubrics/S1/fixtures/human_verdict/R-S1-6.yaml
-    content_hash: 536910e93e2e47bd815581be8bf5b57edd95ae22eb0a2accf9b65feb4dddec24
-  - path: factory/evals/rubrics/S1/fixtures/missing_front_matter/S1.md
-    content_hash: e74a1a9ef3f638b26843d2ac07b06a8c38434b92b7febb9a772de3c5aaf2543f
-  - path: factory/evals/rubrics/S1/fixtures/ok/S1.md
-    content_hash: 47cb2314d2b46354c7b1c58fe6e7c6ec7bf4621aba53dea2a205c8dc4798558b
-  - path: factory/evals/rubrics/S2/eval.yaml
-    content_hash: 2ac89052423f3c8818a8f3ec2be74733add044881035ede4ec1383d99e8c334e
-  - path: factory/evals/rubrics/S2/fixtures/ears_form/concrete.md
-    content_hash: 59d20d3b186a6d9002402dd2ee89d90f37a1240d5c6b80355f1258215fe85399
-  - path: factory/evals/rubrics/S2/fixtures/ears_form/not_concrete.md
-    content_hash: b92b4ec6211770c3ecb0e24f128d089ddc0cc3e4a245f21bc99cd7af066c3164
-  - path: factory/evals/rubrics/S2/fixtures/missing_front_matter/S2.md
-    content_hash: 932d107e5267f21a836780d02d1cdb0028b7783a944c70322b476e34a637a264
-  - path: factory/evals/rubrics/S2/fixtures/ok/S2.md
-    content_hash: f3251fff130e6b0dd283fe7c26b6e1bcc5c7d5983b0c78e18f314a966b9f9fa7
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_10_grader_fail/human_verdict.yaml
-    content_hash: 66171ea57d65c959974ca72c056f386a3390ba6ea4bc2477a7ec9e96e0962796
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_10_grader_pass/human_verdict.yaml
-    content_hash: 761840fa0d23022cdbba4d108c5718e9e2d65254360b244f069b43e9f8311bc7
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_14_grader_fail/human_verdict.yaml
-    content_hash: 42945b437f90116538647c1675b22b920dfa47cbe42cad9f5fe0c35ebf050f90
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_14_grader_pass/human_verdict.yaml
-    content_hash: 621a74ef180ae7c297a79699d7ee7f6450fbb5e0b3c9a8fcad3f4dd38d2c7250
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_1_grader_fail/human_verdict.yaml
-    content_hash: c22089e5143043243768614a8bac692e0d31aa85d209f021cd73ef7ae3dfe42c
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_1_grader_pass/human_verdict.yaml
-    content_hash: 885592ac0e0a2396cff85c162b3c478208b82d3d566681b3f6fd7fcef173d930
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_2_grader_fail/human_verdict.yaml
-    content_hash: b7c3b9ca17f426e949e0341e9d7a9c31a36063ce0d6586127bbe0d7768ffb315
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_2_grader_pass/human_verdict.yaml
-    content_hash: 02c5505d56b98dea27e51a8f3ba6b17ac96c8b589a4d2d229717daa5c6ebf475
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_5_grader_fail/human_verdict.yaml
-    content_hash: 44da37fc3abb2281b24737f64f04c37d95fef0604d8a057221576812343a4e43
-  - path: factory/evals/rubrics/S2/fixtures/r_s2_5_grader_pass/human_verdict.yaml
-    content_hash: a735a2ebaa72fc85c439f6003ecad037ee8b3e00aaf2b3d034790a73bb9c11f3
-  - path: factory/evals/rubrics/S3/eval.yaml
-    content_hash: 316b0d8045c511ea1afe966276f12ddf6aaeb753d49a7b7b5982934fd74adfd9
-  - path: factory/evals/rubrics/S3/fixtures/abstraction_ok/plan.md
-    content_hash: 3731674dfaf2cd5e541c0e64a82ebbfd3673320b77ec3b047c5dcb9441ed3d48
-  - path: factory/evals/rubrics/S3/fixtures/abstraction_reject/plan.md
-    content_hash: efb58e941feec94ef35b9c0c0bc728ca1577d58fe442385e6721bc0b55a68a7f
-  - path: factory/evals/rubrics/S3/fixtures/alternatives_ok/plan.md
-    content_hash: 25d3f9a2f27e901368154e98dff17b18f1570c1cc3d2c46b4c24bdd703776552
-  - path: factory/evals/rubrics/S3/fixtures/alternatives_reject/plan.md
-    content_hash: ff0c18cf4bc7f3d030f00e08977da306bc4d3652e3ecf3c38fe6db9ac540dd98
-  - path: factory/evals/rubrics/S3/fixtures/archaeology_ok/brief.md
-    content_hash: fa7f3a7894ef9e47d236ce642afa08a08847bb42605d11b8f7c256d605a7a4a5
-  - path: factory/evals/rubrics/S3/fixtures/archaeology_ok/plan.md
-    content_hash: 2b4c0875df4be2dfe41d20afeae10688e90f4d4f812c253176e501bacd64ec24
-  - path: factory/evals/rubrics/S3/fixtures/archaeology_reject/brief.md
-    content_hash: fa7f3a7894ef9e47d236ce642afa08a08847bb42605d11b8f7c256d605a7a4a5
-  - path: factory/evals/rubrics/S3/fixtures/archaeology_reject/plan.md
-    content_hash: 06f15ded89d6e686a14646fd5fc263ce8f20aaeaf28bcd0e36e0f436637d1bca
-  - path: factory/evals/rubrics/S3/fixtures/checklist/brief.md
-    content_hash: 64cd4add246672442f90dc25f05b2d941d1d62c9721127c81a6774fa50cd436b
-  - path: factory/evals/rubrics/S3/fixtures/checklist/criteria.md
-    content_hash: b5da3b6b794112461ed97697a85d59cdad7c8e5b792e367b86a2758e7be12173
-  - path: factory/evals/rubrics/S3/fixtures/checklist/expected.json
-    content_hash: 7af7964c1bc603da909e8c532b11dbaa25381949a0fefbf020586360425d6048
-  - path: factory/evals/rubrics/S3/fixtures/checklist/plan.md
-    content_hash: 8924974e3c8044622e69d76548f1a60487e7724b96b29b3a2525edc40c1e337c
-  - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_duplicate.md
-    content_hash: 0947150924b934e4270010bb035fd1f73cde7c8e175b0ddc48ebbbe97fddde67
-  - path: factory/evals/rubrics/S3/fixtures/checklist/rubric_ok.md
-    content_hash: 16e5795835f789928d8b990ee01b5c25e6309fb26896aedd323d083e219fbe51
-  - path: factory/evals/rubrics/S3/fixtures/checklist/verdicts.yaml
-    content_hash: 75dd0d379b979e3e130fb7f64881b1171f4ab3226011bdb12f6b6decd3ba1c0a
-  - path: factory/evals/rubrics/S3/fixtures/contracts_ok/plan.md
-    content_hash: b46090a1061fac87268e6a76402677092159e0afd5f3e21e36f4bc79eecc260f
-  - path: factory/evals/rubrics/S3/fixtures/contracts_reject/plan.md
-    content_hash: 63b5a75a40d7bbea9d96a7b3b1dc37662f432be6dfc9e81f4a8df75ea0972633
-  - path: factory/evals/rubrics/S3/fixtures/dry_run_brief/brief.md
-    content_hash: 812c441d151e395935cfa27fe84bdb4e406a105efc71096abca9818c6eb3e3cb
-  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-10.yaml
-    content_hash: 787362e86c7ee87e97d0119ef95e98d25da6ede5c0b4b8e17ab36eb73dada00a
-  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-2.yaml
-    content_hash: d3844cf4082c1cad78d42e57daea0925815ff22afd44517dce0adff982277a37
-  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-3.yaml
-    content_hash: 57c51d5512d7a87d4675ec22324a2c5cd0e4ea21d9d060d514610286f05221bb
-  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-5.yaml
-    content_hash: 94598dbf1a0ac2530b76559e2e21c8f2b255cfd04918aeef58cea29927e6d06b
-  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-6.yaml
-    content_hash: 42ded186177f61aee524a8fe4f0c39a1c11f4672317a72e8d54053a0436485da
-  - path: factory/evals/rubrics/S3/fixtures/human_verdict/R-S3-9.yaml
-    content_hash: aefd64509153204697e534241159358fcb3d9a6f3a0d06acc9b26d4699a758f0
-  - path: factory/evals/rubrics/S3/fixtures/missing_front_matter/S3.md
-    content_hash: 4cba7669b435c786dcbcbd05ae92a1b33dc607ffac1a38ba3305cedf16948be7
-  - path: factory/evals/rubrics/S3/fixtures/no_behaviour_change_ok/plan.md
-    content_hash: ae602a1dd93d7994f1e44dd25e39b8fdb9943795858682f5809e35ed67ec0eea
-  - path: factory/evals/rubrics/S3/fixtures/no_behaviour_change_reject/plan.md
-    content_hash: 50319968a206e406884d353c77abb5a43c5481b8b9be4331042c6e7fcc6f96b0
-  - path: factory/evals/rubrics/S3/fixtures/ok/S3.md
-    content_hash: d31ac630930a995ab074525f47fc02bff4f06aebd67c4564e39c0b6ea58c359d
-  - path: factory/evals/rubrics/S3/fixtures/rollout_ok/plan.md
-    content_hash: 138d178b8c2639956ce169b4c0a337903082e784fbac8acbd2571d3a57764ed5
-  - path: factory/evals/rubrics/S3/fixtures/rollout_reject/plan.md
-    content_hash: 0fb61085db5bcdbb051a3c569a22f00f0b571592d997d5908e7045a94c50a7cf
-  - path: factory/evals/rubrics/S3/fixtures/test_strategy_ok/criteria.md
-    content_hash: cf0b375109bbc1140b6a58d8e5ef1ba4cd54094b239fc4765d11afa2a9022c4b
-  - path: factory/evals/rubrics/S3/fixtures/test_strategy_ok/plan.md
-    content_hash: 6284a00c9a186896273c5fc8a05da84095b749f1beb15d5cf465a56f67930e93
-  - path: factory/evals/rubrics/S3/fixtures/test_strategy_reject/criteria.md
-    content_hash: cf0b375109bbc1140b6a58d8e5ef1ba4cd54094b239fc4765d11afa2a9022c4b
-  - path: factory/evals/rubrics/S3/fixtures/test_strategy_reject/plan.md
-    content_hash: bccb02efb602c3b9ea10576db117acbf699d8e014f01c090664fe7a2d58941c3
-  - path: factory/evals/rubrics/S4/eval.yaml
-    content_hash: 01494ea7a698561abfe923d843bb49b1eb452e20d06c9d2cf64988f9daa92a69
-  - path: factory/evals/rubrics/S4/fixtures/missing_front_matter/S4.md
-    content_hash: 78fc7633b15a9ba817ef94035e28ce5a4e41e1675cc89bd914b4382db73d840e
-  - path: factory/evals/rubrics/S4/fixtures/ok/S4.md
-    content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
-  - path: factory/evals/rubrics/S5/eval.yaml
-    content_hash: 3467fc48b5300d365afd9b676b0d09748f26df2dba43df5d245e5838a53ac9ba
-  - path: factory/evals/rubrics/S5/fixtures/missing_front_matter/S5.md
+  - path: factory/evals/rubrics/checks/eval.yaml
+    content_hash: 0e01c35b2c1b7844bc7efe9b84486c6badb23a58084cc4ddf8858ba9138b5873
+  - path: factory/evals/rubrics/checks/fixtures/missing_front_matter/checks.md
     content_hash: 406d59ec074168a082737c8234a8122d2336b4fec319fefef26deac651c000bf
-  - path: factory/evals/rubrics/S5/fixtures/ok/S5.md
-    content_hash: 4f189dcd43d6ade4842c5be3fe7b01075556415e99365f39ee3c40aa0388e41f
-  - path: factory/evals/rubrics/S6/eval.yaml
-    content_hash: 397a36471bc765b9a894a935f5912c88137b665254330a9fab4daa0bfe7a1cd9
-  - path: factory/evals/rubrics/S6/fixtures/missing_front_matter/S6.md
+  - path: factory/evals/rubrics/checks/fixtures/ok/checks.md
+    content_hash: 82bf8ac8e9f9b65e8dc13e94fd148db2cf61f780408805507ce2812ac2b1cc1b
+  - path: factory/evals/rubrics/clarification/eval.yaml
+    content_hash: e61790d65110688127f54efb76c68297d2f23939224483de43559b188ecef37d
+  - path: factory/evals/rubrics/clarification/fixtures/criterion_restatement_grader_fail/human_verdict.yaml
+    content_hash: 317dd414309bc4cecd956968e52011a8eabc362b65c3ed647ac1a68f75d695a6
+  - path: factory/evals/rubrics/clarification/fixtures/criterion_restatement_grader_pass/human_verdict.yaml
+    content_hash: 8f00662cd359b2d9459ea898947ea819b2c18c7d23fa5abf4cb6cc7e5b2a28e6
+  - path: factory/evals/rubrics/clarification/fixtures/ears_form/concrete.md
+    content_hash: 59d20d3b186a6d9002402dd2ee89d90f37a1240d5c6b80355f1258215fe85399
+  - path: factory/evals/rubrics/clarification/fixtures/ears_form/not_concrete.md
+    content_hash: b92b4ec6211770c3ecb0e24f128d089ddc0cc3e4a245f21bc99cd7af066c3164
+  - path: factory/evals/rubrics/clarification/fixtures/given_when_then_example_grader_fail/human_verdict.yaml
+    content_hash: f6d2ef0d8671fb760b0c7429cc69660995350f20909d477919da1b27445d5c8e
+  - path: factory/evals/rubrics/clarification/fixtures/given_when_then_example_grader_pass/human_verdict.yaml
+    content_hash: 675101ba60f8286df4780a3e556c48372ebc8b3b75b52caf1631b0c91205eea0
+  - path: factory/evals/rubrics/clarification/fixtures/missing_front_matter/clarification.md
+    content_hash: 932d107e5267f21a836780d02d1cdb0028b7783a944c70322b476e34a637a264
+  - path: factory/evals/rubrics/clarification/fixtures/ok/clarification.md
+    content_hash: a152163d332198ac4c8b52c9e6278d043f0b9488e22c4541fd34727884e48ac9
+  - path: factory/evals/rubrics/clarification/fixtures/question_reasoning_grader_fail/human_verdict.yaml
+    content_hash: dc1904b61a84d12a4c6ef165c3202f62728b85d8bf4b5bd0f92d8211b9bb9de4
+  - path: factory/evals/rubrics/clarification/fixtures/question_reasoning_grader_pass/human_verdict.yaml
+    content_hash: 6f4dfc4ad68f1c21753450acdb87da2baeab6f7315e854cda78c3f7a1ce4f66f
+  - path: factory/evals/rubrics/clarification/fixtures/self_contained_question_grader_fail/human_verdict.yaml
+    content_hash: 94e271cf0c6df4f1a77b5b92396a99f220605498b29f5c248a8f0a5b68ee1823
+  - path: factory/evals/rubrics/clarification/fixtures/self_contained_question_grader_pass/human_verdict.yaml
+    content_hash: 09bd0f4f3630e1dcad13ec93509e21031535bce674cad334c949dea8c7a47063
+  - path: factory/evals/rubrics/clarification/fixtures/vertical_slice_size_grader_fail/human_verdict.yaml
+    content_hash: 118a682c54ad0e4707a1786d85ab76e3ce903da9b3c2c0ca953de95037fff6e6
+  - path: factory/evals/rubrics/clarification/fixtures/vertical_slice_size_grader_pass/human_verdict.yaml
+    content_hash: 4fda5d7a118484ca7ffe99291db2680a1ad05781ba321d75c847ba7eb6b448ae
+  - path: factory/evals/rubrics/context_gathering/eval.yaml
+    content_hash: e617590035f595e27113325f9bd2173295a2d4ab0911b95a748b0282a5150645
+  - path: factory/evals/rubrics/context_gathering/fixtures/fact_only_summary/summary.txt
+    content_hash: 3c5444bf07016a2de7ce79e9fe94b398fbefe75e31978f3cd3547743e58689a3
+  - path: factory/evals/rubrics/context_gathering/fixtures/human_verdict/history_classification.yaml
+    content_hash: e81b90a94d60e1b8cbe142e74431bfcf3c61e1e9307c81dadf1a397c6c4835b1
+  - path: factory/evals/rubrics/context_gathering/fixtures/human_verdict/impact_evidence.yaml
+    content_hash: b6c9d1082d6bc857f351d2c669b54baf530f2e2b7e3695365192b532b8c0e207
+  - path: factory/evals/rubrics/context_gathering/fixtures/human_verdict/impact_tiering.yaml
+    content_hash: 434b951d83a99fb870509d5472d4c7e96f8c280d86e0233e20275ca5edc65c65
+  - path: factory/evals/rubrics/context_gathering/fixtures/human_verdict/reference_grounding.yaml
+    content_hash: 3ce228d703b56b398d9abc4c2dca615201cfdc2a793799bd6da7cbb833ea13cd
+  - path: factory/evals/rubrics/context_gathering/fixtures/human_verdict/ticket_summary.yaml
+    content_hash: 576603d47c3940cbc9abd03addcf30673956493f48ea395dc11571be5a54918b
+  - path: factory/evals/rubrics/context_gathering/fixtures/missing_front_matter/context_gathering.md
+    content_hash: e74a1a9ef3f638b26843d2ac07b06a8c38434b92b7febb9a772de3c5aaf2543f
+  - path: factory/evals/rubrics/context_gathering/fixtures/ok/context_gathering.md
+    content_hash: c13fbe797d404ca8f11d588a65a22ad503468b064ae12fbc54c708d25c40eedb
+  - path: factory/evals/rubrics/human_review/eval.yaml
+    content_hash: 8a875a58960f709c9e062e92c32766293918b9dc905b93e8f75cce6abc0f94a7
+  - path: factory/evals/rubrics/human_review/fixtures/missing_front_matter/human_review.md
     content_hash: d074772c30e456cd1ef3d2c808555a264971a92d525bf8b342d77b30bdcfc88f
-  - path: factory/evals/rubrics/S6/fixtures/ok/S6.md
-    content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
+  - path: factory/evals/rubrics/human_review/fixtures/ok/human_review.md
+    content_hash: 306b4ed0fd2a1dc499ce9dd65ebd550ae944b38b50e34b1c6668929d7ce9f567
+  - path: factory/evals/rubrics/implementation/eval.yaml
+    content_hash: 95bdb43e50a00cff31294ddcdfe3f9181336ad1c6c4ebc1dea142922f98e8908
+  - path: factory/evals/rubrics/implementation/fixtures/missing_front_matter/implementation.md
+    content_hash: 78fc7633b15a9ba817ef94035e28ce5a4e41e1675cc89bd914b4382db73d840e
+  - path: factory/evals/rubrics/implementation/fixtures/ok/implementation.md
+    content_hash: a1daa13629523bbab4c6dd7df3b1f6961cc32454e3bca67b3d54e5bbbe4dcb06
+  - path: factory/evals/rubrics/intake/eval.yaml
+    content_hash: 991af7410901d6cf7243e03c1c4449b8dd83c2341c1fa7f773fe73702e175701
+  - path: factory/evals/rubrics/intake/fixtures/missing_front_matter/intake.md
+    content_hash: bc0756c86edad30ed7eea846b43057ad1d81d2105823e31c6d0f5246aec0e50c
+  - path: factory/evals/rubrics/intake/fixtures/ok/intake.md
+    content_hash: fc8c93b5682b8175fbc407df1915fbdbb92e14c7ff6c9499340fe4ea620a6a7e
+  - path: factory/evals/rubrics/planning/eval.yaml
+    content_hash: ce7ba773e2f909894e3dfc98989672d9486abf42256fcda5597d1852816c4147
+  - path: factory/evals/rubrics/planning/fixtures/abstraction_ok/plan.md
+    content_hash: 3731674dfaf2cd5e541c0e64a82ebbfd3673320b77ec3b047c5dcb9441ed3d48
+  - path: factory/evals/rubrics/planning/fixtures/abstraction_reject/plan.md
+    content_hash: efb58e941feec94ef35b9c0c0bc728ca1577d58fe442385e6721bc0b55a68a7f
+  - path: factory/evals/rubrics/planning/fixtures/alternatives_ok/plan.md
+    content_hash: 25d3f9a2f27e901368154e98dff17b18f1570c1cc3d2c46b4c24bdd703776552
+  - path: factory/evals/rubrics/planning/fixtures/alternatives_reject/plan.md
+    content_hash: ff0c18cf4bc7f3d030f00e08977da306bc4d3652e3ecf3c38fe6db9ac540dd98
+  - path: factory/evals/rubrics/planning/fixtures/archaeology_ok/brief.md
+    content_hash: fa7f3a7894ef9e47d236ce642afa08a08847bb42605d11b8f7c256d605a7a4a5
+  - path: factory/evals/rubrics/planning/fixtures/archaeology_ok/plan.md
+    content_hash: 2b4c0875df4be2dfe41d20afeae10688e90f4d4f812c253176e501bacd64ec24
+  - path: factory/evals/rubrics/planning/fixtures/archaeology_reject/brief.md
+    content_hash: fa7f3a7894ef9e47d236ce642afa08a08847bb42605d11b8f7c256d605a7a4a5
+  - path: factory/evals/rubrics/planning/fixtures/archaeology_reject/plan.md
+    content_hash: 06f15ded89d6e686a14646fd5fc263ce8f20aaeaf28bcd0e36e0f436637d1bca
+  - path: factory/evals/rubrics/planning/fixtures/checklist/brief.md
+    content_hash: 7c04109326f386125bc2361d70e6bfee668fe7fc98eae403385e6c6306cb633b
+  - path: factory/evals/rubrics/planning/fixtures/checklist/criteria.md
+    content_hash: b5da3b6b794112461ed97697a85d59cdad7c8e5b792e367b86a2758e7be12173
+  - path: factory/evals/rubrics/planning/fixtures/checklist/expected.json
+    content_hash: 888e14bfe5e1f3980e990add697e46957c08aa9a2bbf60f7ee3cdb7d187376fc
+  - path: factory/evals/rubrics/planning/fixtures/checklist/plan.md
+    content_hash: 8924974e3c8044622e69d76548f1a60487e7724b96b29b3a2525edc40c1e337c
+  - path: factory/evals/rubrics/planning/fixtures/checklist/rubric_duplicate.md
+    content_hash: 78a02d6f20a0dcfc9b9828712d27d75ea04e803832c363bae4744ddcfd3ebc81
+  - path: factory/evals/rubrics/planning/fixtures/checklist/rubric_ok.md
+    content_hash: ca67fdf09219623fd48f6e13b52087791ea7a70f48074c3b57d656abea02be1e
+  - path: factory/evals/rubrics/planning/fixtures/checklist/verdicts.yaml
+    content_hash: e089cf97b52543d33690bd681ba13c1163c9b5a9af0f3309103d6567c8a6fe27
+  - path: factory/evals/rubrics/planning/fixtures/contracts_ok/plan.md
+    content_hash: b46090a1061fac87268e6a76402677092159e0afd5f3e21e36f4bc79eecc260f
+  - path: factory/evals/rubrics/planning/fixtures/contracts_reject/plan.md
+    content_hash: 63b5a75a40d7bbea9d96a7b3b1dc37662f432be6dfc9e81f4a8df75ea0972633
+  - path: factory/evals/rubrics/planning/fixtures/dry_run_brief/brief.md
+    content_hash: 812c441d151e395935cfa27fe84bdb4e406a105efc71096abca9818c6eb3e3cb
+  - path: factory/evals/rubrics/planning/fixtures/human_verdict/new_utility_search.yaml
+    content_hash: 992f4550f8dbc1d05f64479adfe730b2a5d23575cfe0c55117cf5a6cbda69c10
+  - path: factory/evals/rubrics/planning/fixtures/human_verdict/no_behaviour_change_tasks.yaml
+    content_hash: 622919d2ce90a522a742df9e2ab7670b4566300018be782c141edfe114ab43b8
+  - path: factory/evals/rubrics/planning/fixtures/human_verdict/rejected_alternatives.yaml
+    content_hash: 2e39a48669b3575771970aaaf76edcad753cb510d888b2f423117fe302e4531c
+  - path: factory/evals/rubrics/planning/fixtures/human_verdict/rollout_section.yaml
+    content_hash: 53b86191803916e5c9ad9c48559a625c2fa980ea7113293b936fab6d2d9181b4
+  - path: factory/evals/rubrics/planning/fixtures/human_verdict/shared_abstraction.yaml
+    content_hash: e317d95bb52ffaa32e14fae752c14c96908a3a41c68c6de2f47c5d3ecbc2a250
+  - path: factory/evals/rubrics/planning/fixtures/human_verdict/test_strategy.yaml
+    content_hash: b528df319f39df78c924bb8485adfa7cfb44da654344aab2be18400a3ec39411
+  - path: factory/evals/rubrics/planning/fixtures/missing_front_matter/planning.md
+    content_hash: 4cba7669b435c786dcbcbd05ae92a1b33dc607ffac1a38ba3305cedf16948be7
+  - path: factory/evals/rubrics/planning/fixtures/no_behaviour_change_ok/plan.md
+    content_hash: ae602a1dd93d7994f1e44dd25e39b8fdb9943795858682f5809e35ed67ec0eea
+  - path: factory/evals/rubrics/planning/fixtures/no_behaviour_change_reject/plan.md
+    content_hash: 50319968a206e406884d353c77abb5a43c5481b8b9be4331042c6e7fcc6f96b0
+  - path: factory/evals/rubrics/planning/fixtures/ok/planning.md
+    content_hash: e182ab2bd158d8eb49a62f12c5f2a351dae182456a6afa04e02bb71554d1484b
+  - path: factory/evals/rubrics/planning/fixtures/rollout_ok/plan.md
+    content_hash: 138d178b8c2639956ce169b4c0a337903082e784fbac8acbd2571d3a57764ed5
+  - path: factory/evals/rubrics/planning/fixtures/rollout_reject/plan.md
+    content_hash: 0fb61085db5bcdbb051a3c569a22f00f0b571592d997d5908e7045a94c50a7cf
+  - path: factory/evals/rubrics/planning/fixtures/test_strategy_ok/criteria.md
+    content_hash: cf0b375109bbc1140b6a58d8e5ef1ba4cd54094b239fc4765d11afa2a9022c4b
+  - path: factory/evals/rubrics/planning/fixtures/test_strategy_ok/plan.md
+    content_hash: 6284a00c9a186896273c5fc8a05da84095b749f1beb15d5cf465a56f67930e93
+  - path: factory/evals/rubrics/planning/fixtures/test_strategy_reject/criteria.md
+    content_hash: cf0b375109bbc1140b6a58d8e5ef1ba4cd54094b239fc4765d11afa2a9022c4b
+  - path: factory/evals/rubrics/planning/fixtures/test_strategy_reject/plan.md
+    content_hash: bccb02efb602c3b9ea10576db117acbf699d8e014f01c090664fe7a2d58941c3
   - path: factory/evals/sandbox/copy-disposal/eval.yaml
-    content_hash: 4acf3bb9309cf91b3eba68f9bdb1c0e47164900bbbc17297e0f356ec033fe530
+    content_hash: 9673876584b5216766a31d4bc8118f58df217810d8daefb14a5813bbc3c902b3
   - path: factory/evals/sandbox/copy-disposal/fixtures/recipes.yaml
     content_hash: eb6163b284af76cd3fda3fdb2e2eb2130dcd20e09180ad79f7983830ffadcb19
   - path: factory/evals/sandbox/escape/eval.yaml
-    content_hash: d82c96ead737a8be137e8e4fe3805df4715bfa6a6fa549f8ed915fa71802d5d2
+    content_hash: fdba25450a18a593724efa1bb16334fb96e8ceae76c83e29095597f60cbf23b3
   - path: factory/evals/sandbox/escape/fixtures/base-head-isolation/probe.py
     content_hash: bca54c32f9546c01b212b89783465193e6640b57a7e1c4123ef4581b4ab307af
   - path: factory/evals/sandbox/escape/fixtures/copy-disposal/probe.py
@@ -763,7 +763,7 @@ files:
   - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/every_field_and_verdict_has_evidence/tests_head.json
     content_hash: 2371d0c6cda5b1173651bf64c059413885fb24f8e73631be6fe316b8f7e7947c
   - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/every_field_and_verdict_has_evidence/verdicts.json
-    content_hash: 0b0257c32130a630632e38b874a241c5ae6b8d5cd99c6e76eac8c6a0f7ed67ce
+    content_hash: 2bc431fa6a54b8837772083de2ebb222807615cda3ad63de88c8d9659390cc8a
   - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/declarations.json
     content_hash: 35c95ebb4ee2e56a461a61806c190adeab981e9503c6e941e615b5b94410b428
   - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/plan.md
@@ -773,7 +773,7 @@ files:
   - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/tests_head.json
     content_hash: 88a189537cbcb1ca3ac193faa1bfa6833d3f27295521042572a77ec9006d8f54
   - path: factory/evals/scripts/checks/behavior_contract_evidence/fixtures/six_named_blind_spots/verdicts.json
-    content_hash: 0b0257c32130a630632e38b874a241c5ae6b8d5cd99c6e76eac8c6a0f7ed67ce
+    content_hash: 2bc431fa6a54b8837772083de2ebb222807615cda3ad63de88c8d9659390cc8a
   - path: factory/evals/scripts/checks/dep_resolve/eval.yaml
     content_hash: 0e7bf52a476e86d8e7ffe39597f9217790c2296645b7624b8b1c1c2d21ca80e7
   - path: factory/evals/scripts/checks/dep_resolve/fixtures/pinned_maven_coordinate/pom.xml
@@ -827,7 +827,7 @@ files:
   - path: factory/evals/scripts/checks/java_test/fixtures/ok/test/com/example/CalculatorUnitTest.java
     content_hash: 2c20ec32920f23f0ff1271c9694b935116acdfb3ebe934b46f3966cbf78e46ef
   - path: factory/evals/scripts/checks/risk_map/eval.yaml
-    content_hash: f009f9c0634d32ce9d0e8df53b692e4b792918a0375b4ae869d03b9a5977bbb7
+    content_hash: a0e2c3be33fc7a0f418b4170ab167ade75ad9ca863e8009540459c9a26fdda94
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn/candidates.txt
     content_hash: ff6c40f3a036e8b89f0d3731a719f669f9972eab564868c657bf638d7c927b3b
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn/expected.json
@@ -836,8 +836,8 @@ files:
     content_hash: 90528878485da50484005d82dae0f898f4619e3fb02ef1945f65d348a4338502
   - path: factory/evals/scripts/checks/risk_map/fixtures/churn_window/expected.json
     content_hash: aeb5e6faec2ba3306e5b3cbf26bf55a120d12af804f05d15b375839f429f612e
-  - path: factory/evals/scripts/checks/risk_map/fixtures/human_verdict/R-S3-11.yaml
-    content_hash: 4ea5efc6231832f8092d3971e0a58d6265e3412681dc8ecdd9c633d33de6e180
+  - path: factory/evals/scripts/checks/risk_map/fixtures/human_verdict/risk_map.yaml
+    content_hash: db3732a701c057c13f30ae806cd86a2ed3170debc9ff38c825e52a3dece48bd9
   - path: factory/evals/scripts/checks/scope_diff/eval.yaml
     content_hash: 085f370414feb7712fdf1f3f99ee3787fe88f624f661922835860eda48ce4e7a
   - path: factory/evals/scripts/checks/scope_diff/fixtures/discretion_glob/diff.txt
@@ -947,7 +947,7 @@ files:
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/all_pass/questions.json
     content_hash: 37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/all_pass/reviewer_set.json
-    content_hash: c5eb32c26417e6bcac1381c98eef931ddae49cf49c1d931422141e97b277098b
+    content_hash: 3e425140f807ec81f15cb0a016519b78bf2faccfa533365d99bafb1bca6e9da2
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/all_pass/risk_map.json
     content_hash: f1776b2759caf32b2629beb74a7862555f5e75b27d7f29d8c9278ee3e5b7b8e2
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/blind_spot/assumptions.json
@@ -961,7 +961,7 @@ files:
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/blind_spot/questions.json
     content_hash: 37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/blind_spot/reviewer_set.json
-    content_hash: c5eb32c26417e6bcac1381c98eef931ddae49cf49c1d931422141e97b277098b
+    content_hash: 3e425140f807ec81f15cb0a016519b78bf2faccfa533365d99bafb1bca6e9da2
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/blind_spot/risk_map.json
     content_hash: f1776b2759caf32b2629beb74a7862555f5e75b27d7f29d8c9278ee3e5b7b8e2
   - path: factory/evals/scripts/tools/handoff_ready/fixtures/mixed_pending/assumptions.json
@@ -1037,7 +1037,7 @@ files:
   - path: factory/evals/scripts/tools/packet_assemble/fixtures/full/diff.patch
     content_hash: e019891a0c8601b1faabe7bb0fca74b927d8e387bbc39b60682bab787ec95228
   - path: factory/evals/scripts/tools/packet_assemble/fixtures/full/packet_inputs.json
-    content_hash: db8365a6db77d1e00392d25ebaf75e650943010e86abd12b5c461e618be8dd4b
+    content_hash: b86de18949ed7b774ff51a9037b053420c51b0478fa8cd927f4bfb8033628df7
   - path: factory/evals/scripts/tools/packet_assemble/fixtures/impact_blind_spot/diff.patch
     content_hash: 8c367680c90e7622c52c4b7109fa166920174657019726cbe7a579c3b1cc5d09
   - path: factory/evals/scripts/tools/packet_assemble/fixtures/impact_blind_spot/packet_inputs.json
@@ -1053,7 +1053,7 @@ files:
   - path: factory/evals/scripts/tools/pr_body_assemble/fixtures/full/diff.patch
     content_hash: e019891a0c8601b1faabe7bb0fca74b927d8e387bbc39b60682bab787ec95228
   - path: factory/evals/scripts/tools/pr_body_assemble/fixtures/full/packet_inputs.json
-    content_hash: db8365a6db77d1e00392d25ebaf75e650943010e86abd12b5c461e618be8dd4b
+    content_hash: b86de18949ed7b774ff51a9037b053420c51b0478fa8cd927f4bfb8033628df7
   - path: factory/evals/scripts/tools/pr_body_assemble/fixtures/malformed/packet_inputs.json
     content_hash: 13dacbe30bd3e86e45e9fde9105772d20b68725b59f4dee1d5add8fa006ccaa5
   - path: factory/evals/scripts/tools/purge/eval.yaml
@@ -1073,7 +1073,7 @@ files:
   - path: factory/evals/scripts/tools/report/fixtures/baseline_excluded/expect.txt
     content_hash: 86097f4ae53b4723c6bd1c800f5b71011476ea0d8be1a9111b422d94cf160eb4
   - path: factory/evals/scripts/tools/report/fixtures/baseline_excluded/seed.yaml
-    content_hash: 65a404e2aab53cd104f20f668f720ccfdb5d40e14b90785515d0a1ffc152b22e
+    content_hash: 314c3a1aa4be5832734c074adbb3bb5e05a888e545c1a093c5ba2e9267544138
   - path: factory/evals/scripts/tools/report/fixtures/completed_walk/README.md
     content_hash: 84b83b44c3064356a63a1bfea9b76e49736bc6f5fe7e98e9e631f99d831a8edb
   - path: factory/evals/scripts/tools/report/fixtures/completed_walk/expect.txt
@@ -1081,37 +1081,37 @@ files:
   - path: factory/evals/scripts/tools/report/fixtures/context_cost_row/expect.txt
     content_hash: b6842ae4629b58bea0eab7515f95f0d5e8f220bdb53a6727fceed6db20f3dbc3
   - path: factory/evals/scripts/tools/report/fixtures/context_cost_row/seed.yaml
-    content_hash: f0410e1a99ce65ba68ad39c1cf56669fcaff3d0545c54a2d344433588fb52d0a
+    content_hash: b1409a95b23809aac197606bf3e3438bf6b011ad7035e4aced7bfad6de143d2f
   - path: factory/evals/scripts/tools/report/fixtures/missing_views/README.md
     content_hash: 004657c890ace828be37edb7d2a9b75d5b2f99bcb414b0833a46b1ca2f7de1b6
   - path: factory/evals/scripts/tools/report/fixtures/unavailable_measure/expect.txt
     content_hash: 8006e4eabce95972b6f56f8880f44f0e0e20983e9de5fbdd02cbf670ae323ae0
   - path: factory/evals/scripts/tools/report/fixtures/unavailable_measure/seed.yaml
     content_hash: 7675b0cee397c1ce72209883f4dcb551783c25ceeb0ea3de680219d75e31493c
-  - path: factory/evals/skills/S1/eval.yaml
-    content_hash: 00b348b9b8e168b66ce74f87359a8ee3b51c2caa1b8ae456b5a4e41bb14095db
-  - path: factory/evals/skills/S1/fixtures/missing_front_matter/S1.md
-    content_hash: b4a1518292c805fb471417b6f1ffc113ff29b602b36d44e03628c77407c3197d
-  - path: factory/evals/skills/S1/fixtures/ok/S1.md
-    content_hash: 4110fe7068a25d5de42e5488afa2f3f7085c81a82e25c58289009a48fc9aca67
-  - path: factory/evals/skills/S2/eval.yaml
-    content_hash: 66b3763e85926d75c671c24e785a6c6be2fd86f7b37d610cb7af049b2f5fc8d3
-  - path: factory/evals/skills/S2/fixtures/missing_front_matter/S2.md
+  - path: factory/evals/skills/clarification/eval.yaml
+    content_hash: 87a3cabc001e203f9f7c8c4139d0ab23bf96693a25a6b19906587d684cbe78ef
+  - path: factory/evals/skills/clarification/fixtures/missing_front_matter/clarification.md
     content_hash: 75c45b03ed10a32d2213998139ec0a0191981fb6bcd76d09cfaafe373e4c4ff8
-  - path: factory/evals/skills/S2/fixtures/ok/S2.md
-    content_hash: 0d3369ca368508fb4b37417ae04a6f57a90877d01293ba13d8d85608e269271e
-  - path: factory/evals/skills/S3/eval.yaml
-    content_hash: c0faf1c7b90b6ad284f9b6a62cc453e8f63ec10d4eb910090920bf37a47d72eb
-  - path: factory/evals/skills/S3/fixtures/missing_front_matter/S3.md
-    content_hash: 7dde0c65214f6b2c04d8a2221845ffe582cce1c21def83d0232bd8c5bc25767c
-  - path: factory/evals/skills/S3/fixtures/ok/S3.md
-    content_hash: 8246c91599141f20e88777b7048620a8231f5d7a24762f0f0225d4446c10b4e7
-  - path: factory/evals/skills/S4/eval.yaml
-    content_hash: bd59d9edb3bbe48c0f741b107031ec633e98a4c59709996643bf975a43b120c8
-  - path: factory/evals/skills/S4/fixtures/missing_front_matter/S4.md
+  - path: factory/evals/skills/clarification/fixtures/ok/clarification.md
+    content_hash: 47148f200f8bbfb6f633b8b7134f3530382c71ab867625ac08802282cd2c8d62
+  - path: factory/evals/skills/context_gathering/eval.yaml
+    content_hash: 79ce5251d231e1712acccd705172a55cb16272b1fd4f86f19ddffb6966876810
+  - path: factory/evals/skills/context_gathering/fixtures/missing_front_matter/context_gathering.md
+    content_hash: b4a1518292c805fb471417b6f1ffc113ff29b602b36d44e03628c77407c3197d
+  - path: factory/evals/skills/context_gathering/fixtures/ok/context_gathering.md
+    content_hash: 7c71fda154644b66706cfa97ecadb71cfdaf06ff736bf41fe29d36e873e7e2ac
+  - path: factory/evals/skills/implementation/eval.yaml
+    content_hash: 559a6f4ba2fea8ff4131b4bddb26e2e51acbb8cbc4b2f92f353fe1e75f5a40f6
+  - path: factory/evals/skills/implementation/fixtures/missing_front_matter/implementation.md
     content_hash: fc95f11cc283cf6bcf68dc38ad3fda4a71889c7bfcb95c24a43d19d9e05d1b50
-  - path: factory/evals/skills/S4/fixtures/ok/S4.md
-    content_hash: 7ea55a0125a73c5d307643b61d3adb4e5fc3770ba1b5c7fd4185766764436fb1
+  - path: factory/evals/skills/implementation/fixtures/ok/implementation.md
+    content_hash: 41275c548956846927fd926f7ae86b4a26224927c1e752af7a8db1f5b6543678
+  - path: factory/evals/skills/planning/eval.yaml
+    content_hash: b1c382f8bf07009ea11959764b572b31bf3f7861fd756f930148bda890d7f3eb
+  - path: factory/evals/skills/planning/fixtures/missing_front_matter/planning.md
+    content_hash: 7dde0c65214f6b2c04d8a2221845ffe582cce1c21def83d0232bd8c5bc25767c
+  - path: factory/evals/skills/planning/fixtures/ok/planning.md
+    content_hash: 7aff168c7ec5f6850f94d51e356d2a0a36fac10a87ebf13fd9c5d407fed5d7bb
   - path: factory/evals/skills/shared/codegraph-lookup/eval.yaml
     content_hash: b98417b38f387a80c7b28928e5311589ce4a13b0c1a2e1302439a876e790656f
   - path: factory/evals/skills/shared/codegraph-lookup/fixtures/missing_front_matter/codegraph-lookup.md
@@ -1126,30 +1126,30 @@ files:
     content_hash: a194cb91711d58cbafaac022b98e1b6a531a6bc725b81bc39fd6913c5d40fb6d
   - path: factory/lints/.gitkeep
     content_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  - path: factory/rubrics/S0.md
-    content_hash: 7721a18c63645e466518e61185b5bf71b62c12690f4b3ccfe7d033fc0ffdf8b7
-  - path: factory/rubrics/S1.md
-    content_hash: 394ea59d6120c152caa02559bc3cc3f4d7cb9f982e536a0ec68e811c1ac59a9a
-  - path: factory/rubrics/S2.md
-    content_hash: 70319b9be7d3e95cdc1f5364e10858f7e8daf0c59b5593eb01fd30f95267f249
-  - path: factory/rubrics/S3.md
-    content_hash: 37a058b295c8d1c2f07c757b900644bdc1f4ff181698c73a5fcc9212c0d58384
-  - path: factory/rubrics/S4.md
-    content_hash: b217bf0142be2920f546075f6d3e4ea336ebedf1c72616c73d53589ab6a6d43a
-  - path: factory/rubrics/S5.md
-    content_hash: f35092223b152048aa32090251410c512c154de0442c8dc183c7aa492c1d30f9
-  - path: factory/rubrics/S6.md
-    content_hash: ef66b2afd52cb81e5d46e132256128cdb4f25a74f60f5de0f58197f1aa68d857
   - path: factory/rubrics/checklists/forced-categories.md
     content_hash: 4accdb41457dca8abf940017c5e2b8a518d2884bdadfc756c1e55a971ead802f
   - path: factory/rubrics/checklists/send-back-grounds.md
     content_hash: d85afc45a6665ccd9bcae2a5288819ba2db215a846ee9e4d98b1ca7a92ad8682
   - path: factory/rubrics/checklists/split-patterns.md
     content_hash: 1749b53eae8ff703a88ac0656147d930e2fa65f5f1111a4814aa15419d99c3d1
+  - path: factory/rubrics/checks.md
+    content_hash: 4628a7e3d16cb183fa554600f1e6ab4dba3c98f39da16af4530b368560684fce
+  - path: factory/rubrics/clarification.md
+    content_hash: e3378a007624e2f0b38ef02b4f28817eb7eec896db899fe501a75a51f1461925
+  - path: factory/rubrics/context_gathering.md
+    content_hash: 40fc8d78c2d905886f1f46f35967d9750d181536e8b0bc28834877390b7280cb
+  - path: factory/rubrics/human_review.md
+    content_hash: 306b4ed0fd2a1dc499ce9dd65ebd550ae944b38b50e34b1c6668929d7ce9f567
+  - path: factory/rubrics/implementation.md
+    content_hash: a1daa13629523bbab4c6dd7df3b1f6961cc32454e3bca67b3d54e5bbbe4dcb06
+  - path: factory/rubrics/intake.md
+    content_hash: fc8c93b5682b8175fbc407df1915fbdbb92e14c7ff6c9499340fe4ea620a6a7e
+  - path: factory/rubrics/planning.md
+    content_hash: c3192cff33608b2458ff46d7dc4faa31977c62278392e63c582dd6b8392a1f3a
   - path: factory/scripts/checks/base_test_diff
     content_hash: 2250696ca4bdaf9644fa86ae31381e9637d1089581a9c063ce302a00c8c3d164
   - path: factory/scripts/checks/behavior_contract_evidence
-    content_hash: ca5b9071e23c1ad589ee308f081451202b077bc162f91d2251641b9c6a848e91
+    content_hash: 5b774b3680401d03d12b74555794d4ccd0409af070ccb1bda28fa28f5d2c54a3
   - path: factory/scripts/checks/dep_resolve
     content_hash: 71cab7a1943617fb7fa8419a747da24b2ae6b4e7e3fd7612846f74d42fe85a30
   - path: factory/scripts/checks/dep_verify
@@ -1163,25 +1163,25 @@ files:
   - path: factory/scripts/checks/java_test
     content_hash: a1c576f138ed754961c63d0049c4a31c1db0a351e586b483c119440b115210bb
   - path: factory/scripts/checks/risk_map
-    content_hash: 2a093e2a792758e0b8a8ca6f8a8d3904fed85fd5e3e15e71df8e35195bb0aaf9
+    content_hash: 3428925cbd78c51b03b2bc50963840adae7c76322ce4597da904e425ee4a69be
   - path: factory/scripts/checks/scope_diff
     content_hash: 86a02d36c93ef7a46ccd1fba57c7897c3ae43ed14a6d33c707ec49f17f6ab08e
   - path: factory/scripts/checks/security_checks
     content_hash: c74a9541996dbd8223a95d038be399b13fb0b047ec8f752ab32e2e6a4f8a847c
   - path: factory/scripts/checks/size_gate
-    content_hash: 7a807f7c77fa45b9ea4a272793d381b5ce608a547b968fc16078ab851747b569
+    content_hash: 31a5c6e00b4f7a2a37ec92ca2da13030e80d98068f3a71aef441c95ca0d1e805
   - path: factory/scripts/checks/source_declaration_diff
     content_hash: 5ce0b73d7cb9b9494b3b490070c881e299834ae82e00cc232f7c1c486b196ae1
   - path: factory/scripts/tools/archaeology
     content_hash: a909bf39d22608106543cbc3a117bfe49ae2b40529f59da5c4cdf8103ead4e62
   - path: factory/scripts/tools/baseline_import
-    content_hash: 0618f1abe9f452d288d43abc53184317738f0bb6c241cee2ca487738ad9bac12
+    content_hash: 8ecc7f9efbd2c508c1bd505c4c5c08534cf84bd7e87e0022a17e99459a44d6e0
   - path: factory/scripts/tools/digest
     content_hash: f1ca441a5fdc5da1aceab76fc25fc568be2c3397daa962d8e67d46d9e768415c
   - path: factory/scripts/tools/export
     content_hash: e3b238ffa0f8c1ca1b82c3f16c665da86b931bd6daec94a5e94b9363ab960b5f
   - path: factory/scripts/tools/fixture_from_export
-    content_hash: a5d24f5a68a74685b880d541cb31b4e09a9ac60f15517f5f56f1f6004a70cf38
+    content_hash: fa60586482016635514301deac24f026b0457ed032deed3b36e4bc32b0f8a473
   - path: factory/scripts/tools/handoff_ready
     content_hash: e1eb6ce520c021ebffcba12d65c4bd0d40690242a23a2a06986777ea9c1a0b75
   - path: factory/scripts/tools/import
@@ -1189,7 +1189,7 @@ files:
   - path: factory/scripts/tools/manifest_hash
     content_hash: 7fb498e68e92256527387b161ed9bc7e30e831000d4bb13f5415e67e725e62a2
   - path: factory/scripts/tools/packet_assemble
-    content_hash: 8ec2cdd6eb66a62790adbc68710ada93d0cca3d3f155ea40403b4c53d8e6b349
+    content_hash: d5355fa73207a8e807329c7ac62f930557fab128c76027dc8b7460508892724e
   - path: factory/scripts/tools/packet_render.py
     content_hash: 5c15acf6c6b7dbfcbb44e5b69433231ca76fdebdd9cf83ace74d39b6e5a9bd3f
   - path: factory/scripts/tools/pr_body_assemble
@@ -1199,24 +1199,24 @@ files:
   - path: factory/scripts/tools/reindex
     content_hash: 1bb6cf68cd9ab26dcb5dc4ba0bbf905766750220d2f02902cd8ec08bcfa67d83
   - path: factory/scripts/tools/report
-    content_hash: 54c96703c653b1eda8b91efb1e487e17c4cc1c52b13cb60138a5643ed80ec158
-  - path: factory/skills/S1.md
-    content_hash: 4110fe7068a25d5de42e5488afa2f3f7085c81a82e25c58289009a48fc9aca67
-  - path: factory/skills/S2.md
-    content_hash: 8fa555d084c9487da87847240128ce8f5face04f8a9546ac8cfa83b3326571bd
-  - path: factory/skills/S3.md
-    content_hash: b5532208b0bce5603a000fa1058c2b2c9ac239e24ce5b8a5c30c4ab958625722
-  - path: factory/skills/S4.md
-    content_hash: 7ea55a0125a73c5d307643b61d3adb4e5fc3770ba1b5c7fd4185766764436fb1
+    content_hash: 96e54865b6bda2b8a51affad967cf776e7fbc5fae65e96e443e2c75b595a31be
+  - path: factory/skills/clarification.md
+    content_hash: 3d99683edd8b9bd9b016c1e5f827f1367223c541582673146df2a5fc51636a84
+  - path: factory/skills/context_gathering.md
+    content_hash: 7c71fda154644b66706cfa97ecadb71cfdaf06ff736bf41fe29d36e873e7e2ac
+  - path: factory/skills/implementation.md
+    content_hash: 41275c548956846927fd926f7ae86b4a26224927c1e752af7a8db1f5b6543678
+  - path: factory/skills/planning.md
+    content_hash: 077bc82f8710eecc61a296060b8926b67f945e25fd8f8bdbf4463d0180e2f214
   - path: factory/skills/shared/codegraph-lookup.md
     content_hash: f4c6b1018bd39e49ba7e093053ea35830c7da7e933715d28c517409bba0eb5f0
 stages:
-  S0:
+  intake:
     default:
       agent: null
       skill: null
       shared_skills: []
-      rubric: factory/rubrics/S0.md
+      rubric: factory/rubrics/intake.md
       tool_allowlist: []
       budget: factory/config/tiers.yaml
       runtime_adapter: cursor_sdk
@@ -1226,12 +1226,12 @@ stages:
       sandbox_policy: enforced
       toolchain:
         jdk: '17'
-  S1:
+  context_gathering:
     default:
-      agent: factory/agents/S1.md
-      skill: factory/skills/S1.md
+      agent: factory/agents/context_gathering.md
+      skill: factory/skills/context_gathering.md
       shared_skills: [factory/skills/shared/codegraph-lookup.md]
-      rubric: factory/rubrics/S1.md
+      rubric: factory/rubrics/context_gathering.md
       tool_allowlist:
       - read_file
       - write_file
@@ -1244,12 +1244,12 @@ stages:
       sandbox_policy: enforced
       toolchain:
         jdk: '17'
-  S2:
+  clarification:
     default:
-      agent: factory/agents/S2.md
-      skill: factory/skills/S2.md
+      agent: factory/agents/clarification.md
+      skill: factory/skills/clarification.md
       shared_skills: []
-      rubric: factory/rubrics/S2.md
+      rubric: factory/rubrics/clarification.md
       tool_allowlist:
       - read_file
       - write_file
@@ -1263,12 +1263,12 @@ stages:
       toolchain:
         jdk: '17'
       restatement_model: claude-sonnet-5
-  S3:
+  planning:
     default:
-      agent: factory/agents/S3.md
-      skill: factory/skills/S3.md
+      agent: factory/agents/planning.md
+      skill: factory/skills/planning.md
       shared_skills: [factory/skills/shared/codegraph-lookup.md]
-      rubric: factory/rubrics/S3.md
+      rubric: factory/rubrics/planning.md
       tool_allowlist:
       - read_file
       - write_file
@@ -1281,12 +1281,12 @@ stages:
       sandbox_policy: enforced
       toolchain:
         jdk: '17'
-  S4:
+  implementation:
     default:
-      agent: factory/agents/S4.md
-      skill: factory/skills/S4.md
+      agent: factory/agents/implementation.md
+      skill: factory/skills/implementation.md
       shared_skills: [factory/skills/shared/codegraph-lookup.md]
-      rubric: factory/rubrics/S4.md
+      rubric: factory/rubrics/implementation.md
       tool_allowlist:
       - read_file
       - write_file
@@ -1299,12 +1299,12 @@ stages:
       sandbox_policy: enforced
       toolchain:
         jdk: '17'
-  S5:
+  checks:
     default:
       agent: null
       skill: null
       shared_skills: []
-      rubric: factory/rubrics/S5.md
+      rubric: factory/rubrics/checks.md
       tool_allowlist: []
       budget: factory/config/tiers.yaml
       runtime_adapter: cursor_sdk
@@ -1314,12 +1314,12 @@ stages:
       sandbox_policy: enforced
       toolchain:
         jdk: '17'
-  S6:
+  human_review:
     default:
       agent: null
       skill: null
       shared_skills: []
-      rubric: factory/rubrics/S6.md
+      rubric: factory/rubrics/human_review.md
       tool_allowlist: []
       budget: factory/config/tiers.yaml
       runtime_adapter: cursor_sdk
@@ -1332,18 +1332,18 @@ stages:
 # The one sandbox-policy entry: which OS profile each sandbox role runs
 # under, where the loopback proxy's allowlist lives, and which credential
 # roles may be admitted into each sandbox. Only an agent stage admits the
-# runtime key; S0, S5, S6 and every build sandbox admit no role at all.
+# runtime key; intake, checks, human_review and every build sandbox admit no role at all.
 sandbox_policy:
   os_profiles:
     agent: factory/config/sandbox/agent-profile.sb
     build: factory/config/sandbox/build-profile.sb
   proxy_allowlist: factory/config/sandbox.yaml
   credential_roles:
-    S0: []
-    S1: [runtime_key]
-    S2: [runtime_key]
-    S3: [runtime_key]
-    S4: [runtime_key]
-    S5: []
-    S6: []
+    intake: []
+    context_gathering: [runtime_key]
+    clarification: [runtime_key]
+    planning: [runtime_key]
+    implementation: [runtime_key]
+    checks: []
+    human_review: []
     build: []

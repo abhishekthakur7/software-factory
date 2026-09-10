@@ -35,7 +35,7 @@ FIXTURES_DIR = REPO_ROOT / "runner" / "tests" / "fixtures" / "write_barrier"
 FIXTURE_TARGETS = {
     "tag.py": FACTORY_DIR / "catalogue" / "tags.md",
     "stale_index_entry.py": FACTORY_DIR / "index" / "example.md",
-    "grader_failure.py": FACTORY_DIR / "rubrics" / "S3.md",
+    "grader_failure.py": FACTORY_DIR / "rubrics" / "planning.md",
     "engineer_reading.py": FACTORY_DIR / "catalogue" / "reading_note.md",
 }
 

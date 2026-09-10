@@ -22,9 +22,9 @@ MANDATORY_EXPIRY_GATES = frozenset({"trust_profile"})
 
 # The verbatim line every required final-review approval carries: what
 # approval certifies, and what it explicitly does not re-derive (defect
-# evidence is S5's, not the reviewer's, to establish).
+# evidence is the checks stage's, not the reviewer's, to establish).
 FINAL_REVIEW_ATTESTATION = (
-    "Approval certifies judgment, intent, and residual risk; defect evidence was supplied by S5."
+    "Approval certifies judgment, intent, and residual risk; defect evidence was supplied by checks."
 )
 FINAL_REVIEW_ATTESTATION_VERSION = "final-review-v1"
 

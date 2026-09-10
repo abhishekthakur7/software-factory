@@ -24,8 +24,8 @@ from runner.state_table import STAGE_STATE
 
 REPORT_SCRIPT = FACTORY_DIR / "scripts" / "tools" / "report"
 
-# Stages grouped by the state they run from, in run order (S5 before S6
-# in `checks`), so `advance` can ask "which stage is due here?".
+# Stages grouped by the state they run from, in run order (the checks stage before
+# human_review in the `checks` state), so `advance` can ask "which stage is due here?".
 _STAGES_OF_STATE: dict[str, list[str]] = {}
 for _stage, _state in STAGE_STATE.items():
     _STAGES_OF_STATE.setdefault(_state, []).append(_stage)
@@ -34,11 +34,11 @@ for _stage, _state in STAGE_STATE.items():
 def _due_stage(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
     """The first stage of the ticket's state still to run, or None.
 
-    A stage whose pass leaves the state (S1 to S4) is always due while the
+    A stage whose pass leaves the state (context gathering to implementation) is always due while the
     ticket sits in that state: being there with a passing run means a
-    send-back, so it runs again. A stage whose pass stays in the state (S0,
-    S5, S6) is due only until its latest run has passed; after that the
-    state's gate decides. S5 is the one exception: a latest run that did
+    send-back, so it runs again. A stage whose pass stays in the state (intake,
+    checks, human_review) is due only until its latest run has passed; after that the
+    state's gate decides. The checks stage is the one exception: a latest run that did
     not pass outright still counts as not due once every blocking result
     it left is validly waived (`runner.waivers.cleared`), since rerunning
     it would write fresh `check_result` rows no waiver names and make the
@@ -55,7 +55,7 @@ def _due_stage(conn: sqlite3.Connection, ticket: sqlite3.Row) -> str | None:
             return stage
         if latest["outcome"] == "pass":
             continue
-        if stage == "S5" and waivers.cleared(conn, latest["id"]):
+        if stage == "checks" and waivers.cleared(conn, latest["id"]):
             continue
         return stage
     return None
@@ -82,14 +82,14 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
     lease over. Immediately before it would start a due stage or evaluate
     a gate -- the two recorded boundaries -- `advance` checks the durable
     pause flag; a pending pause consumes the boundary instead, so nothing
-    below it runs this call. Before ever starting S4, the runner fetches
+    below it runs this call. Before ever starting implementation, the runner fetches
     the configured target branch and refuses to start it on a stale
     result: no stage runs, one `red_check` item is queued (unless the
     ticket already has one open), and the ticket stays where it is. The
     same freshness check backs `plan_review`'s own gate, so a moved target
     withholds `plan_quorum_fresh` too. A ticket still in `intake` is
     checked against the parallel-ticket limit before either boundary --
-    starting its `S0` run or applying the intake gate's admitting event --
+    starting its `intake` run or applying the intake gate's admitting event --
     so a ticket at capacity starts no run and moves nowhere, and the wait
     is reported instead.
     """
@@ -108,9 +108,9 @@ def advance(conn: sqlite3.Connection, ticket_id: int, runs_dir: Path = RUNS_DIR)
     if stage is not None:
         if control.pause_pending(conn, ticket_id):
             return f"ticket {ticket_id}: paused at {ticket['state']}"
-        if stage == "S4":
+        if stage == "implementation":
             fresh = freshness.check(
-                conn, ticket_id, boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,
+                conn, ticket_id, boundary=freshness.BEFORE_IMPLEMENTATION, target_branch=freshness.target_branch(), runs_dir=runs_dir,
             )
             if not fresh.fresh:
                 _open_stale_base_item(conn, ticket_id, fresh)

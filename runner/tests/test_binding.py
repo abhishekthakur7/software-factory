@@ -255,11 +255,11 @@ def test_a_gate_needs_every_required_slots_minimum_count_and_separation_met_on_t
     assert any(reason.startswith("separation:") for reason in shared_actor_again.reasons)
 
 
-# --- an S4 head advance with base_sha unchanged never invalidates the plan tuple ---
+# --- an implementation head advance with base_sha unchanged never invalidates the plan tuple ---
 
 
 def test_plan_tuple_currency_ignores_head_advance_but_catches_a_changed_base_sha(conn):
-    """the plan tuple binds base_sha, never head_sha: an S4 hand-back that
+    """the plan tuple binds base_sha, never head_sha: an implementation hand-back that
     advances the ticket's head through two task commits leaves it current,
     and only a moved base makes it stale."""
     ticket_id = seed_ticket(conn, base_sha="base-sha-1", target_base_sha="base-sha-1", head_sha="commit-0")

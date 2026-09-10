@@ -13,18 +13,18 @@ def _open(tmp_path):
 
 
 def test_a_first_attempt_task_run_is_counted_eligible_and_passed(tmp_path):
-    """R-O-4: a first-attempt, top-level `task` run with a countable outcome
+    """A first-attempt, top-level `task` run with a countable outcome
     is grouped by its own manifest, stage and tier, counted eligible and,
     since it passed, counted passed."""
     conn = _open(tmp_path)
     ticket_id = record.insert(conn, "ticket", title="t")
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", tier="light",
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", tier="light",
         manifest_hash="m1", attempt=1, run_kind="task", outcome="pass",
     )
 
     row = conn.execute(
-        "SELECT * FROM stage_reliability_view WHERE manifest_hash = 'm1' AND stage = 'S4' AND tier = 'light'"
+        "SELECT * FROM stage_reliability_view WHERE manifest_hash = 'm1' AND stage = 'implementation' AND tier = 'light'"
     ).fetchone()
 
     assert row is not None
@@ -44,13 +44,13 @@ def test_a_first_attempt_task_run_is_counted_eligible_and_passed(tmp_path):
     ],
 )
 def test_a_non_first_attempt_run_is_excluded_from_the_view(tmp_path, fields):
-    """R-O-4: a retry, a fix_round/validation_only run, and a blocked,
+    """A retry, a fix_round/validation_only run, and a blocked,
     refused, or cancelled (aborted_human) outcome each fall outside the
     first-attempt rule and never enter the reliability count."""
     conn = _open(tmp_path)
     ticket_id = record.insert(conn, "ticket", title="t")
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", tier="light", manifest_hash="m1", **fields
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", tier="light", manifest_hash="m1", **fields
     )
 
     rows = conn.execute("SELECT * FROM stage_reliability_view").fetchall()
@@ -59,22 +59,22 @@ def test_a_non_first_attempt_run_is_excluded_from_the_view(tmp_path, fields):
 
 
 def test_a_child_run_is_excluded_from_the_view(tmp_path):
-    """R-O-4: a run with a non-null `parent_run_id` is a child (or utility)
+    """A run with a non-null `parent_run_id` is a child (or utility)
     invocation, excluded from the first-attempt measure regardless of its
     own outcome or attempt number."""
     conn = _open(tmp_path)
     ticket_id = record.insert(conn, "ticket", title="t")
     parent_id = record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S2", tier="light",
+        conn, "stage_run", ticket_id=ticket_id, stage="clarification", tier="light",
         manifest_hash="m1", attempt=1, run_kind="task", outcome="pass",
     )
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S2", tier="light", manifest_hash="m1",
+        conn, "stage_run", ticket_id=ticket_id, stage="clarification", tier="light", manifest_hash="m1",
         attempt=1, run_kind="task", outcome="pass", parent_run_id=parent_id,
     )
 
     row = conn.execute(
-        "SELECT eligible_count FROM stage_reliability_view WHERE stage = 'S2'"
+        "SELECT eligible_count FROM stage_reliability_view WHERE stage = 'clarification'"
     ).fetchone()
 
     assert row["eligible_count"] == 1  # the parent alone, not the child

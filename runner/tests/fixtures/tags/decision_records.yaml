@@ -16,7 +16,7 @@ packet_defect_target:
   question:
     - as: question1
       ticket_id: $ticket1
-      stage: S2
+      stage: clarification
       round: 1
       rank: 1
       options: '[{"label": "A", "consequence": "does A"}]'

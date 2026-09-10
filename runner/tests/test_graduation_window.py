@@ -40,7 +40,7 @@ def test_window_start_is_the_later_of_the_prior_approval_and_the_latest_remediat
     conn = _conn(tmp_path)
     record.insert(
         conn, "approval_record", gate="graduation", decision="approve", decided_at="2026-01-05T00:00:00",
-        subject_hash="s1", slot_id="factory_owner|", actor_identity="abhishek", role="factory_owner",
+        subject_hash="subject-a", slot_id="factory_owner|", actor_identity="abhishek", role="factory_owner",
     )
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-20T00:00:00")
     event_id = seed.seed_incident_event(conn, ticket_id, severity="sev1")
@@ -59,7 +59,7 @@ def test_a_prior_graduation_approval_excludes_a_ticket_closed_before_its_decisio
     conn = _conn(tmp_path)
     record.insert(
         conn, "approval_record", gate="graduation", decision="approve", decided_at="2026-01-15T00:00:00",
-        subject_hash="s1", slot_id="factory_owner|", actor_identity="abhishek", role="factory_owner",
+        subject_hash="subject-a", slot_id="factory_owner|", actor_identity="abhishek", role="factory_owner",
     )
     stale_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00")
     fresh_id = seed.seed_window_ticket(conn, closed_at="2026-01-20T00:00:00")

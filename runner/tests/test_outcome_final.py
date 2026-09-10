@@ -6,7 +6,7 @@ from runner.tests.test_outcome_revision import conn, seed_pr_opened_ticket, seed
 
 
 def test_a_merged_outcome_closes_the_ticket_and_settles_its_final_fields(conn, tmp_path):
-    """R-H-11: `merged` sets `close_reason`, `closed_at`, the final SHAs, and moves the ticket to `merged`."""
+    """`merged` sets `close_reason`, `closed_at`, the final SHAs, and moves the ticket to `merged`."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -30,7 +30,7 @@ def test_a_merged_outcome_closes_the_ticket_and_settles_its_final_fields(conn, t
 
 
 def test_an_abandoned_outcome_closes_the_ticket_and_leaves_merge_sha_null(conn, tmp_path):
-    """R-H-11: `abandoned` sets the final SHAs and moves the ticket to `abandoned`, `merge_sha` stays null."""
+    """`abandoned` sets the final SHAs and moves the ticket to `abandoned`, `merge_sha` stays null."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -38,7 +38,7 @@ def test_an_abandoned_outcome_closes_the_ticket_and_leaves_merge_sha_null(conn, 
         conn, item_id=item_id, action="outcome", actor=ABHISHEK,
         fields={
             "result": "abandoned", "head_sha": "final-head", "target_base_sha": "final-base",
-            "checks": "unknown", "observed_at": "2025-01-01T00:00:00+00:00", "fm_id": "FM-07",
+            "checks": "unknown", "observed_at": "2025-01-01T00:00:00+00:00", "fm_id": "question_noise",
         },
         runs_dir=tmp_path,
     )
@@ -53,7 +53,7 @@ def test_an_abandoned_outcome_closes_the_ticket_and_leaves_merge_sha_null(conn, 
 
 
 def test_outcome_records_the_acting_identity_role_and_observed_at(conn, tmp_path):
-    """R-H-11: `outcome_actor_role` is the recorder role from `owners.yaml`, `outcome_observed_at` is the given time."""
+    """`outcome_actor_role` is the recorder role from `owners.yaml`, `outcome_observed_at` is the given time."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
@@ -76,7 +76,7 @@ def test_outcome_records_the_acting_identity_role_and_observed_at(conn, tmp_path
     [("green", None), ("waived", "flaky check waived by the owner"), ("red", None), ("unknown", None)],
 )
 def test_outcome_accepts_each_required_checks_disposition(conn, tmp_path, checks, checks_reason):
-    """R-H-11: `outcome` accepts a seeded value of each of the four `required_checks_disposition` kinds."""
+    """`outcome` accepts a seeded value of each of the four `required_checks_disposition` kinds."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
     fields = {
@@ -92,7 +92,7 @@ def test_outcome_accepts_each_required_checks_disposition(conn, tmp_path, checks
 
 
 def test_must_reject_a_waived_checks_disposition_with_no_reason(conn, tmp_path):
-    """R-H-11: a `waived` value given with no `--checks-reason` is refused."""
+    """A `waived` value given with no `--checks-reason` is refused."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 

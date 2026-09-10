@@ -1,5 +1,0 @@
-# A seeded human_verdict scenario for the R-S3-3 grader line.
-rubric_line_id: "R-S3-3:grader"
-subject: "New shared abstraction RetryPolicy cites one existing near-duplicate (HttpRetry) and names no pre-abstraction risk."
-verdict: fail
-reason: cites fewer than three existing near-duplicates and names no pre-abstraction risk

@@ -47,7 +47,7 @@ def seed_pr_outcome_item(conn, ticket_id: int) -> int:
 
 
 def test_a_reconciled_receipt_opens_exactly_one_non_blocking_pr_outcome_item(conn, tmp_path):
-    """R-H-11: the item carries `blocked_on` null and `ref` naming the reconciled receipt's artefact."""
+    """The item carries `blocked_on` null and `ref` naming the reconciled receipt's artefact."""
     ticket_id = seed_pr_opened_ticket(conn)
     artefact_id = seed_reconciled_receipt(conn, ticket_id, tmp_path)
     item_id = outcome.open_pr_outcome_item(conn, ticket_id)
@@ -59,7 +59,7 @@ def test_a_reconciled_receipt_opens_exactly_one_non_blocking_pr_outcome_item(con
 
 
 def test_a_second_reconciled_receipt_opens_no_second_pr_outcome_item(conn, tmp_path):
-    """R-H-11: exactly one current `pr_outcome` item survives create and update cycles."""
+    """Exactly one current `pr_outcome` item survives create and update cycles."""
     ticket_id = seed_pr_opened_ticket(conn)
     seed_reconciled_receipt(conn, ticket_id, tmp_path, operation="pr_create")
     first_item_id = outcome.open_pr_outcome_item(conn, ticket_id)
@@ -76,32 +76,32 @@ def test_a_second_reconciled_receipt_opens_no_second_pr_outcome_item(conn, tmp_p
 
 
 def test_revision_writes_a_tag_and_moves_the_ticket_back_to_its_target_stage(conn, tmp_path):
-    """R-H-11: `revision` to `implementing` writes one `revision_after_approval` tag and transitions the ticket."""
+    """`revision` to `implementing` writes one `revision_after_approval` tag and transitions the ticket."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
     queue.act(
         conn, item_id=item_id, action="revision", actor=ABHISHEK,
-        fields={"to": "implementing", "fm_id": "FM-07", "note": "reviewer asked for one more pass"},
+        fields={"to": "implementing", "fm_id": "question_noise", "note": "reviewer asked for one more pass"},
         runs_dir=tmp_path,
     )
 
     tag_rows = conn.execute("SELECT * FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchall()
     assert [row["event_kind"] for row in tag_rows] == ["revision_after_approval"]
-    assert tag_rows[0]["fm_id"] == "FM-07"
+    assert tag_rows[0]["fm_id"] == "question_noise"
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is not None
 
 
 def test_must_reject_a_revision_to_a_stage_pr_opened_cannot_return_to(conn, tmp_path):
-    """R-H-11: an out-of-set `--to` is refused before any tag row or transition is written."""
+    """An out-of-set `--to` is refused before any tag row or transition is written."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
 
     with pytest.raises(queue.ActionRefused):
         queue.act(
             conn, item_id=item_id, action="revision", actor=ABHISHEK,
-            fields={"to": "checks", "fm_id": "FM-07", "note": "not a real revision target"},
+            fields={"to": "checks", "fm_id": "question_noise", "note": "not a real revision target"},
             runs_dir=tmp_path,
         )
 
@@ -111,7 +111,7 @@ def test_must_reject_a_revision_to_a_stage_pr_opened_cannot_return_to(conn, tmp_
 
 
 def test_a_recorded_revision_leaves_the_prior_review_approval_unusable_for_a_new_pr_update(conn, tmp_path):
-    """R-H-11: the ticket must revisit `plan_review` through `review`; the resolved packet
+    """The ticket must revisit `plan_review` through `review`; the resolved packet
     approval that got it to `pr_opened` cannot be replayed to authorise a fresh `pr_update`."""
     ticket_id = seed_pr_opened_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
@@ -122,7 +122,7 @@ def test_a_recorded_revision_leaves_the_prior_review_approval_unusable_for_a_new
 
     queue.act(
         conn, item_id=item_id, action="revision", actor=ABHISHEK,
-        fields={"to": "implementing", "fm_id": "FM-07", "note": "found a missed edge case"},
+        fields={"to": "implementing", "fm_id": "question_noise", "note": "found a missed edge case"},
         runs_dir=tmp_path,
     )
 
@@ -132,7 +132,7 @@ def test_a_recorded_revision_leaves_the_prior_review_approval_unusable_for_a_new
 
 
 def test_revision_leaves_the_remote_branch_and_pull_request_untouched(conn, tmp_path):
-    """R-H-11: no outbox intent is created, so the ticket's own remote-publication fields do not move."""
+    """No outbox intent is created, so the ticket's own remote-publication fields do not move."""
     ticket_id = seed_pr_opened_ticket(
         conn, pr_url="https://github.example/fixture/pull/1", pr_identity="1",
         last_remote_head_sha="head-1", branch="scratch/ticket-1",
@@ -142,7 +142,7 @@ def test_revision_leaves_the_remote_branch_and_pull_request_untouched(conn, tmp_
 
     queue.act(
         conn, item_id=item_id, action="revision", actor=ABHISHEK,
-        fields={"to": "context", "fm_id": "FM-07", "note": "needs re-scoping"},
+        fields={"to": "context", "fm_id": "question_noise", "note": "needs re-scoping"},
         runs_dir=tmp_path,
     )
 

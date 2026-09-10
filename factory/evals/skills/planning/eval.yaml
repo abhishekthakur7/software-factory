@@ -1,0 +1,9 @@
+subject: factory/skills/planning.md
+owner: abhishek
+cases:
+  - name: ok
+    fixture: fixtures/ok
+    expect: ok
+  - name: missing_front_matter
+    fixture: fixtures/missing_front_matter
+    expect: reject

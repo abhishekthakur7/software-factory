@@ -70,8 +70,8 @@ def _id() -> Column:
     return Column("id", "INTEGER")
 
 
-# stage_run.stage's closed set: the S0 to S7 stage range.
-STAGES: tuple[str, ...] = ("S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7")
+# stage_run.stage's closed set: the intake to merge stage range.
+STAGES: tuple[str, ...] = ("intake", "context_gathering", "clarification", "planning", "implementation", "checks", "human_review", "merge")
 
 # stage_run.run_kind's closed set: a plan-task execution with an agent, an
 # agent fix round against failing machine checks, and the runner's
@@ -190,8 +190,13 @@ TAG_EVENT_KINDS: tuple[str, ...] = (
 )
 
 # question.state's closed set: open until a human answers it, accepts its
-# default, or (the S3 reviewer alone) accepts its proposed assumption.
-QUESTION_STATES: tuple[str, ...] = ("open", "answered", "default_accepted", "assumption_accepted")
+# default, or (the planning reviewer alone) accepts its proposed assumption.
+# `superseded` is the terminal value a flag correction moves a row to the
+# instant it appends a replacement naming this row in the replacement's
+# own `supersedes` column: the row's pre-correction state is copied onto
+# that replacement rather than lost, so `superseded` means only "a newer
+# row of this lineage carries the real state now."
+QUESTION_STATES: tuple[str, ...] = ("open", "answered", "default_accepted", "assumption_accepted", "superseded")
 
 # incident_observation.record_kind's closed set: an event root, a
 # disposition over a root, or a coverage record, in the production and
@@ -228,7 +233,7 @@ TABLES: tuple[Table, ...] = (
             Column("source_kind", "TEXT"),
             Column("source_ref", "TEXT"),
             Column("title", "TEXT"),
-            # Settles once, at S0's classification of the ticket's source
+            # Settles once, at intake's classification of the ticket's source
             # payload -- never at insert, since a Jira-sourced ticket has
             # no data class until its source is read and joined against the
             # target repositories' own classes.
@@ -236,26 +241,26 @@ TABLES: tuple[Table, ...] = (
             Column("trust_profile_hash", "TEXT"),
             Column("trust_approval_set_hash", "TEXT"),
             Column("service", "TEXT"),
-            # S0's lookups settle this group once, in place: a ticket
-            # seeded with a value already set keeps it (S0 stamps only the
+            # intake's lookups settle this group once, in place: a ticket
+            # seeded with a value already set keeps it (intake stamps only the
             # still-null members), and a second attempt to write any of
             # them is rejected. tier_provisional is the group's own
-            # sentinel, since it is always the last of the three S0 sets.
+            # sentinel, since it is always the last of the three intake sets.
             Column("service_tier", "TEXT", once="tier_provisional"),
             Column("ticket_type", "TEXT", once="tier_provisional"),
             # Pinned at eligibility; moved only by a human-approved manifest
             # migration, which returns the ticket to context.
             Column("factory_manifest_hash", "TEXT", mutable=True),
             Column("tier_provisional", "TEXT", once="tier_provisional"),
-            # S0 may raise it to heavy on a sensitive-path candidate, a
-            # human may override it at eligibility, and S1's real final-tier
-            # computation moves it again later -- so unlike tier_provisional
+            # intake may raise it to heavy on a sensitive-path candidate, a
+            # human may override it at eligibility, and the context gathering
+            # stage's real final-tier computation moves it again later -- so unlike tier_provisional
             # it settles in place rather than once at insert.
             Column("tier_final", "TEXT", mutable=True),
             Column("tier_override_by", "TEXT", mutable=True),
             Column("tier_override_at", "TEXT", mutable=True),
             Column("tier_override_reason", "TEXT", mutable=True),
-            # S0's template fill sets it after the row already exists, and
+            # intake's template fill sets it after the row already exists, and
             # the human may edit it at eligibility, so it settles in place
             # rather than once.
             Column("scrutiny_requested", "TEXT", mutable=True),
@@ -269,7 +274,7 @@ TABLES: tuple[Table, ...] = (
             # These five are pinned at eligibility, after the ticket row
             # already exists, so the first value is always an in-place
             # update rather than part of the insert; they are moved again
-            # only by the human's refresh-base and by the S4 hand-back.
+            # only by the human's refresh-base and by the implementation hand-back.
             Column("base_sha", "TEXT", mutable=True),
             Column("target_base_sha", "TEXT", mutable=True),
             Column("branch", "TEXT", mutable=True),
@@ -353,7 +358,7 @@ TABLES: tuple[Table, ...] = (
             # Whether every field needed to rebuild this run's envelope and
             # execution boundary is present, and the named gap when it
             # is not; never a claim of identical hosted-model output on
-            # replay (R-I-15).
+            # replay.
             Column("replayability", "TEXT", mutable=True, values=REPLAYABILITY),
             Column("replayability_blind_spot", "TEXT", mutable=True),
             # The agent's self-report arrives when the run ends, so it is
@@ -500,16 +505,23 @@ TABLES: tuple[Table, ...] = (
             Column("reasoning", "TEXT"),
             Column("options", "TEXT"),
             Column("default_option", "INTEGER"),
-            # The two flags and their reasons are stored separately; a human
-            # may correct either flag in place, the correction's reason
-            # landing as a `flag_correction` tag on the question.
-            Column("consequential", "INTEGER", mutable=True),
+            # The flags and their reasons, like every other content field
+            # on this row, are immutable: a human correction to any of
+            # them appends a new row naming this one in `supersedes`
+            # rather than editing it in place, so the agent's original
+            # classification stays on the record beside the correction.
+            Column("consequential", "INTEGER"),
             Column("consequential_reason", "TEXT"),
-            Column("hard_to_reverse", "INTEGER", mutable=True),
+            Column("hard_to_reverse", "INTEGER"),
             Column("hard_to_reverse_reason", "TEXT"),
-            Column("blocking", "INTEGER", mutable=True),
+            Column("blocking", "INTEGER"),
             Column("rank_inputs", "TEXT"),
             Column("raised_by_answer", "INTEGER", references="answer.id"),
+            # The row this one replaces, when it exists because a flag
+            # correction appended it -- null for a question no correction
+            # has ever superseded. The lineage's current version is the
+            # one row nothing else's `supersedes` names.
+            Column("supersedes", "INTEGER", references="question.id"),
             Column("state", "TEXT", mutable=True, values=QUESTION_STATES),
             Column("updated_at", "TEXT", mutable=True),
         ),
@@ -960,19 +972,36 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "v_questions_per_ticket",
         # A question's tier is not its own column: it is read off the
         # `question` kind queue_item raised for it. Polymorphic refs on
-        # queue_item and tag are `<table>:<id>` strings.
+        # queue_item and tag are `<table>:<id>` strings. A flag correction
+        # never opens a second queue_item -- the one from the lineage's
+        # first (root) row keeps serving every later version -- so the
+        # recursive walk below always resolves a lineage's current row
+        # back to the one id its queue_item actually names, and a row a
+        # correction superseded is excluded so the same question is never
+        # counted twice.
+        "WITH RECURSIVE root(id, root_id) AS ("
+        "SELECT id, id FROM question WHERE supersedes IS NULL "
+        "UNION ALL "
+        "SELECT q.id, root.root_id FROM question q JOIN root ON q.supersedes = root.id"
+        ") "
         "SELECT mc.ticket_id, mc.manifest_hash, qi.tier AS tier, COUNT(*) AS question_count "
         "FROM question q "
+        "JOIN root ON root.id = q.id "
         "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = q.ticket_id "
-        "LEFT JOIN queue_item qi ON qi.kind = 'question' AND qi.ref = 'question:' || q.id "
+        "LEFT JOIN queue_item qi ON qi.kind = 'question' AND qi.ref = 'question:' || root.root_id "
+        "WHERE q.id NOT IN (SELECT supersedes FROM question WHERE supersedes IS NOT NULL) "
         "GROUP BY mc.ticket_id, mc.manifest_hash, qi.tier",
     ),
     (
         "v_default_shown_share",
+        # A row a flag correction superseded carries the same
+        # `default_option` as its replacement, so it is excluded here too:
+        # counting both would show a question shown once as shown twice.
         "SELECT mc.manifest_hash, COUNT(*) AS total_questions, "
         "SUM(CASE WHEN q.default_option IS NOT NULL THEN 1 ELSE 0 END) AS shown_count "
         "FROM question q "
         "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = q.ticket_id "
+        "WHERE q.id NOT IN (SELECT supersedes FROM question WHERE supersedes IS NOT NULL) "
         "GROUP BY mc.manifest_hash",
     ),
     (
@@ -980,7 +1009,12 @@ VIEWS: tuple[tuple[str, str], ...] = (
         # The denominator is questions shown with a default; the numerator
         # counts immutable default_accepted answer events over them. Answer
         # rows are never updated or deleted, so a later superseding answer
-        # cannot erase an event already counted here.
+        # cannot erase an event already counted here. Excluding a
+        # superseded row from the denominator avoids counting the same
+        # question twice; a known gap this leaves is a question answered
+        # before a later flag correction -- the answer's `question_id`
+        # still names the pre-correction row, which this view no longer
+        # counts, so that acceptance drops out of the numerator too.
         "SELECT mc.manifest_hash, "
         "COUNT(DISTINCT q.id) AS shown_with_default_count, "
         "COUNT(a.id) AS default_accepted_count "
@@ -988,6 +1022,7 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = q.ticket_id "
         "LEFT JOIN answer a ON a.question_id = q.id AND a.resolution_kind = 'default_accepted' "
         "WHERE q.default_option IS NOT NULL "
+        "AND q.id NOT IN (SELECT supersedes FROM question WHERE supersedes IS NOT NULL) "
         "GROUP BY mc.manifest_hash",
     ),
     (
@@ -1000,7 +1035,7 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "AVG((julianday(qi.resolved_at) - julianday(qi.queued_at)) * 86400.0) AS queue_latency_seconds "
         "FROM queue_item qi "
         "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = qi.ticket_id "
-        "WHERE qi.stage IN ('S2', 'S3', 'S6') "
+        "WHERE qi.stage IN ('clarification', 'planning', 'human_review') "
         "AND qi.kind IN ('question', 'plan_approval', 'packet_approval') "
         "AND qi.resolved_at IS NOT NULL "
         "GROUP BY mc.manifest_hash, qi.stage, qi.tier",
@@ -1011,7 +1046,7 @@ VIEWS: tuple[tuple[str, str], ...] = (
         # never derived from queue latency; `unknown` groups like any other
         # bucket rather than being filtered out.
         "SELECT mc.manifest_hash, "
-        "CASE ar.gate WHEN 'plan' THEN 'S3' WHEN 'review' THEN 'S6' END AS stage, "
+        "CASE ar.gate WHEN 'plan' THEN 'planning' WHEN 'review' THEN 'human_review' END AS stage, "
         "t.tier_final AS tier, ar.decision, ar.active_attention_bucket AS bucket, "
         "COUNT(*) AS record_count "
         "FROM approval_record ar "
@@ -1110,14 +1145,14 @@ VIEWS: tuple[tuple[str, str], ...] = (
     ),
     (
         "v_reconstruction_share_by_gate",
-        # `packet_defect` tags with fm_id FM-10 point straight at the
+        # `packet_defect` tags with fm_id unreviewable_diff point straight at the
         # affected approval_record (never merely its shared queue item), so
         # the join back is a plain ref-to-id match. A defect is resolved
         # when some other tag names it through resolves_tag_id.
         "WITH defect_tags AS ("
         "SELECT tg.id AS tag_id, tg.ref AS approval_record_ref, "
         "EXISTS(SELECT 1 FROM tag r WHERE r.resolves_tag_id = tg.id) AS is_resolved "
-        "FROM tag tg WHERE tg.event_kind = 'packet_defect' AND tg.fm_id = 'FM-10') "
+        "FROM tag tg WHERE tg.event_kind = 'packet_defect' AND tg.fm_id = 'unreviewable_diff') "
         "SELECT mc.manifest_hash, ar.gate, t.tier_final AS tier, ar.role, ar.decision, "
         "ar.active_attention_bucket AS bucket, COUNT(*) AS decision_count, "
         "SUM(CASE WHEN dt.tag_id IS NOT NULL THEN 1 ELSE 0 END) AS defect_tagged_count, "
@@ -1134,7 +1169,7 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "v_escalations_per_ticket",
         "SELECT mc.ticket_id, mc.manifest_hash, COUNT(*) AS escalation_count "
         "FROM tag tg "
-        "JOIN stage_run sr ON tg.ref = 'stage_run:' || sr.id AND sr.stage = 'S4' "
+        "JOIN stage_run sr ON tg.ref = 'stage_run:' || sr.id AND sr.stage = 'implementation' "
         "JOIN v_ticket_manifest_cohorts mc ON mc.ticket_id = tg.ticket_id "
         "WHERE tg.event_kind = 'escalation' "
         "GROUP BY mc.ticket_id, mc.manifest_hash",
@@ -1205,7 +1240,7 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "SELECT sr.ticket_id, sr.manifest_hash, COUNT(*) AS fix_round_count "
         "FROM stage_run sr "
         "JOIN ticket t ON t.id = sr.ticket_id "
-        "WHERE sr.stage = 'S4' AND sr.run_kind = 'fix_round' AND (t.baseline IS NOT 1) "
+        "WHERE sr.stage = 'implementation' AND sr.run_kind = 'fix_round' AND (t.baseline IS NOT 1) "
         "GROUP BY sr.ticket_id, sr.manifest_hash",
     ),
     (

@@ -4,7 +4,7 @@ import pytest
 
 from runner import canonical, queue, record, tags
 from runner.tests.test_outcome_revision import conn, seed_pr_outcome_item, ABHISHEK
-from runner.tests.test_s5_waivers import issue_review_waiver
+from runner.tests.test_checks_waivers import issue_review_waiver
 
 APPROVED_BODY = "approved text"
 
@@ -49,7 +49,7 @@ def _record_outcome(conn, tmp_path, ticket_id, *, head_sha, target_base_sha, bod
     ids=["head_mismatch", "target_base_mismatch", "body_mismatch", "checks_red"],
 )
 def test_each_mismatch_case_still_records_the_outcome_as_mismatched(conn, tmp_path, head_sha, target_base_sha, body_text, checks):
-    """R-H-11: a diverging head, target base, body, or a red check disposition
+    """A diverging head, target base, body, or a red check disposition
     is still recorded -- `outcome` never refuses for it -- and sets `approval_disposition = 'mismatched'`."""
     ticket_id = _seed_matching_ticket(conn)
     _record_outcome(conn, tmp_path, ticket_id, head_sha=head_sha, target_base_sha=target_base_sha, body_text=body_text, checks=checks)
@@ -57,18 +57,18 @@ def test_each_mismatch_case_still_records_the_outcome_as_mismatched(conn, tmp_pa
 
 
 def test_a_mismatched_outcome_appends_a_mechanical_control_defect_tag(conn, tmp_path):
-    """R-H-11: one `control_defect` tag, `fm_id = 'FM-25'`, `tagged_by` mechanical, in the same call."""
+    """One `control_defect` tag, `fm_id = 'stale_approval'`, `tagged_by` mechanical, in the same call."""
     ticket_id = _seed_matching_ticket(conn)
     _record_outcome(conn, tmp_path, ticket_id, head_sha="different-head", target_base_sha="approved-base", body_text=APPROVED_BODY, checks="green")
 
     rows = conn.execute("SELECT * FROM tag WHERE ticket_id = ? AND event_kind = 'control_defect'", (ticket_id,)).fetchall()
     assert len(rows) == 1
-    assert rows[0]["fm_id"] == "FM-25"
+    assert rows[0]["fm_id"] == "stale_approval"
     assert rows[0]["tagged_by"] == tags.MECHANICAL_ACTOR
 
 
 def test_a_mismatched_outcome_appends_an_approval_binding_control_defect_event(conn, tmp_path):
-    """R-H-11: one `control_defect_event` row, `control_category = 'approval_binding'`, severity from the policy."""
+    """One `control_defect_event` row, `control_category = 'approval_binding'`, severity from the policy."""
     ticket_id = _seed_matching_ticket(conn)
     _record_outcome(conn, tmp_path, ticket_id, head_sha="approved-head", target_base_sha="different-base", body_text=APPROVED_BODY, checks="green")
 
@@ -81,7 +81,7 @@ def test_a_mismatched_outcome_appends_an_approval_binding_control_defect_event(c
 
 
 def test_a_mismatched_outcome_appends_an_open_control_disposition_naming_the_event(conn, tmp_path):
-    """R-H-11: one `control_disposition` row naming the event root, `disposition = 'open'`."""
+    """One `control_disposition` row naming the event root, `disposition = 'open'`."""
     ticket_id = _seed_matching_ticket(conn)
     _record_outcome(conn, tmp_path, ticket_id, head_sha="approved-head", target_base_sha="approved-base", body_text="an unapproved body", checks="green")
 
@@ -97,7 +97,7 @@ def test_a_mismatched_outcome_appends_an_open_control_disposition_naming_the_eve
 
 
 def test_a_later_policy_exception_tag_does_not_change_the_settled_approval_disposition(conn, tmp_path):
-    """R-H-11: a `waiver`/`policy_exception` tag recorded after a mismatch does not move
+    """A `waiver`/`policy_exception` tag recorded after a mismatch does not move
     `approval_disposition` -- the once-settled column has no write path left for anything to reach."""
     waiver_info = issue_review_waiver(conn, tmp_path)
     ticket_id, waiver_id = waiver_info["ticket_id"], waiver_info["waiver_id"]
@@ -110,7 +110,7 @@ def test_a_later_policy_exception_tag_does_not_change_the_settled_approval_dispo
     assert settled == "mismatched"
 
     tags.tag(
-        conn, target=f"waiver:{waiver_id}", kind="policy_exception", fm_id="FM-25", actor=ABHISHEK,
+        conn, target=f"waiver:{waiver_id}", kind="policy_exception", fm_id="stale_approval", actor=ABHISHEK,
         severity="sev4", note="reviewed and accepted the mismatch after the fact",
     )
 
@@ -118,14 +118,14 @@ def test_a_later_policy_exception_tag_does_not_change_the_settled_approval_dispo
 
 
 def test_outcome_with_every_pair_available_and_equal_and_checks_not_red_is_matched(conn, tmp_path):
-    """R-H-11: head, target base, and body hash all equal the approved subject and checks is not red."""
+    """Head, target base, and body hash all equal the approved subject and checks is not red."""
     ticket_id = _seed_matching_ticket(conn)
     _record_outcome(conn, tmp_path, ticket_id, head_sha="approved-head", target_base_sha="approved-base", body_text=APPROVED_BODY, checks="green")
     assert record.get(conn, "ticket", ticket_id)["approval_disposition"] == "matched"
 
 
 def test_outcome_with_no_mismatch_but_an_unavailable_pair_is_unknown(conn, tmp_path):
-    """R-H-11: no mismatch found, but the body hash is unavailable (neither body source given)."""
+    """No mismatch found, but the body hash is unavailable (neither body source given)."""
     ticket_id = _seed_matching_ticket(conn)
     item_id = seed_pr_outcome_item(conn, ticket_id)
     queue.act(

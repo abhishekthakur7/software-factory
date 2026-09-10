@@ -4,7 +4,7 @@
 host where `sandbox-exec` cannot actually run the agent profile fails this
 whole module's collection outright rather than letting every test skip
 quietly, since a skip here would silently stop proving the one thing this
-milestone exists to prove (R-I-14). Every probe is copied out of
+milestone exists to prove. Every probe is copied out of
 `factory/evals/sandbox/escape/fixtures/<category>/probe.py` into this
 run's own `tmp/`, the one path both the agent and the build profile grant
 read access to without also granting it to `factory/` itself, then run
@@ -95,7 +95,7 @@ def test_symlinks_probe_following_a_link_to_outside_every_mount_is_refused(tmp_p
 def test_subprocesses_probe_execing_ls_under_the_build_profile_is_refused(tmp_path):
     copy_dir = _tiny_repo(tmp_path / "copy")
     payload = _run_probe(
-        tmp_path, "subprocesses", role="build", stage="S5",
+        tmp_path, "subprocesses", role="build", stage="checks",
         copy_dir=copy_dir, build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch", cache_dir=tmp_path / "cache",
     )
     _assert_matches_expect(payload, "subprocesses")
@@ -133,7 +133,7 @@ def test_base_head_isolation_probe_a_base_write_never_reaches_head(tmp_path):
         ticket_id=1, stage_run_id=1, base_checkout=source, head_checkout=source, runs_dir=tmp_path / "runs",
     )
     payload = _run_probe(
-        tmp_path, "base-head-isolation", role="build", stage="S5",
+        tmp_path, "base-head-isolation", role="build", stage="checks",
         copy_dir=provisioned.base, build_dir=provisioned.base / "target",
         scratch_dir=provisioned.base / "scratch", cache_dir=provisioned.base / "cache",
         extra_argv=(str(provisioned.base), str(provisioned.head)),
@@ -150,7 +150,7 @@ def test_source_immutability_probe_writing_the_immutable_checkout_is_refused(tmp
         ticket_id=1, stage_run_id=1, base_checkout=source, head_checkout=source, runs_dir=tmp_path / "runs",
     )
     payload = _run_probe(
-        tmp_path, "source-immutability", role="build", stage="S5",
+        tmp_path, "source-immutability", role="build", stage="checks",
         copy_dir=provisioned.base, build_dir=provisioned.base / "target",
         scratch_dir=provisioned.base / "scratch", cache_dir=provisioned.base / "cache",
         extra_argv=(str(source),),
@@ -166,7 +166,7 @@ def test_copy_disposal_probe_neither_copy_exists_once_disposed(tmp_path):
         ticket_id=1, stage_run_id=1, base_checkout=source, head_checkout=source, runs_dir=tmp_path / "runs",
     )
     payload = _run_probe(
-        tmp_path, "copy-disposal", role="build", stage="S5",
+        tmp_path, "copy-disposal", role="build", stage="checks",
         copy_dir=provisioned.base, build_dir=provisioned.base / "target",
         scratch_dir=provisioned.base / "scratch", cache_dir=provisioned.base / "cache",
         extra_argv=(str(provisioned.base),),
@@ -184,7 +184,7 @@ def test_credentials_probe_no_ambient_credential_material_ever_surfaces(tmp_path
 
 
 def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from_every_mount(tmp_path):
-    """R-T-2: an unregistered file beside a registered one is invisible to `artefact_registry.latest`
+    """An unregistered file beside a registered one is invisible to `artefact_registry.latest`
     and absent from the next stage's sandbox, even though both files sit in the very same ticket directory."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn)
@@ -220,7 +220,7 @@ def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from
 
     result = launcher.launch(
         run_dir=run_dir, argv=[sys.executable, str(probe_copy), str(unregistered_path)], role="agent",
-        policy="enforced", cwd=tmp_path, wall_clock_seconds=20, stage="S1", ticket_dir=ticket_dir,
+        policy="enforced", cwd=tmp_path, wall_clock_seconds=20, stage="context_gathering", ticket_dir=ticket_dir,
         sandbox_path=REAL_SANDBOX_PATH,
     )
     assert result.os_policy_applied is True
@@ -231,7 +231,7 @@ def test_unregistered_file_probe_a_file_never_registered_as_input_is_absent_from
     # mount narrows to exactly the registered set, not to nothing.
     registered_read = launcher.launch(
         run_dir=run_dir, argv=[sys.executable, str(probe_copy), staged_path], role="agent",
-        policy="enforced", cwd=tmp_path, wall_clock_seconds=20, stage="S1", ticket_dir=ticket_dir,
+        policy="enforced", cwd=tmp_path, wall_clock_seconds=20, stage="context_gathering", ticket_dir=ticket_dir,
         sandbox_path=REAL_SANDBOX_PATH,
     )
     assert registered_read.stdout_json == {"attempted": True, "refused": False}
@@ -244,7 +244,7 @@ def test_ok_control_case_reads_back_its_own_out(tmp_path):
 
 
 def test_eval_directory_names_every_category_this_module_exercises():
-    """R-I-14 criterion 36: the suite covers every category the eval directory names, none silently dropped."""
+    """The suite covers every category the eval directory names, none silently dropped."""
     exercised = {
         "paths", "symlinks", "subprocesses", "environment", "sockets", "network", "mounts",
         "base-head-isolation", "source-immutability", "copy-disposal", "credentials", "unregistered-file", "ok", "vendor-read-only",
@@ -253,14 +253,14 @@ def test_eval_directory_names_every_category_this_module_exercises():
 
 
 def test_must_reject_changes_to_the_read_only_vendor_mount(tmp_path):
-    """R-I-14/R-S5-2: recipes can inspect pinned artifacts but cannot replace or delete them."""
+    """Recipes can inspect pinned artifacts but cannot replace or delete them."""
     vendor_dir = tmp_path / "vendor"
     vendor_dir.mkdir()
     dependency = vendor_dir / "pinned.jar"
     dependency.write_text("pinned dependency\n")
     copy_dir = _tiny_repo(tmp_path / "copy")
     payload = _run_probe(
-        tmp_path, "vendor-read-only", role="build", stage="S5", copy_dir=copy_dir,
+        tmp_path, "vendor-read-only", role="build", stage="checks", copy_dir=copy_dir,
         build_dir=copy_dir / "build", scratch_dir=copy_dir / "scratch", cache_dir=copy_dir / "cache",
         vendor_dir=vendor_dir, extra_argv=(str(dependency),),
     )

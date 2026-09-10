@@ -22,10 +22,10 @@ roles:
   ticket_engineer:
     identity: abhishek
     responsibilities: [sandbox_recipes]
-  s3_reviewer:
+  plan_reviewer:
     identity: abhishek
     responsibilities: [approvals]
-  s6_reviewer:
+  packet_reviewer:
     identity: abhishek
     responsibilities: [approvals]
   outcome_recorder:

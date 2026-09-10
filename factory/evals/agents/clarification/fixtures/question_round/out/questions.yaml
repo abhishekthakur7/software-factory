@@ -1,0 +1,49 @@
+# One question round: one blocking question with a default, one
+# non-blocking question with a default -- the fixture the clarification walk resolves
+# by answering the first and accepting the second's default.
+- text: "Should password reset tokens expire after 15 minutes or 60 minutes?"
+  reasoning: >-
+    Checked the login service's session config and the security team's
+    incident notes; neither states a token lifetime.
+  affects: "the password-reset flow's token lifetime"
+  options:
+    - text: "15 minutes"
+      consequence: "Tokens expire quickly, reducing replay risk but increasing reset failures."
+    - text: "60 minutes"
+      consequence: "Tokens stay valid longer, easing legitimate resets but widening the replay window."
+    - text: "none of these"
+      consequence: "If nobody answers, the reset flow ships with no token expiry at all, which is unsafe."
+  default_option: 2
+  consequential: false
+  consequential_reason: "changing the token lifetime does not alter a declared contract or a public interface"
+  hard_to_reverse: false
+  hard_to_reverse_reason: "the lifetime can be changed again in a later release"
+  blocking: true
+  sensitive: false
+  rank_inputs:
+    impact: 0.9
+    uncertainty: 0.7
+  raised_by_answer: null
+- text: "Should the audit log entry include the requesting caller's IP address?"
+  reasoning: >-
+    Checked the audit logging skill's shared doc and the on-call runbook;
+    neither addresses IP capture for this event type.
+  affects: "the audit log entry's field set for this event type"
+  options:
+    - text: "Yes, include it"
+      consequence: "The log entry carries the caller's IP, aiding investigation but adding a field reviewers must classify."
+    - text: "No, omit it"
+      consequence: "The log entry stays as it is today, with no extra classification burden."
+    - text: "none of these"
+      consequence: "If nobody answers, the log entry omits the caller's IP, matching today's shape."
+  default_option: 2
+  consequential: false
+  consequential_reason: "the log entry's shape is internal and not a declared contract"
+  hard_to_reverse: false
+  hard_to_reverse_reason: "a later release can add the field without losing history"
+  blocking: false
+  sensitive: false
+  rank_inputs:
+    impact: 0.3
+    uncertainty: 0.5
+  raised_by_answer: null

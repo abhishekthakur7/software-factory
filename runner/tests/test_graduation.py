@@ -39,7 +39,7 @@ def _passing_window(conn, tmp_path, *, manifest_hash: str = "mh1"):
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00", manifest_hash=manifest_hash)
     seed.seed_coverage(conn, ticket_id, observed_through=CUTOFF)
     seed.seed_gate_run(conn, manifest_hash=manifest_hash, outcome="pass")
-    for stage in ("S0", "S1", "S2", "S3", "S4", "S5", "S6"):
+    for stage in ("intake", "context_gathering", "clarification", "planning", "implementation", "checks", "human_review"):
         seed.seed_stage_run(conn, ticket_id, stage=stage, manifest_hash=manifest_hash)
     seed.seed_baseline_measure(conn, value=5.0)
     limits_path = seed.write_limits(tmp_path)

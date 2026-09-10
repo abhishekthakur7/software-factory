@@ -19,7 +19,7 @@ from runner.db import connect
 from runner.paths import FACTORY_DIR
 
 ABHISHEK = "abhishek"
-S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+CONTEXT_GATHERING_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "context_gathering" / "fixtures" / "plain_ok" / "out"
 _COMMIT_ENV = {
     "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.invalid",
     "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.invalid",
@@ -39,7 +39,7 @@ def _ticket_in(conn, state, **fields):
 
 def _source_repo_with_pom(tmp_path):
     """A trivial one-commit git repository carrying the pom and the one Java file the
-    `plain_ok` S1 fixture's Flags row references -- the now-real S1 needs a real worktree."""
+    `plain_ok` context_gathering fixture's Flags row references -- the now-real context_gathering needs a real worktree."""
     repo = tmp_path / "source-repo"
     repo.mkdir()
     subprocess.run(["git", "-c", "commit.gpgsign=false", "init", "-q"], cwd=repo, check=True)
@@ -61,8 +61,8 @@ def _source_repo_with_pom(tmp_path):
     return repo
 
 
-def _s1_ready_ticket(conn, tmp_path, state="context"):
-    """A ticket at `state`, cloned from a real worktree and pinned, eligible to invoke a real S1."""
+def _context_gathering_ready_ticket(conn, tmp_path, state="context"):
+    """A ticket at `state`, cloned from a real worktree and pinned, eligible to invoke a real context_gathering."""
     ticket_id = _ticket_in(
         conn, state, service="fixture-project", ticket_type="small_feature", tier_provisional="standard",
         factory_manifest_hash=manifest.current_hash(),
@@ -73,7 +73,7 @@ def _s1_ready_ticket(conn, tmp_path, state="context"):
     return ticket_id
 
 
-def _open_live_run(conn, ticket_id, stage="S4") -> int:
+def _open_live_run(conn, ticket_id, stage="implementation") -> int:
     """An open `stage_run` whose process identity is this test process itself: a genuinely live run."""
     return run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage=stage)
 
@@ -82,14 +82,14 @@ def _open_live_run(conn, ticket_id, stage="S4") -> int:
 
 
 def test_stop_terminates_the_running_stage_records_aborted_human_and_escalates(conn, tmp_path):
-    """R-I-8, criteria 1-3: `factory stop` finishes the open run `aborted_human`
+    """Criteria 1-3: `factory stop` finishes the open run `aborted_human`
     with the given note as its reasoning summary, and moves the ticket to `escalated`."""
     ticket_id = _ticket_in(conn, "implementing")
-    run_id = _open_live_run(conn, ticket_id, stage="S4")
+    run_id = _open_live_run(conn, ticket_id, stage="implementation")
 
     # `escalation` is tagged mechanically regardless of which human typed `factory stop`:
     # the tag's own provenance is the runner's, not the caller's own identity.
-    result = operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="stopped for a manual check")
+    result = operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="question_noise", note="stopped for a manual check")
 
     assert "stopped" in result
     run = record.get(conn, "stage_run", run_id)
@@ -108,29 +108,29 @@ def test_stop_terminates_the_running_stage_records_aborted_human_and_escalates(c
 def test_stop_keeps_a_run_s_own_reasoning_summary_over_the_stop_note(conn):
     """`stop` only stores its note as the reasoning summary when the run has none yet."""
     ticket_id = _ticket_in(conn, "implementing")
-    run_id = _open_live_run(conn, ticket_id, stage="S4")
+    run_id = _open_live_run(conn, ticket_id, stage="implementation")
     run_ledger.record_reasoning_summary(conn, run_id, "the agent's own report")
 
-    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="a stop note")
+    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="question_noise", note="a stop note")
 
     assert record.get(conn, "stage_run", run_id)["reasoning_summary"] == "the agent's own report"
 
 
 def test_must_reject_every_command_but_stop_while_a_run_is_live(conn, tmp_path):
-    """R-I-8, criterion 4: a seeded live stage run refuses `pause`, `resume`, `run`,
+    """Criterion 4: a seeded live stage run refuses `pause`, `resume`, `run`,
     `advance`, and `act` on the ticket's open item, leaving the run untouched;
     `stop` alone terminates it."""
     ticket_id = _ticket_in(conn, "implementing")
-    run_id = _open_live_run(conn, ticket_id, stage="S4")
+    run_id = _open_live_run(conn, ticket_id, stage="implementation")
     question_id = record.insert(
-        conn, "question", ticket_id=ticket_id, stage="S2", round=1, rank=1,
+        conn, "question", ticket_id=ticket_id, stage="clarification", round=1, rank=1,
         options='[{"label": "A", "consequence": "does A"}]', default_option=0, state="open",
     )
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="question", ref=f"question:{question_id}")
 
     assert "live run" in operations.pause(conn, ticket_id)
     assert "live run" in operations.resume(conn, ticket_id, actor=ABHISHEK)
-    assert "live run" in operations.run(conn, ticket_id, "S4", runs_dir=tmp_path)
+    assert "live run" in operations.run(conn, ticket_id, "implementation", runs_dir=tmp_path)
     assert "live run" in operations.advance(conn, ticket_id, tmp_path)
     with pytest.raises(queue.ActionRefused, match="live run"):
         queue.act(conn, item_id=item_id, action="answer", actor=ABHISHEK, runs_dir=tmp_path)
@@ -141,7 +141,7 @@ def test_must_reject_every_command_but_stop_while_a_run_is_live(conn, tmp_path):
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
     assert record.get(conn, "queue_item", item_id)["resolved_at"] is None
 
-    result = operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
+    result = operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="question_noise")
     assert "stopped" in result
     assert record.get(conn, "stage_run", run_id)["outcome"] == "aborted_human"
 
@@ -150,7 +150,7 @@ def test_must_reject_every_command_but_stop_while_a_run_is_live(conn, tmp_path):
 
 
 def test_pause_and_stop_leave_the_running_stage_s_registered_artefacts_untouched(conn, tmp_path):
-    """R-I-8, criterion 5: a pause request and a stop change no byte of the
+    """Criterion 5: a pause request and a stop change no byte of the
     run's already-registered artefact file, its `artefact` row, or its
     `inputs`, and add no new artefact -- neither ever writes steering text
     into a live run's own inputs or outputs."""
@@ -158,7 +158,7 @@ def test_pause_and_stop_leave_the_running_stage_s_registered_artefacts_untouched
     from runner.fs import write_text
 
     ticket_id = _ticket_in(conn, "implementing")
-    run_id = _open_live_run(conn, ticket_id, stage="S4")
+    run_id = _open_live_run(conn, ticket_id, stage="implementation")
     artefact_path = tmp_path / "handoff.md"
     write_text(artefact_path, "stub handoff artefact\n")
     artefact_id = artefact_registry.register(conn, ticket_id=ticket_id, kind="handoff", path=artefact_path, stage_run_id=run_id)
@@ -174,7 +174,7 @@ def test_pause_and_stop_leave_the_running_stage_s_registered_artefacts_untouched
     assert dict(record.get(conn, "artefact", artefact_id)) == before_row
     assert conn.execute("SELECT COUNT(*) FROM artefact").fetchone()[0] == before_count
 
-    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07")
+    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="question_noise")
 
     assert record.get(conn, "stage_run", run_id)["inputs"] == before_run_inputs
     assert artefact_path.read_bytes() == before_bytes
@@ -186,7 +186,7 @@ def test_pause_and_stop_leave_the_running_stage_s_registered_artefacts_untouched
 
 
 def test_pause_takes_effect_at_the_next_boundary_not_immediately(conn, tmp_path):
-    """R-I-8, R-H-13, criteria 6, 8: a pending pause, read from the durable
+    """Criteria 6, 8: a pending pause, read from the durable
     `ticket.pause_requested` column, is honoured immediately before `advance`
     would start the next due stage, running nothing that call."""
     ticket_id = _ticket_in(conn, "context")
@@ -206,7 +206,7 @@ def test_pause_takes_effect_at_the_next_boundary_not_immediately(conn, tmp_path)
 
 
 def test_a_pause_request_at_a_boundary_never_opens_a_second_manual_pause_item(conn, tmp_path):
-    """R-H-13, criterion 12: a pause request arriving at the same moment as a
+    """Criterion 12: a pause request arriving at the same moment as a
     boundary crossing resolves to pausing there, repeatably -- a second
     `advance` call while still paused opens no duplicate `manual_pause` item
     and still runs nothing."""
@@ -224,10 +224,10 @@ def test_a_pause_request_at_a_boundary_never_opens_a_second_manual_pause_item(co
 
 
 def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_path, monkeypatch):
-    """R-H-13, criterion 11: `factory resume` resolves the open `manual_pause`
+    """Criterion 11: `factory resume` resolves the open `manual_pause`
     item and clears the pause flag, and the next `advance` runs the stage the
     pause had held."""
-    ticket_id = _s1_ready_ticket(conn, tmp_path)
+    ticket_id = _context_gathering_ready_ticket(conn, tmp_path)
     operations.pause(conn, ticket_id)
     operations.advance(conn, ticket_id, tmp_path)
 
@@ -241,10 +241,10 @@ def test_resume_continues_the_paused_ticket_from_its_held_boundary(conn, tmp_pat
     ).fetchone()
     assert item["resolved_at"] is not None
 
-    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(CONTEXT_GATHERING_FIXTURE_OUT))
     operations.advance(conn, ticket_id, tmp_path)
 
-    # S1's own agent invocation opens a second, child `stage_run` under
+    # context_gathering's own agent invocation opens a second, child `stage_run` under
     # the same stage name once it passes, so one stage running is two rows.
     assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 2
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
@@ -261,32 +261,32 @@ def test_must_reject_resume_with_no_open_pause_to_resume(conn):
 
 
 def test_show_reports_stage_attempt_elapsed_budget_and_pause_state(conn, tmp_path):
-    """R-H-13, criterion 7: `factory show` reports the open run's stage,
+    """Criterion 7: `factory show` reports the open run's stage,
     attempt, elapsed wall clock, and tier budget remaining, and that no
     pause is pending."""
     ticket_id = _ticket_in(conn, "implementing", tier_final="light")
-    _open_live_run(conn, ticket_id, stage="S4")
+    _open_live_run(conn, ticket_id, stage="implementation")
 
     output = operations.show(conn, ticket_id)
 
-    assert "current: S4 attempt 1" in output
+    assert "current: implementation attempt 1" in output
     assert "elapsed" in output
     assert "budget remaining: tokens 400000" in output
     assert "pause pending: False" in output
 
 
 def test_show_lists_a_paused_ticket_s_registered_output_artefact(conn, tmp_path, monkeypatch):
-    """R-H-13, criterion 9: given a ticket paused mid-pipeline with one
+    """Criterion 9: given a ticket paused mid-pipeline with one
     registered output artefact from its latest completed run, `factory
     show` lists that artefact's path among the run's currently registered
     outputs, and reports the pause as pending."""
-    ticket_id = _s1_ready_ticket(conn, tmp_path)
-    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
-    operations.advance(conn, ticket_id, tmp_path)  # S1 runs for real and passes, registering `brief`
+    ticket_id = _context_gathering_ready_ticket(conn, tmp_path)
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(CONTEXT_GATHERING_FIXTURE_OUT))
+    operations.advance(conn, ticket_id, tmp_path)  # context_gathering runs for real and passes, registering `brief`
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
     operations.pause(conn, ticket_id)
 
-    operations.advance(conn, ticket_id, tmp_path)  # paused at the clarifying boundary before S2 ever starts
+    operations.advance(conn, ticket_id, tmp_path)  # paused at the clarifying boundary before clarification ever starts
     output = operations.show(conn, ticket_id)
 
     assert "brief.md" in output
@@ -308,7 +308,7 @@ def _seed_send_back_item(conn, kind: str) -> tuple[int, int]:
     ticket_id = _ticket_in(conn, _SEND_BACK_STATES[kind])
     kwargs = {"ticket_id": ticket_id, "kind": kind}
     if kind == "escalation":
-        stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail")
+        stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, outcome="fail")
         kwargs["ref"] = f"stage_run:{stage_run_id}"
     item_id = queue.open_item(conn, **kwargs)
     return ticket_id, item_id
@@ -316,14 +316,14 @@ def _seed_send_back_item(conn, kind: str) -> tuple[int, int]:
 
 @pytest.mark.parametrize("kind", sorted(_SEND_BACK_STATES))
 def test_send_back_from_any_open_item_moves_the_ticket_and_adds_no_approval(conn, kind):
-    """R-H-13, criterion 10: from a plan approval, packet approval, red
+    """Criterion 10: from a plan approval, packet approval, red
     check, escalation, or manual-pause item, a human may send the ticket
     back with a `send_back` tag, and no `approval_record` row is added."""
     ticket_id, item_id = _seed_send_back_item(conn, kind)
     before_approvals = conn.execute("SELECT COUNT(*) FROM approval_record").fetchone()[0]
 
     queue.act(
-        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="question_noise",
         note="duplicates_existing_work: already covered elsewhere", self_contained="yes",
     )
 

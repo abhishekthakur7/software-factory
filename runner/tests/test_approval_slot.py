@@ -17,7 +17,7 @@ def conn(tmp_path):
 
 
 def test_must_reject_a_second_approve_from_an_actor_who_already_satisfies_a_plan_approval_slot(conn, tmp_path):
-    """R-H-4: a second `approve` by the same actor on a slot they already hold a current head for is refused
+    """A second `approve` by the same actor on a slot they already hold a current head for is refused
     as a forked head (`approvals.forked_heads`), and only one immutable row for that actor and slot remains."""
     owners_path = two_slot_owners_path(tmp_path)
     ticket_id, item_id = two_slot_plan_approval_item(conn, tmp_path, owners_path)

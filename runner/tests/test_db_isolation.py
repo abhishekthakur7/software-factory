@@ -12,7 +12,7 @@ def test_fresh_database_path_has_no_prior_rows(tmp_path):
     """a fresh database path holds no prior ticket, stage run or artefact rows."""
     db_a = connect(tmp_path / "a.sqlite")
     db_a.execute("INSERT INTO ticket (id, title) VALUES (1, 'seed')")
-    db_a.execute("INSERT INTO stage_run (id, ticket_id, stage) VALUES (1, 1, 'S0')")
+    db_a.execute("INSERT INTO stage_run (id, ticket_id, stage) VALUES (1, 1, 'intake')")
     db_a.execute(
         "INSERT INTO artefact (id, ticket_id, kind, path) VALUES (1, 1, 'brief', 'x')"
     )

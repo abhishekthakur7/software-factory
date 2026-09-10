@@ -142,7 +142,7 @@ def test_approval_set_hash_is_order_independent_over_the_qualifying_rows(conn):
 def test_a_recorded_approvals_slot_id_and_scope_trace_back_to_a_derived_reviewer_sets_slot(conn, tmp_path):
     """the slot id and scope stored on an approval are the exact `slot_id`
     and matched path a real CODEOWNERS derivation produced, not a
-    hand-typed string that merely happens to look like one (R-S6-6)."""
+    hand-typed string that merely happens to look like one."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     derivation = derive_actual(

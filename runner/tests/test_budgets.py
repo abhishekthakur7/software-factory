@@ -65,8 +65,8 @@ def _ticket_in(conn, state, **fields):
 
 def _entry(**overrides) -> manifest.Entry:
     fields = dict(
-        stage="S1", tier="light", agent="factory/agents/S1.md", skill="factory/skills/S1.md",
-        shared_skills=(), rubric="factory/rubrics/S1.md", tool_allowlist=("read_file",),
+        stage="context_gathering", tier="light", agent="factory/agents/context_gathering.md", skill="factory/skills/context_gathering.md",
+        shared_skills=(), rubric="factory/rubrics/context_gathering.md", tool_allowlist=("read_file",),
         budget_source="factory/config/tiers.yaml", budget={"tokens": 100, "wall_clock_seconds": 1},
         runtime_adapter="cursor_sdk", runtime_version="1.0.31", model_requested="claude-sonnet-5",
         grader_model="claude-sonnet-5", sandbox_policy="enforced", credential_roles=(), toolchain={"jdk": "17"},
@@ -97,12 +97,12 @@ def test_check_before_invocation_refuses_a_family_already_over_its_stage_budget(
     monkeypatch.setattr(run_ledger, "TIERS_PATH", TIERS_PATH)
     ticket_id = _ticket_in(conn, "clarifying")
     parent_id = record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S2", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="clarification", attempt=1, run_kind="task",
         tokens_in=80, tokens_out=30, outcome="pass",
     )
     ticket = record.get(conn, "ticket", ticket_id)
 
-    reason = budgets.check_before_invocation(conn, ticket, "S2", "light", parent_run_id=parent_id)
+    reason = budgets.check_before_invocation(conn, ticket, "clarification", "light", parent_run_id=parent_id)
 
     assert reason is not None
     assert "tokens" in reason
@@ -113,47 +113,47 @@ def test_check_before_invocation_allows_a_family_still_under_budget(conn, monkey
     monkeypatch.setattr(run_ledger, "TIERS_PATH", TIERS_PATH)
     ticket_id = _ticket_in(conn, "clarifying")
     parent_id = record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S2", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="clarification", attempt=1, run_kind="task",
         tokens_in=5, tokens_out=5, outcome="pass",
     )
     ticket = record.get(conn, "ticket", ticket_id)
 
-    assert budgets.check_before_invocation(conn, ticket, "S2", "light", parent_run_id=parent_id) is None
+    assert budgets.check_before_invocation(conn, ticket, "clarification", "light", parent_run_id=parent_id) is None
 
 
-# ---- S4's cumulative per-ticket budget, checked before every fresh execution (criteria 12, 14) ----
+# ---- implementation's cumulative per-ticket budget, checked before every fresh execution (criteria 12, 14) ----
 
 
-def test_check_before_invocation_refuses_when_s4_cumulative_usage_exceeds_the_per_ticket_budget(conn, monkeypatch):
-    """S4's cumulative tokens across every task invocation of the ticket, not just one family, trip the per-ticket budget."""
+def test_check_before_invocation_refuses_when_implementation_cumulative_usage_exceeds_the_per_ticket_budget(conn, monkeypatch):
+    """Implementation's cumulative tokens across every task invocation of the ticket, not just one family, trip the per-ticket budget."""
     monkeypatch.setattr(run_ledger, "TIERS_PATH", TIERS_PATH)
     ticket_id = _ticket_in(conn, "implementing")
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="task",
         tokens_in=300, tokens_out=250, outcome="pass",
     )
     ticket = record.get(conn, "ticket", ticket_id)
 
     # parent_run_id=None: a fresh top-level task attempt, so the plain
     # per-stage family check alone (nothing yet in this new run's own
-    # family) would pass -- only the S4-cumulative check catches it.
-    reason = budgets.check_before_invocation(conn, ticket, "S4", "light", parent_run_id=None)
+    # family) would pass -- only the implementation-cumulative check catches it.
+    reason = budgets.check_before_invocation(conn, ticket, "implementation", "light", parent_run_id=None)
 
     assert reason is not None
-    assert "S4" in reason
+    assert "implementation" in reason
 
 
-def test_check_before_invocation_allows_a_fresh_s4_execution_under_the_cumulative_budget(conn, monkeypatch):
-    """a ticket whose S4 history is still under the per-ticket budget is never refused."""
+def test_check_before_invocation_allows_a_fresh_implementation_execution_under_the_cumulative_budget(conn, monkeypatch):
+    """a ticket whose implementation history is still under the per-ticket budget is never refused."""
     monkeypatch.setattr(run_ledger, "TIERS_PATH", TIERS_PATH)
     ticket_id = _ticket_in(conn, "implementing")
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="task",
         tokens_in=10, tokens_out=10, outcome="pass",
     )
     ticket = record.get(conn, "ticket", ticket_id)
 
-    assert budgets.check_before_invocation(conn, ticket, "S4", "light", parent_run_id=None) is None
+    assert budgets.check_before_invocation(conn, ticket, "implementation", "light", parent_run_id=None) is None
 
 
 # ---- a child's usage counts against its parent's family budget (criterion 15) ----
@@ -164,16 +164,16 @@ def test_a_childs_usage_counts_toward_its_parents_family_budget(conn, monkeypatc
     monkeypatch.setattr(run_ledger, "TIERS_PATH", TIERS_PATH)
     ticket_id = _ticket_in(conn, "clarifying")
     parent_id = record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S2", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="clarification", attempt=1, run_kind="task",
         tokens_in=10, tokens_out=10, outcome="pass",
     )
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S2", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="clarification", attempt=1, run_kind="task",
         parent_run_id=parent_id, tokens_in=50, tokens_out=40, outcome="pass",
     )
     ticket = record.get(conn, "ticket", ticket_id)
 
-    reason = budgets.check_before_invocation(conn, ticket, "S2", "light", parent_run_id=parent_id)
+    reason = budgets.check_before_invocation(conn, ticket, "clarification", "light", parent_run_id=parent_id)
 
     assert reason is not None  # 20 (parent) + 90 (child) = 110 > the light budget of 100
 
@@ -190,7 +190,7 @@ def test_a_launcher_timeout_aborts_the_run_budget_and_escalates(tmp_path):
     ticket = record.get(conn, "ticket", ticket_id)
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="light", entry=_entry(budget={"tokens": 400000, "wall_clock_seconds": 1}),
+        conn, ticket=ticket, stage="context_gathering", tier="light", entry=_entry(budget={"tokens": 400000, "wall_clock_seconds": 1}),
         runs_dir=tmp_path / "runs", runtime_path=_runtime_path(tmp_path), sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
         env_source=_env_source("timeout"),
     )
@@ -207,21 +207,21 @@ def test_a_launcher_timeout_aborts_the_run_budget_and_escalates(tmp_path):
     assert item["ref"] == f"stage_run:{result.stage_run_id}"
 
 
-def test_cursor_sdk_invoke_aborts_before_launching_when_s4_cumulative_budget_is_already_spent(tmp_path, monkeypatch):
-    """tokens are checked at the invocation boundary: an S4 attempt whose ticket already spent its per-ticket budget never launches."""
+def test_cursor_sdk_invoke_aborts_before_launching_when_implementation_cumulative_budget_is_already_spent(tmp_path, monkeypatch):
+    """tokens are checked at the invocation boundary: an implementation attempt whose ticket already spent its per-ticket budget never launches."""
     monkeypatch.setattr(run_ledger, "TIERS_PATH", TIERS_PATH)
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn, worktree_path=str(tmp_path / "worktree"))
     record.update(conn, "ticket", ticket_id, state="implementing")
     (tmp_path / "worktree").mkdir()
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="task",
         tokens_in=400, tokens_out=200, outcome="pass",
     )
     ticket = record.get(conn, "ticket", ticket_id)
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S4", tier="light", entry=_entry(stage="S4", budget={"tokens": 400000, "wall_clock_seconds": 1200}),
+        conn, ticket=ticket, stage="implementation", tier="light", entry=_entry(stage="implementation", budget={"tokens": 400000, "wall_clock_seconds": 1200}),
         runs_dir=tmp_path / "runs", runtime_path=_runtime_path(tmp_path), sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
         env_source=_env_source("settled"),
     )
@@ -237,7 +237,7 @@ def test_cursor_sdk_invoke_aborts_before_launching_when_s4_cumulative_budget_is_
     ).fetchone()[0] == 0
 
 
-# ---- the escalation note: reasoning summary, outputs, binding, failure history, S4 progress (criterion 16) ----
+# ---- the escalation note: reasoning summary, outputs, binding, failure history, implementation progress (criterion 16) ----
 
 
 def _open_escalation_item(conn, ticket_id):
@@ -247,30 +247,30 @@ def _open_escalation_item(conn, ticket_id):
 
 
 def test_abort_leaves_the_agents_reasoning_summary_alone_and_the_escalation_item_carries_the_derived_context(conn):
-    """The escalation item's reason, binding, failure history and S4 progress are derived from the record; the agent's own summary is not overwritten."""
+    """The escalation item's reason, binding, failure history and implementation progress are derived from the record; the agent's own summary is not overwritten."""
     ticket_id = _ticket_in(conn, "implementing")
     record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task",
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="task",
         outcome="fail", failure_kind="implementation",
     )
     binding_id = record.insert(
         conn, "evidence_tuple", ticket_id=ticket_id, kind="plan", content_hash="plan-subject",
         canonical_serialization_version=1,
     )
-    run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=2, run_kind="task")
+    run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=2, run_kind="task")
     ticket = record.get(conn, "ticket", ticket_id)
 
-    budgets.abort(conn, ticket, run_id, reason="exceeded the per-ticket S4 token budget")
+    budgets.abort(conn, ticket, run_id, reason="exceeded the per-ticket implementation token budget")
 
     run = record.get(conn, "stage_run", run_id)
     assert run["outcome"] == "aborted_budget"
     assert run["reasoning_summary"] is None
     note = queue.escalation_context(conn, _open_escalation_item(conn, ticket_id))
-    assert note["reason"] == "exceeded the per-ticket S4 token budget"
+    assert note["reason"] == "exceeded the per-ticket implementation token budget"
     assert note["binding_evidence_tuple_id"] == binding_id
     assert note["failure_history"] == [{"attempt": 1, "outcome": "fail", "failure_kind": "implementation"}]
     assert note["registered_outputs"] == []
-    # S4 progress: neither attempt ever reached outcome=pass, so nothing
+    # implementation progress: neither attempt ever reached outcome=pass, so nothing
     # counts as a completed task; both task rows (the earlier failure and
     # the just-aborted attempt itself) count toward execution_count.
     assert note["last_completed_task"] is None
@@ -278,14 +278,14 @@ def test_abort_leaves_the_agents_reasoning_summary_alone_and_the_escalation_item
     assert note["verification_count"] == 0
 
 
-def test_abort_reports_the_last_completed_task_and_verification_count_for_s4(conn):
-    """S4-specific progress: the highest passing task attempt, the execution count, and the verification count."""
+def test_abort_reports_the_last_completed_task_and_verification_count_for_implementation(conn):
+    """Implementation-specific progress: the highest passing task attempt, the execution count, and the verification count."""
     ticket_id = _ticket_in(conn, "implementing")
-    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task", outcome="pass")
-    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="validation_only", outcome="fail")
-    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=2, run_kind="fix_round", outcome="pass")
-    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=2, run_kind="validation_only", outcome="fail")
-    run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=3, run_kind="fix_round")
+    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="task", outcome="pass")
+    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="validation_only", outcome="fail")
+    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=2, run_kind="fix_round", outcome="pass")
+    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=2, run_kind="validation_only", outcome="fail")
+    run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=3, run_kind="fix_round")
     ticket = record.get(conn, "ticket", ticket_id)
 
     budgets.abort(conn, ticket, run_id, reason="over budget")
@@ -304,7 +304,7 @@ def test_abort_leaves_the_ticket_worktree_and_its_files_untouched(conn, tmp_path
     worktree.mkdir()
     (worktree / "in_progress.txt").write_text("partial work\n")
     ticket_id = _ticket_in(conn, "implementing", worktree_path=str(worktree))
-    run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task")
+    run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="task")
     ticket = record.get(conn, "ticket", ticket_id)
 
     budgets.abort(conn, ticket, run_id, reason="over budget")
@@ -319,7 +319,7 @@ def test_abort_leaves_the_ticket_worktree_and_its_files_untouched(conn, tmp_path
 def test_abort_never_opens_a_new_run_or_touches_verification_attempt(conn):
     ticket_id = _ticket_in(conn, "implementing")
     run_id = record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, run_kind="task", verification_attempt=2,
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, run_kind="task", verification_attempt=2,
     )
     ticket = record.get(conn, "ticket", ticket_id)
     before = conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0]
@@ -333,11 +333,11 @@ def test_abort_never_opens_a_new_run_or_touches_verification_attempt(conn):
     assert run["attempt"] == 1
 
 
-# ---- a changed S4 budget is plan-bound: migration and reapproval before it takes effect (criterion 19) ----
+# ---- a changed implementation budget is plan-bound: migration and reapproval before it takes effect (criterion 19) ----
 
 
-def test_a_changed_s4_budget_requires_migration_and_reapproval_before_it_takes_effect(tmp_path):
-    """lowering tiers.yaml's S4 budget changes the manifest hash; a ticket pinned to the old hash is refused until `migrate-manifest` re-pins it."""
+def test_a_changed_implementation_budget_requires_migration_and_reapproval_before_it_takes_effect(tmp_path):
+    """lowering tiers.yaml's implementation budget changes the manifest hash; a ticket pinned to the old hash is refused until `migrate-manifest` re-pins it."""
     repo = _committed_copy(tmp_path, "reapproval")
     old_hash = manifest.current_hash(repo)
 
@@ -350,7 +350,7 @@ def test_a_changed_s4_budget_requires_migration_and_reapproval_before_it_takes_e
     manifest_path = repo / "factory" / "manifest.yaml"
     manifest_path.write_text(manifest_path.read_text().replace(old_tiers_hash, new_tiers_hash, 1))
     _git(["add", "-A"], cwd=repo)
-    _git(["commit", "-q", "-m", "lower the S4 per-ticket budget"], cwd=repo)
+    _git(["commit", "-q", "-m", "lower the implementation per-ticket budget"], cwd=repo)
 
     new_hash = manifest.current_hash(repo)
     assert new_hash != old_hash
@@ -360,7 +360,7 @@ def test_a_changed_s4_budget_requires_migration_and_reapproval_before_it_takes_e
     record.update(conn, "ticket", ticket_id, state="implementing")
     ticket = record.get(conn, "ticket", ticket_id)
 
-    outcome = stages.invoke_agent(conn, ticket, "S5", tier="light", manifest_path=manifest_path, runs_dir=tmp_path).outcome
+    outcome = stages.invoke_agent(conn, ticket, "checks", tier="light", manifest_path=manifest_path, runs_dir=tmp_path).outcome
     assert outcome == "refused_request"
     assert conn.execute("SELECT COUNT(*) FROM stage_run").fetchone()[0] == 0
 
@@ -369,5 +369,5 @@ def test_a_changed_s4_budget_requires_migration_and_reapproval_before_it_takes_e
     ticket = record.get(conn, "ticket", ticket_id)
     assert ticket["factory_manifest_hash"] == new_hash
 
-    outcome = stages.invoke_agent(conn, ticket, "S5", tier="light", manifest_path=manifest_path, runs_dir=tmp_path).outcome
+    outcome = stages.invoke_agent(conn, ticket, "checks", tier="light", manifest_path=manifest_path, runs_dir=tmp_path).outcome
     assert outcome == "pass"

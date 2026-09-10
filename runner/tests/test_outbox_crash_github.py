@@ -1,4 +1,4 @@
-"""R-S6-3: GitHub dispatch uses the outbox crash and escalation paths, not an adapter-only substitute."""
+"""GitHub dispatch uses the outbox crash and escalation paths, not an adapter-only substitute."""
 import pytest
 import shutil
 from pathlib import Path
@@ -30,7 +30,7 @@ def profile_paths(tmp_path):
     return profile_path, owners_path
 
 
-def test_r_s6_3_retry_reconciles_the_existing_github_pull_request_by_its_branch_and_approved_body():
+def test_retry_reconciles_the_existing_github_pull_request_by_its_branch_and_approved_body():
     remote = FakeGitHubTransport()
     intent = {
         "repository": "soft-factory-scratch", "expected_prior_remote_head_sha": None,
@@ -57,7 +57,7 @@ def _github_intent(conn, runs_dir):
     return ticket_id, intent_id
 
 
-def test_r_s6_3_after_remote_success_crash_reconciles_one_github_pull_request(conn, runs_dir, profile_paths, monkeypatch):
+def test_after_remote_success_crash_reconciles_one_github_pull_request(conn, runs_dir, profile_paths, monkeypatch):
     profile_path, owners_path = profile_paths
     harness._activate(conn, profile_path, owners_path)
     ticket_id, intent_id = _github_intent(conn, runs_dir)
@@ -72,7 +72,7 @@ def test_r_s6_3_after_remote_success_crash_reconciles_one_github_pull_request(co
     assert len(remote.pull_requests) == 1
 
 
-def test_r_s6_3_nonretryable_pre_dispatch_github_control_failure_escalates(conn, runs_dir, profile_paths, monkeypatch):
+def test_nonretryable_pre_dispatch_github_control_failure_escalates(conn, runs_dir, profile_paths, monkeypatch):
     profile_path, owners_path = profile_paths
     harness._activate(conn, profile_path, owners_path)
     ticket_id, intent_id = _github_intent(conn, runs_dir)
@@ -88,7 +88,7 @@ def test_r_s6_3_nonretryable_pre_dispatch_github_control_failure_escalates(conn,
     assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
 
 
-def test_r_s6_3_before_send_crash_retries_once_against_the_github_transport(conn, runs_dir, profile_paths, monkeypatch):
+def test_before_send_crash_retries_once_against_the_github_transport(conn, runs_dir, profile_paths, monkeypatch):
     profile_path, owners_path = profile_paths
     harness._activate(conn, profile_path, owners_path)
     _, intent_id = _github_intent(conn, runs_dir)
@@ -104,7 +104,7 @@ def test_r_s6_3_before_send_crash_retries_once_against_the_github_transport(conn
     assert len(remote.pull_requests) == 1
 
 
-def test_must_reject_r_s6_3_redispatch_while_github_success_is_ambiguous(conn, runs_dir, profile_paths, monkeypatch):
+def test_must_reject_redispatch_while_github_success_is_ambiguous(conn, runs_dir, profile_paths, monkeypatch):
     from runner.deliverers.github import GitHubRemoteRefused
 
     profile_path, owners_path = profile_paths

@@ -1,4 +1,4 @@
-; Seatbelt profile for a recipe run (S4/S5 build steps): the same
+; Seatbelt profile for a recipe run (implementation/checks build steps): the same
 ; deny-default skeleton as agent-profile.sb, narrowed to what a check
 ; recipe needs -- its own copy, its build/scratch/cache directories, and
 ; the interpreter plus JDK the recipe scripts under

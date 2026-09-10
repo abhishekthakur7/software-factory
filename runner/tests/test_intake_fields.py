@@ -1,4 +1,4 @@
-"""The intake field gate: acceptance criteria, owner, parent/Confluence link, and issue type (R-S0-1)."""
+"""The intake field gate: acceptance criteria, owner, parent/Confluence link, and issue type."""
 from pathlib import Path
 
 import pytest
@@ -6,18 +6,18 @@ import yaml
 
 from runner import artefact_registry, record
 from runner.checks import intake_fields
-from runner.stages import S0
+from runner.stages import intake
 from runner.stages import run_stage
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "intake_fields"
-FIELD_NAMES = S0.load_ticket_types()["jira_fields"]
+FIELD_NAMES = intake.load_ticket_types()["jira_fields"]
 
 
 def _payload(name: str) -> dict:
     return yaml.safe_load((FIXTURES_DIR / f"{name}.yaml").read_text())
 
 
-# each reject reason, first hit wins (R-S0-1)
+# each reject reason, first hit wins
 
 def test_must_reject_empty_acceptance_criteria():
     finding = intake_fields.check(_payload("missing_acceptance_criteria"), field_names=FIELD_NAMES)
@@ -43,7 +43,7 @@ def test_must_reject_epic_issue_type_with_the_reason_named():
     assert finding.detail == "needs child tickets"
 
 
-# a payload clearing every check passes, reading field names from ticket-types.yaml (R-S0-1)
+# a payload clearing every check passes, reading field names from ticket-types.yaml
 
 def test_a_complete_payload_passes():
     finding = intake_fields.check(_payload("ok"), field_names=FIELD_NAMES)
@@ -61,7 +61,7 @@ def test_check_reads_field_names_from_ticket_types_yaml_not_a_hardcoded_mapping(
     assert finding.detail == "missing acceptance criteria"
 
 
-# S0 calls the gate before classification, writing one check_result row (R-S0-1)
+# intake calls the gate before classification, writing one check_result row
 
 @pytest.fixture
 def conn(tmp_path):
@@ -88,8 +88,8 @@ def _seed_ticket_source(conn, ticket_id, tmp_path, **overrides) -> int:
     return artefact_registry.register(conn, ticket_id=ticket_id, kind="ticket_source", path=path)
 
 
-def test_s0_driver_records_the_check_result_row_and_rejects_on_a_gate_failure(conn, tmp_path):
-    """the S0 driver, not just the pure `check` function: a jira-sourced
+def test_intake_driver_records_the_check_result_row_and_rejects_on_a_gate_failure(conn, tmp_path):
+    """the intake driver, not just the pure `check` function: a jira-sourced
     ticket whose already-registered source carries no owner sees one
     `intake_fields` check_result row and is rejected before classification."""
     ticket_id = record.insert(
@@ -98,12 +98,12 @@ def test_s0_driver_records_the_check_result_row_and_rejects_on_a_gate_failure(co
     )
     _seed_ticket_source(conn, ticket_id, tmp_path, acceptance_criteria="Given...When...Then...", parent_link="FIX-0")
 
-    outcome = run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
+    outcome = run_stage(conn, ticket_id, "intake", runs_dir=tmp_path)
 
     assert outcome == "fail"
     check_result = conn.execute(
         "SELECT * FROM check_result WHERE stage_run_id IN "
-        "(SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S0') AND check_name = 'intake_fields'",
+        "(SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'intake') AND check_name = 'intake_fields'",
         (ticket_id,),
     ).fetchone()
     assert check_result is not None
@@ -111,4 +111,4 @@ def test_s0_driver_records_the_check_result_row_and_rejects_on_a_gate_failure(co
     assert check_result["summary"] == "missing owner"
     ticket = record.get(conn, "ticket", ticket_id)
     assert ticket["state"] == "rejected"
-    assert ticket["close_reason"] == "rejected_at_s0"
+    assert ticket["close_reason"] == "rejected_at_intake"

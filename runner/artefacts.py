@@ -125,8 +125,8 @@ PLAN_TABLES: dict[str, tuple[str, ...]] = {
     "Size": ("estimated_lines", "estimated_files", "basis", "justification"),
 }
 
-# The packet/pr_body's one evidence table, in `Evidence`. Both the S6
-# driver (building `packet_inputs.json`) and the standalone assembly
+# The packet/pr_body's one evidence table, in `Evidence`. Both the human review
+# stage's driver (building `packet_inputs.json`) and the standalone assembly
 # scripts (rendering it) read this column order from here, so neither can
 # drift from the other.
 PACKET_TABLES: dict[str, tuple[str, ...]] = {
@@ -163,8 +163,10 @@ CONTRACT_STATES: tuple[str, ...] = ("unchanged", "changed", "unknown")
 # `Abstraction and separate debt.kind`.
 ABSTRACTION_KINDS: tuple[str, ...] = ("new_shared_abstraction", "widened_shared_function", "new_utility")
 
-# `Test strategy.size` and `.action`.
-TEST_SIZES: tuple[str, ...] = ("small", "medium", "large")
+# `Test strategy.size` and `.action`. `none` marks a criterion with no
+# automated test at all -- the row's `proves` cell carries the reason instead
+# of a test's purpose.
+TEST_SIZES: tuple[str, ...] = ("small", "medium", "large", "none")
 TEST_ACTIONS: tuple[str, ...] = ("add", "change", "remove")
 
 _CONTRACT_CELL_RE = re.compile(r"^(unchanged|changed|unknown)(?:\s*:\s*(.+))?$")
@@ -185,7 +187,7 @@ def contract_cell(cell: str | None) -> tuple[str, str | None]:
     return state, (evidence.strip() or None) if evidence else None
 
 # The brief's tables, by owning section. Sections not named here are
-# prose. `Final tier` is written by the S1 driver from the counts the
+# prose. `Final tier` is written by the context gathering stage's driver from the counts the
 # agent reports, never by the agent itself.
 BRIEF_TABLES: dict[str, tuple[str, ...]] = {
     "Linked sources": ("source", "date"),

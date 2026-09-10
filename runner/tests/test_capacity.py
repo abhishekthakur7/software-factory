@@ -93,14 +93,14 @@ def _seed_one_ticket_per_state(conn) -> None:
 
 
 def test_effective_parallel_limit_reads_configured_value_with_no_approval(conn, tmp_path):
-    """R-I-10: `effective_parallel_limit` reads `limits.yaml`'s `parallel_tickets` key; at one, with no
+    """`effective_parallel_limit` reads `limits.yaml`'s `parallel_tickets` key; at one, with no
     graduation approval on record, the effective limit is one with no refusal reason."""
     limits_path = _limits_yaml(tmp_path, 1)
     assert capacity.effective_parallel_limit(conn, limits_path=limits_path) == capacity.Limit(1, None)
 
 
 def test_in_flight_counts_exactly_the_defined_open_working_states(conn):
-    """R-I-10: with one ticket seeded in every state, `in_flight` counts only the eight counted states
+    """With one ticket seeded in every state, `in_flight` counts only the eight counted states
     (`context`, `clarifying`, `planning`, `plan_review`, `implementing`, `checks`, `review`, `escalated`);
     `intake`, `pr_opened`, `pr_checks`, and the terminal states are not counted."""
     _seed_one_ticket_per_state(conn)
@@ -109,14 +109,14 @@ def test_in_flight_counts_exactly_the_defined_open_working_states(conn):
 
 
 def test_in_flight_excludes_a_baseline_ticket_even_in_a_counted_state(conn):
-    """R-I-10: a pre-factory baseline ticket seeded into a counted state holds no capacity slot."""
+    """A pre-factory baseline ticket seeded into a counted state holds no capacity slot."""
     record.insert(conn, "ticket", state="context", title="baseline-context", baseline=1)
     conn.commit()
     assert capacity.in_flight(conn) == 0
 
 
 def test_advance_at_capacity_starts_no_run_and_leaves_the_ticket_in_intake(conn):
-    """R-I-10: a ticket in `intake` at the effective limit starts no `S0` run, opens no `queue_item`,
+    """A ticket in `intake` at the effective limit starts no `intake` run, opens no `queue_item`,
     and stays in `intake` with `blocked_on` null; `factory advance` reports the wait instead."""
     record.insert(conn, "ticket", state="context", title="in-flight")
     ticket_id = record.insert(conn, "ticket", state="intake", title="waiting")
@@ -131,7 +131,7 @@ def test_advance_at_capacity_starts_no_run_and_leaves_the_ticket_in_intake(conn)
 
 
 def test_queue_lists_a_capacity_wait_line_for_a_ticket_held_at_intake(conn):
-    """R-I-10: `factory queue` derives a capacity-wait line, labelled `capacity wait`, for a ticket held
+    """`factory queue` derives a capacity-wait line, labelled `capacity wait`, for a ticket held
     at `intake` by the configured limit -- the only place it can appear, since the ticket carries no
     `queue_item` of its own."""
     record.insert(conn, "ticket", state="context", title="in-flight")
@@ -142,7 +142,7 @@ def test_queue_lists_a_capacity_wait_line_for_a_ticket_held_at_intake(conn):
 
 
 def test_show_reports_the_same_capacity_wait_line(conn):
-    """R-I-10: `factory show` derives the same capacity-wait line, labelled `capacity wait`, distinct in
+    """`factory show` derives the same capacity-wait line, labelled `capacity wait`, distinct in
     wording from a human wait or queue latency."""
     record.insert(conn, "ticket", state="context", title="in-flight")
     ticket_id = record.insert(conn, "ticket", state="intake", title="waiting")
@@ -154,7 +154,7 @@ def test_show_reports_the_same_capacity_wait_line(conn):
 
 
 def test_an_unsigned_edit_to_the_configured_limit_is_refused(conn, tmp_path):
-    """R-I-10: raising `parallel_tickets` above one with no `approval_record` binding any hash for the
+    """Raising `parallel_tickets` above one with no `approval_record` binding any hash for the
     file leaves the effective limit at one, reason `unsigned_edit`."""
     limits_path = _limits_yaml(tmp_path, 3)
     limit = capacity.effective_parallel_limit(conn, limits_path=limits_path, manifest_hash=MANIFEST_HASH)
@@ -162,7 +162,7 @@ def test_an_unsigned_edit_to_the_configured_limit_is_refused(conn, tmp_path):
 
 
 def test_a_current_graduation_approval_raises_the_effective_limit(conn, tmp_path):
-    """R-I-10: a current, unexpired `graduation` approval binding a passing report and the file's exact
+    """A current, unexpired `graduation` approval binding a passing report and the file's exact
     current bytes raises `effective_parallel_limit` to the configured value."""
     limits_path = _limits_yaml(tmp_path, 3)
     report_path = _report(tmp_path, "report", passed=True, manifest_hash=MANIFEST_HASH)
@@ -173,7 +173,7 @@ def test_a_current_graduation_approval_raises_the_effective_limit(conn, tmp_path
 
 
 def test_a_stale_configuration_hash_refuses_the_raise(conn, tmp_path):
-    """R-I-10: an approval binding a configuration hash that differs from `limits.yaml`'s current bytes
+    """An approval binding a configuration hash that differs from `limits.yaml`'s current bytes
     leaves the effective limit at one, reason `stale_report`."""
     limits_path = _limits_yaml(tmp_path, 3)
     report_path = _report(tmp_path, "report", passed=True, manifest_hash=MANIFEST_HASH)
@@ -186,7 +186,7 @@ def test_a_stale_configuration_hash_refuses_the_raise(conn, tmp_path):
 
 
 def test_a_stale_manifest_hash_on_the_bound_report_refuses_the_raise(conn, tmp_path):
-    """R-I-10: an approval binding a `graduation_report` recorded under a manifest hash different from
+    """An approval binding a `graduation_report` recorded under a manifest hash different from
     the current one leaves the effective limit at one, reason `stale_report`."""
     limits_path = _limits_yaml(tmp_path, 3)
     report_path = _report(tmp_path, "report", passed=True, manifest_hash="a-different-manifest-hash")
@@ -197,7 +197,7 @@ def test_a_stale_manifest_hash_on_the_bound_report_refuses_the_raise(conn, tmp_p
 
 
 def test_an_expired_graduation_approval_confers_no_raise(conn, tmp_path):
-    """R-I-10: an expired `approval_record` on the `graduation` gate confers no effective limit above one --
+    """An expired `approval_record` on the `graduation` gate confers no effective limit above one --
     the same as no approval ever having been recorded."""
     limits_path = _limits_yaml(tmp_path, 3)
     report_path = _report(tmp_path, "report", passed=True, manifest_hash=MANIFEST_HASH)

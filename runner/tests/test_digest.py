@@ -1,4 +1,4 @@
-"""R-H-3: the digest records one utility run and one idempotent, minimal outbox intent."""
+"""The digest records one utility run and one idempotent, minimal outbox intent."""
 import json
 import plistlib
 import subprocess

@@ -15,10 +15,10 @@ budgets:
       tokens: 400
       wall_clock_seconds: 20
   overrides:
-    S5:
+    checks:
       wall_clock_seconds: null
 
-s4_per_ticket:
+implementation_per_ticket:
   light:
     tokens: 500
     wall_clock_seconds: 30

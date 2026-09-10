@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| Status | Draft v0.3 |
+| Status | Draft v0.4 |
 | Date | 2026-09-10 |
 | Owner | Abhishek Thakur |
 | Reviewed against | `docs/prd/prd.md` v0.18 and its parts; `docs/design/hld/README.md` v0.3 and the L1/L2 files; `docs/design/milestones.md` v0.7 section 3 and Appendix A; `docs/design/tickets/A.md`, `AB.md`, `B.md` |
 | Reviewed code | `runner/`, `factory/`, `tools/`, `runner/tests/` at commit 332b84c (tree clean) |
 | Out of scope | T-B-06 (live connections, `factory doctor`, runbooks) and T-B-07 (the dry run on the pilot host), not yet built; every PRD row marked Later |
-| Test baseline | `uv run pytest runner/tests -q`: 1857 passed, 4 skipped, 14m44s. The four skips are the loud real-host skips (Cursor key, two Atlassian Keychain reads, the live closing run) |
+| Test baseline | `uv run pytest runner/tests -q`: 1857 passed, 4 skipped, 14m44s at v0.1; 1882 passed, 4 skipped, 15m08s after v0.4. The four skips are the loud real-host skips (Cursor key, two Atlassian Keychain reads, the live closing run) |
 
 ## 1. How this review was done
 
@@ -43,14 +43,14 @@ The owner's rule: the factory cannot yet open a real pull request, so security h
 | G-04 guard seats | closed by decision, rest deferred; code aligned 2026-09-10 | Guard covers outside content, the baseline import, display, outbox and export in Initial (R-T-9 narrowed); stage output, mounts, logs and dispatch are R-T-13 (Later). `CROSSINGS` now declares exactly those five, S0's intake is decided under `ingress`, and an undeclared crossing denies with `crossing_not_declared`. To-do at each deferred seat: `runner/guard.py` (the tuple), `runner/artefact_registry.py`, `runner/launcher.py`, `runner/adapters/cursor_sdk.py` and `runner/sandbox/proxy.py` (dispatch) |
 | G-05 registry policy | deferred | R-S5-15 (Later); R-S5-2 and R-I-14 narrowed. To-do in `runner/stages/S5.py` and `runner/recipes.py` |
 | G-06 pilot repository entry | wait | Environment work under the live-connection ticket; the single-entry loader changes then |
-| G-07 retry evidence feed | fix | |
-| G-08 removal return, bad hand-back | fix | |
-| G-09 pre-dispatch mismatch routes | fix | |
+| G-07 retry evidence feed | fixed 2026-09-10 | `_validate_task` registers the validation recipe's output as a `task_validation_evidence` artefact on the `task_validation` check result; attempt N+1 of the same task under the same plan-item version stages the last verification failure's evidence through `_red_evidence_artefact_ids`, skipping over intervening infrastructure failures. Evidence never crosses tasks or plan versions |
+| G-08 removal return, bad hand-back | fixed 2026-09-10 | S5 preflight applies `checks_removal_return` on the accidental case, recording the offending paths as an `exclusion` failure with evidence and a `removal_route` marker; S4 reads the marker the way it reads `fix_round_route` and runs a removal round through the fix-round machinery, confined by rerunning the exclusion decision over the round's diff instead of the plan's scope table, then `validation_only` and `s4_pass`. A removal round is stored as `run_kind = fix_round` and draws on the fix-round cap, since `limits.yaml` has no separate entry; a failed or capped round opens one `red_check`. A ticket at `checks` with no recorded branch, head or worktree applies `checks_bad_handback` before the freshness check and resumes the ordinary per-task loop under its own bound |
+| G-09 pre-dispatch mismatch routes | fixed 2026-09-10 | The outbox's pre-dispatch recheck records the mismatched component in `external_write.last_error` under a `predispatch_mismatch:` prefix, widest first: target base or trust profile moved routes to `context`; a newer plan tuple or an invalid plan waiver routes to `planning`; a review-subject, head or destination mismatch routes to `checks`, which `review_gate` also uses as the fail-safe when no component was recorded |
 | G-10 baseline freeze | fix | Freeze regardless of count; the gate reports a short baseline as unavailable |
 | G-11 disposition values | fix | The entity table's set wins; fix the config, the loader and the pinning test |
-| G-12 question flags mutable | fix | A correction appends a new question version; the original stays visible |
-| G-13 blocking override | fix | Same mechanism as G-12 |
-| G-14 `size: none` | fix | |
+| G-12 question flags mutable | fixed 2026-09-10 | The three flags are immutable; `correct_flag` appends a row copying every content field with the corrected flag, `supersedes` naming the tip, the tip's state carried forward and the tip moved to the new `superseded` state; the `flag_correction` tag lands on the new row. The queue, checklist, S3 plan inputs and report views read only lineage tips. Observed while fixing: `answer.question_version_hash` is declared but never written anywhere, so an answer binds to the question id alone; left as is |
+| G-13 blocking override | fixed 2026-09-10 | `correct_flag` accepts `blocking`; `factory act` takes `--blocking yes|no` through `queue.act`; a blocking question corrected to non-blocking on a ticket parked in `clarifying` lets the next `advance` leave the state |
+| G-14 `size: none` | fixed 2026-09-10 | `none` is a test-strategy size; the rubric fails a `none` row with an empty `proves` or an action other than `add`; the test-mix report counts automated sizes only; the packet's test summary matches rows to diff files by name and needs no change. The S3 rubric fixture was not given a `none` row because its hash is pinned in the manifest, which cannot change uncommitted |
 | G-15 S0 rubric stub | fix | |
 | G-16 S2 pre-fill unreachable | closed by decision | Clause dropped from R-S2-4; remove the dead code |
 | G-17 `tools.yaml` | closed by decision | The manifest's per-stage list is the table; PRD sections 7 and 8 amended. Make the list carry the real per-stage entries |
@@ -361,6 +361,7 @@ What the reviewers checked and found to match, by slice. The per-slice reports c
 
 ## Revision history
 
+- **v0.4, 2026-09-10.** Six major findings closed in code by parallel fixers: G-07, G-08, G-09, G-12, G-13 and G-14, each with end-to-end tests driven through the real drivers. Section 2a rows updated with what was built and the two simplifications taken (a removal round shares the fix round's `run_kind` and cap; `answer.question_version_hash` stays unwritten). Finding text unchanged.
 - **v0.3, 2026-09-10.** The four blocking findings closed in code: G-01, G-02 and G-03 fixed with the end-to-end tests section 10 asked for; G-04's declared crossing set and the S0 intake name aligned to the narrowed R-T-9, with an undeclared crossing now denied. Section 2a rows updated; finding text unchanged.
 - **v0.2, 2026-09-10.** Section 2a added with the owner's decisions and the disposition of every finding; PRD v0.19 applied (three Later rows, four rows narrowed, decision 55) and to-do notes placed at the seven code seams the deferred items would occupy. Finding text unchanged.
 - **v0.1, 2026-09-10.** First review of the implemented A, AB and B tickets by nine slice reviewers with orchestrator re-verification of every blocking and major finding. 36 findings: 4 blocking, 17 major, 15 minor; 6 known simplifications confirmed; 4 doc-drift items.

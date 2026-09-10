@@ -3,7 +3,7 @@
 Each wrapper's exit code is the check's own outcome (unlike the later
 scripts that always exit 0 and carry `result` in a printed JSON line):
 `expected_exit_codes: [0]` in `command-recipes.yaml` is what makes a
-non-zero exit here a failed check to the S4/S5 drivers that call these
+non-zero exit here a failed check to the implementation/checks drivers that call these
 scripts. Skips loudly, not silently, when no JDK is on `PATH`.
 """
 import json
@@ -34,7 +34,7 @@ def _case(eval_dir):
 
 @pytest.mark.skipif(not HAS_JAVAC, reason=SKIP_REASON)
 def test_java_compile_passes_over_its_two_file_fixture(tmp_path):
-    """R-F-2: `java_compile`'s eval directory carries a real, compiling two-file source tree."""
+    """`java_compile`'s eval directory carries a real, compiling two-file source tree."""
     fixture = COMPILE_EVAL_DIR / _case(COMPILE_EVAL_DIR)["fixture"]
     result = subprocess.run(
         [str(COMPILE_SCRIPT), "--source-root", str(fixture / "src"), "--classpath", "", "--out", str(tmp_path / "out")],
@@ -46,7 +46,7 @@ def test_java_compile_passes_over_its_two_file_fixture(tmp_path):
 
 @pytest.mark.skipif(not HAS_JAVAC, reason=SKIP_REASON)
 def test_java_lint_passes_over_its_two_file_fixture(tmp_path):
-    """R-F-2: `java_lint`'s fixture compiles clean under `-Xlint:all -Werror`, no warnings."""
+    """`java_lint`'s fixture compiles clean under `-Xlint:all -Werror`, no warnings."""
     fixture = LINT_EVAL_DIR / _case(LINT_EVAL_DIR)["fixture"]
     result = subprocess.run(
         [str(LINT_SCRIPT), "--source-root", str(fixture / "src"), "--classpath", "", "--out", str(tmp_path / "out")],
@@ -58,7 +58,7 @@ def test_java_lint_passes_over_its_two_file_fixture(tmp_path):
 
 @pytest.mark.skipif(not HAS_JAVAC, reason=SKIP_REASON)
 def test_java_test_runs_its_fixtures_unit_test_and_reports_the_identity_that_ran(tmp_path):
-    """R-F-2: `java_test`'s fixture compiles a main class plus a test class and runs it,
+    """`java_test`'s fixture compiles a main class plus a test class and runs it,
     printing the test identity the launcher parses off the final JSON line."""
     fixture = TEST_EVAL_DIR / _case(TEST_EVAL_DIR)["fixture"]
     result = subprocess.run(

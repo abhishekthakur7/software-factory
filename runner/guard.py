@@ -26,7 +26,7 @@ from typing import Mapping
 from runner import canonical, governance, owners, record, trust_profile
 
 # The crossings the guard is seated on today, each with one production
-# call site: `ingress` (S0's Jira read), `persistence` (the baseline
+# call site: `ingress` (intake's Jira read), `persistence` (the baseline
 # import), `display` (`show_artefact`), `outbox` (every outbox payload)
 # and `export`. The tuple is deliberately no wider than the seats that
 # exist: `decide` denies an undeclared name, so a seat added without

@@ -27,7 +27,7 @@ def conn(tmp_path):
 
 
 def test_an_artefact_carrying_a_credential_is_denied_display_not_printed(conn, tmp_path):
-    """R-H-4: the guard's secret scan denies the artefact before any content is returned; the credential
+    """The guard's secret scan denies the artefact before any content is returned; the credential
     reaches neither the raised refusal nor the `guard_decision` row's own stored fields."""
     _governed_ticket_fields(conn)
     ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now(), data_class="confidential")
@@ -51,13 +51,13 @@ def test_an_artefact_carrying_a_credential_is_denied_display_not_printed(conn, t
 
 
 def test_a_credential_in_a_send_back_note_never_reaches_any_actions_own_response(conn, tmp_path):
-    """R-H-4: a `send_back`'s response and every neighbouring action's own response name nothing from the note."""
+    """A `send_back`'s response and every neighbouring action's own response name nothing from the note."""
     ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
     note = f"other: rotate this leaked token {CREDENTIAL} before merging"
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="red_check")
 
     result = queue.act(
-        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="question_noise",
         note=note, runs_dir=tmp_path,
     )
     assert CREDENTIAL not in result
@@ -65,7 +65,7 @@ def test_a_credential_in_a_send_back_note_never_reaches_any_actions_own_response
     item_id2 = queue.open_item(conn, ticket_id=ticket_id, kind="red_check")
     control_result = queue.act(
         conn, item_id=item_id2, action="control_event", actor=ABHISHEK, category="execution_boundary",
-        severity="sev3", fm_id="FM-09", note=note, runs_dir=tmp_path,
+        severity="sev3", fm_id="parallel_fatigue", note=note, runs_dir=tmp_path,
     )
     assert CREDENTIAL not in control_result
 
@@ -77,7 +77,7 @@ def test_a_credential_in_a_send_back_note_never_reaches_any_actions_own_response
 
 
 def test_a_credential_in_a_tag_note_stays_on_that_one_tag_row_only(conn, tmp_path):
-    """R-H-4: a `factory tag` note is stored on the tag itself but is never copied onto the ticket, the
+    """A `factory tag` note is stored on the tag itself but is never copied onto the ticket, the
     resolved queue item, or any approval row a neighbouring action writes."""
     ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="red_check")

@@ -1,4 +1,4 @@
-"""Configured local security controls report findings and unavailable evidence (R-S5-1)."""
+"""Configured local security controls report findings and unavailable evidence."""
 import json
 import subprocess
 from pathlib import Path

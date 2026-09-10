@@ -100,7 +100,7 @@ def seed_control_disposition(conn, event_id: int, ticket_id: int, *, disposition
 
 
 def seed_tag(
-    conn, ticket_id: int, *, event_kind: str, fm_id: str = "FM-01", ref: str | None = None,
+    conn, ticket_id: int, *, event_kind: str, fm_id: str = "unjustified_abstraction", ref: str | None = None,
     tagged_by: str = "abhishek", resolves_tag_id: int | None = None, resolution_evidence_ref: str | None = None,
 ) -> int:
     return record.insert(

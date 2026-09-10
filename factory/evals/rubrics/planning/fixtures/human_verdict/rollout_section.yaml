@@ -1,0 +1,5 @@
+# A seeded human_verdict scenario for the rollout_section grader line.
+rubric_line_id: "rollout_section:grader"
+subject: "Guardrail metric error_rate carries no critical_threshold; kill trigger default_response is 'page the on-call engineer'."
+verdict: fail
+reason: the guardrail metric carries no critical threshold and the kill trigger names no rollback as the default response

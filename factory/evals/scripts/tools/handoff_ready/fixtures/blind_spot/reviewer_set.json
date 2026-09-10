@@ -1,1 +1,1 @@
-[{"role": "s3_reviewer", "owner": "abhishek", "source_rule": "s3_reviewer_role", "slot_id": "s3_reviewer|abhishek|s3_reviewer_role", "min_count": 1, "distinct_from": [], "resolved": true}]
+[{"role": "plan_reviewer", "owner": "abhishek", "source_rule": "plan_reviewer_role", "slot_id": "plan_reviewer|abhishek|plan_reviewer_role", "min_count": 1, "distinct_from": [], "resolved": true}]

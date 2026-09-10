@@ -47,7 +47,7 @@ def two_slot_plan_approval_item(conn, tmp_path: Path, owners_path: Path) -> tupl
         path.write_text(f"## {artefacts.SECTIONS[artefact_kind][0]}\n\nstub\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind=artefact_kind, path=path)
     slots = [
-        Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=ABHISHEK, min_count=1),
+        Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=ABHISHEK, min_count=1),
         Slot(source_rule="second_reviewer_role", role="second_reviewer", owner=SECOND_REVIEWER, min_count=1),
     ]
     reviewer_set_id = record.insert(
@@ -67,11 +67,11 @@ def two_slot_plan_approval_item(conn, tmp_path: Path, owners_path: Path) -> tupl
 
 
 def test_a_control_defect_escalations_resume_is_refused_until_remediated_and_gated(conn, tmp_path):
-    """R-H-4: a plain `resume` is refused while the escalation's control-defect event carries no `remediated`
+    """A plain `resume` is refused while the escalation's control-defect event carries no `remediated`
     disposition or no newer passing `gate` run, and accepted once both exist."""
     ticket_id = record.insert(conn, "ticket", state="escalated", opened_at=record.now())
     stage_run_id = record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail", failure_kind="sandbox_integrity",
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, outcome="fail", failure_kind="sandbox_integrity",
     )
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="escalation", ref=f"stage_run:{stage_run_id}")
 
@@ -99,7 +99,7 @@ def test_a_control_defect_escalations_resume_is_refused_until_remediated_and_gat
 
 
 def test_a_two_slot_plan_approval_leaves_the_ticket_open_until_the_second_slots_record_exists(conn, tmp_path):
-    """R-H-4: `approve` resolves the item only once every named slot holds its own approval record,
+    """`approve` resolves the item only once every named slot holds its own approval record,
     not on the first slot's alone."""
     owners_path = two_slot_owners_path(tmp_path)
     ticket_id, item_id = two_slot_plan_approval_item(conn, tmp_path, owners_path)
@@ -121,7 +121,7 @@ def test_a_two_slot_plan_approval_leaves_the_ticket_open_until_the_second_slots_
 
 
 def test_close_inspection_resolves_the_item_and_carries_no_state_transition_of_its_own(conn):
-    """R-H-4: `close_inspection` settles the item's own resolution columns and leaves the ticket's state untouched."""
+    """`close_inspection` settles the item's own resolution columns and leaves the ticket's state untouched."""
     ticket_id = record.insert(conn, "ticket", state="planning", opened_at=record.now())
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="rubric_inspection")
 

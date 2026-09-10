@@ -3,7 +3,7 @@
 # explicitly a blind spot under the named waiver policy.
 version: 1
 waiver_policy: factory/config/waiver-policy.yaml
-waiver_policy_digest: eb61803fd6d1806c5f70f102d6620c69d4df5439d72eb850e270bfd1a8bdfa77
+waiver_policy_digest: 2e5345b04910fd874bf102fe079ba2a91e3ff88817b55a13634657e7095295f5
 blind_spot_policy: recipe-execution-gap
 controls:
   - id: secret_scan

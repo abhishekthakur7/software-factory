@@ -1,6 +1,6 @@
 subject: immutable control history
 owner: abhishek
-failure_modes: [FM-09, FM-20]
+failure_modes: [parallel_fatigue, hallucinated_dependency]
 cases:
   - name: persisted_append_only_history
     fixture: fixtures/history.yaml

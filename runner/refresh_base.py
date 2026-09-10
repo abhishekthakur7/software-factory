@@ -5,7 +5,7 @@ function, a send-back, or an abandon -- never automatically -- so this is
 the one place a moved target branch is actually absorbed. On a clean
 rebase, the new base and head are recorded and the ticket returns to
 `context` through the `refresh_base` transition, which by itself makes a
-new context pass, plan approval, S4 validation and S5 all required again:
+new context pass, plan approval, implementation validation and the checks stage all required again:
 nothing here has to enforce that separately. On a conflict the rebase is
 aborted rather than resolved -- resolving a conflict is exactly the
 judgment call this function must never make on a human's behalf -- and the

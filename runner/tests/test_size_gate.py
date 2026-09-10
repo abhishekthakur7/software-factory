@@ -1,7 +1,7 @@
-"""`factory/scripts/checks/size_gate`, driven through its eval.yaml fixtures (R-S3-12).
+"""`factory/scripts/checks/size_gate`, driven through its eval.yaml fixtures.
 
-One tier threshold applied twice: at S3 over the plan's own size estimate
-(`--plan` alone), and standing in for S5 over a real diff (`--plan --diff`),
+One tier threshold applied twice: at planning over the plan's own size estimate
+(`--plan` alone), and standing in for checks over a real diff (`--plan --diff`),
 excluding lockfiles and `project.yaml`'s generated paths either way.
 """
 import json
@@ -29,8 +29,8 @@ def _run(case: dict) -> subprocess.CompletedProcess:
 
 @pytest.mark.parametrize("case", EVAL_SPEC["cases"], ids=[c["name"] for c in EVAL_SPEC["cases"]])
 def test_size_gate_conformance_case(case):
-    """R-S3-12: over-threshold-with-no-justification fails at both S3's plan-estimate
-    mode and the S5 stand-in diff mode; a justification present on the approved plan passes
+    """Over-threshold-with-no-justification fails at both planning's plan-estimate
+    mode and the checks stand-in diff mode; a justification present on the approved plan passes
     either way and says so."""
     result = _run(case)
     payload = json.loads(result.stdout)
@@ -43,14 +43,14 @@ def test_size_gate_conformance_case(case):
 
 
 def test_plan_mode_reads_the_estimate_from_the_plans_own_size_table():
-    """R-S3-12: the plan-mode number is the Size table's estimated_lines, not a diff count."""
+    """The plan-mode number is the Size table's estimated_lines, not a diff count."""
     over = next(c for c in EVAL_SPEC["cases"] if c["name"] == "plan_over_threshold")
     payload = json.loads(_run(over).stdout)
     assert payload["lines"] == 500
 
 
 def test_diff_mode_excludes_lockfiles_and_generated_paths():
-    """R-S3-12: the seeded fixture diff's lockfile hunk (uv.lock) never counts toward the total."""
+    """The seeded fixture diff's lockfile hunk (uv.lock) never counts toward the total."""
     over = next(c for c in EVAL_SPEC["cases"] if c["name"] == "diff_over_threshold")
     diff_text = (EVAL_DIR / over["fixture"] / "diff.txt").read_text()
     assert "uv.lock" in diff_text  # the fixture really does carry an excluded hunk

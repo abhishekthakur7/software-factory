@@ -43,7 +43,7 @@ ALLOWED_COLUMNS = {
         "resolved_at", "resolved_by", "resolved_role", "action", "note", "active_attention_bucket",
         "updated_at",
     },
-    "question": {"state", "consequential", "hard_to_reverse", "blocking", "updated_at"},
+    "question": {"state", "updated_at"},
     "answer": set(),
     "assumption": set(),
     "deviation": set(),
@@ -68,7 +68,7 @@ ALLOWED_COLUMNS = {
 # Extra columns a fresh row of a table needs to satisfy its NOT NULL
 # constraints, beyond the empty insert `record.insert` would otherwise try.
 REQUIRED_INSERT_FIELDS = {
-    "stage_run": {"stage": "S1"},
+    "stage_run": {"stage": "context_gathering"},
     "tag": {"fm_id": "override"},
     "waiver": {"expires_at": "2030-01-01T00:00:00+00:00"},
 }
@@ -123,7 +123,7 @@ def test_ticket_lifecycle_fields_are_updatable_in_place(tmp_path):
 
 
 def test_ticket_data_class_can_be_written_once(tmp_path):
-    """S0's classification settles data_class once, in place."""
+    """intake's classification settles data_class once, in place."""
     conn = _open(tmp_path)
     ticket_id = record.insert(conn, "ticket", title="t")
 
@@ -158,7 +158,7 @@ def test_stage_run_outcome_and_lease_fields_are_updatable_in_place(tmp_path):
     """stage_run's outcome and lease fields change in place."""
     conn = _open(tmp_path)
     ticket_id = record.insert(conn, "ticket", title="t")
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S1")
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="context_gathering")
 
     lease_values = {
         "outcome": "pass",
@@ -178,7 +178,7 @@ def test_stage_run_cost_settlement_can_be_written_once(tmp_path):
     """the cost settlement group can be written once, all together."""
     conn = _open(tmp_path)
     ticket_id = record.insert(conn, "ticket", title="t")
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S1")
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="context_gathering")
 
     conn.execute(
         "UPDATE stage_run SET cost = ?, currency = ?, cost_basis = ?, "
@@ -195,7 +195,7 @@ def test_must_reject_stage_run_cost_settlement_second_write(tmp_path):
     """a second settlement of the same run's cost is rejected."""
     conn = _open(tmp_path)
     ticket_id = record.insert(conn, "ticket", title="t")
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S1")
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="context_gathering")
     conn.execute(
         "UPDATE stage_run SET cost = ?, currency = ?, cost_basis = ?, "
         "pricing_table_hash = ?, cost_settled_at = ? WHERE id = ?",

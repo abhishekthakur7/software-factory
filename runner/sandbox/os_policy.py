@@ -119,7 +119,7 @@ def wrap(
 def _throwaway_params(scratch: str) -> dict[str, str]:
     return {
         "REPO_ROOT": str(REPO_ROOT), "PYTHON_ROOT": sys.base_prefix, "WORKTREE": scratch,
-        "RUN_DIR": scratch, "TICKET_DIR": scratch, "TMPDIR": scratch, "STAGE": "S0", "PROXY_PORT": "0",
+        "RUN_DIR": scratch, "TICKET_DIR": scratch, "TMPDIR": scratch, "STAGE": "intake", "PROXY_PORT": "0",
     }
 
 

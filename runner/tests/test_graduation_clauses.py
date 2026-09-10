@@ -77,21 +77,21 @@ def test_a_stage_below_the_first_attempt_floor_fails_the_stage_clause(tmp_path):
     """The excluded-denominator test: too few first attempts fails the stage outright."""
     conn = _conn(tmp_path)
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00")
-    seed.seed_stage_run(conn, ticket_id, stage="S3", outcome="pass")
+    seed.seed_stage_run(conn, ticket_id, stage="planning", outcome="pass")
     conn.commit()
 
     result = graduation.stage_reliability(conn, _limits(stage_min_first_attempts=5), seed.DEFAULT_MANIFEST_HASH)
 
     assert result["passed"] is False
-    assert "stage_below_threshold:S3" in result["reasons"]
-    assert result["inputs"]["per_stage"]["S3"]["eligible_count"] == 1
+    assert "stage_below_threshold:planning" in result["reasons"]
+    assert result["inputs"]["per_stage"]["planning"]["eligible_count"] == 1
 
 
 def test_a_stage_at_or_below_the_pass_share_floor_fails_the_stage_clause(tmp_path):
     conn = _conn(tmp_path)
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00")
-    seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="pass")
-    seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="fail")
+    seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="pass")
+    seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="fail")
     conn.commit()
 
     result = graduation.stage_reliability(
@@ -99,28 +99,28 @@ def test_a_stage_at_or_below_the_pass_share_floor_fails_the_stage_clause(tmp_pat
     )
 
     assert result["passed"] is False
-    assert "stage_below_threshold:S4" in result["reasons"]
-    assert result["inputs"]["per_stage"]["S4"]["pass_share"] == 0.5
+    assert "stage_below_threshold:implementation" in result["reasons"]
+    assert result["inputs"]["per_stage"]["implementation"]["pass_share"] == 0.5
 
 
 def test_stage_clause_reports_excluded_outcomes_separately_from_eligible_runs(tmp_path):
     """The excluded outcomes never enter `eligible_count`, and are reported in `inputs` on their own."""
     conn = _conn(tmp_path)
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00")
-    parent_id = seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="pass")
-    seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="blocked")
-    seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="refused")
-    seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="aborted_human")
-    seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="pass", parent_run_id=parent_id)
-    seed.seed_stage_run(conn, ticket_id, stage="S4", outcome="pass", run_kind="fix_round")
+    parent_id = seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="pass")
+    seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="blocked")
+    seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="refused")
+    seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="aborted_human")
+    seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="pass", parent_run_id=parent_id)
+    seed.seed_stage_run(conn, ticket_id, stage="implementation", outcome="pass", run_kind="fix_round")
     conn.commit()
 
     result = graduation.stage_reliability(
         conn, _limits(stage_min_first_attempts=1, stage_min_pass_share=0.5), seed.DEFAULT_MANIFEST_HASH,
     )
 
-    assert result["inputs"]["per_stage"]["S4"]["eligible_count"] == 1  # only the top-level passing run
-    excluded = result["inputs"]["excluded"]["S4"]
+    assert result["inputs"]["per_stage"]["implementation"]["eligible_count"] == 1  # only the top-level passing run
+    excluded = result["inputs"]["excluded"]["implementation"]
     assert excluded["blocked"] == 1
     assert excluded["refused"] == 1
     assert excluded["aborted_human"] == 1
@@ -217,7 +217,7 @@ def test_a_remediated_control_defect_clears_the_control_defect_clause(tmp_path):
 def test_an_unresolved_blind_spot_fails_the_blind_spot_clause(tmp_path):
     conn = _conn(tmp_path)
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00")
-    stage_run_id = seed.seed_stage_run(conn, ticket_id, stage="S5")
+    stage_run_id = seed.seed_stage_run(conn, ticket_id, stage="checks")
     check_result_id = seed.seed_check_result(conn, stage_run_id, check_name="checkA", result="blind_spot")
     conn.commit()
 
@@ -230,7 +230,7 @@ def test_an_unresolved_blind_spot_fails_the_blind_spot_clause(tmp_path):
 def test_a_later_passing_result_on_the_same_check_resolves_a_blind_spot(tmp_path):
     conn = _conn(tmp_path)
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00")
-    stage_run_id = seed.seed_stage_run(conn, ticket_id, stage="S5")
+    stage_run_id = seed.seed_stage_run(conn, ticket_id, stage="checks")
     seed.seed_check_result(conn, stage_run_id, check_name="checkA", result="blind_spot")
     seed.seed_check_result(conn, stage_run_id, check_name="checkA", result="pass")
     conn.commit()
@@ -257,7 +257,7 @@ def test_a_resolved_packet_defect_clears_self_containedness(tmp_path):
     ticket_id = seed.seed_window_ticket(conn, closed_at="2026-01-10T00:00:00")
     approval_id = seed.seed_approval_record(conn, ticket_id, gate="review", decision_supported_without_transcript=0)
     defect_tag_id = seed.seed_tag(
-        conn, ticket_id, event_kind="packet_defect", fm_id="FM-10", ref=f"approval_record:{approval_id}",
+        conn, ticket_id, event_kind="packet_defect", fm_id="unreviewable_diff", ref=f"approval_record:{approval_id}",
     )
     seed.seed_tag(
         conn, ticket_id, event_kind="flag_correction", resolves_tag_id=defect_tag_id, resolution_evidence_ref="pr:123",
@@ -324,10 +324,10 @@ def test_seeding_behind_the_excluded_views_never_changes_any_clause_verdict(tmp_
     record.insert(conn, "evidence_tuple", ticket_id=other_ticket_id, kind="plan", content_hash="plan-1")
     plan_approval_id = record.insert(
         conn, "approval_record", ticket_id=other_ticket_id, gate="plan", decision="approve",
-        subject_hash="plan-1", slot_id="s3_reviewer|", actor_identity="abhishek", role="s3_reviewer",
+        subject_hash="plan-1", slot_id="plan_reviewer|", actor_identity="abhishek", role="plan_reviewer",
     )
     record.insert(
-        conn, "tag", ticket_id=other_ticket_id, event_kind="send_back", fm_id="FM-01",
+        conn, "tag", ticket_id=other_ticket_id, event_kind="send_back", fm_id="unjustified_abstraction",
         ref=f"approval_record:{plan_approval_id}", tagged_by="abhishek", tagged_at=record.now(),
     )
     # v_ctx_non_structural_touchpoints and friends

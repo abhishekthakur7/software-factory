@@ -65,13 +65,13 @@ def _planned_slots(conn: sqlite3.Connection, plan_row: sqlite3.Row) -> list[Slot
 
 
 def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
-    """A declined eligibility item rejects; a granted one admits once S0 has passed, pinning the manifest hash first."""
+    """A declined eligibility item rejects; a granted one admits once intake has passed, pinning the manifest hash first."""
     item = _latest(conn, "queue_item", ticket["id"], kind="eligibility")
     if item is None:
         return None
     if item["action"] == "declined":
         return "eligibility_declined"
-    if item["action"] == "granted" and _latest_passed(conn, ticket["id"], "S0"):
+    if item["action"] == "granted" and _latest_passed(conn, ticket["id"], "intake"):
         if ticket["factory_manifest_hash"] is None:
             record.update(conn, "ticket", ticket["id"], factory_manifest_hash=manifest.current_hash())
         return "eligibility_granted"
@@ -79,7 +79,7 @@ def intake_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path
 
 
 def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
-    """Full plan quorum, a still-current plan subject, plus the real `BEFORE_S4` freshness check admits to implementing.
+    """Full plan quorum, a still-current plan subject, plus the real `BEFORE_IMPLEMENTATION` freshness check admits to implementing.
 
     A stale base withholds this event rather than firing a redirect of its
     own (see `state_table`); `refresh_base` and the send-backs are applied
@@ -108,7 +108,7 @@ def plan_review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir:
     if not quorum.satisfied:
         return None
     fresh = freshness.check(
-        conn, ticket["id"], boundary=freshness.BEFORE_S4, target_branch=freshness.target_branch(), runs_dir=runs_dir,
+        conn, ticket["id"], boundary=freshness.BEFORE_IMPLEMENTATION, target_branch=freshness.target_branch(), runs_dir=runs_dir,
     )
     return "plan_quorum_fresh" if fresh.fresh else None
 
@@ -118,29 +118,29 @@ def _reviewer_set_has_unresolved_slot(reviewer_set: sqlite3.Row) -> bool:
     return any(not slot.get("resolved", True) for slot in slots)
 
 
-def _s5_cleared(conn: sqlite3.Connection, ticket_id: int) -> bool:
-    """Whether S5 no longer blocks: its latest run passed outright, or every blocking result on it is validly waived."""
-    run = _latest(conn, "stage_run", ticket_id, stage="S5")
+def _checks_cleared(conn: sqlite3.Connection, ticket_id: int) -> bool:
+    """Whether checks no longer blocks: its latest run passed outright, or every blocking result on it is validly waived."""
+    run = _latest(conn, "stage_run", ticket_id, stage="checks")
     if run is None:
         return False
     return run["outcome"] == "pass" or waivers.cleared(conn, run["id"])
 
 
 def checks_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
-    """A new or unresolved reviewer slot returns to planning; otherwise a cleared S5 and a passed S6 admit to review.
+    """A new or unresolved reviewer slot returns to planning; otherwise a cleared checks stage and a passed human_review admit to review.
 
     A stale review base, like plan_review's stale base, withholds this
     event rather than firing a redirect; only `refresh_base` and the
-    send-backs move the ticket away from a stale binding. S5 counts as
-    cleared either because its latest run passed outright or because
+    send-backs move the ticket away from a stale binding. The checks stage
+    counts as cleared either because its latest run passed outright or because
     every blocking result it left is `pass` or a validly waived
-    `blind_spot` (`runner.waivers.cleared`); either way S5 itself is not
+    `blind_spot` (`runner.waivers.cleared`); either way the checks stage itself is not
     rerun for it.
     """
     reviewer_set = _latest(conn, "reviewer_set", ticket["id"])
     if reviewer_set is not None and _reviewer_set_has_unresolved_slot(reviewer_set):
         return "checks_new_reviewer_slot"
-    if _s5_cleared(conn, ticket["id"]) and _latest_passed(conn, ticket["id"], "S6"):
+    if _checks_cleared(conn, ticket["id"]) and _latest_passed(conn, ticket["id"], "human_review"):
         return "checks_pass_to_review"
     return None
 
@@ -185,18 +185,50 @@ def _receipt_matches_desired(conn: sqlite3.Connection, write: sqlite3.Row) -> bo
     )
 
 
+# The `external_write.last_error` prefix `outbox` writes on a pre-dispatch
+# mismatch, naming which route the mismatch traces to. Mirrors
+# `outbox.PREDISPATCH_MISMATCH_PREFIX` without importing `outbox`, which
+# would make a gate module depend on the worker that dispatches for it.
+_PREDISPATCH_MISMATCH_PREFIX = "predispatch_mismatch"
+
+_PREDISPATCH_MISMATCH_EVENTS: dict[str, str] = {
+    "context": "review_predispatch_mismatch_to_context",
+    "planning": "review_predispatch_mismatch_to_planning",
+    "checks": "review_predispatch_mismatch_to_checks",
+}
+
+
+def _predispatch_mismatch_event(write: sqlite3.Row) -> str:
+    """The route the outbox's pre-dispatch recheck recorded for `write`, or checks as the fail-safe.
+
+    A superseded write the recheck traced to no component -- an
+    already-closed remote pull request routes here too, since that is not
+    a binding mismatch at all -- has nothing narrower to redirect to, so
+    it takes the same route a review-subject, head, or destination
+    mismatch does: checks and human_review simply rebuild the packet.
+    """
+    reason = write["last_error"] or ""
+    prefix = f"{_PREDISPATCH_MISMATCH_PREFIX}:"
+    if reason.startswith(prefix):
+        component = reason[len(prefix):].split(":", 1)[0].strip()
+        if component in _PREDISPATCH_MISMATCH_EVENTS:
+            return _PREDISPATCH_MISMATCH_EVENTS[component]
+    return _PREDISPATCH_MISMATCH_EVENTS["checks"]
+
+
 def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path = RUNS_DIR) -> str | None:
-    """Full review quorum plus a reconciled, matching receipt opens the pull request; a superseded intent routes back to checks.
+    """Full review quorum plus a reconciled, matching receipt opens the pull request; a superseded intent redirects.
 
     "Reconciled" alone is not enough: the latest `external_write` row must
     also carry a remote identity and a stored receipt whose head and
     payload digest are exactly what the ticket wanted published, so a
     reconciliation that adopted a stale or partial remote object never
-    advances the ticket by itself. The state table routes a pre-dispatch
-    mismatch to checks, planning or context "as applicable"; which applies
-    is the outbox's reconciliation, which arrives later. Until then every
-    superseded intent routes to checks, and the planning and context
-    routes are applied only by a caller that decides them.
+    advances the ticket by itself. A superseded intent routes to checks,
+    planning or context by reading which binding component the outbox's
+    pre-dispatch recheck recorded on it (`_predispatch_mismatch_event`):
+    checks when the review subject, ticket head, or destination moved;
+    planning when the plan itself moved out from under the review's
+    approvals; context when the target base or trust binding moved.
     """
     review_tuple = _latest(conn, "evidence_tuple", ticket["id"], kind="review")
     write = _latest(conn, "external_write", ticket["id"])
@@ -210,7 +242,7 @@ def review_gate(conn: sqlite3.Connection, ticket: sqlite3.Row, *, runs_dir: Path
     ):
         return "review_quorum_reconciled"
     if write["state"] == "superseded":
-        return "review_predispatch_mismatch_to_checks"
+        return _predispatch_mismatch_event(write)
     return None
 
 

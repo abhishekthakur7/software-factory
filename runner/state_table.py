@@ -8,7 +8,7 @@ functions that derive an event from already-recorded rows live in
 `gates.py`.
 
 `TABLE` is keyed by `(from_state, event)` and names the one `to_state` that
-event reaches. A plain stage pass (`s1_pass` .. `s4_pass`) is applied by
+event reaches. A plain stage pass (`context_gathering_pass` .. `implementation_pass`) is applied by
 `runner.stages.run_stage`; every other event -- a gate's derived event or a
 human decision (`abandon`, `refresh_base`, `send_back_to_*`,
 `request_changes`, `merge_recorded`, `revision_to_*`, `escalation_*`,
@@ -43,17 +43,17 @@ STATES = (
     "escalated",
 )
 
-# The state each stage runs from. S5 and S6 both run from `checks`: neither
-# leaves it on its own pass (see the module docstring); `checks_gate`
-# leaves checks only once both have passed.
+# The state each stage runs from. The checks and human_review stages both run
+# from the `checks` state: neither leaves it on its own pass (see the module
+# docstring); `checks_gate` leaves `checks` only once both have passed.
 STAGE_STATE: dict[str, str] = {
-    "S0": "intake",
-    "S1": "context",
-    "S2": "clarifying",
-    "S3": "planning",
-    "S4": "implementing",
-    "S5": "checks",
-    "S6": "checks",
+    "intake": "intake",
+    "context_gathering": "context",
+    "clarification": "clarifying",
+    "planning": "planning",
+    "implementation": "implementing",
+    "checks": "checks",
+    "human_review": "checks",
 }
 
 # The terminal states accept no further transition: `TABLE` carries no row
@@ -96,22 +96,22 @@ _MIGRATABLE = (
 
 # The event-keyed transition table: `(from_state, event) -> to_state`.
 # Ticket creation (a new ticket starts in `intake`) and the script-only
-# `validation_only` run of S4 (recorded with no state change) are not
+# `validation_only` run of implementation (recorded with no state change) are not
 # transitions and so have no row here.
 TABLE: dict[tuple[str, str], str] = {
     # intake
     ("intake", "eligibility_granted"): "context",
-    ("intake", "s0_reject"): "rejected",
-    ("intake", "s0_exclusion"): "rejected",
+    ("intake", "intake_reject"): "rejected",
+    ("intake", "intake_exclusion"): "rejected",
     ("intake", "eligibility_declined"): "rejected",
     # context
-    ("context", "s1_pass"): "clarifying",
-    ("context", "s1_exclusion"): "rejected",
+    ("context", "context_gathering_pass"): "clarifying",
+    ("context", "context_gathering_exclusion"): "rejected",
     # clarifying
-    ("clarifying", "s2_pass"): "planning",
+    ("clarifying", "clarification_pass"): "planning",
     # planning
-    ("planning", "s3_pass"): "plan_review",
-    ("planning", "s3_exclusion"): "rejected",
+    ("planning", "planning_pass"): "plan_review",
+    ("planning", "planning_exclusion"): "rejected",
     # plan_review
     ("plan_review", "plan_quorum_fresh"): "implementing",
     ("plan_review", "refresh_base"): "context",
@@ -119,7 +119,7 @@ TABLE: dict[tuple[str, str], str] = {
     ("plan_review", "send_back_to_planning"): "planning",
     ("plan_review", "send_back_to_clarifying"): "clarifying",
     # implementing
-    ("implementing", "s4_pass"): "checks",
+    ("implementing", "implementation_pass"): "checks",
     ("implementing", "refresh_base"): "context",
     ("implementing", "send_back_to_context"): "context",
     ("implementing", "send_back_to_planning"): "planning",
@@ -180,11 +180,11 @@ TABLE: dict[tuple[str, str], str] = {
 # Every event that reaches `rejected`, `merged` or `abandoned` must appear
 # here; `transitions.apply` fails loudly on one that does not.
 CLOSE_REASON: dict[str, str] = {
-    "s0_reject": "rejected_at_s0",
-    "s0_exclusion": "pilot_excluded",
-    "eligibility_declined": "rejected_at_s0",
-    "s1_exclusion": "pilot_excluded",
-    "s3_exclusion": "pilot_excluded",
+    "intake_reject": "rejected_at_intake",
+    "intake_exclusion": "pilot_excluded",
+    "eligibility_declined": "rejected_at_intake",
+    "context_gathering_exclusion": "pilot_excluded",
+    "planning_exclusion": "pilot_excluded",
     "checks_sensitive_path_required": "pilot_excluded",
     "merge_recorded": "merged",
     "abandon": "abandoned",

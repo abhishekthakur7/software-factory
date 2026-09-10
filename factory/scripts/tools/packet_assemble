@@ -3,10 +3,10 @@
 
 The packet opens with tuple identity and freshness, then one evidence
 table, the plan's own narrative sections, and the exact branch diff last.
-Every table row and prose line is copied from the inputs file the S6
-driver wrote from registered artefacts and database rows -- this script
-authors nothing of its own. `packet_render.py`, beside this script, holds
-the section-building logic shared with `pr_body_assemble`.
+Every table row and prose line is copied from the inputs file the
+human-review driver wrote from registered artefacts and database rows --
+this script authors nothing of its own. `packet_render.py`, beside this
+script, holds the section-building logic shared with `pr_body_assemble`.
 """
 import argparse
 import sys

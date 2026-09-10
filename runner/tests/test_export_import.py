@@ -77,7 +77,7 @@ def _seed_ticket(conn, *, data_class="internal", title="export fixture ticket"):
 def _seed_full_ticket_rows(conn, ticket_id):
     """One row in every exported table besides `ticket` and `artefact`."""
     stage_run_id = record.insert(
-        conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="pass", started_at=record.now(),
+        conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, outcome="pass", started_at=record.now(),
     )
     record.insert(conn, "tool_call", stage_run_id=stage_run_id, seq=1, tool="lint", tool_version="1")
     evidence_tuple_id = record.insert(
@@ -112,7 +112,7 @@ def _seed_full_ticket_rows(conn, ticket_id):
         payload_digest="digest-1", created_at=record.now(),
     )
     record.insert(
-        conn, "tag", ticket_id=ticket_id, event_kind="abandoned", fm_id="FM-1",
+        conn, "tag", ticket_id=ticket_id, event_kind="abandoned", fm_id="unjustified_abstraction",
         ref=f"ticket:{ticket_id}", tagged_by="abhishek", tagged_at=record.now(),
     )
     return stage_run_id, evidence_tuple_id
@@ -181,7 +181,6 @@ def _table_rows(export_dir: Path, table: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def test_export_writes_a_directory_with_ticket_rows_artefacts_and_branch_patch(conn, runs_dir, profile_paths, tmp_path):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = _seed_ticket(conn)
@@ -216,7 +215,6 @@ def test_export_writes_a_directory_with_ticket_rows_artefacts_and_branch_patch(c
 # ---------------------------------------------------------------------------
 
 def test_export_records_one_allow_guard_decision_authorising_the_route(conn, runs_dir, profile_paths):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = _seed_ticket(conn)
@@ -231,7 +229,7 @@ def test_export_records_one_allow_guard_decision_authorising_the_route(conn, run
 
 
 def test_must_reject_export_over_a_route_the_profile_does_not_authorise(conn, runs_dir, profile_paths):
-    """must-reject: R-T-4 -- a class the route's max_class does not admit refuses the whole export."""
+    """must-reject: a class the route's max_class does not admit refuses the whole export."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = _seed_ticket(conn, data_class="restricted")
@@ -254,7 +252,6 @@ def test_must_reject_export_over_a_route_the_profile_does_not_authorise(conn, ru
 # ---------------------------------------------------------------------------
 
 def test_export_rows_carry_their_recorded_classification_and_retention(conn, runs_dir, profile_paths):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = _seed_ticket(conn, data_class="confidential")
@@ -287,7 +284,6 @@ def test_export_rows_carry_their_recorded_classification_and_retention(conn, run
 # ---------------------------------------------------------------------------
 
 def test_export_records_a_content_hash_over_its_declared_file_list(conn, runs_dir, profile_paths):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = _seed_ticket(conn)
@@ -306,7 +302,6 @@ def test_export_records_a_content_hash_over_its_declared_file_list(conn, runs_di
 # ---------------------------------------------------------------------------
 
 def test_secret_and_denied_artefacts_are_excluded_and_never_written_to_disk(conn, runs_dir, profile_paths):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = _seed_ticket(conn)
@@ -354,7 +349,6 @@ def _export_minimal(conn, runs_dir, profile_path, owners_path):
 
 
 def test_must_reject_import_of_an_export_whose_bytes_no_longer_match_its_declared_hash(conn, runs_dir, profile_paths, tmp_path):
-    """must-reject: R-T-4"""
     profile_path, owners_path = profile_paths
     _ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
     (export_dir / "branch.patch").write_text("tampered after export\n")
@@ -367,7 +361,6 @@ def test_must_reject_import_of_an_export_whose_bytes_no_longer_match_its_declare
 
 
 def test_must_reject_import_of_a_declared_absolute_path(conn, runs_dir, profile_paths, tmp_path):
-    """must-reject: R-T-4"""
     profile_path, owners_path = profile_paths
     ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
     manifest = _load_manifest(export_dir)
@@ -385,7 +378,6 @@ def test_must_reject_import_of_a_declared_absolute_path(conn, runs_dir, profile_
 
 
 def test_must_reject_import_of_a_declared_path_with_a_traversal_segment(conn, runs_dir, profile_paths, tmp_path):
-    """must-reject: R-T-4"""
     profile_path, owners_path = profile_paths
     ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
     manifest = _load_manifest(export_dir)
@@ -403,7 +395,6 @@ def test_must_reject_import_of_a_declared_path_with_a_traversal_segment(conn, ru
 
 
 def test_must_reject_import_of_a_declared_path_whose_symlink_resolves_outside_the_export_directory(conn, runs_dir, profile_paths, tmp_path):
-    """must-reject: R-T-4"""
     profile_path, owners_path = profile_paths
     ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
 
@@ -425,7 +416,6 @@ def test_must_reject_import_of_a_declared_path_whose_symlink_resolves_outside_th
 
 
 def test_must_reject_import_of_a_directory_holding_a_file_the_manifest_does_not_declare(conn, runs_dir, profile_paths, tmp_path):
-    """must-reject: R-T-4"""
     profile_path, owners_path = profile_paths
     ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
     (export_dir / "rows" / "undeclared.json").write_text("[]\n")
@@ -442,7 +432,6 @@ def test_must_reject_import_of_a_directory_holding_a_file_the_manifest_does_not_
 # ---------------------------------------------------------------------------
 
 def test_imported_ticket_and_artefact_rows_are_marked_untrusted(conn, runs_dir, profile_paths, tmp_path):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
 
@@ -459,7 +448,7 @@ def test_imported_ticket_and_artefact_rows_are_marked_untrusted(conn, runs_dir, 
 
 
 def test_import_refuses_a_row_id_that_already_exists_in_the_target_record(conn, runs_dir, profile_paths, tmp_path):
-    """must-reject: R-T-4 -- a collision is refused before any write."""
+    """must-reject: a collision is refused before any write."""
     profile_path, owners_path = profile_paths
     ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
 
@@ -478,7 +467,6 @@ def test_import_refuses_a_row_id_that_already_exists_in_the_target_record(conn, 
 # ---------------------------------------------------------------------------
 
 def test_purge_removes_an_export_directory_past_its_retention(conn, runs_dir, profile_paths):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     _ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
     conn.commit()
@@ -496,7 +484,6 @@ def test_purge_removes_an_export_directory_past_its_retention(conn, runs_dir, pr
 
 
 def test_must_reject_purge_of_an_export_directory_still_within_retention(conn, runs_dir, profile_paths):
-    """must-reject: R-T-4"""
     profile_path, owners_path = profile_paths
     _ticket_id, export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
     conn.commit()
@@ -518,7 +505,6 @@ def test_must_reject_purge_of_an_export_directory_still_within_retention(conn, r
 # ---------------------------------------------------------------------------
 
 def test_export_import_export_round_trip_reproduces_every_row_hash(conn, runs_dir, profile_paths, tmp_path):
-    """R-T-4"""
     profile_path, owners_path = profile_paths
     ticket_id, first_export_dir = _export_minimal(conn, runs_dir, profile_path, owners_path)
 

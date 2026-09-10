@@ -1,6 +1,6 @@
 # The plan touches only the ordinary service file; the diff also touches an
 # excluded sensitive path the plan never named -- an accidental inclusion
-# S4 must remove before S5 can pass.
+# implementation must remove before checks can pass.
 plan_paths:
   - src/main/java/com/fixture/service/OrderService.java
 diff_paths:

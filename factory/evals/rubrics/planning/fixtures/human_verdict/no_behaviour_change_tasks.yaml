@@ -1,0 +1,5 @@
+# A seeded human_verdict scenario for the no_behaviour_change_tasks grader line.
+rubric_line_id: "no_behaviour_change_tasks:grader"
+subject: "Task T-3, flagged no_behaviour_change, renames a variable and also changes the default timeout from 30s to 5s."
+verdict: fail
+reason: the task is flagged no_behaviour_change but the timeout change in fact alters behaviour

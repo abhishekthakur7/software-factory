@@ -7,7 +7,7 @@ seed:
     line two
     line three
 ticket_commit:
-  message: "S4 work changes the shared line"
+  message: "implementation work changes the shared line"
   files:
     shared.txt: |
       line one

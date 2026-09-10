@@ -8,7 +8,7 @@ recipes:
       - "results.txt > /tmp/evil"
     cwd_role: scratch
     kind: other
-    stages: [S4]
+    stages: [implementation]
     timeout_seconds: 5
     expected_exit_codes: [0]
     env_allowlist: []

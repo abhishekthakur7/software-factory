@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The risk map: per-candidate churn, ownership concentration, and size, computed from git alone.
 
-Standalone: no import of `runner`, no network. Runs before the S3 agent
+Standalone: no import of `runner`, no network. Runs before the planning agent
 does, over the brief's touched-area candidates, so the agent receives it as
 an attached input rather than inventing its own account of who touches
 what. A candidate is a named entry -- worth a reviewer's attention -- when

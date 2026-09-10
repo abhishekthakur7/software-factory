@@ -23,7 +23,6 @@ modes its fixture is meant to exercise. `walk` runs `check` over every
 directory `expected_eval_dirs` names, stopping at the first failure so
 the reported directory is the one actually broken.
 """
-import re
 from pathlib import Path
 
 import yaml
@@ -139,6 +138,17 @@ def _check_redaction_review(eval_dir: Path, case: dict) -> None:
         )
 
 
+def _names_catalogue_failure_modes(modes: object) -> bool:
+    """A non-empty list whose every entry is a key of the failure-mode catalogue.
+
+    Checked against the catalogue rather than an id shape so an eval cannot
+    claim a failure mode the factory does not track.
+    """
+    from runner import tags  # imported here: tags reads the catalogue through artefacts, which imports nothing from evals
+
+    return isinstance(modes, list) and bool(modes) and all(isinstance(m, str) and m in tags.failure_modes() for m in modes)
+
+
 def _check_ticket_redaction_review(eval_dir: Path, spec: dict) -> None:
     """A `tickets/<id>` eval directory carries its own redaction review at the top level,
     naming which failure modes the redacted export is meant to exercise."""
@@ -146,10 +156,8 @@ def _check_ticket_redaction_review(eval_dir: Path, spec: dict) -> None:
     if not isinstance(review, dict) or _redaction_review_missing_fields(review):
         raise EvalDirectoryError(f"{eval_dir}: carries no redaction review ({', '.join(_REDACTION_REVIEW_FIELDS)})")
     modes = spec.get("target_failure_modes")
-    if not isinstance(modes, list) or not modes or not all(
-        isinstance(mode, str) and re.fullmatch(r"FM-\d{2}", mode) for mode in modes
-    ):
-        raise EvalDirectoryError(f"{eval_dir}: target failure-mode ids are required")
+    if not _names_catalogue_failure_modes(modes):
+        raise EvalDirectoryError(f"{eval_dir}: target failure modes must name catalogue entries")
 
 
 def check(eval_dir: Path) -> None:
@@ -181,10 +189,8 @@ def check(eval_dir: Path) -> None:
 
     if "/".join(eval_dir.parts[-2:]) in REQUIRED_MECHANICS:
         modes = spec.get("failure_modes")
-        if not isinstance(modes, list) or not modes or not all(
-            isinstance(mode, str) and re.fullmatch(r"FM-\d{2}", mode) for mode in modes
-        ):
-            raise EvalDirectoryError(f"{eval_dir}: target failure-mode ids are required")
+        if not _names_catalogue_failure_modes(modes):
+            raise EvalDirectoryError(f"{eval_dir}: target failure modes must name catalogue entries")
         for case in cases:
             relative = case.get("fixture")
             if not isinstance(relative, str) or not relative:
@@ -212,7 +218,7 @@ def walk(root: Path = FACTORY_DIR) -> list[Path]:
 
 
 def eval_dir_for_file(rel_path: str, root: Path = FACTORY_DIR) -> Path:
-    """The eval directory an agent/skill/rubric file `rel_path` (e.g. `factory/agents/S1.md`) resolves to.
+    """The eval directory an agent/skill/rubric file `rel_path` (e.g. `factory/agents/context_gathering.md`) resolves to.
 
     Mirrors `expected_eval_dirs`'s own naming so a manifest entry's file
     reference and the completeness walk always agree on where its eval

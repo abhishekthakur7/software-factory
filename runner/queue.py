@@ -80,7 +80,7 @@ _RESOLVE_ONLY_ACTIONS = frozenset({"granted", "declined", "edit_scrutiny", "clos
 # A `fail` verdict sends the ticket back to the checklist line's own
 # stage, keyed by that stage's name.
 _CHECKLIST_SEND_BACK_EVENT: dict[str, str] = {
-    "S1": "send_back_to_context", "S2": "send_back_to_clarifying", "S3": "send_back_to_planning",
+    "context_gathering": "send_back_to_context", "clarification": "send_back_to_clarifying", "planning": "send_back_to_planning",
 }
 
 
@@ -178,7 +178,7 @@ def _approval_subject_hash(conn: sqlite3.Connection, item: sqlite3.Row) -> str |
     Every other item kind carries its own subject on `approval_subject_hash`
     at open time. A `plan_approval` item carries none: its subject is
     whichever `plan` `evidence_tuple` is current for the ticket right now,
-    since the bootstrap checklist -- not S3 -- is what first creates one,
+    since the bootstrap checklist -- not planning -- is what first creates one,
     and a drift after that can replace it before a human ever approves.
     """
     if item["kind"] != "plan_approval":
@@ -197,7 +197,7 @@ def _review_decision_fields(conn: sqlite3.Connection, item: sqlite3.Row) -> tupl
     refusing outright on any drift; the same race `_check_plan_approvable`
     guards for the plan gate. The verbatim final-review attestation is
     stamped here rather than the ordinary per-decision one, since every
-    required final-review record carries it (R-S6-7).
+    required final-review record carries it.
     """
     subject = publication.review_approval_subject(conn, item["ticket_id"])
     if subject.hash != item["approval_subject_hash"]:
@@ -311,9 +311,15 @@ def _answer(
     from runner import questions
 
     table, _, raw_id = (item["ref"] or "").partition(":")
-    question = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
-    if question is None:
+    original = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
+    if original is None:
         raise ActionRefused(f"question item {item['id']} names no question: {item['ref']!r}")
+    # The item's own `ref` is fixed at the id `raise_round` first gave the
+    # question: a flag correction landing on it since then appended a
+    # replacement rather than editing `ref` in place, so the answer must
+    # resolve forward to that replacement -- the current tip -- rather
+    # than settling the now-superseded id the item still names.
+    question = questions.current_version(conn, original["id"])
     return questions.record_answer(
         conn, question["id"], action=action, actor=actor, option=option, note=note,
         supported_without_transcript=None if self_contained is None else self_contained == "yes",
@@ -324,9 +330,9 @@ def _override(
     conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, note: str | None, fm_id: str | None, tier: str | None,
 ) -> None:
     ticket = record.get(conn, "ticket", item["ticket_id"])
-    # R-S0-8: widening a pilot exclusion is a recorded graduation decision,
+    # Widening a pilot exclusion is a recorded graduation decision,
     # never a tier override, so an excluded ticket refuses this action
-    # outright rather than silently letting a human route around S0.
+    # outright rather than silently letting a human route around intake.
     if ticket["close_reason"] == "pilot_excluded":
         raise ActionRefused(f"ticket {item['ticket_id']} is excluded under pilot eligibility; override is refused")
     fields = {"tier_override_by": actor, "tier_override_at": record.now(), "tier_override_reason": note}
@@ -339,22 +345,29 @@ def _override(
 def _question_override(
     conn: sqlite3.Connection, item: sqlite3.Row, *, actor: str, note: str | None, fm_id: str | None, fields: dict,
 ) -> None:
-    """Correct a question's `consequential` and/or `hard_to_reverse` flag (`fields`) through `questions.correct_flag`.
+    """Correct a question's `consequential`, `hard_to_reverse`, and/or `blocking` flag (`fields`) through `questions.correct_flag`.
 
     Distinct from `_override` above (an eligibility item's tier
     correction): this writes no ticket field and resolves no item -- a
     question stays open for its own `answer`/`accept_default` regardless
     of a flag correction landing on it, since the two are independent
-    decisions about the same question.
+    decisions about the same question. `raw_id` is passed through as
+    given, not resolved to a tip here: `correct_flag` resolves it itself,
+    so a second override on an already-corrected question still lands on
+    the live row, and correcting `blocking` to false is what lets
+    `advance` move a ticket the flag alone was holding in `clarifying`
+    past the question gate.
     """
     from runner import questions
 
     table, _, raw_id = (item["ref"] or "").partition(":")
     if table != "question" or not raw_id:
         raise ActionRefused(f"question item {item['id']} names no question: {item['ref']!r}")
-    consequential, hard_to_reverse = fields.get("consequential"), fields.get("hard_to_reverse")
-    if consequential is None and hard_to_reverse is None:
-        raise ActionRefused("override requires --consequential and/or --hard-to-reverse")
+    consequential, hard_to_reverse, blocking = (
+        fields.get("consequential"), fields.get("hard_to_reverse"), fields.get("blocking"),
+    )
+    if consequential is None and hard_to_reverse is None and blocking is None:
+        raise ActionRefused("override requires --consequential, --hard-to-reverse, and/or --blocking")
     if not note:
         raise ActionRefused("override requires --note naming the recorded reason")
     if not fm_id:
@@ -363,6 +376,7 @@ def _question_override(
         conn, int(raw_id), actor=actor, fm_id=fm_id, reason=note,
         consequential=None if consequential is None else consequential == "yes",
         hard_to_reverse=None if hard_to_reverse is None else hard_to_reverse == "yes",
+        blocking=None if blocking is None else blocking == "yes",
     )
 
 
@@ -460,8 +474,8 @@ def _act_verdict(
     """Record one `human_verdict` for `item`; return whether the item itself resolves.
 
     Only a `fail` verdict resolves the item, by sending the ticket back to
-    the failing line's own stage -- `context` for S1, `clarifying` for S2,
-    `planning` for S3 -- and tagging the send-back (`fm_id` is therefore
+    the failing line's own stage -- `context` for the context-gathering stage, `clarifying`
+    for the clarification stage, `planning` for the planning stage -- and tagging the send-back (`fm_id` is therefore
     required for a `fail`). A `pass` or `blind_spot` verdict leaves the
     item open: the checklist may still have other instances outstanding,
     and even a complete checklist still waits on the separate `approve`
@@ -590,7 +604,7 @@ def _escalation_defect_target(conn: sqlite3.Connection, item: sqlite3.Row) -> st
 
     An escalation's own decision has no dedicated column for the
     self-containedness rule -- it is held to it through this artefact
-    (R-H-8) -- so a false answer on it is refused outright rather than
+    instead -- so a false answer on it is refused outright rather than
     silently accepted when the run behind the item registered none (only
     a verification-exhaustion escalation ever does).
     """
@@ -642,7 +656,7 @@ def _resume(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
 
     Verification exhaustion never resumes this way at all -- the only
     route is `send_back --to planning`, a new plan-item version and a
-    fresh S3 approval. A control defect (a sandbox-integrity or an
+    fresh planning approval. A control defect (a sandbox-integrity or an
     invalid recipe-policy-binding failure) resumes only once its event
     carries a `remediated` disposition and a newer passing `gate` run,
     and then through `escalation_control_defect_remediated`, never the
@@ -660,7 +674,7 @@ def _resume(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
     if run["failure_kind"] == "verification":
         raise ActionRefused(
             "a verification-exhaustion escalation resumes only through 'send_back --to planning' (a new "
-            "plan-item version and a fresh S3 approval), never through resume"
+            "plan-item version and a fresh planning approval), never through resume"
         )
     if run["failure_kind"] in ("sandbox_integrity", "recipe_binding"):
         if not _control_defect_remediated(conn, item["ticket_id"]):
@@ -671,9 +685,9 @@ def _resume(conn: sqlite3.Connection, item: sqlite3.Row) -> None:
         transitions.apply(conn, item["ticket_id"], "escalation_control_defect_remediated")
         return
 
-    if stage == "S4":
+    if stage == "implementation":
         event = "escalation_resume_implementing"
-    elif stage in ("S5", "S6"):
+    elif stage in ("checks", "human_review"):
         event = "escalation_resume_checks"
     else:
         raise ActionRefused(f"cannot resume an escalation whose failed stage was {stage!r}")
@@ -788,7 +802,7 @@ def act(
     transaction as the decision itself, a `packet_defect` tag bound to the
     exact `approval_record` (a plan or review decision), `question` (an
     answer), or `failure_history` artefact (an escalation) the false
-    self-containedness answer was about (R-H-8).
+    self-containedness answer was about.
 
     With `item_id` omitted and `ticket_id` given, `action` must be one of
     `TICKET_ACTIONS`: the production-coverage and incident series a ticket
@@ -829,13 +843,13 @@ def act(
         raise ActionRefused(f"action {action!r} is not valid for queue item kind {kind!r}")
 
     if kind == "eligibility":
-        # Imported here, not at module scope: S0 itself opens this item
+        # Imported here, not at module scope: intake itself opens this item
         # through `queue.open_item`, so a top-level import in either
         # direction would be circular.
-        from runner.stages import S0
+        from runner.stages import intake
 
         ticket = record.get(conn, "ticket", item["ticket_id"])
-        reasons = S0.governance_valid(conn, ticket)
+        reasons = intake.governance_valid(conn, ticket)
         if reasons:
             raise ActionRefused(f"eligibility item {item_id} fails governance validity: {', '.join(reasons)}")
 
@@ -1019,9 +1033,18 @@ def _eligibility_context(conn: sqlite3.Connection, ticket: sqlite3.Row, owners_o
 
 
 def _question_context(conn: sqlite3.Connection, item: sqlite3.Row) -> list[str]:
-    """The question's wording, its options with their consequences, and which option is the default, for a human to answer from."""
+    """The question's wording, its options with their consequences, and which option is the default, for a human to answer from.
+
+    Reads the lineage's current tip, not the id `item["ref"]` names: a
+    flag correction leaves `ref` pointing at the now-superseded original,
+    and a human deciding from this listing needs the corrected flags, not
+    the ones the agent first wrote.
+    """
+    from runner import questions
+
     table, _, raw_id = (item["ref"] or "").partition(":")
-    question = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
+    original = record.get(conn, "question", int(raw_id)) if table == "question" and raw_id else None
+    question = questions.current_version(conn, original["id"]) if original is not None else None
     if question is None:
         return []
     lines = [f"  question: {question['text']}", f"  affects: {question['affects']}"]
@@ -1106,24 +1129,24 @@ def _item_block(conn: sqlite3.Connection, item: sqlite3.Row, owners_obj: owners.
     return lines
 
 
-# The S4 run kinds that are an actual execution attempt; `validation_only`
+# The implementation run kinds that are an actual execution attempt; `validation_only`
 # is the runner's script-only verification pass after one, so on its own
 # it stands for "a verification ran".
-_S4_EXECUTION_KINDS = frozenset({"task", "fix_round"})
-_S4_VERIFICATION_KIND = "validation_only"
+_IMPLEMENTATION_EXECUTION_KINDS = frozenset({"task", "fix_round"})
+_IMPLEMENTATION_VERIFICATION_KIND = "validation_only"
 
 
-def _s4_progress(conn: sqlite3.Connection, ticket_id: int) -> dict:
-    """The highest passing S4 task attempt, the execution count and the verification count of the ticket's S4 history."""
+def _implementation_progress(conn: sqlite3.Connection, ticket_id: int) -> dict:
+    """The highest passing implementation task attempt, the execution count and the verification count of the ticket's implementation history."""
     rows = conn.execute(
-        "SELECT attempt, run_kind, outcome FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id",
+        "SELECT attempt, run_kind, outcome FROM stage_run WHERE ticket_id = ? AND stage = 'implementation' ORDER BY id",
         (ticket_id,),
     ).fetchall()
-    completed = [row["attempt"] for row in rows if row["run_kind"] in _S4_EXECUTION_KINDS and row["outcome"] == "pass"]
+    completed = [row["attempt"] for row in rows if row["run_kind"] in _IMPLEMENTATION_EXECUTION_KINDS and row["outcome"] == "pass"]
     return {
         "last_completed_task": completed[-1] if completed else None,
-        "execution_count": sum(1 for row in rows if row["run_kind"] in _S4_EXECUTION_KINDS),
-        "verification_count": sum(1 for row in rows if row["run_kind"] == _S4_VERIFICATION_KIND),
+        "execution_count": sum(1 for row in rows if row["run_kind"] in _IMPLEMENTATION_EXECUTION_KINDS),
+        "verification_count": sum(1 for row in rows if row["run_kind"] == _IMPLEMENTATION_VERIFICATION_KIND),
     }
 
 
@@ -1133,7 +1156,7 @@ def escalation_context(conn: sqlite3.Connection, item: sqlite3.Row) -> dict:
     The stage run's reason (the latest failed runner check recorded on
     it), its own reasoning summary, the artefacts registered under it,
     the ticket's current binding (latest evidence tuple) if one exists,
-    the stage's prior-attempt failure history, and for S4 the last
+    the stage's prior-attempt failure history, and for implementation the last
     completed task, execution count and verification count. An item
     whose `ref` names no stage run yields an empty mapping.
     """
@@ -1169,8 +1192,8 @@ def escalation_context(conn: sqlite3.Connection, item: sqlite3.Row) -> dict:
             ).fetchall()
         ],
     }
-    if stage_run["stage"] == "S4":
-        context.update(_s4_progress(conn, stage_run["ticket_id"]))
+    if stage_run["stage"] == "implementation":
+        context.update(_implementation_progress(conn, stage_run["ticket_id"]))
         # The registered `failure_history` JSON artefact a verification-
         # exhaustion escalation writes, distinct from the `failure_history`
         # list above (this stage's own prior-attempt summary): `None` for

@@ -26,12 +26,12 @@ from runner.definitions import DefinitionError, load_definition
 from runner.fs import write_text
 from runner.paths import FACTORY_DIR
 from runner.reviewer_sets import Slot
-from runner.stages import S5, run_stage
+from runner.stages import checks, run_stage
 from runner.tests.test_stub_walk import _materialise_fixture_vendor
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
-S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+CONTEXT_GATHERING_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "context_gathering" / "fixtures" / "plain_ok" / "out"
 
 EVAL_ROOTS = (FACTORY_DIR / "evals" / "agents", FACTORY_DIR / "evals" / "skills", FACTORY_DIR / "evals" / "rubrics")
 
@@ -67,12 +67,12 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
-    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # checks's real reviewer-set derivation reads CODEOWNERS at the target
     # base; a repository with none raises rather than defaulting.
     (repo / "CODEOWNERS").write_text("* @abhishek\n")
-    # A minimal pom so a real S1 run's impact_scan has something to read;
+    # A minimal pom so a real context_gathering run's impact_scan has something to read;
     # the dependency itself matches the committed artifact-to-service.yaml's
-    # one authoritative entry, so a real S1 run needs no fixture override.
+    # one authoritative entry, so a real context_gathering run needs no fixture override.
     (repo / "pom.xml").write_text(
         "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
         "  <dependencies>\n    <dependency>\n      <groupId>com.fixturevendor</groupId>\n"
@@ -84,7 +84,7 @@ def _source_repo(tmp_path):
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     # A trivial always-passing unit test: `fixture_unit` is ungoverned by
     # regression-only, so with none at all it would fail on its own and
-    # block every ticket that reaches a real S5 through this fixture.
+    # block every ticket that reaches a real checks through this fixture.
     test_src = repo / "src" / "test" / "java" / "com" / "example"
     test_src.mkdir(parents=True)
     (test_src / "HandlerUnitTest.java").write_text(
@@ -115,8 +115,8 @@ def _governed_ticket_fields(conn) -> dict:
     }
 
 
-def _s1_ready_ticket(conn, tmp_path):
-    """A ticket in `context`, cloned from a real worktree, pinned and eligible to invoke a real S1."""
+def _context_gathering_ready_ticket(conn, tmp_path):
+    """A ticket in `context`, cloned from a real worktree, pinned and eligible to invoke a real context_gathering."""
     source = _source_repo(tmp_path)
     ticket_id = _ticket_in(
         conn, "context", ticket_type="small_feature", service_tier="T2", tier_provisional="standard",
@@ -129,12 +129,12 @@ def _s1_ready_ticket(conn, tmp_path):
 
 def _checks_ticket_with_fresh_base(conn, tmp_path):
     """A ticket cloned from a real repository, sitting in `checks` with a real,
-    currently-current plan tuple and a satisfying `plan` approval -- S5 is a
+    currently-current plan tuple and a satisfying `plan` approval -- checks is a
     real driver now, not a stub: its preflight fetches the real target
     branch and only then builds a review tuple, `binding.preflight_review_tuple`
     checks plan quorum against the ticket's own bound reviewer set, and its
     checks run the pilot project's own recipes, so a ticket needs all of that
-    (not only git trees) to stand in for one running S5.
+    (not only git trees) to stand in for one running checks.
     """
     source = _source_repo(tmp_path)
     ticket_id = record.insert(conn, "ticket", state="intake", opened_at=record.now(), **_governed_ticket_fields(conn))
@@ -150,8 +150,8 @@ def _checks_ticket_with_fresh_base(conn, tmp_path):
         write_text(path, text)
         artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
 
-    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    identity = owners.load_owners().roles["plan_reviewer"]["identity"]
+    slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=identity, min_count=1)
     record.insert(
         conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-checks",
         slots=json.dumps([slot.to_json()]),
@@ -161,19 +161,19 @@ def _checks_ticket_with_fresh_base(conn, tmp_path):
     subject_hash = record.get(conn, "evidence_tuple", tuple_id)["content_hash"]
     approvals.record_approval(
         conn, gate="plan", subject_hash=subject_hash, slot_id=slot.slot_id, actor_identity=identity,
-        role="s3_reviewer", decision="approve", authority_policy_hash="authority-1",
+        role="plan_reviewer", decision="approve", authority_policy_hash="authority-1",
         membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash="att-1",
         ticket_id=ticket_id,
     )
     return ticket_id
 
 
-# S3 is real, not a stub: it needs a worktree (for `risk_map`), the real
+# planning is real, not a stub: it needs a worktree (for `risk_map`), the real
 # manifest pin, and a brief/criteria to plan against. `_WALK_BRIEF_TEXT`
 # gives risk_map a real candidate path and handoff_ready's brief-derived
 # conditions something to read; the criteria fixture is the one
-# `runner/tests/test_s3_structure.py` also drives directly.
-_S3_BRIEF_TEXT = """## Touched area candidates
+# `runner/tests/test_planning_structure.py` also drives directly.
+_PLANNING_BRIEF_TEXT = """## Touched area candidates
 
 | path | reason |
 |---|---|
@@ -194,7 +194,7 @@ _S3_BRIEF_TEXT = """## Touched area candidates
 
 
 def _planning_ticket_with_plan_inputs(conn, tmp_path):
-    """A ticket sitting in `planning` with a real worktree, manifest pin, and brief/criteria for S3 to plan against."""
+    """A ticket sitting in `planning` with a real worktree, manifest pin, and brief/criteria for planning to plan against."""
     source = _source_repo(tmp_path)
     ticket_id = record.insert(
         conn, "ticket", state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
@@ -204,24 +204,24 @@ def _planning_ticket_with_plan_inputs(conn, tmp_path):
     git_trees.record_head(conn, ticket_id, trees.worktree)
     record.update(conn, "ticket", ticket_id, state="planning")
 
-    brief_path = tmp_path / "s3_brief.md"
-    write_text(brief_path, _S3_BRIEF_TEXT)
+    brief_path = tmp_path / "planning_brief.md"
+    write_text(brief_path, _PLANNING_BRIEF_TEXT)
     artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief_path)
-    criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
+    criteria_path = Path(__file__).parent / "fixtures" / "planning" / "criteria.md"
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
     return ticket_id
 
 
-def test_s0_stub_runs_and_the_eligibility_gate_moves_intake_to_context(conn, tmp_path):
-    """the real S0 driver runs (writing and registering a
+def test_intake_stub_runs_and_the_eligibility_gate_moves_intake_to_context(conn, tmp_path):
+    """the real intake driver runs (writing and registering a
     `ticket_source` artefact), then a granted eligibility item moves the
-    ticket on; S0 passing by itself is not enough. `service`/`ticket_type`
-    are seeded here since S0's own lookups now need a real pilot-eligible
+    ticket on; intake passing by itself is not enough. `service`/`ticket_type`
+    are seeded here since intake's own lookups now need a real pilot-eligible
     pair to pass rather than reject."""
     ticket_id = _ticket_in(conn, "intake", service="fixture-project", ticket_type="small_feature")
-    outcome = run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
+    outcome = run_stage(conn, ticket_id, "intake", runs_dir=tmp_path)
     assert outcome == "pass"
-    assert record.get(conn, "ticket", ticket_id)["state"] == "intake"  # S0 alone doesn't move it
+    assert record.get(conn, "ticket", ticket_id)["state"] == "intake"  # intake alone doesn't move it
     artefact = artefact_registry.latest(conn, ticket_id, "ticket_source")
     assert artefact is not None
 
@@ -231,34 +231,34 @@ def test_s0_stub_runs_and_the_eligibility_gate_moves_intake_to_context(conn, tmp
     assert transitions.apply(conn, ticket_id, event) == "context"
 
 
-def test_s1_stub_writes_a_brief_and_passes_to_clarifying(conn, tmp_path, monkeypatch):
-    """the real S1 driver writes and registers a checked `brief`
+def test_context_gathering_stub_writes_a_brief_and_passes_to_clarifying(conn, tmp_path, monkeypatch):
+    """the real context_gathering driver writes and registers a checked `brief`
     artefact and its pass moves context -> clarifying; the full driver's
-    own behaviour is `test_s1.py`'s, this is the conformance-suite's own
+    own behaviour is `test_context_gathering.py`'s, this is the conformance-suite's own
     smoke test that the wiring in `run_stage`/`DRIVERS` still holds."""
-    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
-    ticket_id = _s1_ready_ticket(conn, tmp_path)
-    outcome = run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(CONTEXT_GATHERING_FIXTURE_OUT))
+    ticket_id = _context_gathering_ready_ticket(conn, tmp_path)
+    outcome = run_stage(conn, ticket_id, "context_gathering", runs_dir=tmp_path)
     assert outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
     assert artefact_registry.latest(conn, ticket_id, "brief") is not None
 
 
-# S2 is no longer a stub: its question and assumption half is exercised
-# end to end in test_s2_questions.py (test_s2_walk_...), including the
+# clarification is no longer a stub: its question and assumption half is exercised
+# end to end in test_clarification_questions.py (test_clarification_walk_...), including the
 # clarifying -> planning pass this module's other stub tests each cover
 # for their own still-stub stage.
 
 
-def test_s3_runs_for_real_and_passes_to_plan_review(conn, tmp_path):
-    """the real S3 driver plans against a real brief/criteria, writes and
+def test_planning_runs_for_real_and_passes_to_plan_review(conn, tmp_path):
+    """the real planning driver plans against a real brief/criteria, writes and
     registers a `plan` artefact carrying the derived readiness table, and
-    its pass moves planning -> plan_review; `test_s3_structure.py` covers
+    its pass moves planning -> plan_review; `test_planning_structure.py` covers
     the driver's checks in depth, this is the stage-walk smoke test."""
     ticket_id = _planning_ticket_with_plan_inputs(conn, tmp_path)
-    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "planning" / "fixtures" / "ok" / "out")
     try:
-        outcome = run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+        outcome = run_stage(conn, ticket_id, "planning", runs_dir=tmp_path)
     finally:
         os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
     assert outcome == "pass"
@@ -269,7 +269,7 @@ def test_s3_runs_for_real_and_passes_to_plan_review(conn, tmp_path):
 
 
 def _implementing_ticket_with_plan_inputs(conn, tmp_path):
-    """A ticket sitting in `implementing` with a real worktree, manifest pin, and a bound plan tuple for S4 to hand off."""
+    """A ticket sitting in `implementing` with a real worktree, manifest pin, and a bound plan tuple for implementation to hand off."""
     source = _source_repo(tmp_path)
     ticket_id = record.insert(
         conn, "ticket", trust_profile_hash=support.TRUST_PROFILE_HASH, trust_approval_set_hash=support.TRUST_APPROVAL_SET_HASH, state="intake", opened_at=record.now(), factory_manifest_hash=manifest.current_hash(),
@@ -278,27 +278,27 @@ def _implementing_ticket_with_plan_inputs(conn, tmp_path):
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
     record.update(conn, "ticket", ticket_id, state="implementing")
-    # The S3 "ok" fixture's own one-task plan, not the shared two-task
-    # `s4_handoff/plan.md`: S4 opens one fresh `stage_run` per plan task,
+    # The planning "ok" fixture's own one-task plan, not the shared two-task
+    # `implementation_handoff/plan.md`: implementation opens one fresh `stage_run` per plan task,
     # so a single `run_stage` call only finishes a one-task plan.
-    plan_path = FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out" / "plan.md"
+    plan_path = FACTORY_DIR / "evals" / "agents" / "planning" / "fixtures" / "ok" / "out" / "plan.md"
     artefact_registry.register(conn, ticket_id=ticket_id, kind="plan", path=plan_path)
-    criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
+    criteria_path = Path(__file__).parent / "fixtures" / "planning" / "criteria.md"
     artefact_registry.register(conn, ticket_id=ticket_id, kind="criteria", path=criteria_path)
     support.approve_current_plan(conn, ticket_id, tmp_path)
     return ticket_id
 
 
-def test_s4_runs_for_real_and_passes_to_checks(conn, tmp_path):
-    """the real S4 driver hands off, invokes the fixture worker, records the
+def test_implementation_runs_for_real_and_passes_to_checks(conn, tmp_path):
+    """the real implementation driver hands off, invokes the fixture worker, records the
     hand-back's branch/head/deviation rows, and its pass moves
-    implementing -> checks; `test_s4_handoff.py`/`test_s4_handback.py`
+    implementing -> checks; `test_implementation_handoff.py`/`test_implementation_handback.py`
     cover the driver in depth, this is the stage-walk smoke test."""
     ticket_id = _implementing_ticket_with_plan_inputs(conn, tmp_path)
-    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "out")
-    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "worktree")
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "implementation" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "implementation" / "fixtures" / "ok" / "worktree")
     try:
-        outcome = run_stage(conn, ticket_id, "S4", runs_dir=tmp_path)
+        outcome = run_stage(conn, ticket_id, "implementation", runs_dir=tmp_path)
     finally:
         os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
         os.environ.pop("FIXTURE_ADAPTER_WORKTREE_DIR", None)
@@ -308,22 +308,22 @@ def test_s4_runs_for_real_and_passes_to_checks(conn, tmp_path):
     assert conn.execute("SELECT COUNT(*) FROM deviation WHERE ticket_id = ?", (ticket_id,)).fetchone()[0] == 2
 
 
-def test_s5_and_s6_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tmp_path):
-    """The real S5 gap is cleared by its evidence-backed waiver before S6 and the checks gate run."""
+def test_checks_and_human_review_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tmp_path):
+    """The real checks gap is cleared by its evidence-backed waiver before human_review and the checks gate run."""
     ticket_id = _checks_ticket_with_fresh_base(conn, tmp_path)
     vendor = _materialise_fixture_vendor(tmp_path)
-    with patch.object(S5, "_project_config", return_value={**project.pilot(), "vendor": str(vendor)}):
-        s5_outcome = run_stage(conn, ticket_id, "S5", runs_dir=tmp_path)
-    assert s5_outcome == "fail"
+    with patch.object(checks, "_project_config", return_value={**project.pilot(), "vendor": str(vendor)}):
+        checks_outcome = run_stage(conn, ticket_id, "checks", runs_dir=tmp_path)
+    assert checks_outcome == "fail"
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
     assert artefact_registry.latest(conn, ticket_id, "check_evidence") is not None
-    s5_run = conn.execute(
-        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S5' ORDER BY id DESC LIMIT 1", (ticket_id,)
+    checks_run = conn.execute(
+        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'checks' ORDER BY id DESC LIMIT 1", (ticket_id,)
     ).fetchone()
     blocking = conn.execute(
         "SELECT id, check_name, result, evidence_artefact FROM check_result "
         "WHERE stage_run_id = ? AND check_tier = 'blocking' AND result != 'pass' ORDER BY id",
-        (s5_run["id"],),
+        (checks_run["id"],),
     ).fetchall()
     assert [(row["check_name"], row["result"]) for row in blocking] == [("recipe:fixture_security@head", "blind_spot")]
     evidence = record.get(conn, "artefact", blocking[0]["evidence_artefact"])
@@ -346,8 +346,8 @@ def test_s5_and_s6_stubs_run_and_the_checks_gate_moves_checks_to_review(conn, tm
     assert waivers.validity(conn, waiver_id).valid
     conn.commit()
 
-    s6_outcome = run_stage(conn, ticket_id, "S6", runs_dir=tmp_path)
-    assert s6_outcome == "pass"
+    human_review_outcome = run_stage(conn, ticket_id, "human_review", runs_dir=tmp_path)
+    assert human_review_outcome == "pass"
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"  # still not moved
     assert artefact_registry.latest(conn, ticket_id, "packet") is not None
 
@@ -360,13 +360,13 @@ def test_a_second_stub_run_supersedes_the_first_artefact(conn, tmp_path, monkeyp
     """running a stage twice for the same ticket chains `supersedes` to the
     prior version rather than losing it, so a superseded version stays
     readable."""
-    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
-    ticket_id = _s1_ready_ticket(conn, tmp_path)
-    run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(CONTEXT_GATHERING_FIXTURE_OUT))
+    ticket_id = _context_gathering_ready_ticket(conn, tmp_path)
+    run_stage(conn, ticket_id, "context_gathering", runs_dir=tmp_path)
     first = artefact_registry.latest(conn, ticket_id, "brief")
 
     record.update(conn, "ticket", ticket_id, state="context")  # rerun from the same state
-    run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
+    run_stage(conn, ticket_id, "context_gathering", runs_dir=tmp_path)
     second = artefact_registry.latest(conn, ticket_id, "brief")
 
     assert second["id"] != first["id"]

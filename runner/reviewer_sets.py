@@ -83,8 +83,8 @@ CODEOWNERS_LOCATIONS: tuple[str, ...] = (".github/CODEOWNERS", "CODEOWNERS", "do
 # The routes a blocked derivation may offer, and the two situations that
 # produce them. Neither set is waivable: an owner mismatch or a sensitive-path
 # touch is exactly the situation waivers exist to not cover.
-_NON_SENSITIVE_UNRESOLVED_ROUTES: tuple[str, ...] = ("planning", "s4_removal", "abandon")
-_SENSITIVE_ROUTES: tuple[str, ...] = ("s4_removal", "pilot_excluded")
+_NON_SENSITIVE_UNRESOLVED_ROUTES: tuple[str, ...] = ("planning", "implementation_removal", "abandon")
+_SENSITIVE_ROUTES: tuple[str, ...] = ("implementation_removal", "pilot_excluded")
 
 
 @dataclass(frozen=True)
@@ -426,10 +426,10 @@ def derive_planned(
 
     Shares `_match_paths` with `derive_actual` -- the same CODEOWNERS and
     sensitive-path matching over a path list -- with two differences: the
-    Initial pilot's own fixed S3 slot (`s3_reviewer_role`, owned by
-    `owners.yaml`'s `s3_reviewer`) is always included, on top of whatever
+    Initial pilot's own fixed planning slot (`plan_reviewer_role`, owned by
+    `owners.yaml`'s `plan_reviewer`) is always included, on top of whatever
     CODEOWNERS or the sensitive-path map add, since Initial always needs a
-    human S3 reviewer even for a plan that touches nothing either source
+    human planning reviewer even for a plan that touches nothing either source
     covers; and a repository with no CODEOWNERS file at all contributes no
     CODEOWNERS-derived slot rather than raising, since a plan's own
     intended scope is not itself evidence that the repository must carry
@@ -447,8 +447,8 @@ def derive_planned(
         codeowners, changed_paths, owners=owners, sensitive_paths=sensitive_paths, flag_unmatched=False,
     )
 
-    pilot_identity = owners.roles["s3_reviewer"]["identity"]
-    pilot_slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=pilot_identity, min_count=1)
+    pilot_identity = owners.roles["plan_reviewer"]["identity"]
+    pilot_slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=pilot_identity, min_count=1)
     all_slots = [pilot_slot, *slots]
     blocked, routes = _routes_for(sensitive=sensitive, unresolved=unresolved)
 
@@ -518,7 +518,7 @@ def is_current(conn: sqlite3.Connection, reviewer_set_id: int, *, changed_paths:
     return row["path_set_hash"] == _path_set_hash(changed_paths) and row["base_sha"] == target_base_sha
 
 
-# The S6 race guard: the same derivation run again immediately before packet
+# The human-review race guard: the same derivation run again immediately before packet
 # assembly and dispatch, writing a fresh row every call. Named so a dispatch
 # path reads as "the race guard fires" rather than as an ordinary derivation.
 recompute_before_dispatch = derive_actual

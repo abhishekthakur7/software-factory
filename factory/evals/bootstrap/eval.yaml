@@ -30,47 +30,47 @@ tickets:
   T-A-19: []
   T-A-20: []
   T-A-21:
-  - agents/S1
-  - agents/S2
-  - agents/S3
-  - agents/S4
-  - skills/S1
-  - skills/S2
-  - skills/S3
-  - skills/S4
+  - agents/clarification
+  - agents/context_gathering
+  - agents/implementation
+  - agents/planning
+  - skills/clarification
+  - skills/context_gathering
+  - skills/implementation
+  - skills/planning
   - skills/shared/codegraph-lookup
   T-A-22:
-  - agents/S1
-  - rubrics/S1
+  - agents/context_gathering
+  - rubrics/context_gathering
   - scripts/tools/reindex
   T-A-23:
-  - agents/S2
-  - rubrics/S2
+  - agents/clarification
+  - rubrics/clarification
   T-A-24:
-  - agents/S2
-  - rubrics/S2
-  - skills/S2
+  - agents/clarification
+  - rubrics/clarification
+  - skills/clarification
   T-A-25:
-  - agents/S3
+  - agents/planning
   - scripts/checks/risk_map
   - scripts/checks/size_gate
   - scripts/tools/handoff_ready
   T-A-26:
-  - agents/S3
-  - rubrics/S3
+  - agents/planning
+  - rubrics/planning
   - scripts/checks/risk_map
   - scripts/checks/size_gate
   - scripts/tools/handoff_ready
-  - skills/S3
+  - skills/planning
   T-A-27:
-  - rubrics/S3
+  - rubrics/planning
   T-A-28:
-  - agents/S4
+  - agents/implementation
   T-A-29:
-  - agents/S4
+  - agents/implementation
   T-A-30:
-  - agents/S3
-  - rubrics/S5
+  - agents/planning
+  - rubrics/checks
   - scripts/checks/base_test_diff
   - scripts/checks/behavior_contract_evidence
   - scripts/checks/scope_diff
@@ -79,13 +79,13 @@ tickets:
   - scripts/checks/base_test_diff
   - scripts/tools/packet_assemble
   T-A-32:
-  - rubrics/S3
+  - rubrics/planning
   - scripts/tools/packet_assemble
   T-A-33: []
   T-A-34: []
   T-A-35:
   - adapters/cursor_sdk
-  - rubrics/S0
+  - rubrics/intake
   - scripts/checks/impact_scan
   - scripts/checks/java_compile
   - scripts/checks/java_lint
@@ -98,8 +98,8 @@ tickets:
   T-AB-03: []
   T-AB-04: []
   T-AB-05:
-  - rubrics/S1
-  - rubrics/S3
+  - rubrics/context_gathering
+  - rubrics/planning
   - scripts/tools/archaeology
   T-AB-06: []
   T-AB-07:

@@ -1,5 +1,5 @@
 """`python3 -m runner.gate`: the adoption record, the eval-directory walk, then the test suite,
-each read from local git history alone (R-F-4).
+each read from local git history alone.
 
 Every case builds its own temp git repository from a real copy of the
 committed `factory/` tree with a freshly regenerated manifest, and always
@@ -67,8 +67,8 @@ def test_editing_a_factory_file_and_recommitting_with_a_refreshed_manifest_chang
     repo = _build_gated_repo(tmp_path)
     hash_before = manifest.current_hash(repo)
 
-    (repo / "factory" / "rubrics" / "S1.md").write_text(
-        (repo / "factory" / "rubrics" / "S1.md").read_text() + "\n<!-- edited -->\n"
+    (repo / "factory" / "rubrics" / "context_gathering.md").write_text(
+        (repo / "factory" / "rubrics" / "context_gathering.md").read_text() + "\n<!-- edited -->\n"
     )
     _refresh_manifest(repo)
     _git(["add", "-A"], cwd=repo)
@@ -93,7 +93,7 @@ def test_the_gate_exits_non_zero_over_a_failing_temp_tests_dir(tmp_path):
 
 
 def test_must_reject_a_dirty_uncommitted_factory_edit(tmp_path):
-    """R-F-1/R-F-4: an uncommitted edit to `factory/manifest.yaml` itself -- the one file the
+    """must-reject: an uncommitted edit to `factory/manifest.yaml` itself -- the one file the
     adoption record's hash is actually computed from -- fails the gate before any other step runs."""
     repo = _build_gated_repo(tmp_path)
     manifest_path = repo / "factory" / "manifest.yaml"

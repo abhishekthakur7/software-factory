@@ -21,12 +21,12 @@ recipes:
       - "out/lint-classes"
     cwd_role: checkout
     kind: lint
-    stages: [S4, S5]
+    stages: [implementation, checks]
     timeout_seconds: 60
     expected_exit_codes: [0]
     env_allowlist: [PATH]
     network: none
-    # Kept, not discarded: S5's regression-only comparison (`runner.checks.regression_only`)
+    # Kept, not discarded: the checks stage's regression-only comparison (`runner.checks.regression_only`)
     # needs this recipe's own diagnostic text at base and head to tell a new-or-worse
     # diagnostic apart from inherited debt; a discarded output would leave nothing to compare.
     output_retention: keep
@@ -43,13 +43,13 @@ recipes:
       - "out/compile-classes"
     cwd_role: checkout
     kind: compile
-    stages: [S4, S5]
+    stages: [implementation, checks]
     timeout_seconds: 60
     expected_exit_codes: [0]
     env_allowlist: [PATH]
     network: none
-    # Kept for the same reason as `fixture_lint`: S5's regression-only
-    # comparison needs its diagnostic text at base and head.
+    # Kept for the same reason as `fixture_lint`: the checks stage's
+    # regression-only comparison needs its diagnostic text at base and head.
     output_retention: keep
 
   - id: fixture_unit
@@ -70,7 +70,7 @@ recipes:
       - "out/unit-classes"
     cwd_role: checkout
     kind: test
-    stages: [S4, S5]
+    stages: [implementation, checks]
     timeout_seconds: 90
     expected_exit_codes: [0]
     env_allowlist: [PATH]
@@ -97,7 +97,7 @@ recipes:
       - "out/integration-classes"
     cwd_role: checkout
     kind: test
-    stages: [S5]
+    stages: [checks]
     timeout_seconds: 90
     expected_exit_codes: [0]
     env_allowlist: [PATH]
@@ -124,7 +124,7 @@ recipes:
       - "out/e2e-classes"
     cwd_role: checkout
     kind: test
-    stages: [S5]
+    stages: [checks]
     timeout_seconds: 90
     expected_exit_codes: [0]
     env_allowlist: [PATH]
@@ -143,7 +143,7 @@ recipes:
       - {placeholder: vendor, type: string}
     cwd_role: checkout
     kind: dependency
-    stages: [S5]
+    stages: [checks]
     timeout_seconds: 30
     expected_exit_codes: [0]
     env_allowlist: [PATH]
@@ -156,7 +156,7 @@ recipes:
     args: ["--config", {placeholder: security_config, type: string}, "--rules", {placeholder: security_rules, type: string}, "--waiver-policy", {placeholder: security_waiver_policy, type: string}, "--checkout", "."]
     cwd_role: checkout
     kind: security
-    stages: [S5]
+    stages: [checks]
     timeout_seconds: 30
     expected_exit_codes: [0]
     env_allowlist: [PATH]

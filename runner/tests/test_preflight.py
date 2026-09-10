@@ -1,4 +1,4 @@
-"""S5 preflight: `binding.preflight_review_tuple` verifies every candidate component,
+"""The checks-stage preflight: `binding.preflight_review_tuple` verifies every candidate component,
 in order, before creating the review tuple -- a missing or stale one refuses tuple
 creation before any write, and success creates exactly one row.
 """

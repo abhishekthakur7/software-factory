@@ -2,7 +2,7 @@
 
 Reuses `test_act.py`'s governed plan-approval setup (a ticket in
 `plan_review` with real registered brief/criteria/plan artefacts and a
-planned `s3_reviewer` slot) up to the point its checklist is expected, but
+planned `plan_reviewer` slot) up to the point its checklist is expected, but
 seeds no verdicts itself -- the whole point of this file is driving every
 expected instance through the batch form instead of one `verdict` call
 per instance.
@@ -39,8 +39,8 @@ def _open_plan_approval_item(conn, tmp_path) -> tuple[int, int]:
         path = tmp_path / f"{artefact_kind}.md"
         path.write_text(f"## {artefacts.SECTIONS[artefact_kind][0]}\n\nstub\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind=artefact_kind, path=path)
-    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    identity = owners.load_owners().roles["plan_reviewer"]["identity"]
+    slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=identity, min_count=1)
     reviewer_set_id = record.insert(
         conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-subj-batch",
         slots=json.dumps([slot.to_json()]),
@@ -55,7 +55,7 @@ def _expected_instances(conn, ticket_id):
 
 
 def test_a_batch_of_pass_tuples_writes_one_verdict_row_each_and_completes_the_checklist(conn, tmp_path):
-    """R-H-4: each tuple's `(rubric_line_id, subject_item_key, verdict, evidence)` writes one `human_verdict`
+    """Each tuple's `(rubric_line_id, subject_item_key, verdict, evidence)` writes one `human_verdict`
     row through the same path a single `verdict` action uses. Completing the checklist this way leaves the
     item itself open for its own later `approve`, exactly as completing it one `verdict` call at a time does
     -- a `pass` never resolves a `plan_approval` item on its own, batched or not."""
@@ -99,7 +99,7 @@ def test_a_batch_of_pass_tuples_writes_one_verdict_row_each_and_completes_the_ch
 
 
 def test_a_fail_tuple_stops_the_batch_there_and_sends_the_ticket_back(conn, tmp_path):
-    """R-H-4: a `fail` in the batch sends the ticket back exactly as a lone `fail` would, and no tuple after it
+    """A `fail` in the batch sends the ticket back exactly as a lone `fail` would, and no tuple after it
     in the file is ever applied."""
     ticket_id, item_id = _open_plan_approval_item(conn, tmp_path)
     instances = _expected_instances(conn, ticket_id)
@@ -120,7 +120,7 @@ def test_a_fail_tuple_stops_the_batch_there_and_sends_the_ticket_back(conn, tmp_
     verdicts_file.write_text(yaml.safe_dump(entries))
 
     queue.act(
-        conn, item_id=item_id, action="verdicts", actor=ABHISHEK, fm_id="FM-07",
+        conn, item_id=item_id, action="verdicts", actor=ABHISHEK, fm_id="question_noise",
         fields={"verdicts_file": str(verdicts_file)}, runs_dir=tmp_path,
     )
 

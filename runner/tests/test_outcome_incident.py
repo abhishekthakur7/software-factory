@@ -3,7 +3,7 @@ import yaml
 
 from runner import incident_policy, queue, record
 from runner.paths import FACTORY_DIR
-from runner.stages import S4
+from runner.stages import implementation
 from runner.tests.test_outcome_revision import conn, ABHISHEK
 
 POLICY_PATH = FACTORY_DIR / "config" / "incident-policy.yaml"
@@ -15,11 +15,11 @@ def _seed_ticket(conn, **overrides) -> int:
 
 
 def test_incident_event_writes_the_row_and_its_required_incident_tag(conn):
-    """R-H-11: one `production_incident_event` row and its human `incident` tag; the root is never superseded."""
+    """One `production_incident_event` row and its human `incident` tag; the root is never superseded."""
     ticket_id = _seed_ticket(conn)
     queue.act(
         conn, ticket_id=ticket_id, action="incident_event", actor=ABHISHEK,
-        fields={"severity": "sev2", "occurred_at": "2025-02-01T00:00:00+00:00", "fm_id": "FM-07", "note": "elevated error rate"},
+        fields={"severity": "sev2", "occurred_at": "2025-02-01T00:00:00+00:00", "fm_id": "question_noise", "note": "elevated error rate"},
     )
     event = conn.execute(
         "SELECT * FROM incident_observation WHERE ticket_id = ? AND record_kind = 'production_incident_event'", (ticket_id,)
@@ -29,18 +29,18 @@ def test_incident_event_writes_the_row_and_its_required_incident_tag(conn):
     assert event["supersedes"] is None
     tag_row = record.get(conn, "tag", event["tag_id"])
     assert tag_row["event_kind"] == "incident"
-    assert tag_row["fm_id"] == "FM-07"
+    assert tag_row["fm_id"] == "question_noise"
     assert tag_row["tagged_by"] == ABHISHEK
 
 
 def test_disposition_supersedes_only_the_same_roots_earlier_disposition(conn):
-    """R-H-11: `recorder_role` is `incident_reviewer`, and a disposition supersedes
+    """`recorder_role` is `incident_reviewer`, and a disposition supersedes
     only an earlier `production_disposition` naming the same event root."""
     ticket_id = _seed_ticket(conn)
     for note in ("first incident", "second incident"):
         queue.act(
             conn, ticket_id=ticket_id, action="incident_event", actor=ABHISHEK,
-            fields={"severity": "sev3", "occurred_at": "2025-02-01T00:00:00+00:00", "fm_id": "FM-07", "note": note},
+            fields={"severity": "sev3", "occurred_at": "2025-02-01T00:00:00+00:00", "fm_id": "question_noise", "note": note},
         )
     events = conn.execute(
         "SELECT id FROM incident_observation WHERE ticket_id = ? AND record_kind = 'production_incident_event' ORDER BY id",
@@ -69,7 +69,7 @@ def test_disposition_supersedes_only_the_same_roots_earlier_disposition(conn):
         conn, ticket_id=ticket_id, action="disposition", actor=ABHISHEK,
         fields={
             "event": str(event_a), "attribution": "attributable", "disposition": "remediated",
-            "remediation_ref": "catalogue:FM-07",
+            "remediation_ref": "catalogue:question_noise",
         },
     )
     second_a = conn.execute(
@@ -80,7 +80,6 @@ def test_disposition_supersedes_only_the_same_roots_earlier_disposition(conn):
 
 
 def test_incident_policy_yaml_declares_every_required_shape():
-    """R-H-11."""
     policy = yaml.safe_load(POLICY_PATH.read_text())
     assert policy["severity_levels"] == ["sev1", "sev2", "sev3", "sev4"]
     assert set(policy["control_categories"]) == set(CONTROL_CATEGORIES)
@@ -91,13 +90,12 @@ def test_incident_policy_yaml_declares_every_required_shape():
     assert set(policy["remediation_rule"]["remediated_requires_ref_prefixes"]) == {"catalogue:", "rubric:"}
 
 
-def test_s4_control_defect_event_reads_its_severity_from_the_incident_policy(conn):
-    """R-H-11."""
+def test_implementation_control_defect_event_reads_its_severity_from_the_incident_policy(conn):
     ticket_id = record.insert(conn, "ticket", state="implementing", opened_at=record.now())
     ticket = record.get(conn, "ticket", ticket_id)
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1)
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1)
 
-    S4._control_defect(conn, ticket, stage_run_id, failure_kind="sandbox_integrity")
+    implementation._control_defect(conn, ticket, stage_run_id, failure_kind="sandbox_integrity")
 
     event = conn.execute(
         "SELECT * FROM incident_observation WHERE ticket_id = ? AND record_kind = 'control_defect_event'", (ticket_id,)
@@ -106,13 +104,12 @@ def test_s4_control_defect_event_reads_its_severity_from_the_incident_policy(con
 
 
 def test_control_event_with_no_severity_derives_it_from_the_policy_for_the_category(conn, tmp_path):
-    """R-H-11."""
     ticket_id = record.insert(conn, "ticket", state="checks", opened_at=record.now())
     item_id = queue.open_item(conn, ticket_id=ticket_id, kind="red_check")
 
     queue.act(
         conn, item_id=item_id, action="control_event", actor=ABHISHEK,
-        category="data_boundary", fm_id="FM-24", note="observed a boundary gap", runs_dir=tmp_path,
+        category="data_boundary", fm_id="data_boundary_breach", note="observed a boundary gap", runs_dir=tmp_path,
     )
 
     event = conn.execute(

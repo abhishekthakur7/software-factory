@@ -58,13 +58,13 @@
     </div>
     <ul class="rows">
       <li class="rowhead mtrow"><span>Stage</span><span>Agent</span><span>Model</span><span>Tier</span><span>Rubric</span><span>Tools</span><span class="bcell">Budget</span></li>
-      <li class="row mtrow"><span>S0 Intake</span><span class="fc-agent">s0-intake</span><span class="model">claude-haiku-4-5</span><span class="tier">all</span><span class="fc-rub">rubric-s0 <b>· 7 lines</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:3%"></i></span><em>$0.10</em></span></li>
-      <li class="row mtrow"><span>S1 Context</span><span class="fc-agent">s1-context</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s1 <b>· 11 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
-      <li class="row mtrow"><span>S2 Clarify</span><span class="fc-agent">s2-clarify</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s2 <b>· checklists</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:12.5%"></i></span><em>$1.50</em></span></li>
-      <li class="row mtrow"><span>S3 Spec and plan</span><span class="fc-agent">s3-planner</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s3 <b>· 14 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:50%"></i></span><em>$6.00</em></span></li>
-      <li class="row mtrow is-sel"><span>S4 Implementation</span><span class="fc-agent">s4-implementer</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s4 <b>· 9 lines</b></span><span class="fc-tools">read, edit, recipe, codegraph</span><span class="bcell"><span class="dbar"><i style="width:100%"></i></span><em>$12.00</em></span></li>
-      <li class="row mtrow"><span>S5 Checks</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">rubric-s5 <b>· 12 lines</b></span><span class="fc-tools">recipe</span><span class="bcell"><span class="dbar"><i style="width:8.3%"></i></span><em>$1.00</em></span></li>
-      <li class="row mtrow"><span>S6 Packet</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">rubric-s6 <b>· 6 lines</b></span><span class="fc-tools">none</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
+      <li class="row mtrow"><span>Intake</span><span class="fc-agent">Intake</span><span class="model">claude-haiku-4-5</span><span class="tier">all</span><span class="fc-rub">intake.md <b>· 7 lines</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:3%"></i></span><em>$0.10</em></span></li>
+      <li class="row mtrow"><span>Context gathering</span><span class="fc-agent">context_gathering.md</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">context_gathering.md <b>· 11 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
+      <li class="row mtrow"><span>Clarification</span><span class="fc-agent">clarification.md</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">clarification.md <b>· checklists</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:12.5%"></i></span><em>$1.50</em></span></li>
+      <li class="row mtrow"><span>Planning</span><span class="fc-agent">planning.md</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">planning.md <b>· 14 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:50%"></i></span><em>$6.00</em></span></li>
+      <li class="row mtrow is-sel"><span>Implementation</span><span class="fc-agent">implementation.md</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">implementation.md <b>· 9 lines</b></span><span class="fc-tools">read, edit, recipe, codegraph</span><span class="bcell"><span class="dbar"><i style="width:100%"></i></span><em>$12.00</em></span></li>
+      <li class="row mtrow"><span>Checks</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">checks.md <b>· 12 lines</b></span><span class="fc-tools">recipe</span><span class="bcell"><span class="dbar"><i style="width:8.3%"></i></span><em>$1.00</em></span></li>
+      <li class="row mtrow"><span>Human review</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">human_review.md <b>· 6 lines</b></span><span class="fc-tools">none</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
     </ul>
   </div>
 
@@ -73,7 +73,7 @@
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-file"/></svg></span>
-        <span class="ell"><span class="node-t">s0-intake</span><span class="node-s">claude-haiku-4-5</span></span>
+        <span class="ell"><span class="node-t">Intake</span><span class="node-s">claude-haiku-4-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_1e05 · 61 runs</span><b>97%</b></div>
       <span class="prog"><i style="width:97%"></i></span>
@@ -81,7 +81,7 @@
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-layers"/></svg></span>
-        <span class="ell"><span class="node-t">s1-context</span><span class="node-s">claude-sonnet-5</span></span>
+        <span class="ell"><span class="node-t">context_gathering.md</span><span class="node-s">claude-sonnet-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_77d2 · 58 runs</span><b>93%</b></div>
       <span class="prog"><i style="width:93%"></i></span>
@@ -89,7 +89,7 @@
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-help"/></svg></span>
-        <span class="ell"><span class="node-t">s2-clarify</span><span class="node-s">claude-sonnet-5</span></span>
+        <span class="ell"><span class="node-t">clarification.md</span><span class="node-s">claude-sonnet-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_51a7 · 54 runs</span><b>91%</b></div>
       <span class="prog"><i style="width:91%"></i></span>
@@ -97,7 +97,7 @@
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-list"/></svg></span>
-        <span class="ell"><span class="node-t">s3-planner</span><span class="node-s">claude-opus-5</span></span>
+        <span class="ell"><span class="node-t">planning.md</span><span class="node-s">claude-opus-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_c4d8 · 52 runs</span><b>88%</b></div>
       <span class="prog"><i style="width:88%"></i></span>
@@ -105,7 +105,7 @@
     <div class="node is-live">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-cpu"/></svg></span>
-        <span class="ell"><span class="node-t">s4-implementer</span><span class="node-s">claude-opus-5</span></span>
+        <span class="ell"><span class="node-t">implementation.md</span><span class="node-s">claude-opus-5</span></span>
       </div>
       <div class="node-st"><i class="live"></i><span class="ell">run_d204 · 49 runs</span><b>79%</b></div>
       <span class="prog"><i style="width:79%"></i></span>

@@ -1,4 +1,4 @@
-# A dirty build (a commit already on the ticket branch, as if S4 had run)
+# A dirty build (a commit already on the ticket branch, as if implementation had run)
 # and a target-branch commit that touches a different file: `refresh_base`
 # must rebase the ticket commit onto the new target with no conflict, and
 # the dirty build's content must survive on top of the new base.
@@ -6,7 +6,7 @@ seed:
   ticket_file.txt: "unchanged by the ticket\n"
   target_file.txt: "unchanged by the target\n"
 ticket_commit:
-  message: "S4 work on the ticket branch"
+  message: "implementation work on the ticket branch"
   files:
     ticket_file.txt: "changed by the ticket branch\n"
 target_commit:

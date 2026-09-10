@@ -20,19 +20,19 @@ from runner.reviewer_sets import match_sensitive_path
 DEFAULT_SENSITIVE_PATHS_PATH = FACTORY_DIR / "config" / "sensitive-paths.yaml"
 DEFAULT_EXCLUSIONS_PATH = FACTORY_DIR / "config" / "exclusions.yaml"
 
-# The pilot eligibility matrix (R-S0-8): exactly one T2, Java service and
+# The pilot eligibility matrix: exactly one T2, Java service and
 # the one admitted ticket type, one repository and one target service.
 _PILOT_SERVICE_TIER = "T2"
 _PILOT_LANGUAGE = "java"
 _PILOT_TICKET_TYPE = "small_feature"
 
 # The transition event a recorded exclusion applies, keyed by the
-# stage_run.stage that discovered it; S5's proof reuses the checks-stage
-# event the state table already carries for a required sensitive path.
+# stage_run.stage that discovered it; the checks stage's proof reuses the
+# checks-stage event the state table already carries for a required sensitive path.
 _STAGE_EVENTS: dict[str, str] = {
-    "S1": "s1_exclusion",
-    "S3": "s3_exclusion",
-    "S5": "checks_sensitive_path_required",
+    "context_gathering": "context_gathering_exclusion",
+    "planning": "planning_exclusion",
+    "checks": "checks_sensitive_path_required",
 }
 
 
@@ -117,8 +117,8 @@ def decide_at_checks(
     """The event to apply for an excluded path found in the actual diff.
 
     `checks_removal_return` when some excluded diff path is not among the
-    plan's own paths -- an accidental touch S4 must remove before S5 can
-    pass; `checks_sensitive_path_required` only when every excluded diff
+    plan's own paths -- an accidental touch implementation must remove before the
+    checks stage can pass; `checks_sensitive_path_required` only when every excluded diff
     path the diff touches is one the plan itself already named in scope.
     Raises `ValueError` when `diff_paths` names no excluded path at all,
     since a caller only reaches this decision after a check has already
@@ -142,7 +142,7 @@ def apply_recorded_exclusion(conn: sqlite3.Connection, ticket_id: int) -> str:
 
     Reads the latest `check_result` row of `check_name = 'exclusion'` and
     `result = 'fail'` for `ticket_id`, through the `stage_run` it belongs
-    to, and applies `s1_exclusion`, `s3_exclusion`, or
+    to, and applies `context_gathering_exclusion`, `planning_exclusion`, or
     `checks_sensitive_path_required` by that run's own stage;
     `transitions.apply` itself refuses when the ticket is not in the state
     that stage runs from, so this function adds no state check of its own.

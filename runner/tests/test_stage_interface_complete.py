@@ -6,7 +6,7 @@ one hidden behind a line continuation, is still caught. The import-graph
 scans cover `runner/`'s production modules only, `runner/tests/`
 excluded: a test seeds rows and imports internal driver modules for
 monkeypatching constantly (`test_stub_walk.py`'s own `from runner.stages
-import S5`, for one), which is exactly the access this file's checks
+import checks`, for one), which is exactly the access this file's checks
 narrow for the shipped surface, not for the tests that exercise it --
 `test_write_barrier.py`'s own production-only scan is the same
 convention. The forbidden-import and forbidden-SQL scans instead cover
@@ -35,12 +35,12 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures" / "stage_interface"
 # as an `action` argument to `act`, never as an attribute of its own.
 OUTCOME_ACTIONS = ("revision", "outcome", "exposure", "coverage", "incident_event", "control_event", "disposition")
 
-# `runner/queue.py`'s `act` imports `S0` inside its own `if kind ==
-# "eligibility"` branch, deferred, because S0 itself opens that queue
+# `runner/queue.py`'s `act` imports `intake` inside its own `if kind ==
+# "eligibility"` branch, deferred, because intake itself opens that queue
 # item through `queue.open_item` -- a top-level import in either
 # direction would be circular. The one admitted site outside
-# `runner/stages/` naming an `S<n>` driver directly.
-_ADMITTED_STAGE_IMPORT = (RUNNER_DIR / "queue.py", "S0")
+# `runner/stages/` naming a stage driver module directly.
+_ADMITTED_STAGE_IMPORT = (RUNNER_DIR / "queue.py", "intake")
 
 _FORBIDDEN_SCRIPT_BASES = ("record", "run_ledger", "outbox", "adapters")
 _FORBIDDEN_SCRIPT_MODULES = tuple(f"runner.{base}" for base in _FORBIDDEN_SCRIPT_BASES)
@@ -82,6 +82,16 @@ def _runner_production_files():
             yield path
 
 
+def _stage_driver_names() -> set[str]:
+    """Every `runner/stages/` module that drives a stage: every top-level `.py`
+    file there except the registry (`__init__.py`) and shared helpers (`_common.py`)."""
+    return {
+        path.stem
+        for path in (RUNNER_DIR / "stages").glob("*.py")
+        if not path.stem.startswith("_")
+    }
+
+
 def _factory_script_files():
     """Every regular file under `factory/scripts/`: extensionless executables and shared `.py`
     modules alike, `__pycache__`'s own compiled bytecode excluded -- it is gitignored, not source."""
@@ -94,7 +104,7 @@ def _factory_script_files():
 
 
 def test_stage_interface_exports_exactly_the_initial_operation_list():
-    """R-I-1: `stage_interface.__all__` names exactly the Initial operation
+    """`stage_interface.__all__` names exactly the Initial operation
     catalogue, each a real attribute of the module; the Later operations `sync_pr_head`,
     `score`, `proposal`, and `benchmark` are absent."""
     expected = yaml.safe_load((FIXTURES_DIR / "export_list.yaml").read_text())["operations"]
@@ -110,7 +120,7 @@ def test_stage_interface_exports_exactly_the_initial_operation_list():
 
 @pytest.mark.parametrize("action_name", OUTCOME_ACTIONS)
 def test_must_reject_a_record_writing_outcome_action_as_its_own_stage_interface_attribute(action_name):
-    """R-I-1: `revision`, `outcome`, `exposure`, `coverage`, `incident_event`,
+    """`revision`, `outcome`, `exposure`, `coverage`, `incident_event`,
     `control_event`, and `disposition` name no attribute of their own on `stage_interface`."""
     assert not hasattr(stage_interface, action_name)
 
@@ -119,7 +129,7 @@ def test_must_reject_a_record_writing_outcome_action_as_its_own_stage_interface_
 
 
 def test_cli_imports_only_stage_interface_and_paths_from_runner():
-    """R-I-1: `runner/cli.py` imports `runner.stage_interface` and nothing
+    """`runner/cli.py` imports `runner.stage_interface` and nothing
     else from `runner/` but `runner.paths`."""
     violations = []
     for module, name, lineno in _imports(_parse(RUNNER_DIR / "cli.py")):
@@ -133,7 +143,7 @@ def test_cli_imports_only_stage_interface_and_paths_from_runner():
 
 
 def test_every_cli_verb_reaches_the_record_only_through_an_exported_stage_interface_name():
-    """R-I-1: every `factory` verb maps to one exported name -- `cli.py` calls
+    """Every `factory` verb maps to one exported name -- `cli.py` calls
     only attributes `stage_interface.__all__` exports, or the three documented non-export
     attributes (`connect`, `target_branch`, `show_artefact`) its own composition needs."""
     permitted = set(stage_interface.__all__) | {"connect", "target_branch", "show_artefact"}
@@ -153,7 +163,7 @@ def test_every_cli_verb_reaches_the_record_only_through_an_exported_stage_interf
 
 
 def test_runner_adapters_is_imported_only_by_runner_stages_modules():
-    """R-I-1: only a `runner/stages/` driver module imports `runner.adapters`."""
+    """Only a `runner/stages/` driver module imports `runner.adapters`."""
     violations = []
     for path in _runner_production_files():
         if path.relative_to(RUNNER_DIR).parts[0] == "stages":
@@ -180,7 +190,7 @@ def _forbidden_script_import(module: str, name: str | None) -> bool:
 
 
 def test_no_factory_script_imports_record_run_ledger_outbox_or_adapters():
-    """R-I-1: no file under `factory/scripts/` imports `runner.record`,
+    """No file under `factory/scripts/` imports `runner.record`,
     `runner.run_ledger`, `runner.outbox`, or `runner.adapters`."""
     violations = []
     for path in _factory_script_files():
@@ -192,7 +202,7 @@ def test_no_factory_script_imports_record_run_ledger_outbox_or_adapters():
 
 
 def test_no_factory_script_writes_sql_directly():
-    """R-I-1: no string literal under `factory/scripts/` is an `INSERT`,
+    """No string literal under `factory/scripts/` is an `INSERT`,
     `UPDATE`, `DELETE`, `CREATE`, or `DROP` statement."""
     violations = []
     for path in _factory_script_files():
@@ -230,7 +240,7 @@ def _graduation_gate_write_lines(tree: ast.AST) -> list[int]:
 
 
 def test_the_graduation_gate_write_literal_lives_in_exactly_one_module():
-    """R-I-1: the literal `gate="graduation"` write exists in exactly one
+    """The literal `gate="graduation"` write exists in exactly one
     module, `runner/graduation.py`, reached only through `stage_interface.graduate_approve`."""
     sites: dict[Path, list[int]] = {}
     for path in _runner_production_files():
@@ -242,7 +252,7 @@ def test_the_graduation_gate_write_literal_lives_in_exactly_one_module():
 
 
 def test_a_non_owner_actor_s_graduation_approval_confers_no_authority_on_capacity(conn, tmp_path):
-    """R-I-1: a seeded `approval_record` of `gate = 'graduation'` from an
+    """A seeded `approval_record` of `gate = 'graduation'` from an
     identity whose `owners.yaml` role is not `factory_owner` -- here `mallory`, who holds
     only `incident_reviewer` in the fixture owners file -- confers no authority on
     `capacity.effective_parallel_limit`, whatever role or scope the row itself claims."""
@@ -291,21 +301,22 @@ def test_a_non_owner_actor_s_graduation_approval_confers_no_authority_on_capacit
 
 
 def test_cli_and_stage_interface_import_nothing_under_runner_stages_except_the_registry():
-    """R-I-1: `runner/cli.py` and `runner/stage_interface.py` import nothing
+    """`runner/cli.py` and `runner/stage_interface.py` import nothing
     under `runner/stages/` except the driver registry `stage_interface.run_stage` dispatches
-    through -- neither file names an `S<n>` driver module directly."""
+    through -- neither file names a stage driver module directly."""
+    drivers = _stage_driver_names()
     violations = []
     for path in (RUNNER_DIR / "cli.py", RUNNER_DIR / "stage_interface.py"):
         for module, name, lineno in _imports(_parse(path)):
-            if module == "runner.stages" and name is not None and re.fullmatch(r"S\d+", name):
+            if module == "runner.stages" and name in drivers:
                 violations.append(f"{path.name}:{lineno}: from runner.stages import {name}")
-            elif module is not None and re.fullmatch(r"runner\.stages\.S\d+(\..*)?", module):
+            elif module is not None and module.startswith("runner.stages.") and module.rsplit(".", 1)[-1] in drivers:
                 violations.append(f"{path.name}:{lineno}: from {module} import {name}")
     assert violations == [], violations
 
 
 def test_no_runner_stages_module_imports_cli_or_stage_interface():
-    """R-I-1: no module under `runner/stages/` imports `runner.cli` or
+    """No module under `runner/stages/` imports `runner.cli` or
     `runner.stage_interface`."""
     violations = []
     for path in sorted((RUNNER_DIR / "stages").rglob("*.py")):
@@ -317,23 +328,22 @@ def test_no_runner_stages_module_imports_cli_or_stage_interface():
     assert violations == [], violations
 
 
-def test_no_module_outside_runner_stages_imports_an_sn_driver_except_the_admitted_queue_import():
-    """R-I-1: no module outside `runner/stages/` imports a `runner/stages/S<n>.py`
-    name other than through the registry, except the existing deferred `S0` import in
-    `queue.act` (see its own comment for why: S0 itself opens the item `queue.act` resolves,
+def test_no_module_outside_runner_stages_imports_a_stage_driver_except_the_admitted_queue_import():
+    """No module outside `runner/stages/` imports a `runner/stages/` driver module
+    name other than through the registry, except the existing deferred `intake` import in
+    `queue.act` (see its own comment for why: intake itself opens the item `queue.act` resolves,
     so a top-level import in either direction would be circular)."""
+    drivers = _stage_driver_names()
     violations = []
     for path in _runner_production_files():
         if path.relative_to(RUNNER_DIR).parts[0] == "stages":
             continue
         for module, name, lineno in _imports(_parse(path)):
             driver = None
-            if module == "runner.stages" and name is not None and re.fullmatch(r"S\d+", name):
+            if module == "runner.stages" and name in drivers:
                 driver = name
-            elif module is not None:
-                match = re.fullmatch(r"runner\.stages\.(S\d+)(\..*)?", module)
-                if match:
-                    driver = match.group(1)
+            elif module is not None and module.startswith("runner.stages.") and module.rsplit(".", 1)[-1] in drivers:
+                driver = module.rsplit(".", 1)[-1]
             if driver is None:
                 continue
             if (path, driver) == _ADMITTED_STAGE_IMPORT:

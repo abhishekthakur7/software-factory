@@ -28,15 +28,15 @@ from runner.paths import FACTORY_DIR
 # The three rubric files this ticket's checklist code reads by default;
 # every real caller uses exactly this set, a test may pass its own.
 DEFAULT_RUBRIC_PATHS: tuple[Path, ...] = (
-    FACTORY_DIR / "rubrics" / "S1.md",
-    FACTORY_DIR / "rubrics" / "S2.md",
-    FACTORY_DIR / "rubrics" / "S3.md",
+    FACTORY_DIR / "rubrics" / "context_gathering.md",
+    FACTORY_DIR / "rubrics" / "clarification.md",
+    FACTORY_DIR / "rubrics" / "planning.md",
 )
 
 # The artefact kind an `artefact`-subject checklist line in a given
 # stage's rubric names -- also the artefact every instance from that
 # stage's rubric verdicts against, whatever its own subject kind.
-STAGE_ARTEFACT_KIND: dict[str, str] = {"S1": "brief", "S2": "criteria", "S3": "plan"}
+STAGE_ARTEFACT_KIND: dict[str, str] = {"context_gathering": "brief", "clarification": "criteria", "planning": "plan"}
 
 # human_verdict.verdict's closed set; the table carries no CHECK
 # constraint of its own, so this module is the one place that enforces it.
@@ -81,7 +81,14 @@ def _criterion_keys(conn: sqlite3.Connection, ticket: sqlite3.Row) -> list[str]:
 
 
 def _question_keys(conn: sqlite3.Connection, ticket: sqlite3.Row) -> list[str]:
-    rows = conn.execute("SELECT id FROM question WHERE ticket_id = ? ORDER BY id", (ticket["id"],)).fetchall()
+    # A row a flag correction has superseded is excluded: it is the same
+    # question the replacement now represents, not a second one needing
+    # its own checklist instance and verdict.
+    rows = conn.execute(
+        "SELECT id FROM question WHERE ticket_id = ? "
+        "AND id NOT IN (SELECT supersedes FROM question WHERE supersedes IS NOT NULL) ORDER BY id",
+        (ticket["id"],),
+    ).fetchall()
     return [str(row["id"]) for row in rows]
 
 

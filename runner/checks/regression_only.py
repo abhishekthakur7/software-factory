@@ -5,7 +5,7 @@ result only when it worsens at head; an unchanged base diagnostic or a
 test already red at base stays visible as inherited debt rather than a
 fresh block. Every function here takes plain text or already-parsed
 identities and returns data -- no filesystem, no subprocess, no database
--- so the S5 driver decides what to do with a `Comparison` without this
+-- so the checks stage's driver decides what to do with a `Comparison` without this
 module ever running a recipe itself.
 """
 import re
@@ -21,8 +21,8 @@ GOVERNED_KINDS: tuple[str, ...] = ("lint", "compile", "integration_test", "end_t
 # A catalogue recipe's own `kind` ("lint", "compile", "test", "other") plus,
 # for a test recipe, its `level` ("unit", "integration", "end_to_end") name
 # the governed kind the driver compares against `GOVERNED_KINDS`; a unit
-# test has no entry here and so is never governed, matching R-S5-10's own
-# text that unit tests keep their own blocking rule.
+# test has no entry here and so is never governed, matching the checks
+# stage's own rule that unit tests keep their own blocking rule.
 _TEST_LEVEL_KINDS: dict[str, str] = {"integration": "integration_test", "end_to_end": "end_to_end_test"}
 
 _LINE_COLUMN = re.compile(r":\d+:\d+")

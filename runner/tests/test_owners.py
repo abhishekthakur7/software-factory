@@ -160,7 +160,7 @@ def test_authority_policy_hash_changes_when_the_file_bytes_change(tmp_path):
 
 def test_identity_snapshots_for_two_decisions_differ_from_each_other_and_from_the_policy_hash(tmp_path):
     doc = _owners_doc()
-    doc["roles"]["s3_reviewer"]["identity"] = "someone_else"
+    doc["roles"]["plan_reviewer"]["identity"] = "someone_else"
     path = _write(tmp_path, doc)
     owners = load_owners(path, _write_trust_profile(tmp_path))
     policy_hash = authority_policy_hash(path)

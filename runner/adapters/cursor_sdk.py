@@ -1,12 +1,11 @@
 """The Cursor SDK runtime adapter: pinned runner code that turns a manifest entry into one governed invocation.
 
-`invoke` is the whole contract of R-I-13: given a resolved manifest
-`Entry`, it opens the invocation's own `stage_run` (so a child sub-run
+`invoke` opens the invocation's own `stage_run` (so a child sub-run
 opened with `parent_run_id` is a full row with its own lease, runtime,
-model, tokens, cost and wall clock, per R-I-2 criterion 7), checks the
+model, tokens, cost and wall clock), checks the
 requested model against `runtime.yaml` before anything starts, fetches the
 scoped runtime key at the moment of launch when the stage's sandbox admits
-one, builds and writes the R-I-15 envelope, launches the worker inside the
+one, builds and writes the invocation envelope, launches the worker inside the
 enforced sandbox through `runner/launcher.py`, and turns what comes back
 into: one `tool_call` row per call, registered `out/` artefacts (skipped
 entirely on a resolved-model mismatch -- "no output registered"), a
@@ -101,7 +100,7 @@ def no_run_result(
 
 
 def _refuse_unavailable_model(model_requested: str | None) -> InvocationResult:
-    """No `stage_run` at all: R-I-4's unavailable-model check runs before any run is opened."""
+    """No `stage_run` at all: the unavailable-model check runs before any run is opened."""
     return no_run_result(
         "infrastructure_failure", failure_kind="infrastructure", model_requested=model_requested,
         blind_spot="model unavailable before invocation started",
@@ -191,7 +190,7 @@ def _replayability(*, model_resolved: str | None, retention_blind_spot: str | No
 
     `retention_blind_spot` is the worker's own report that some tool
     result could not lawfully be retained (a non-text or otherwise
-    unretainable result, per R-I-17); when present it names the gap
+    unretainable result); when present it names the gap
     directly rather than this function re-deriving it from tool_calls it
     has no lawful copy of.
     """
@@ -314,7 +313,7 @@ def invoke(
 ) -> InvocationResult:
     """Run one fresh, governed agent invocation for `entry`, opening (and finishing) its own `stage_run`.
 
-    `parent_run_id` set makes this a child invocation (an R-S2-3
+    `parent_run_id` set makes this a child invocation (a clarification
     restatement, for instance): the child gets its own run, its own
     envelope, and its own everything below, separate from the parent's.
     `input_artefact_ids` fixes the invocation's input set (see
@@ -353,8 +352,8 @@ def invoke(
     )
 
     # Tokens are checked at each invocation boundary: settled usage from
-    # every earlier sibling in this family (and, for S4, the ticket's
-    # whole S4 history) is compared to budget before this invocation does
+    # every earlier sibling in this family (and, for implementation, the ticket's
+    # whole implementation history) is compared to budget before this invocation does
     # any real work at all.
     budget_reason = budgets.check_before_invocation(conn, ticket, stage, tier, parent_run_id=parent_run_id)
     if budget_reason is not None:

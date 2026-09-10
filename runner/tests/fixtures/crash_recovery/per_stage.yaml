@@ -1,25 +1,25 @@
 # The state each stage runs from, and any stage that must already have a
-# passing run before the named stage becomes due. S5 and S6 both run from
-# `checks`; `factory advance` only reaches S6 once an S5 pass already
-# exists, so S6's entry seeds one. S4 and S5 fetch the target branch from
+# passing run before the named stage becomes due. checks and human_review both run from
+# `checks`; `factory advance` only reaches human_review once an checks pass already
+# exists, so human_review's entry seeds one. implementation and checks fetch the target branch from
 # the ticket's clone before running, so their entries ask for a real base;
-# S1 asks for one too, since its own impact scan reads the ticket's worktree.
+# context_gathering asks for one too, since its own impact scan reads the ticket's worktree.
 stages:
-  S0:
+  intake:
     state: intake
-  S1:
+  context_gathering:
     state: context
     real_base: true
-  S2:
+  clarification:
     state: clarifying
-  S3:
+  planning:
     state: planning
-  S4:
+  implementation:
     state: implementing
     real_base: true
-  S5:
+  checks:
     state: checks
     real_base: true
-  S6:
+  human_review:
     state: checks
-    prior_passes: [S5]
+    prior_passes: [checks]

@@ -1,7 +1,9 @@
 # The review-side gate scenarios: a stale review tuple (the same
 # "withholds rather than redirects" policy as plan_subject.yaml), an
 # unresolved reviewer_set slot, and the outbox intent states review_gate
-# reads: a superseded intent routes back to checks, a pending one waits.
+# reads: a superseded intent with no recorded mismatch component, or with
+# one the outbox explicitly recorded as `checks`, both route back to
+# checks; a pending one waits.
 stale:
   ticket:
     - as: ticket
@@ -38,6 +40,21 @@ superseded_intent:
     - ticket_id: $ticket
       state: superseded
       review_approval_subject_hash: review-subject-5
+
+superseded_intent_with_checks_reason:
+  ticket:
+    - as: ticket
+      state: review
+  evidence_tuple:
+    - as: review_tuple
+      kind: review
+      ticket_id: $ticket
+      content_hash: review-subject-8
+  external_write:
+    - ticket_id: $ticket
+      state: superseded
+      review_approval_subject_hash: review-subject-8
+      last_error: "predispatch_mismatch:checks: review subject changed"
 
 pending_intent:
   ticket:

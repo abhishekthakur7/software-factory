@@ -3,9 +3,21 @@
 ## Greenfield
 - This is a greenfield project so never worry about backward compatibility and never create messy solutions
 
-## Tickets
-- All implementation should be ticket agnostic, never mention ticket # or PRD # or milestone # in the code or code comments
-- The code documentation should always be ticket agnostic, document what's the behavior of the code
+## Names
+- Documents (charter, PRD, HLD, milestones, tickets, findings, research) may use
+  the code families they define: stage codes S0 to S6, seams X-n, decisions D-n,
+  requirement rows R-x-n, findings G-n, milestones A/AB/B and ticket ids T-x-n.
+- The codebase and anything a user sees never carry them: no code, tests,
+  comments, docstrings, identifiers, module or fixture names, configuration keys,
+  stored values, CLI output or UI text. Name a thing by what it does (the
+  `implementation` stage, a `plan_reviewer`) and state behaviour in words. A
+  citation such as "(R-S4-9)" in a docstring is a violation; say what the
+  behaviour is instead.
+- Two exceptions. A fixture that is a byte-for-byte copy of a document (the
+  bootstrap eval set under `factory/evals/bootstrap/`) keeps the document's
+  name and text. Code whose job is to recognise document ids (the question
+  gate's banned-identifier patterns, the document renderer's chip regex, the
+  bootstrap sync's translation of old plan paths) may spell their shapes.
 
 ## Comments
 
@@ -28,7 +40,8 @@ numbered `// Step N:` sequences, and long owner-approved doc comments.
 - Every acceptance-criteria clause becomes at least one test; `must-reject:` /
   `must-fail:` clauses are mandatory negative tests. Use those prefixes only on
   tests that actually assert the rejection.
-- Title the behaviour and cite the spec: New files use titled tests; in an existing file, match its idiom.
+- Title the behaviour and say in words what the spec requires, never its row
+  id: new files use titled tests; in an existing file, match its idiom.
 - The one question that decides whether a test earns its place: **does it
   assert something the implementation could get wrong, or only something the
   test just wrote down?

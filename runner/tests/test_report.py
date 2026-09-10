@@ -68,25 +68,25 @@ def _git(args, cwd, env=None):
     )
 
 
-# S1 and S2 are both real here, each fed a real fixture; the brief and
+# context_gathering and clarification are both real here, each fed a real fixture; the brief and
 # criteria they register are then superseded by the richer, hand-written
-# `fixtures/s3/` versions before S3 runs, since S3 is real and needs a
+# `fixtures/planning/` versions before planning runs, since planning is real and needs a
 # genuine brief (risk_map's touched-area candidates, handoff_ready's
 # linked sources and impact evidence) to plan against and pass
 # structurally.
 def _source_repo(tmp_path):
     """A trivial one-file git repository on the real project config's target
     branch, so the freshness checks the walk now passes through (the
-    plan-review gate and S5 preflight) find a real, matching target head."""
+    plan-review gate and checks preflight) find a real, matching target head."""
     repo = tmp_path / "source-repo"
     repo.mkdir()
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
-    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # checks's real reviewer-set derivation reads CODEOWNERS at the target
     # base; a repository with none raises rather than defaulting.
     (repo / "CODEOWNERS").write_text("* @abhishek\n")
-    # A minimal pom so the now-real S1's impact_scan has something to
+    # A minimal pom so the now-real context_gathering's impact_scan has something to
     # read, and the one file its `plain_ok` fixture's Flags row names.
     (repo / "pom.xml").write_text(
         "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
@@ -99,7 +99,7 @@ def _source_repo(tmp_path):
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     # A trivial always-passing unit test: `fixture_unit` is ungoverned by
     # regression-only, so with none at all it would fail on its own once
-    # this walk's real S5 run reaches it.
+    # this walk's real checks run reaches it.
     test_src = repo / "src" / "test" / "java" / "com" / "example"
     test_src.mkdir(parents=True)
     (test_src / "HandlerUnitTest.java").write_text(
@@ -118,7 +118,7 @@ def _source_repo(tmp_path):
 def _grant_plan_approval(conn, ticket_id, tmp_path, *, actor="abhishek") -> None:
     """Record a `pass` verdict for every expected checklist instance citing the plan artefact, then approve.
 
-    Real S3 opens the one `plan_approval` item and its planned reviewer
+    Real planning opens the one `plan_approval` item and its planned reviewer
     set; the bootstrap checklist's own approval path is the only way to
     reach a satisfied plan subject now that `plan_review_gate` derives
     quorum and currency for real, so a hand-seeded evidence_tuple and a
@@ -127,7 +127,7 @@ def _grant_plan_approval(conn, ticket_id, tmp_path, *, actor="abhishek") -> None
     `queue.act`'s own "approve" resolves and records exactly one slot --
     the first `actor` fills on the planned reviewer set -- so a plan whose
     scope also falls under a CODEOWNERS rule naming the same person as
-    `s3_reviewer_role` gets a second, distinct slot that call never
+    `plan_reviewer_role` gets a second, distinct slot that call never
     touches; this pre-approves every other slot `actor` fills directly,
     leaving only the first for `queue.act` itself, so two approval_record
     rows are never written for the identical slot (a fork that would
@@ -172,75 +172,75 @@ def _grant_plan_approval(conn, ticket_id, tmp_path, *, actor="abhishek") -> None
 
 
 def _build_completed_walk(db_path, tmp_path) -> None:
-    """Walk one ticket S0 through `merged` with the real stub stages and
+    """Walk one ticket from intake through `merged` with the real stub stages and
     transitions (see `test_stub_stages.py`), then layer on the rows the
     stage walk alone does not produce so every measure has something to show.
     """
     conn = connect(db_path)
     ticket_id = record.insert(
         conn, "ticket", state="intake", opened_at=record.now(),
-        # The real committed manifest hash, not a placeholder: S2 now
-        # invokes a real (fixture) agent, and every stage past S0 refuses
+        # The real committed manifest hash, not a placeholder: clarification now
+        # invokes a real (fixture) agent, and every stage past intake refuses
         # an invocation whose pin does not match it.
         factory_manifest_hash=manifest.current_hash(), tier_final="light",
         # Set at insert time: both are append-only columns, and the plan
-        # tuple the bootstrap checklist creates once S3 passes requires
+        # tuple the bootstrap checklist creates once planning passes requires
         # both to be non-null.
         trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1",
-        # A real pilot-eligible pair, since S0's lookups now reject rather
+        # A real pilot-eligible pair, since intake's lookups now reject rather
         # than stub-pass an unresolvable service or ticket type.
         service="fixture-project", ticket_type="small_feature",
     )
-    run_stage(conn, ticket_id, "S0", runs_dir=tmp_path)
+    run_stage(conn, ticket_id, "intake", runs_dir=tmp_path)
     record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
     transitions.apply(conn, ticket_id, gates.intake_gate(conn, record.get(conn, "ticket", ticket_id)))
     # `intake_gate` pins the real manifest hash above. The checkout is
-    # cloned before S1 so S1's impact scan and S3's risk map both find a
+    # cloned before context_gathering so context_gathering's impact scan and planning's risk map both find a
     # real worktree.
     source = _source_repo(tmp_path)
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
 
     os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
-        FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+        FACTORY_DIR / "evals" / "agents" / "context_gathering" / "fixtures" / "plain_ok" / "out"
     )
     try:
-        run_stage(conn, ticket_id, "S1", runs_dir=tmp_path)
+        run_stage(conn, ticket_id, "context_gathering", runs_dir=tmp_path)
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
-    # S2's criteria half needs a real out/criteria.md; `criteria_clean`
+    # clarification's criteria half needs a real out/criteria.md; `criteria_clean`
     # carries one formalised criterion with agreeing restatements and no
-    # open questions, so this walk's S2 call passes outright.
+    # open questions, so this walk's clarification call passes outright.
     os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
-        FACTORY_DIR / "evals" / "agents" / "S2" / "fixtures" / "criteria_clean" / "out"
+        FACTORY_DIR / "evals" / "agents" / "clarification" / "fixtures" / "criteria_clean" / "out"
     )
     try:
-        run_stage(conn, ticket_id, "S2", runs_dir=tmp_path)
+        run_stage(conn, ticket_id, "clarification", runs_dir=tmp_path)
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
 
-    brief_path = Path(__file__).parent / "fixtures" / "s3" / "brief.md"
+    brief_path = Path(__file__).parent / "fixtures" / "planning" / "brief.md"
     prior_brief = artefact_registry.latest(conn, ticket_id, "brief")
     artefact_registry.register(
         conn, ticket_id=ticket_id, kind="brief", path=brief_path,
         supersedes=prior_brief["id"] if prior_brief is not None else None,
     )
-    criteria_path = Path(__file__).parent / "fixtures" / "s3" / "criteria.md"
+    criteria_path = Path(__file__).parent / "fixtures" / "planning" / "criteria.md"
     prior_criteria = artefact_registry.latest(conn, ticket_id, "criteria")
     artefact_registry.register(
         conn, ticket_id=ticket_id, kind="criteria", path=criteria_path,
         supersedes=prior_criteria["id"] if prior_criteria is not None else None,
     )
 
-    # Serves the S3 agent invocation the committed "ok" plan fixture --
-    # the same one `runner/tests/test_s3_structure.py` drives directly --
-    # so this walk's real S3 driver has a plan it can pass structurally.
-    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S3" / "fixtures" / "ok" / "out")
+    # Serves the planning agent invocation the committed "ok" plan fixture --
+    # the same one `runner/tests/test_planning_structure.py` drives directly --
+    # so this walk's real planning driver has a plan it can pass structurally.
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "planning" / "fixtures" / "ok" / "out")
     try:
-        s3_outcome = run_stage(conn, ticket_id, "S3", runs_dir=tmp_path)
+        planning_outcome = run_stage(conn, ticket_id, "planning", runs_dir=tmp_path)
     finally:
         os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
-    assert s3_outcome == "pass", f"S3 must pass for this walk to reach later stages, got {s3_outcome!r}"
+    assert planning_outcome == "pass", f"planning must pass for this walk to reach later stages, got {planning_outcome!r}"
 
     _grant_plan_approval(conn, ticket_id, tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
@@ -248,28 +248,28 @@ def _build_completed_walk(db_path, tmp_path) -> None:
         conn, ticket_id, gates.plan_review_gate(conn, ticket, runs_dir=tmp_path)
     )
 
-    # Serves the S4 agent invocation the committed "ok" hand-back fixture
-    # so this walk's real S4 driver has a deviation set it can record and
+    # Serves the implementation agent invocation the committed "ok" hand-back fixture
+    # so this walk's real implementation driver has a deviation set it can record and
     # a worktree edit it can commit.
-    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "out")
-    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "worktree")
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "implementation" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "implementation" / "fixtures" / "ok" / "worktree")
     try:
-        s4_outcome = run_stage(conn, ticket_id, "S4", runs_dir=tmp_path)
+        implementation_outcome = run_stage(conn, ticket_id, "implementation", runs_dir=tmp_path)
     finally:
         os.environ.pop("FIXTURE_ADAPTER_OUT_DIR", None)
         os.environ.pop("FIXTURE_ADAPTER_WORKTREE_DIR", None)
-    assert s4_outcome == "pass", f"S4 must pass for this walk to reach later stages, got {s4_outcome!r}"
-    s4_run_id = conn.execute(
-        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id DESC LIMIT 1", (ticket_id,)
+    assert implementation_outcome == "pass", f"implementation must pass for this walk to reach later stages, got {implementation_outcome!r}"
+    implementation_run_id = conn.execute(
+        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'implementation' ORDER BY id DESC LIMIT 1", (ticket_id,)
     ).fetchone()["id"]
 
-    # S5 is a real driver now: its own scripts may well flag this walk's ad
+    # checks is a real driver now: its own scripts may well flag this walk's ad
     # hoc repository and the shared "ok" plan/hand-back pairing with a
-    # blind spot (checks_gate's own correctness against a real S5 pass is
+    # blind spot (checks_gate's own correctness against a real checks pass is
     # `test_stub_stages.py`'s job, not this one's) -- this walk only needs
     # the ticket to keep moving so every measure below has rows to report.
-    run_stage(conn, ticket_id, "S5", runs_dir=tmp_path)
-    run_stage(conn, ticket_id, "S6", runs_dir=tmp_path)
+    run_stage(conn, ticket_id, "checks", runs_dir=tmp_path)
+    run_stage(conn, ticket_id, "human_review", runs_dir=tmp_path)
     ticket = record.get(conn, "ticket", ticket_id)
     transitions.apply(conn, ticket_id, gates.checks_gate(conn, ticket) or "checks_pass_to_review")
 
@@ -288,22 +288,22 @@ def _build_completed_walk(db_path, tmp_path) -> None:
     record.update(conn, "ticket", ticket_id, factory_completed_at=record.now())
     transitions.apply(conn, ticket_id, "merge_recorded")
 
-    record.insert(conn, "tag", ticket_id=ticket_id, event_kind="revision_after_approval", fm_id="FM-01")
-    record.insert(conn, "tag", ticket_id=ticket_id, event_kind="escalation", fm_id="FM-02", ref=f"stage_run:{s4_run_id}")
-    question_id = record.insert(conn, "question", ticket_id=ticket_id, stage="S2", round=1, default_option=0)
+    record.insert(conn, "tag", ticket_id=ticket_id, event_kind="revision_after_approval", fm_id="unjustified_abstraction")
+    record.insert(conn, "tag", ticket_id=ticket_id, event_kind="escalation", fm_id="load_bearing_hack", ref=f"stage_run:{implementation_run_id}")
+    question_id = record.insert(conn, "question", ticket_id=ticket_id, stage="clarification", round=1, default_option=0)
     record.insert(
-        conn, "queue_item", ticket_id=ticket_id, stage="S2", tier="light", kind="question",
+        conn, "queue_item", ticket_id=ticket_id, stage="clarification", tier="light", kind="question",
         ref=f"question:{question_id}", queued_at="2026-01-01T00:00:00", resolved_at="2026-01-01T00:05:00",
         active_attention_bucket="under_2m",
     )
     record.insert(conn, "answer", question_id=question_id, resolution_kind="default_accepted", answered_at="2026-01-01T00:05:00")
     identity_id = record.insert(
         conn, "generated_test", record_kind="identity", ticket_id=ticket_id,
-        stage_run_id=s4_run_id, initial_path="t.py", initial_hash="h1",
+        stage_run_id=implementation_run_id, initial_path="t.py", initial_hash="h1",
     )
     record.insert(conn, "generated_test", record_kind="decision", identity_id=identity_id, decision="kept")
-    record.insert(conn, "index_use", stage_run_id=s4_run_id, entry_path="docs/x.md", stale=1)
-    record.insert(conn, "tool_call", stage_run_id=s4_run_id, seq=1, tool="grep", result_bytes=2048, inline=1)
+    record.insert(conn, "index_use", stage_run_id=implementation_run_id, entry_path="docs/x.md", stale=1)
+    record.insert(conn, "tool_call", stage_run_id=implementation_run_id, seq=1, tool="grep", result_bytes=2048, inline=1)
     conn.commit()
     conn.close()
 
@@ -366,14 +366,14 @@ def test_factory_report_runs_the_script_and_prints_its_output(tmp_path, capsys):
 
 
 def test_a_baseline_only_database_never_prints_the_baseline_tickets_tag(tmp_path):
-    """R-O-4: with only a baseline ticket seeded, the tag it carries never
+    """With only a baseline ticket seeded, the tag it carries never
     surfaces on the report -- the measure shows unavailable instead."""
     case = next(c for c in OK_CASES if c["name"] == "baseline_excluded")
     db_path = _build_db(case, tmp_path)
     result = _run(db_path)
 
     assert result.returncode == 0, result.stderr
-    assert "FM-01" not in result.stdout
+    assert "unjustified_abstraction" not in result.stdout
 
 
 FORBIDDEN_PERSON_COLUMNS = (
@@ -383,14 +383,14 @@ FORBIDDEN_PERSON_COLUMNS = (
 
 
 def test_no_view_selects_a_forbidden_person_identifying_column():
-    """R-O-5: no view exposes a per-person breakdown."""
+    """No view exposes a per-person breakdown."""
     for name, sql in schema.VIEWS:
         for column in FORBIDDEN_PERSON_COLUMNS:
             assert column not in sql, f"{name} references forbidden column {column}"
 
 
 def test_no_view_computes_pull_request_share_savings_or_cost_per_pull_request():
-    """R-O-5: no view for agent-attributed PR share, estimated savings over
+    """No view for agent-attributed PR share, estimated savings over
     human work, or cost per pull request distinct from cost per ticket."""
     names = {name for name, _ in schema.VIEWS}
     forbidden_fragments = ("pull_request", "per_pr", "saving", "pr_share", "pr_cost")
@@ -400,7 +400,7 @@ def test_no_view_computes_pull_request_share_savings_or_cost_per_pull_request():
 
 
 def test_only_the_report_script_and_the_graduation_gate_reference_the_measure_view_names():
-    """R-O-5: the report and the graduation gate are the only readers of the
+    """The report and the graduation gate are the only readers of the
     views -- no other module under `runner/` (besides the schema itself) or
     script under `factory/scripts/` names one."""
     view_names = [name for name, _ in schema.VIEWS]
@@ -427,7 +427,7 @@ def test_only_the_report_script_and_the_graduation_gate_reference_the_measure_vi
 
 
 def test_every_measure_block_states_its_own_window(tmp_path):
-    """R-O-5: every growth figure states its window, and the primary panel
+    """Every growth figure states its window, and the primary panel
     says unranked."""
     conn = connect(tmp_path / "factory.sqlite")
     output = REPORT.generate(conn, db_path=tmp_path / "factory.sqlite", manifest_hash=None, window_days=7, until="2026-02-01T00:00:00+00:00")
@@ -439,7 +439,7 @@ def test_every_measure_block_states_its_own_window(tmp_path):
 
 
 def test_context_measures_sit_in_their_own_labelled_block_separate_from_primary(tmp_path):
-    """R-O-5 / R-O-12: context measures are in their own block, each line
+    """Context measures are in their own block, each line
     labelled context, and none of their titles appear in the primary panel."""
     conn = connect(tmp_path / "factory.sqlite")
     output = REPORT.generate(conn, db_path=tmp_path / "factory.sqlite", manifest_hash=None, window_days=7, until=None)
@@ -459,7 +459,7 @@ def test_context_measures_sit_in_their_own_labelled_block_separate_from_primary(
 
 
 def test_the_report_states_the_proposal_schema_is_absent(tmp_path):
-    """R-O-12: the report ends by stating the proposal schema's absence
+    """The report ends by stating the proposal schema's absence
     rather than the schema stubbing an early table."""
     assert "proposal" not in {t.name for t in schema.TABLES}
     assert "proposal" in schema.LATER_TABLES
@@ -470,7 +470,7 @@ def test_the_report_states_the_proposal_schema_is_absent(tmp_path):
 
 
 def test_cost_per_ticket_cannot_be_selected_as_a_primary_measure_or_rubric_line():
-    """R-O-12: the objective rule reads only `primary_measures()`; a context
+    """The objective rule reads only `primary_measures()`; a context
     measure such as cost per ticket is not in that data at all."""
     primary_views = {view for _title, view, _cols in REPORT.primary_measures()}
     context_views = {view for _title, view, _cols in REPORT.context_measures()}

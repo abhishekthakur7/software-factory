@@ -1,7 +1,7 @@
 """Ticket creation: the one function that inserts a new ticket row.
 
 No `factory` verb calls this -- intake (reading the source ticket, running
-S0) belongs to a later ticket. This is the seam that ticket, and every test
+the intake stage) belongs to a later ticket. This is the seam that ticket, and every test
 here, uses to get a ticket into the record at all.
 """
 import sqlite3

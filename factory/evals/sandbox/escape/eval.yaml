@@ -1,6 +1,6 @@
 subject: the OS-enforced sandbox
 owner: abhishek
-failure_modes: [FM-15, FM-20, FM-23]
+failure_modes: [contract_drift, hallucinated_dependency, unsafe_execution]
 cases:
   - name: paths
     fixture: fixtures/paths

@@ -1,4 +1,4 @@
-"""The eval-directory completeness walk (R-F-2), and the manifest's own refusal of an empty
+"""The eval-directory completeness walk, and the manifest's own refusal of an empty
 fixture list over the real project tree.
 
 `_build_synthetic_factory` lays out one directory per kind
@@ -42,7 +42,7 @@ def _build_synthetic_factory(tmp_path):
     (root / "agents").mkdir(parents=True)
     (root / "agents" / "A1.md").write_text("# agent\n")
     (root / "skills").mkdir(parents=True)
-    (root / "skills" / "S1.md").write_text("# skill\n")
+    (root / "skills" / "context_gathering.md").write_text("# skill\n")
     (root / "skills" / "shared").mkdir(parents=True)
     (root / "skills" / "shared" / "Shared1.md").write_text("# shared skill\n")
     (root / "rubrics").mkdir(parents=True)
@@ -56,7 +56,7 @@ def _build_synthetic_factory(tmp_path):
 
     evals_root = root / "evals"
     _write_eval_dir(evals_root / "agents" / "A1")
-    _write_eval_dir(evals_root / "skills" / "S1")
+    _write_eval_dir(evals_root / "skills" / "context_gathering")
     _write_eval_dir(evals_root / "skills" / "shared" / "Shared1")
     _write_eval_dir(evals_root / "rubrics" / "R1")
     _write_eval_dir(evals_root / "scripts" / "checks" / "check1")
@@ -66,7 +66,7 @@ def _build_synthetic_factory(tmp_path):
 
 
 def test_the_real_factory_tree_passes_the_completeness_walk():
-    """R-F-2: every eval directory `expected_eval_dirs` derives from the committed `factory/`
+    """Every eval directory `expected_eval_dirs` derives from the committed `factory/`
     tree is owned and carries a real, non-empty fixture."""
     dirs = walk(FACTORY_DIR)
     assert dirs  # the walk actually covers something, not a vacuous empty list
@@ -83,7 +83,7 @@ def test_expected_eval_dirs_names_one_directory_per_kind(tmp_path):
     root = _build_synthetic_factory(tmp_path)
     rels = {str(p.relative_to(root / "evals")) for p in expected_eval_dirs(root)}
     assert rels == {
-        "agents/A1", "skills/S1", "skills/shared/Shared1", "adapters/adap1",
+        "agents/A1", "skills/context_gathering", "skills/shared/Shared1", "adapters/adap1",
         "scripts/checks/check1", "scripts/tools/tool1", "rubrics/R1",
     }
 
@@ -189,7 +189,7 @@ def test_manifest_load_passes_over_a_fully_evaluable_synthetic_tree(tmp_path, mo
 
 
 def test_manifest_refuses_a_referenced_stage_rubric_with_an_empty_case_list(tmp_path, monkeypatch):
-    """R-F-2: an empty fixture list on an eval directory a stage entry actually references
+    """must-reject: an empty fixture list on an eval directory a stage entry actually references
     is refused by `manifest.load` itself, not only by the standalone completeness walk."""
     root = _build_manifest_tree(tmp_path)
     monkeypatch.setattr(manifest, "REPO_ROOT", root)
@@ -211,8 +211,8 @@ def test_manifest_load_over_a_fixture_root_skips_the_eval_dir_check(tmp_path):
 
 
 def test_eval_dir_for_file_maps_agent_skill_and_rubric_paths():
-    assert eval_dir_for_file("factory/agents/S1.md", root=FACTORY_DIR) == FACTORY_DIR / "evals" / "agents" / "S1"
-    assert eval_dir_for_file("factory/rubrics/S3.md", root=FACTORY_DIR) == FACTORY_DIR / "evals" / "rubrics" / "S3"
+    assert eval_dir_for_file("factory/agents/context_gathering.md", root=FACTORY_DIR) == FACTORY_DIR / "evals" / "agents" / "context_gathering"
+    assert eval_dir_for_file("factory/rubrics/planning.md", root=FACTORY_DIR) == FACTORY_DIR / "evals" / "rubrics" / "planning"
 
 
 def test_eval_dir_for_file_maps_a_shared_skill_path_under_its_own_shared_directory():

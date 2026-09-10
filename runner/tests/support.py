@@ -1,6 +1,6 @@
 """Shared test seeding that must match what the real gates and drivers derive.
 
-A ticket a test parks in `implementing` needs the same plan subject S4's
+A ticket a test parks in `implementing` needs the same plan subject implementation's
 pre-invocation revalidation re-derives from the record: a planned reviewer
 set, a plan tuple whose bound fields equal `plan_tuple.derive_components`,
 and one approving record per planned slot. Hand-seeding a tuple with a
@@ -25,7 +25,7 @@ TRUST_APPROVAL_SET_HASH = "trust-approval-set-1"
 
 
 def approve_current_plan(conn: sqlite3.Connection, ticket_id: int, scratch_dir: Path) -> int:
-    """Derive and create the ticket's current plan tuple and approve it on the pilot's one S3 slot; return the tuple id.
+    """Derive and create the ticket's current plan tuple and approve it on the pilot's one planning slot; return the tuple id.
 
     Call after every artefact the plan subject binds (brief, criteria,
     plan) is registered and the ticket's base is pinned, since the tuple
@@ -33,7 +33,7 @@ def approve_current_plan(conn: sqlite3.Connection, ticket_id: int, scratch_dir: 
     only when the ticket has none, so a test that derived a real one keeps it.
     A ticket with no brief gets a one-section stand-in written under
     `scratch_dir` (the test's `tmp_path`): the tuple binds a brief hash,
-    and these tests judge S4, not the brief. The stand-in is never placed
+    and these tests judge implementation, not the brief. The stand-in is never placed
     beside the plan, because a plan registered at a committed fixture path
     would then leave an untracked file inside the repository.
     """
@@ -41,8 +41,8 @@ def approve_current_plan(conn: sqlite3.Connection, ticket_id: int, scratch_dir: 
         brief_path = scratch_dir / f"brief-{ticket_id}.md"
         brief_path.write_text(f"## {artefacts.SECTIONS['brief'][0]}\n\nseeded brief\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief_path)
-    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    identity = owners.load_owners().roles["plan_reviewer"]["identity"]
+    slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=identity, min_count=1)
     planned = conn.execute(
         "SELECT slots FROM reviewer_set WHERE ticket_id = ? AND kind = 'planned' ORDER BY id DESC LIMIT 1", (ticket_id,)
     ).fetchone()
@@ -71,7 +71,7 @@ REAL_SANDBOX_PATH = REPO_ROOT / "factory" / "config" / "sandbox.yaml"
 
 
 def launch_probe(
-    tmp_path: Path, probe_source: Path, *, role: str, stage: str = "S1", extra_argv: tuple = (),
+    tmp_path: Path, probe_source: Path, *, role: str, stage: str = "context_gathering", extra_argv: tuple = (),
     env_source: dict | None = None, ticket_dir: Path | None = None, worktree_path: Path | None = None,
     copy_dir: Path | None = None, build_dir: Path | None = None, scratch_dir: Path | None = None,
     cache_dir: Path | None = None, vendor_dir: Path | None = None, routes=None,

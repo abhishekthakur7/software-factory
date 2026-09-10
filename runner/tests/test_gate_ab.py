@@ -1,4 +1,4 @@
-"""Required adoption mechanics cannot be bypassed by a reduced test selection (R-F-14)."""
+"""Required adoption mechanics cannot be bypassed by a reduced test selection."""
 import shutil
 import subprocess
 import sys
@@ -13,7 +13,7 @@ from runner.tests.test_gate import _build_gated_repo, _git, _refresh_manifest, _
 
 @pytest.mark.parametrize("name", evals.REQUIRED_MECHANICS)
 def test_required_fixture_is_registered_with_failure_modes(name):
-    """R-F-14: the completeness walk includes each required mechanism and target failure mode."""
+    """The completeness walk includes each required mechanism and target failure mode."""
     directory = FACTORY_DIR / "evals" / name
     assert directory in evals.expected_eval_dirs()
     evals.check(directory)
@@ -21,7 +21,7 @@ def test_required_fixture_is_registered_with_failure_modes(name):
 
 @pytest.mark.parametrize("defect", ["missing", "empty", "unowned", "unredacted", "missing_case", "no_failure_modes"])
 def test_must_reject_an_incomplete_required_eval_directory(tmp_path, defect):
-    """R-F-14: each required case must be present, owned and reviewed before execution."""
+    """Each required case must be present, owned and reviewed before execution."""
     directory = tmp_path / "sandbox/copy-disposal"
     shutil.copytree(FACTORY_DIR / "evals/sandbox/copy-disposal", directory)
     spec_path = directory / "eval.yaml"
@@ -46,7 +46,7 @@ def test_must_reject_an_incomplete_required_eval_directory(tmp_path, defect):
 
 @pytest.mark.parametrize("name", evals.REQUIRED_MECHANICS)
 def test_must_fail_gate_process_for_a_seeded_failing_required_fixture(tmp_path, name):
-    """R-F-14: a valid, registered but failing fixture defeats an otherwise passing reduced suite."""
+    """must-reject: a valid, registered but failing fixture defeats an otherwise passing reduced suite."""
     repo = _build_gated_repo(tmp_path)
     directory = repo / "factory/evals" / name
     spec_path = directory / "eval.yaml"
@@ -76,7 +76,7 @@ def test_must_fail_gate_process_for_a_seeded_failing_required_fixture(tmp_path, 
 
 
 def test_must_reject_a_versioned_mechanism_change_without_a_matching_fixture(tmp_path):
-    """R-F-14: code-only adoption cannot omit the fixture for the affected mechanism."""
+    """must-reject: code-only adoption cannot omit the fixture for the affected mechanism."""
     repo = _build_gated_repo(tmp_path)
     path = repo / "runner/sandbox/copies.py"
     path.parent.mkdir(parents=True)
@@ -97,7 +97,7 @@ def test_must_reject_a_versioned_mechanism_change_without_a_matching_fixture(tmp
 
 
 def test_must_reject_a_mechanism_change_hidden_by_an_unrelated_followup_commit(tmp_path):
-    """R-F-14: a later commit cannot hide an earlier missing regression fixture."""
+    """must-reject: a later commit cannot hide an earlier missing regression fixture."""
     repo = _build_gated_repo(tmp_path)
     path = repo / "runner/sandbox/copies.py"
     path.parent.mkdir(parents=True)

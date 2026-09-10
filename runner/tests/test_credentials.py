@@ -1,4 +1,4 @@
-"""Credentials by role: fetched through the `security` command at the moment of use, never stored (R-I-14, R-S0-1)."""
+"""Credentials by role: fetched through the `security` command at the moment of use, never stored."""
 import subprocess
 
 import pytest

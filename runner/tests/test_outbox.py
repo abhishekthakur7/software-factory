@@ -80,7 +80,7 @@ def seed_effective_reviewer_set(conn, ticket_id: int, slot: Slot) -> int:
     )
 
 
-def seed_review_evidence(conn, ticket_id: int, runs_dir, *, content_hash: str) -> Slot:
+def seed_review_evidence(conn, ticket_id: int, runs_dir, *, content_hash: str, plan_tuple_id: int | None = None) -> Slot:
     """A review `evidence_tuple` bound to one blocking `check_result`, plus the packet and `pr_body`
     artefacts a real `publication.review_approval_subject` needs -- everything short of the approval
     itself, so a test that wants to seed its own approval row can still build on a real subject."""
@@ -90,8 +90,9 @@ def seed_review_evidence(conn, ticket_id: int, runs_dir, *, content_hash: str) -
         conn, "evidence_tuple", kind="review", ticket_id=ticket_id,
         content_hash=content_hash, effective_reviewer_set_id=reviewer_set_id,
         effective_reviewer_set_hash=f"effective-set-{ticket_id}-{slot.slot_id}", created_at=record.now(),
+        plan_tuple_id=plan_tuple_id,
     )
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S5", attempt=1, outcome="pass")
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="checks", attempt=1, outcome="pass")
     record.insert(
         conn, "check_result", stage_run_id=stage_run_id, evidence_tuple_id=review_tuple_id,
         check_name="fixture_check", check_tier="blocking", source="runner", result="pass",
@@ -110,9 +111,9 @@ def seed_review_evidence(conn, ticket_id: int, runs_dir, *, content_hash: str) -
     return slot
 
 
-def seed_review_quorum(conn, ticket_id: int, runs_dir, *, content_hash: str) -> Slot:
+def seed_review_quorum(conn, ticket_id: int, runs_dir, *, content_hash: str, plan_tuple_id: int | None = None) -> Slot:
     """`seed_review_evidence` plus the one approval, against the real computed subject, that satisfies it."""
-    slot = seed_review_evidence(conn, ticket_id, runs_dir, content_hash=content_hash)
+    slot = seed_review_evidence(conn, ticket_id, runs_dir, content_hash=content_hash, plan_tuple_id=plan_tuple_id)
     subject = publication.review_approval_subject(conn, ticket_id)
     approvals.record_approval(
         conn, gate="review", subject_hash=subject.hash, slot_id=slot.slot_id,
@@ -129,8 +130,8 @@ def fixture_pr_body_hash() -> str:
     return canonical.content_hash({"pr_body": "fixture pr body\n"})
 
 
-def pr_create_intent(conn, ticket_id, runs_dir, *, content_hash="review-subject-1") -> int:
-    seed_review_quorum(conn, ticket_id, runs_dir, content_hash=content_hash)
+def pr_create_intent(conn, ticket_id, runs_dir, *, content_hash="review-subject-1", plan_tuple_id: int | None = None) -> int:
+    seed_review_quorum(conn, ticket_id, runs_dir, content_hash=content_hash, plan_tuple_id=plan_tuple_id)
     intent_id = outbox.intent_for_review_quorum(conn, ticket_id, runs_dir=runs_dir)
     conn.commit()
     return intent_id
@@ -150,8 +151,8 @@ def _git(args, cwd, env=None):
     )
 
 
-def give_real_base(conn, runs_dir, ticket_id) -> None:
-    """Give `ticket_id` a real, fetchable git base and a matching plan tuple.
+def give_real_base(conn, runs_dir, ticket_id) -> tuple[Path, int]:
+    """Give `ticket_id` a real, fetchable git base and a matching plan tuple; return the source repo and plan tuple id.
 
     `_dispatch_pending`'s `BEFORE_DISPATCH` freshness check fetches the
     real configured target branch from `runs_dir/tickets/<id>/repo`, so a
@@ -160,7 +161,9 @@ def give_real_base(conn, runs_dir, ticket_id) -> None:
     own branch to its own convention; every test that reads `ticket.branch`
     back expects the fixture's own name, so it is restored immediately
     after -- freshness itself never checks out that branch, only ever
-    comparing the recorded name as a plain string.
+    comparing the recorded name as a plain string. The returned source
+    repo is the one `origin` fetches from, real and mutable, so a test
+    that wants the target branch to move on it can commit there directly.
     """
     source = runs_dir.parent / f"source-repo-{ticket_id}"
     source.mkdir(parents=True)
@@ -174,18 +177,19 @@ def give_real_base(conn, runs_dir, ticket_id) -> None:
         conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=runs_dir,
     )
     record.update(conn, "ticket", ticket_id, branch=TICKET_FIXTURE["branch"])
-    record.insert(
+    plan_tuple_id = record.insert(
         conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
         base_sha=trees.base_sha, target_base_sha=trees.base_sha, content_hash=f"plan-subject-real-base-{ticket_id}",
     )
     conn.commit()
+    return source, plan_tuple_id
 
 
 
 def test_seeded_external_write_row_carries_every_named_field(conn, runs_dir):
-    """R-T-11: a seeded row carries id, keys, digests, hashes, refs, state, counters, and timestamps."""
+    """A seeded row carries id, keys, digests, hashes, refs, state, counters, and timestamps."""
     ticket_id = seed_ticket(conn)
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S6", attempt=1, outcome="pass")
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="human_review", attempt=1, outcome="pass")
     intent_id = outbox.create_intent(
         conn, ticket_id=ticket_id, operation="pr_create",
         payload={"branch_ref": "feature/x", "head_sha": "h1", "target_ref": "main", "pr_body": "body"},
@@ -209,7 +213,7 @@ def test_seeded_external_write_row_carries_every_named_field(conn, runs_dir):
 
 
 def test_pr_operation_rows_carry_review_hashes_digest_and_jira_do_not(conn, runs_dir):
-    """R-T-11: review-tuple and approval-subject/set hashes are null for `digest`/`jira_feedback`."""
+    """Review-tuple and approval-subject/set hashes are null for `digest`/`jira_feedback`."""
     ticket_id = seed_ticket(conn)
     pr_id = outbox.create_intent(
         conn, ticket_id=ticket_id, operation="pr_create",
@@ -264,7 +268,7 @@ def test_pr_operation_rows_carry_review_hashes_digest_and_jira_do_not(conn, runs
     ],
 )
 def test_each_operation_writes_one_row_under_its_key_rule(conn, runs_dir, operation, payload, extra):
-    """R-T-11: creating the same intent twice under one operation returns the same row."""
+    """Creating the same intent twice under one operation returns the same row."""
     ticket_id = seed_ticket(conn)
     first = outbox.create_intent(conn, ticket_id=ticket_id, operation=operation, payload=payload, runs_dir=runs_dir, **extra)
     second = outbox.create_intent(conn, ticket_id=ticket_id, operation=operation, payload=payload, runs_dir=runs_dir, **extra)
@@ -275,7 +279,7 @@ def test_each_operation_writes_one_row_under_its_key_rule(conn, runs_dir, operat
 
 
 def test_pending_pr_create_reconciles_an_existing_matching_pull_request_before_creating(conn, runs_dir, profile_paths):
-    """R-T-11: an open pull request already matching the desired head and body is adopted, not recreated."""
+    """An open pull request already matching the desired head and body is adopted, not recreated."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -298,7 +302,7 @@ def test_pending_pr_create_reconciles_an_existing_matching_pull_request_before_c
 
 
 def test_must_reject_pr_create_over_an_unexpected_remote_head(conn, runs_dir, profile_paths):
-    """R-T-11: a branch already at a head this intent never expected is never overwritten."""
+    """A branch already at a head this intent never expected is never overwritten."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -317,7 +321,7 @@ def test_must_reject_pr_create_over_an_unexpected_remote_head(conn, runs_dir, pr
 
 
 def test_pending_pr_update_requires_the_previously_reconciled_head_and_updates_the_same_pr(conn, runs_dir, profile_paths):
-    """R-T-11: `pr_update` applies compare-and-set against the ticket's last reconciled head and never opens a replacement."""
+    """`pr_update` applies compare-and-set against the ticket's last reconciled head and never opens a replacement."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -344,7 +348,7 @@ def test_pending_pr_update_requires_the_previously_reconciled_head_and_updates_t
 
 
 def test_must_reject_pr_update_race_on_unexpected_remote_head(conn, runs_dir, profile_paths):
-    """R-T-11: a `pr_update` intent dispatched against a head other than the expected prior head is refused."""
+    """A `pr_update` intent dispatched against a head other than the expected prior head is refused."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -369,7 +373,7 @@ def test_must_reject_pr_update_race_on_unexpected_remote_head(conn, runs_dir, pr
 
 
 def test_pr_update_against_a_pull_request_from_a_driven_create_reconciles_without_a_replacement(conn, runs_dir, profile_paths):
-    """R-T-11: a `pr_update` dispatched while the stub already holds an open PR from a driven create reconciles to it."""
+    """A `pr_update` dispatched while the stub already holds an open PR from a driven create reconciles to it."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -399,7 +403,7 @@ def test_pr_update_against_a_pull_request_from_a_driven_create_reconciles_withou
 
 
 def test_review_quorum_approval_and_intent_land_in_one_transaction(conn, runs_dir):
-    """R-T-11: the quorum-completing approval and the intent it authorises never land separately."""
+    """The quorum-completing approval and the intent it authorises never land separately."""
     ticket_id = seed_ticket(conn)
     slot = seed_review_evidence(conn, ticket_id, runs_dir, content_hash="review-subject-atomic")
     subject = publication.review_approval_subject(conn, ticket_id)
@@ -417,7 +421,7 @@ def test_review_quorum_approval_and_intent_land_in_one_transaction(conn, runs_di
 
 
 def test_must_reject_by_construction_a_rolled_back_transaction_leaves_neither_row(tmp_path):
-    """R-T-11: rolling back before the shared commit leaves neither the approval nor the intent behind."""
+    """Rolling back before the shared commit leaves neither the approval nor the intent behind."""
     db_path = tmp_path / "atomic.sqlite"
     conn = connect(db_path)
     try:
@@ -446,7 +450,7 @@ def test_must_reject_by_construction_a_rolled_back_transaction_leaves_neither_ro
 
 
 def test_stub_deliverer_holds_remote_state_across_calls(tmp_path):
-    """R-T-11: branch head, pull-request identity, and body hash persist across separate `StubDeliverer` instances."""
+    """Branch head, pull-request identity, and body hash persist across separate `StubDeliverer` instances."""
     state_path = tmp_path / "remote" / "github_scratch.json"
     first = StubDeliverer(state_path)
     first.set_branch_head("fixture-project", "feature/x", "sha-1")
@@ -464,7 +468,7 @@ def test_stub_deliverer_holds_remote_state_across_calls(tmp_path):
 
 
 def test_stub_driven_to_a_duplicate_key_returns_the_stored_receipt_not_a_second_object(conn, runs_dir, profile_paths):
-    """R-T-11: a stub driven to already hold a receipt for an intent's key returns it instead of dispatching twice."""
+    """A stub driven to already hold a receipt for an intent's key returns it instead of dispatching twice."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -490,7 +494,7 @@ def test_stub_driven_to_a_duplicate_key_returns_the_stored_receipt_not_a_second_
 
 
 def test_crash_before_send_leaves_the_row_pending_and_retry_produces_one_object(conn, runs_dir, profile_paths):
-    """R-T-11: a `pr_create` killed before the deliverer is called leaves the row `pending`; retry produces one object."""
+    """A `pr_create` killed before the deliverer is called leaves the row `pending`; retry produces one object."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -510,7 +514,7 @@ def test_crash_before_send_leaves_the_row_pending_and_retry_produces_one_object(
 
 
 def test_crash_after_remote_success_reconciles_to_the_same_object_on_retry(conn, runs_dir, profile_paths):
-    """R-T-11: killed after the stub records success but before the receipt is stored, retry reconciles to that object."""
+    """Killed after the stub records success but before the receipt is stored, retry reconciles to that object."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -531,7 +535,7 @@ def test_crash_after_remote_success_reconciles_to_the_same_object_on_retry(conn,
 
 
 def test_crash_before_local_commit_reconciles_by_remote_identity_on_retry(conn, runs_dir, profile_paths):
-    """R-T-11: killed after the receipt is returned but before the commit, a rolled-back retry reconciles by identity."""
+    """Killed after the receipt is returned but before the commit, a rolled-back retry reconciles by identity."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -552,7 +556,7 @@ def test_crash_before_local_commit_reconciles_by_remote_identity_on_retry(conn, 
 
 
 def test_must_reject_two_intents_sharing_a_key_with_different_payloads(conn, runs_dir):
-    """R-T-11: one idempotency key can never carry two different payload digests.
+    """One idempotency key can never carry two different payload digests.
 
     `pr_create`'s key binds `pr_body`'s hash, not the rest of the payload,
     so two payloads that agree on every keyed field (including `pr_body`)
@@ -581,7 +585,7 @@ def test_must_reject_two_intents_sharing_a_key_with_different_payloads(conn, run
 
 @pytest.mark.parametrize("call", ["advance", "run", "act", "abandon"])
 def test_every_state_advancing_command_reconciles_pending_rows_first(conn, runs_dir, call):
-    """R-T-11: `factory advance`, `run`, `act` and `abandon` reconcile pending `external_write` rows before doing anything else."""
+    """`factory advance`, `run`, `act` and `abandon` reconcile pending `external_write` rows before doing anything else."""
     # `operations.advance`/`operations.run` reconcile through the default (committed) trust
     # profile and owners file, since neither takes a profile/owners override --
     # activated here directly rather than through a tmp copy.
@@ -597,12 +601,12 @@ def test_every_state_advancing_command_reconciles_pending_rows_first(conn, runs_
     if call == "advance":
         operations.advance(conn, ticket_id, runs_dir)
     elif call == "run":
-        operations.run(conn, ticket_id, "S5", runs_dir)
+        operations.run(conn, ticket_id, "checks", runs_dir)
     elif call == "act":
         item_id = queue.open_item(conn, ticket_id=ticket_id, kind="rubric_inspection")
         queue.act(conn, item_id=item_id, action="close_inspection", actor="abhishek", runs_dir=runs_dir)
     else:
-        queue.abandon(conn, ticket_id, actor="abhishek", fm_id="FM-19", runs_dir=runs_dir)
+        queue.abandon(conn, ticket_id, actor="abhishek", fm_id="slow_failure", runs_dir=runs_dir)
 
     rows = conn.execute("SELECT state FROM external_write WHERE ticket_id = ?", (ticket_id,)).fetchall()
     assert [row["state"] for row in rows] == ["reconciled"]
@@ -610,7 +614,7 @@ def test_every_state_advancing_command_reconciles_pending_rows_first(conn, runs_
 
 
 def test_stale_pending_intent_becomes_superseded_on_a_newer_one(conn, runs_dir):
-    """R-T-11: a newer intent for the same ticket and operation supersedes an older pending one."""
+    """A newer intent for the same ticket and operation supersedes an older pending one."""
     ticket_id = seed_ticket(conn)
     first_id = outbox.create_intent(
         conn, ticket_id=ticket_id, operation="pr_create",
@@ -633,7 +637,7 @@ def test_stale_pending_intent_becomes_superseded_on_a_newer_one(conn, runs_dir):
 
 
 def test_must_reject_creating_under_a_key_still_sending(conn, runs_dir):
-    """R-T-11: a row still `sending` under a key must reconcile before another intent under that key is created."""
+    """A row still `sending` under a key must reconcile before another intent under that key is created."""
     ticket_id = seed_ticket(conn)
     payload = {"branch_ref": "feature/x", "head_sha": "h1", "target_ref": "main", "pr_body": ""}
     intent_id = outbox.create_intent(
@@ -660,7 +664,7 @@ def test_must_reject_creating_under_a_key_still_sending(conn, runs_dir):
 
 
 def test_review_to_pr_opened_advances_only_from_a_matching_reconciled_receipt(conn, runs_dir, profile_paths):
-    """R-T-11: the transition fires only once the reconciled receipt's head and payload digest match the desired ones."""
+    """The transition fires only once the reconciled receipt's head and payload digest match the desired ones."""
     from runner import gates
 
     profile_path, owners_path = profile_paths
@@ -680,7 +684,7 @@ def test_review_to_pr_opened_advances_only_from_a_matching_reconciled_receipt(co
 
 
 def test_every_dispatched_intent_guards_its_payload_and_its_receipt(conn, runs_dir, profile_paths):
-    """R-T-11: a dispatched intent leaves a guard decision for its outbound payload and for the receipt it stores.
+    """A dispatched intent leaves a guard decision for its outbound payload and for the receipt it stores.
 
     The payload's fields are exactly the route's allowlist, so its
     decision is `allow`; the receipt's field names share none of that
@@ -711,7 +715,7 @@ def test_every_dispatched_intent_guards_its_payload_and_its_receipt(conn, runs_d
 
 
 def test_full_quorum_produces_one_pr_create_then_a_revision_produces_one_pr_update(conn, runs_dir, profile_paths):
-    """R-T-11: full review quorum yields one `pr_create` intent; a later revision yields one `pr_update`, each with a receipt."""
+    """Full review quorum yields one `pr_create` intent; a later revision yields one `pr_update`, each with a receipt."""
     profile_path, owners_path = profile_paths
     _activate(conn, profile_path, owners_path)
     ticket_id = seed_ticket(conn)
@@ -739,3 +743,84 @@ def test_full_quorum_produces_one_pr_create_then_a_revision_produces_one_pr_upda
     pull_requests = deliverer._load()["repositories"]["fixture-project"]["pull_requests"]
     assert len(pull_requests) == 1
     assert list(pull_requests.values())[0]["head_sha"] == "head-sha-revised"
+
+
+
+def test_predispatch_target_base_movement_routes_review_to_context(conn, runs_dir, profile_paths):
+    """The target base moving underneath a pending intent supersedes it and routes review -> context, not checks."""
+    from runner import gates
+
+    profile_path, owners_path = profile_paths
+    _activate(conn, profile_path, owners_path)
+    ticket_id = seed_ticket(conn)
+    source, plan_tuple_id = give_real_base(conn, runs_dir, ticket_id)
+    intent_id = pr_create_intent(conn, ticket_id, runs_dir, plan_tuple_id=plan_tuple_id)
+
+    (source / "moved.txt").write_text("the target moved on\n")
+    _git(["add", "-A"], cwd=source)
+    _git(["commit", "-q", "-m", "target moved"], cwd=source, env=_COMMIT_ENV)
+
+    outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
+    row = record.get(conn, "external_write", intent_id)
+    assert row["state"] == "superseded"
+    assert row["last_error"].startswith("predispatch_mismatch:context")
+
+    ticket = record.get(conn, "ticket", ticket_id)
+    event = gates.review_gate(conn, ticket)
+    assert event == "review_predispatch_mismatch_to_context"
+    assert transitions.apply(conn, ticket_id, event) == "context"
+
+
+
+def test_predispatch_plan_tuple_bump_routes_review_to_planning(conn, runs_dir, profile_paths):
+    """A plan tuple newer than the one the review's approvals bound supersedes the intent and routes review -> planning."""
+    from runner import gates
+
+    profile_path, owners_path = profile_paths
+    _activate(conn, profile_path, owners_path)
+    ticket_id = seed_ticket(conn)
+    _, plan_tuple_id = give_real_base(conn, runs_dir, ticket_id)
+    intent_id = pr_create_intent(conn, ticket_id, runs_dir, plan_tuple_id=plan_tuple_id)
+
+    old_plan = record.get(conn, "evidence_tuple", plan_tuple_id)
+    record.insert(
+        conn, "evidence_tuple", kind="plan", ticket_id=ticket_id,
+        base_sha=old_plan["base_sha"], target_base_sha=old_plan["target_base_sha"],
+        content_hash=f"plan-subject-bumped-{ticket_id}",
+    )
+    conn.commit()
+
+    outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
+    row = record.get(conn, "external_write", intent_id)
+    assert row["state"] == "superseded"
+    assert row["last_error"].startswith("predispatch_mismatch:planning")
+
+    ticket = record.get(conn, "ticket", ticket_id)
+    event = gates.review_gate(conn, ticket)
+    assert event == "review_predispatch_mismatch_to_planning"
+    assert transitions.apply(conn, ticket_id, event) == "planning"
+
+
+
+def test_predispatch_ticket_head_movement_routes_review_to_checks(conn, runs_dir, profile_paths):
+    """The ticket's own head moving past what the intent published supersedes it and routes review -> checks."""
+    from runner import gates
+
+    profile_path, owners_path = profile_paths
+    _activate(conn, profile_path, owners_path)
+    ticket_id = seed_ticket(conn)
+    _, plan_tuple_id = give_real_base(conn, runs_dir, ticket_id)
+    intent_id = pr_create_intent(conn, ticket_id, runs_dir, plan_tuple_id=plan_tuple_id)
+
+    record.update(conn, "ticket", ticket_id, head_sha="head-sha-after-new-commits")
+    conn.commit()
+
+    outbox.reconcile_pending(conn, ticket_id, runs_dir=runs_dir, profile_path=profile_path, owners_path=owners_path)
+    row = record.get(conn, "external_write", intent_id)
+    assert row["state"] == "superseded"
+    assert row["last_error"].startswith("predispatch_mismatch:checks")
+
+    ticket = record.get(conn, "ticket", ticket_id)
+    event = gates.review_gate(conn, ticket)
+    assert event == "review_predispatch_mismatch_to_checks"
+    assert transitions.apply(conn, ticket_id, event) == "checks"

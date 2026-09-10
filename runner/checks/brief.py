@@ -1,4 +1,4 @@
-"""Pure checks over a parsed `brief` artefact, plus the counts and tier arithmetic S1's driver stamps from them.
+"""Pure checks over a parsed `brief` artefact, plus the counts and tier arithmetic the context gathering stage's driver stamps from them.
 
 Every function here takes data the driver already collected -- the parsed
 `artefacts.Artefact`, the `impact_scan` payload, the worktree's own path
@@ -129,7 +129,7 @@ def discovers_excluded_scope(
     than the ticket's own target (a second service discovered), or an
     `unknown`-coverage row's own `blind_spots` names an eligibility or
     public-contract concern -- the two clauses the design leaves for a
-    later stage's own discovery rather than S0's pre-diff scan.
+    later stage's own discovery rather than intake's pre-diff scan.
     """
     for dep in impact_scan_dependencies:
         if dep.get("service") and dep["service"] != target_service:

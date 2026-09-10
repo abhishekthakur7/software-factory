@@ -101,7 +101,7 @@ def test_merged_slot_is_unresolved_when_either_side_is():
 def test_derive_actual_records_every_path_to_rule_to_owner_match_at_the_pinned_target_base_sha(conn, tmp_path):
     """the derivation reads CODEOWNERS as committed at `target_base_sha`, not
     a later commit on top of it, and records each path's rule, pattern,
-    precedence and owner (R-S6-6)."""
+    precedence and owner."""
     repo = _init_repo(tmp_path)
     pinned_sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     _commit_codeowners(repo, "CODEOWNERS_precedence_v2")  # must never be read
@@ -138,7 +138,7 @@ def test_derive_actual_records_every_path_to_rule_to_owner_match_at_the_pinned_t
 def test_effective_set_merges_planned_and_actual_slots_by_canonical_key(conn, tmp_path):
     """a planned slot sharing a key with a derived actual slot merges to the
     max minimum count and the union of separation constraints; a
-    planned-only slot for a path the actual diff never touched survives (R-S6-6)."""
+    planned-only slot for a path the actual diff never touched survives."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     ticket_id = _ticket(conn)
@@ -172,7 +172,7 @@ def test_effective_set_merges_planned_and_actual_slots_by_canonical_key(conn, tm
 
 def test_unresolved_owner_blocks_derivation_with_the_non_sensitive_routes(conn, tmp_path):
     """an unknown identity and an email are both unresolved owners; the
-    derivation blocks with the plan/S4-removal/abandon routes, none waivable (R-S6-6)."""
+    derivation blocks with the plan/implementation-removal/abandon routes, none waivable."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_unknown_identity")
     derivation = derive_actual(
@@ -184,7 +184,7 @@ def test_unresolved_owner_blocks_derivation_with_the_non_sensitive_routes(conn, 
     assert derivation.blocked is True
     assert derivation.sensitive is False
     assert derivation.waivable is False
-    assert derivation.routes == ("planning", "s4_removal", "abandon")
+    assert derivation.routes == ("planning", "implementation_removal", "abandon")
     assert "@carol" in derivation.unresolved
     assert "legal@example.com" in derivation.unresolved
     assert all(not slot.resolved for slot in derivation.slots)
@@ -192,8 +192,8 @@ def test_unresolved_owner_blocks_derivation_with_the_non_sensitive_routes(conn, 
 
 def test_initial_sensitive_path_match_only_offers_removal_or_pilot_excluded_routes(conn, tmp_path):
     """a changed path the sensitive-paths mapping claims blocks with only the
-    S4-removal/pilot-excluded routes, neither waivable, even when the owner
-    it names resolves cleanly (R-S6-6)."""
+    implementation-removal/pilot-excluded routes, neither waivable, even when the owner
+    it names resolves cleanly."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")  # doesn't cover infra/
     derivation = derive_actual(
@@ -204,7 +204,7 @@ def test_initial_sensitive_path_match_only_offers_removal_or_pilot_excluded_rout
     assert derivation.sensitive is True
     assert derivation.blocked is True
     assert derivation.waivable is False
-    assert derivation.routes == ("s4_removal", "pilot_excluded")
+    assert derivation.routes == ("implementation_removal", "pilot_excluded")
     [slot] = derivation.slots
     assert slot.role == "sensitive_path_owner"
     assert slot.owner == "bob"
@@ -214,7 +214,7 @@ def test_initial_sensitive_path_match_only_offers_removal_or_pilot_excluded_rout
 def test_codeowners_wins_the_owner_of_a_sensitive_path_but_the_path_stays_sensitive(conn, tmp_path):
     """for ownership CODEOWNERS wins over the sensitive-paths mapping, so the
     slot comes from the CODEOWNERS rule; sensitivity is still decided by the
-    mapping, so the derivation offers only the sensitive routes (R-S6-6)."""
+    mapping, so the derivation offers only the sensitive routes."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     derivation = derive_actual(
@@ -228,14 +228,14 @@ def test_codeowners_wins_the_owner_of_a_sensitive_path_but_the_path_stays_sensit
     assert slot.role == "sensitive_path_owner"
     assert slot.owner == "@org/team"
     assert slot.resolved is False  # @org/team is a team handle, unresolved
-    assert derivation.routes == ("s4_removal", "pilot_excluded")
+    assert derivation.routes == ("implementation_removal", "pilot_excluded")
 
 
 def test_seeded_distinct_from_slot_blocks_the_gate_when_one_actor_satisfies_both(conn, tmp_path):
     """separation is proved through `approvals.evaluate` over slots read
     back from a derived reviewer_set row, not by re-implementing
     separation: a `distinct_from` constraint seeded onto one derived slot
-    blocks quorum when the same actor approves both slots it names (R-S6-6)."""
+    blocks quorum when the same actor approves both slots it names."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     ticket_id = _ticket(conn)
@@ -283,7 +283,7 @@ def test_seeded_distinct_from_slot_blocks_the_gate_when_one_actor_satisfies_both
 def test_a_changed_diff_invalidates_the_stored_actual_set_and_recompute_makes_a_fresh_one(conn, tmp_path):
     """a stored actual set is current only for the exact path set and base
     sha it was derived from; a moved diff invalidates it, and deriving
-    again produces a fresh, current row (R-S6-6)."""
+    again produces a fresh, current row."""
     repo = _init_repo(tmp_path)
     sha = _commit_codeowners(repo, "CODEOWNERS_precedence")
     ticket_id = _ticket(conn)

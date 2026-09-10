@@ -1,4 +1,4 @@
-"""`active_attention_bucket` (R-H-12): mandatory and per-reviewer on a plan
+"""`active_attention_bucket`: mandatory and per-reviewer on a plan
 or packet decision, optional elsewhere, never derived from anything but the
 human's own input, and nowhere named beside a keystroke, focus-event, or
 editor-telemetry source.
@@ -23,7 +23,7 @@ FAR_FUTURE = "2999-01-01T00:00:00+00:00"
 
 
 def _governed_ticket_fields(conn) -> dict:
-    """Ticket fields that satisfy `S0.governance_valid`, the same default-path activation `test_outbox.py`'s reconcile-first test uses."""
+    """Ticket fields that satisfy `intake.governance_valid`, the same default-path activation `test_outbox.py`'s reconcile-first test uses."""
     proposal = governance.propose()
     for role in ("security_approver", "legal_data_governance_approver"):
         governance.decide(
@@ -89,9 +89,9 @@ def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn, tm
         path.write_text(f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
 
-    s3_identity = owners.load_owners().roles["s3_reviewer"]["identity"]
+    planning_identity = owners.load_owners().roles["plan_reviewer"]["identity"]
     slots = [
-        Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=s3_identity, min_count=1),
+        Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=planning_identity, min_count=1),
         Slot(source_rule="sensitive_paths:1", role="sensitive_path_owner", owner="second-reviewer", min_count=1),
     ]
     reviewer_set_id = record.insert(
@@ -99,7 +99,7 @@ def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn, tm
         slots=_json.dumps([slot.to_json() for slot in slots]),
     )
     item_id = queue.open_item(
-        conn, ticket_id=ticket_id, kind="plan_approval", stage="S3", tier="standard", reviewer_set_id=reviewer_set_id,
+        conn, ticket_id=ticket_id, kind="plan_approval", stage="planning", tier="standard", reviewer_set_id=reviewer_set_id,
     )
     conn.commit()
 
@@ -107,7 +107,7 @@ def test_a_multi_reviewer_plan_decision_shows_each_reviewers_own_bucket(conn, tm
     plan_artefact = artefact_registry.latest(conn, ticket_id, "plan")
     for instance in checklist.expected_instances(conn, ticket):
         queue.act(
-            conn, item_id=item_id, action="verdict", actor=s3_identity, line=instance.rubric_line_id,
+            conn, item_id=item_id, action="verdict", actor=planning_identity, line=instance.rubric_line_id,
             key=instance.subject_item_key, verdict="pass", evidence=[plan_artefact["id"]], runs_dir=tmp_path,
         )
     subject_hash = plan_tuple.current_subject(conn, record.get(conn, "ticket", ticket_id))
@@ -192,7 +192,7 @@ def test_no_runner_code_path_derives_active_attention_bucket(conn):
 
 def test_must_reject_a_plan_or_packet_decision_missing_its_attention_bucket(conn):
     ticket_id = record.insert(conn, "ticket", state="plan_review", opened_at=record.now())
-    reviewer_set_id = _reviewer_set(conn, ticket_id, kind="planned", subject_hash="plan-subj", roles=["s3_reviewer"])
+    reviewer_set_id = _reviewer_set(conn, ticket_id, kind="planned", subject_hash="plan-subj", roles=["plan_reviewer"])
     item_id = queue.open_item(
         conn, ticket_id=ticket_id, kind="plan_approval", approval_subject_hash="plan-subj", reviewer_set_id=reviewer_set_id,
     )

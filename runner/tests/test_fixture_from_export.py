@@ -67,7 +67,7 @@ def _run_script(export_dir: Path, ticket_id: int, root: Path, *, reviewer="abhis
 
 
 def test_the_script_writes_a_ticket_eval_directory_the_completeness_walk_accepts(conn, tmp_path):
-    """R-I-1: the script copies a real export directory under
+    """The script copies a real export directory under
     `factory/evals/tickets/<id>/fixtures/export/` and writes an `eval.yaml` naming the
     owner, the target failure modes, and the four-field redaction review, including the
     export's own manifest content hash -- `evals.check` accepts the result under a
@@ -82,7 +82,7 @@ def test_the_script_writes_a_ticket_eval_directory_the_completeness_walk_accepts
     ticket_eval_dir = fixture_root / "factory" / "evals" / "tickets" / str(ticket_id)
     spec = yaml.safe_load((ticket_eval_dir / "eval.yaml").read_text())
     assert spec["owner"] == "abhishek"
-    assert spec["target_failure_modes"] == ["FM-25"]
+    assert spec["target_failure_modes"] == ["stale_approval"]
     assert spec["redaction_review"]["export_content_hash"] == manifest["content_hash"]
     assert spec["redaction_review"]["redacted_fields"] == ["names"]
     assert (ticket_eval_dir / "fixtures" / "export" / "manifest.json").is_file()
@@ -92,7 +92,7 @@ def test_the_script_writes_a_ticket_eval_directory_the_completeness_walk_accepts
 
 @pytest.mark.parametrize("missing_field", ["reviewer_identity", "reviewed_at", "redacted_fields", "export_content_hash"])
 def test_must_reject_a_tickets_eval_directory_missing_one_redaction_review_field(conn, tmp_path, missing_field):
-    """R-F-2: the completeness walk refuses a `tickets/` `eval.yaml` whose
+    """The completeness walk refuses a `tickets/` `eval.yaml` whose
     top-level redaction review drops any one of its four required fields."""
     export_dir, ticket_id = _seed_exported_ticket(conn, tmp_path / "runs")
     fixture_root = tmp_path / "fixture-root"

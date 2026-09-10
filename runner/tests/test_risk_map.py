@@ -1,10 +1,10 @@
-"""The risk map's churn-window computation (R-S3-11), and the plan-side floor `plan_rubric.risk_map_places` applies to it.
+"""The risk map's churn-window computation, and the plan-side floor `plan_rubric.risk_map_places` applies to it.
 
 `factory/scripts/checks/risk_map` scores every candidate from git alone,
-before the S3 agent ever runs; this file drives it over a repository built
+before the planning agent ever runs; this file drives it over a repository built
 here (`factory/evals/scripts/checks/risk_map/eval.yaml`'s
 `churn_window_cases`, read separately from the `cases` key
-`runner/tests/test_s3_structure.py` already parametrizes over its own
+`runner/tests/test_planning_structure.py` already parametrizes over its own
 smaller repo) with four files chosen to hit each named-entry rule at
 once: a single-author file with the highest churn-times-size score (top
 decile), a three-author file no one holds 40 percent of (no clear
@@ -13,7 +13,7 @@ owner), a file whose one commit sits outside the twelve-month window
 and a quiet file that is named for neither reason. `risk_map_places`
 checks the plan's own `Risk map` table against that computed candidate
 count -- the floor it enforces, and that a named place always carries a
-`why` -- and the seeded `human_verdict` fixture for the R-S3-11 grader
+`why` -- and the seeded `human_verdict` fixture for the risk_map grader
 line completes the row's checklist coverage.
 """
 import json
@@ -113,7 +113,7 @@ def _run(case: dict, repo: Path) -> dict:
 
 @pytest.mark.parametrize("case", EVAL_SPEC["churn_window_cases"], ids=[c["name"] for c in EVAL_SPEC["churn_window_cases"]])
 def test_churn_window_scoring_matches_the_seeded_expectation(tmp_path, case):
-    """R-S3-11: the churn window is computed from git, per candidate, before any agent runs."""
+    """The churn window is computed from git, per candidate, before any agent runs."""
     repo = _churn_window_repo(tmp_path)
     payload = _run(case, repo)
     expected = json.loads((EVAL_DIR / case["expected"]).read_text())
@@ -121,7 +121,7 @@ def test_churn_window_scoring_matches_the_seeded_expectation(tmp_path, case):
 
 
 def test_a_commit_outside_the_window_is_excluded_from_the_count_not_merely_unnamed(tmp_path):
-    """R-S3-11: the window filters the whole walk (`--since-as-filter`), not just the top-decile ranking."""
+    """The window filters the whole walk (`--since-as-filter`), not just the top-decile ranking."""
     case = next(c for c in EVAL_SPEC["churn_window_cases"] if c["name"] == "churn_window")
     payload = _run(case, _churn_window_repo(tmp_path))
     old = next(c for c in payload["candidates"] if c["path"] == "old.txt")
@@ -129,7 +129,7 @@ def test_a_commit_outside_the_window_is_excluded_from_the_count_not_merely_unnam
 
 
 def test_the_top_decile_and_no_clear_owner_entries_are_named_for_different_reasons(tmp_path):
-    """R-S3-11: churn-times-size ranking and the ownership-share floor are independent named-entry rules."""
+    """Churn-times-size ranking and the ownership-share floor are independent named-entry rules."""
     case = next(c for c in EVAL_SPEC["churn_window_cases"] if c["name"] == "churn_window")
     payload = _run(case, _churn_window_repo(tmp_path))
     by_path = {c["path"]: c for c in payload["candidates"]}
@@ -161,6 +161,6 @@ def test_must_reject_a_named_place_with_an_empty_why():
 
 
 def test_the_seeded_human_verdict_fixture_names_its_rubric_line_and_a_fail_verdict():
-    fixture = yaml.safe_load((EVAL_DIR / "fixtures" / "human_verdict" / "R-S3-11.yaml").read_text())
-    assert fixture["rubric_line_id"] == "R-S3-11:grader"
+    fixture = yaml.safe_load((EVAL_DIR / "fixtures" / "human_verdict" / "risk_map.yaml").read_text())
+    assert fixture["rubric_line_id"] == "risk_map:grader"
     assert fixture["verdict"] == "fail"

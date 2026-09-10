@@ -975,7 +975,7 @@ svg{display:block}
 /* Tag leaderboard on the R18 row rhythm: the bar becomes a compact secondary
    mark beside the count instead of a full-width restatement of it. */
 #s-report .tools{padding:0 20px 14px}
-#s-report .tool{display:grid;grid-template-columns:54px minmax(0,1fr) 96px 26px;gap:14px;
+#s-report .tool{display:grid;grid-template-columns:132px minmax(0,1fr) 96px 26px;gap:14px;
   align-items:center;height:60px;padding:0 2px}
 #s-report .rp-tk{font-size:14px;font-weight:500}
 #s-report .tool .dbar i{background:var(--accent);opacity:.8}
@@ -1422,7 +1422,7 @@ svg{display:block}
           <div class="node td-goal is-pass" style="left:0;top:162px">
             <div class="node-h"><span class="node-ic"><svg width="18" height="18"><use href="#i-ticket"/></svg></span>
               <span class="td-gt">T-0412</span></div>
-            <span class="td-gs" style="color:var(--text);font-size:14px">S0 Intake</span>
+            <span class="td-gs" style="color:var(--text);font-size:14px">Intake</span>
             <span class="td-gs">run_2b1c · 0:41</span>
             <div class="node-st"><span class="td-out"><i class="dot"></i>Pass</span><b>$0.02</b></div>
           </div>
@@ -1430,7 +1430,7 @@ svg{display:block}
           <div class="node td-n is-pass" style="left:262px;top:0">
             <div class="node-h">
               <span class="node-ic"><svg width="18" height="18"><use href="#i-layers"/></svg></span>
-              <span class="ell"><span class="node-t">S1 Context</span><span class="node-s">run_5e77 · 6:12</span></span>
+              <span class="ell"><span class="node-t">Context gathering</span><span class="node-s">run_5e77 · 6:12</span></span>
             </div>
             <div class="node-st"><span class="td-out"><i class="dot"></i>Pass</span><b>$1.14</b></div>
             <span class="prog"><i style="width:100%"></i></span>
@@ -1439,7 +1439,7 @@ svg{display:block}
           <div class="node td-n is-pass" style="left:262px;top:118px">
             <div class="node-h">
               <span class="node-ic"><svg width="18" height="18"><use href="#i-help"/></svg></span>
-              <span class="ell"><span class="node-t">S2 Clarify</span><span class="node-s">run_9a03 · 4:58</span></span>
+              <span class="ell"><span class="node-t">Clarification</span><span class="node-s">run_9a03 · 4:58</span></span>
             </div>
             <div class="node-st"><span class="td-out"><i class="dot"></i>Pass</span><b>$0.92</b></div>
             <span class="prog"><i style="width:100%"></i></span>
@@ -1448,7 +1448,7 @@ svg{display:block}
           <div class="node td-n is-pass" style="left:262px;top:236px">
             <div class="node-h">
               <span class="node-ic"><svg width="18" height="18"><use href="#i-file"/></svg></span>
-              <span class="ell"><span class="node-t">S3 Spec and plan</span><span class="node-s">run_c4d8 · 14:37</span></span>
+              <span class="ell"><span class="node-t">Planning</span><span class="node-s">run_c4d8 · 14:37</span></span>
             </div>
             <div class="node-st"><span class="td-out"><i class="dot"></i>Pass</span><b>$4.60</b></div>
             <span class="prog"><i style="width:100%"></i></span>
@@ -1457,7 +1457,7 @@ svg{display:block}
           <div class="node td-n is-pass" style="left:262px;top:354px">
             <div class="node-h">
               <span class="node-ic"><svg width="18" height="18"><use href="#i-cpu"/></svg></span>
-              <span class="ell"><span class="node-t">S4 Implementation</span><span class="node-s">run_7f3a · 31:05</span></span>
+              <span class="ell"><span class="node-t">Implementation</span><span class="node-s">run_7f3a · 31:05</span></span>
             </div>
             <div class="node-st"><span class="td-out"><i class="dot"></i>Pass</span><b>$9.85</b></div>
             <span class="prog"><i style="width:100%"></i></span>
@@ -1469,14 +1469,14 @@ svg{display:block}
 
           <div class="node td-sq is-pass" style="left:620px;top:16px">
             <span class="node-ic"><svg width="20" height="20"><use href="#i-checkc"/></svg></span>
-            <span class="node-t">S5 Checks</span>
+            <span class="node-t">Checks</span>
             <span class="node-s">8 pass · 1 waived</span>
             <span class="prog"><i style="width:100%"></i></span>
           </div>
 
           <div class="node td-sq is-wait" style="left:620px;top:176px">
             <span class="node-ic"><svg width="20" height="20"><use href="#i-users"/></svg></span>
-            <span class="node-t">S6 Review</span>
+            <span class="node-t">Human review</span>
             <span class="node-s">Waiting · 2 of 3 slots</span>
             <span class="prog"><i style="width:67%"></i></span>
           </div>
@@ -1569,9 +1569,9 @@ svg{display:block}
     <div class="card">
       <div class="card-h"><h2>Assumptions</h2></div>
       <div class="td-asm">
-        <div class="td-as"><span class="ell"><b>Reject at intake, not at settlement</b><em>Accepted default</em></span><span class="r">S2 · Q2</span></div>
-        <div class="td-as"><span class="ell"><b>Error code CURRENCY_MISMATCH</b><em>Accepted default</em></span><span class="r">S2 · Q3</span></div>
-        <div class="td-as"><span class="ell"><b>Merchant currency is immutable</b><em class="w">Agent declared, unverified</em></span><span class="r">S3</span></div>
+        <div class="td-as"><span class="ell"><b>Reject at intake, not at settlement</b><em>Accepted default</em></span><span class="r">Clarification · Q2</span></div>
+        <div class="td-as"><span class="ell"><b>Error code CURRENCY_MISMATCH</b><em>Accepted default</em></span><span class="r">Clarification · Q3</span></div>
+        <div class="td-as"><span class="ell"><b>Merchant currency is immutable</b><em class="w">Agent declared, unverified</em></span><span class="r">Planning</span></div>
       </div>
     </div>
   </div>
@@ -1614,26 +1614,26 @@ svg{display:block}
       </div>
       <ul class="rows">
         <li class="rowhead rn-row"><span>Run</span><span>Ticket</span><span>Stage</span><span class="r">Duration</span><span class="r">Cost</span><span>Outcome</span><span></span></li>
-        <li class="row rn-row"><a class="rid" href="#run"><i class="live"></i>run_d204</a><a class="tkey" href="#ticket">T-0409</a><span class="rn-stg">S4</span><span class="r rn-dur">22:10</span><span class="r rn-cost">$3.52</span><span><span class="pill acc">Running</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run"><i class="live"></i>run_d204</a><a class="tkey" href="#ticket">T-0409</a><span class="rn-stg">Implementation</span><span class="r rn-dur">22:10</span><span class="r rn-cost">$3.52</span><span><span class="pill acc">Running</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
         <li class="row rn-row"><span class="rid">run_u020</span><span class="fnt">—</span><span class="rn-stg">Index rebuild</span><span class="r rn-dur">3:44</span><span class="r rn-cost">$0.00</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_77d2</a><a class="tkey" href="#ticket">T-0411</a><span class="rn-stg">S1</span><span class="r rn-dur">2:10</span><span class="r rn-cost">$0.31</span><span><span class="pill">Aborted</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_1e05</a><a class="tkey" href="#ticket">T-0411</a><span class="rn-stg">S0</span><span class="r rn-dur">0:24</span><span class="r rn-cost">$0.02</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_0c3e</a><a class="tkey" href="#ticket">T-0420</a><span class="rn-stg">S0</span><span class="r rn-dur">0:36</span><span class="r rn-cost">$0.02</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_f0c9</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">S6</span><span class="r rn-dur">1:20</span><span class="r rn-cost">$1.46</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_e1a2</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">S5</span><span class="r rn-dur">7:44</span><span class="r rn-cost">$0.41</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row is-sel"><a class="rid" href="#run">run_7f3a</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">S4</span><span class="r rn-dur">31:05</span><span class="r rn-cost">$9.85</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_77d2</a><a class="tkey" href="#ticket">T-0411</a><span class="rn-stg">Context</span><span class="r rn-dur">2:10</span><span class="r rn-cost">$0.31</span><span><span class="pill">Aborted</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_1e05</a><a class="tkey" href="#ticket">T-0411</a><span class="rn-stg">Intake</span><span class="r rn-dur">0:24</span><span class="r rn-cost">$0.02</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_0c3e</a><a class="tkey" href="#ticket">T-0420</a><span class="rn-stg">Intake</span><span class="r rn-dur">0:36</span><span class="r rn-cost">$0.02</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_f0c9</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Review</span><span class="r rn-dur">1:20</span><span class="r rn-cost">$1.46</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_e1a2</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Checks</span><span class="r rn-dur">7:44</span><span class="r rn-cost">$0.41</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row is-sel"><a class="rid" href="#run">run_7f3a</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Implementation</span><span class="r rn-dur">31:05</span><span class="r rn-cost">$9.85</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
         <li class="row rn-row"><span class="rid kid">run_7f3b</span><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Base advance</span><span class="r rn-dur">0:09</span><span class="r rn-cost">$0.00</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_51a7</a><a class="tkey" href="#ticket">T-0418</a><span class="rn-stg">S2</span><span class="r rn-dur">4:15</span><span class="r rn-cost">$0.80</span><span><span class="pill warn">Blocked</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_44e8</a><a class="tkey" href="#ticket">T-0417</a><span class="rn-stg">S5</span><span class="r rn-dur">6:51</span><span class="r rn-cost">$0.38</span><span><span class="pill fail">Fail</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_51a7</a><a class="tkey" href="#ticket">T-0418</a><span class="rn-stg">Clarification</span><span class="r rn-dur">4:15</span><span class="r rn-cost">$0.80</span><span><span class="pill warn">Blocked</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_44e8</a><a class="tkey" href="#ticket">T-0417</a><span class="rn-stg">Checks</span><span class="r rn-dur">6:51</span><span class="r rn-cost">$0.38</span><span><span class="pill fail">Fail</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
         <li class="row rn-row"><a class="rid" href="#run">run_c7a1</a><a class="tkey" href="#ticket">T-0417</a><span class="rn-stg">Fix round</span><span class="r rn-dur">9:02</span><span class="r rn-cost">$2.31</span><span><span class="pill fail">Fail</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
         <li class="row rn-row"><a class="rid" href="#run">run_c7a0</a><a class="tkey" href="#ticket">T-0417</a><span class="rn-stg">Fix round</span><span class="r rn-dur">8:14</span><span class="r rn-cost">$2.05</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_9d11</a><a class="tkey" href="#ticket">T-0403</a><span class="rn-stg">S4 task 4</span><span class="r rn-dur">18:20</span><span class="r rn-cost">$6.12</span><span><span class="pill fail">Fail</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_c4d8</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">S3</span><span class="r rn-dur">14:37</span><span class="r rn-cost">$4.60</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_e83f</a><a class="tkey" href="#ticket">T-0415</a><span class="rn-stg">S3</span><span class="r rn-dur">13:02</span><span class="r rn-cost">$4.21</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_bb72</a><a class="tkey" href="#ticket">T-0409</a><span class="rn-stg">S3</span><span class="r rn-dur">11:58</span><span class="r rn-cost">$3.90</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_9a03</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">S2</span><span class="r rn-dur">4:58</span><span class="r rn-cost">$0.92</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_5e77</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">S1</span><span class="r rn-dur">6:12</span><span class="r rn-cost">$1.14</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
-        <li class="row rn-row"><a class="rid" href="#run">run_2b1c</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">S0</span><span class="r rn-dur">0:41</span><span class="r rn-cost">$0.02</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_9d11</a><a class="tkey" href="#ticket">T-0403</a><span class="rn-stg">Implementation task 4</span><span class="r rn-dur">18:20</span><span class="r rn-cost">$6.12</span><span><span class="pill fail">Fail</span></span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_c4d8</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Planning</span><span class="r rn-dur">14:37</span><span class="r rn-cost">$4.60</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_e83f</a><a class="tkey" href="#ticket">T-0415</a><span class="rn-stg">Planning</span><span class="r rn-dur">13:02</span><span class="r rn-cost">$4.21</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_bb72</a><a class="tkey" href="#ticket">T-0409</a><span class="rn-stg">Planning</span><span class="r rn-dur">11:58</span><span class="r rn-cost">$3.90</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_9a03</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Clarification</span><span class="r rn-dur">4:58</span><span class="r rn-cost">$0.92</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_5e77</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Context</span><span class="r rn-dur">6:12</span><span class="r rn-cost">$1.14</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
+        <li class="row rn-row"><a class="rid" href="#run">run_2b1c</a><a class="tkey" href="#ticket">T-0412</a><span class="rn-stg">Intake</span><span class="r rn-dur">0:41</span><span class="r rn-cost">$0.02</span><span class="ok"><i></i>Pass</span><button class="kebab"><svg width="15" height="15"><use href="#i-dots"/></svg></button></li>
       </ul>
   </div>
   </div>
@@ -1641,28 +1641,28 @@ svg{display:block}
     <div class="card railcard">
       <div class="card-h"><h2><i class="live" style="display:inline-block;margin-right:8px;vertical-align:1px"></i>Live activity</h2><span class="aux"><svg width="16" height="16"><use href="#i-pause"/></svg></span></div>
       <div class="act">
-        <div class="lrow"><i class="live"></i><span><span class="lrow-a">run_d204</span><span class="lrow-b">T-0409<span>S4</span></span></span><span class="lrow-v">14:42</span></div>
+        <div class="lrow"><i class="live"></i><span><span class="lrow-a">run_d204</span><span class="lrow-b">T-0409<span>Implementation</span></span></span><span class="lrow-v">14:42</span></div>
         <div class="lrow"><i class="dot fnt"></i><span><span class="lrow-a">run_u020</span><span class="lrow-b">Utility<span>Index rebuild</span></span></span><span class="lrow-v">14:38</span></div>
-        <div class="lrow"><i class="dot mut"></i><span><span class="lrow-a">run_77d2</span><span class="lrow-b">T-0411<span>S1</span></span></span><span class="rt"><span class="lrow-v">14:36</span><span class="pill">Aborted</span></span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_1e05</span><span class="lrow-b">T-0411<span>S0</span></span></span><span class="lrow-v">14:35</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_0c3e</span><span class="lrow-b">T-0420<span>S0</span></span></span><span class="lrow-v">14:34</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_f0c9</span><span class="lrow-b">T-0412<span>S6</span></span></span><span class="lrow-v">14:05</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_e1a2</span><span class="lrow-b">T-0412<span>S5</span></span></span><span class="lrow-v">13:53</span></div>
+        <div class="lrow"><i class="dot mut"></i><span><span class="lrow-a">run_77d2</span><span class="lrow-b">T-0411<span>Context</span></span></span><span class="rt"><span class="lrow-v">14:36</span><span class="pill">Aborted</span></span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_1e05</span><span class="lrow-b">T-0411<span>Intake</span></span></span><span class="lrow-v">14:35</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_0c3e</span><span class="lrow-b">T-0420<span>Intake</span></span></span><span class="lrow-v">14:34</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_f0c9</span><span class="lrow-b">T-0412<span>Review</span></span></span><span class="lrow-v">14:05</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_e1a2</span><span class="lrow-b">T-0412<span>Checks</span></span></span><span class="lrow-v">13:53</span></div>
         <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_7f3b</span><span class="lrow-b">T-0412<span>Base advance</span></span></span><span class="lrow-v">13:52</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_7f3a</span><span class="lrow-b">T-0412<span>S4</span></span></span><span class="lrow-v">13:21</span></div>
-        <div class="lrow"><i class="dot mut"></i><span><span class="lrow-a">run_51a7</span><span class="lrow-b">T-0418<span>S2</span></span></span><span class="rt"><span class="lrow-v">13:14</span><span class="pill warn">Blocked</span></span></div>
-        <div class="lrow"><i class="dot" style="color:var(--fail)"></i><span><span class="lrow-a">run_44e8</span><span class="lrow-b">T-0417<span>S5</span></span></span><span class="rt"><span class="lrow-v">13:06</span><span class="pill fail">Fail</span></span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_7f3a</span><span class="lrow-b">T-0412<span>Implementation</span></span></span><span class="lrow-v">13:21</span></div>
+        <div class="lrow"><i class="dot mut"></i><span><span class="lrow-a">run_51a7</span><span class="lrow-b">T-0418<span>Clarification</span></span></span><span class="rt"><span class="lrow-v">13:14</span><span class="pill warn">Blocked</span></span></div>
+        <div class="lrow"><i class="dot" style="color:var(--fail)"></i><span><span class="lrow-a">run_44e8</span><span class="lrow-b">T-0417<span>Checks</span></span></span><span class="rt"><span class="lrow-v">13:06</span><span class="pill fail">Fail</span></span></div>
         <div class="lrow"><i class="dot" style="color:var(--fail)"></i><span><span class="lrow-a">run_c7a1</span><span class="lrow-b">T-0417<span>Fix round</span></span></span><span class="rt"><span class="lrow-v">12:56</span><span class="pill fail">Fail</span></span></div>
         <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_c7a0</span><span class="lrow-b">T-0417<span>Fix round</span></span></span><span class="lrow-v">12:47</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--fail)"></i><span><span class="lrow-a">run_9d11</span><span class="lrow-b">T-0403<span>S4 task 4</span></span></span><span class="rt"><span class="lrow-v">12:28</span><span class="pill fail">Fail</span></span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_c4d8</span><span class="lrow-b">T-0412<span>S3</span></span></span><span class="lrow-v">12:12</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_c6f2</span><span class="lrow-b">T-0417<span>S4</span></span></span><span class="lrow-v">12:05</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_e83f</span><span class="lrow-b">T-0415<span>S3</span></span></span><span class="lrow-v">11:57</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_bb72</span><span class="lrow-b">T-0409<span>S3</span></span></span><span class="lrow-v">11:44</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_9a03</span><span class="lrow-b">T-0412<span>S2</span></span></span><span class="lrow-v">11:38</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_5e77</span><span class="lrow-b">T-0412<span>S1</span></span></span><span class="lrow-v">11:31</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_2b1c</span><span class="lrow-b">T-0412<span>S0</span></span></span><span class="lrow-v">11:24</span></div>
-        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_9d0e</span><span class="lrow-b">T-0403<span>S4</span></span></span><span class="lrow-v">09:12</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--fail)"></i><span><span class="lrow-a">run_9d11</span><span class="lrow-b">T-0403<span>Implementation task 4</span></span></span><span class="rt"><span class="lrow-v">12:28</span><span class="pill fail">Fail</span></span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_c4d8</span><span class="lrow-b">T-0412<span>Planning</span></span></span><span class="lrow-v">12:12</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_c6f2</span><span class="lrow-b">T-0417<span>Implementation</span></span></span><span class="lrow-v">12:05</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_e83f</span><span class="lrow-b">T-0415<span>Planning</span></span></span><span class="lrow-v">11:57</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_bb72</span><span class="lrow-b">T-0409<span>Planning</span></span></span><span class="lrow-v">11:44</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_9a03</span><span class="lrow-b">T-0412<span>Clarification</span></span></span><span class="lrow-v">11:38</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_5e77</span><span class="lrow-b">T-0412<span>Context</span></span></span><span class="lrow-v">11:31</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_2b1c</span><span class="lrow-b">T-0412<span>Intake</span></span></span><span class="lrow-v">11:24</span></div>
+        <div class="lrow"><i class="dot" style="color:var(--pass)"></i><span><span class="lrow-a">run_9d0e</span><span class="lrow-b">T-0403<span>Implementation</span></span></span><span class="lrow-v">09:12</span></div>
       </div>
     </div>
   </div>
@@ -1671,7 +1671,7 @@ svg{display:block}
   <div class="card dhead">
     <div class="th">
       <div>
-        <div class="th-key">T-0412 · LED-2291 · S4 Implementation</div>
+        <div class="th-key">T-0412 · LED-2291 · Implementation</div>
         <h2>run_7f3a</h2>
       </div>
       <div class="right">
@@ -1749,10 +1749,10 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
       <div class="card">
         <div class="card-h"><h2>Inputs</h2><span class="aux">9 hashes verified</span></div>
         <div class="rd-list">
-          <div class="rd-irow"><span class="rd-k">Agent</span><span class="rd-n">s4-implementer</span><span class="rd-hash mono">a11f…3c</span></div>
-          <div class="rd-irow"><span class="rd-k">Skill</span><span class="rd-n">s4-implement.md</span><span class="rd-hash mono">77c0…b8</span></div>
+          <div class="rd-irow"><span class="rd-k">Agent</span><span class="rd-n">agents/implementation.md</span><span class="rd-hash mono">a11f…3c</span></div>
+          <div class="rd-irow"><span class="rd-k">Skill</span><span class="rd-n">skills/implementation.md</span><span class="rd-hash mono">77c0…b8</span></div>
           <div class="rd-irow"><span class="rd-k">Shared</span><span class="rd-n">repo-conventions</span><span class="rd-hash mono">5d2e…01</span></div>
-          <div class="rd-irow"><span class="rd-k">Rubric</span><span class="rd-n">rubric-s4</span><span class="rd-hash mono">e9b1…77</span></div>
+          <div class="rd-irow"><span class="rd-k">Rubric</span><span class="rd-n">rubrics/implementation.md</span><span class="rd-hash mono">e9b1…77</span></div>
           <div class="rd-irow"><span class="rd-k">Plan</span><span class="rd-n">plan v2</span><span class="rd-hash mono">0b3d…f9</span></div>
         </div>
       </div>
@@ -1851,10 +1851,10 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
           <b>$430.40</b><span>Total</span>
         </div>
         <div class="dleg">
-          <div class="rp-leg"><i style="opacity:1"></i><div><span class="rp-legn">S4<b>58%</b></span><em>$249.60</em></div></div>
-          <div class="rp-leg"><i style="opacity:.66"></i><div><span class="rp-legn">S3<b>21%</b></span><em>$90.40</em></div></div>
+          <div class="rp-leg"><i style="opacity:1"></i><div><span class="rp-legn">Implementation<b>58%</b></span><em>$249.60</em></div></div>
+          <div class="rp-leg"><i style="opacity:.66"></i><div><span class="rp-legn">Planning<b>21%</b></span><em>$90.40</em></div></div>
           <div class="rp-leg"><i style="opacity:.4"></i><div><span class="rp-legn">Other<b>21%</b></span><em>$90.40</em></div></div>
-          <p class="rp-sub">S1 9% · S6 6% · S2 4% · S5 2%</p>
+          <p class="rp-sub">Context gathering 9% · Human review 6% · Clarification 4% · Checks 2%</p>
         </div>
       </div>
     </div>
@@ -1874,11 +1874,11 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
     <div class="card">
       <div class="tbl-h"><div class="tbl-t"><h2>Tag leaderboard</h2><span>5 tags</span></div></div>
       <div class="tools">
-        <div class="tool"><span class="rp-tk">FM-4</span><span class="rp-tp ell">stale context</span><span class="dbar"><i style="width:100%"></i></span><b>5</b></div>
-        <div class="tool"><span class="rp-tk">FM-7</span><span class="rp-tp ell">scope creep</span><span class="dbar"><i style="width:80%"></i></span><b>4</b></div>
-        <div class="tool"><span class="rp-tk">FM-10</span><span class="rp-tp ell">packet defect</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
-        <div class="tool"><span class="rp-tk">FM-12</span><span class="rp-tp ell">flaky check</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
-        <div class="tool"><span class="rp-tk">FM-1</span><span class="rp-tp ell">wrong scope</span><span class="dbar"><i style="width:20%"></i></span><b>1</b></div>
+        <div class="tool"><span class="rp-tk">memory_rot</span><span class="rp-tp ell">stale context</span><span class="dbar"><i style="width:100%"></i></span><b>5</b></div>
+        <div class="tool"><span class="rp-tk">scope_creep</span><span class="rp-tp ell">change beyond the ticket</span><span class="dbar"><i style="width:80%"></i></span><b>4</b></div>
+        <div class="tool"><span class="rp-tk">unreviewable_diff</span><span class="rp-tp ell">packet defect</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
+        <div class="tool"><span class="rp-tk">filler_comments</span><span class="rp-tp ell">flaky check</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
+        <div class="tool"><span class="rp-tk">unknown_impact</span><span class="rp-tp ell">impacted services unknown</span><span class="dbar"><i style="width:20%"></i></span><b>1</b></div>
       </div>
     </div>
 
@@ -1916,13 +1916,13 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
     </div>
     <ul class="rows">
       <li class="rowhead mtrow"><span>Stage</span><span>Agent</span><span>Model</span><span>Tier</span><span>Rubric</span><span>Tools</span><span class="bcell">Budget</span></li>
-      <li class="row mtrow"><span>S0 Intake</span><span class="fc-agent">s0-intake</span><span class="model">claude-haiku-4-5</span><span class="tier">all</span><span class="fc-rub">rubric-s0 <b>· 7 lines</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:3%"></i></span><em>$0.10</em></span></li>
-      <li class="row mtrow"><span>S1 Context</span><span class="fc-agent">s1-context</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s1 <b>· 11 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
-      <li class="row mtrow"><span>S2 Clarify</span><span class="fc-agent">s2-clarify</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s2 <b>· checklists</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:12.5%"></i></span><em>$1.50</em></span></li>
-      <li class="row mtrow"><span>S3 Spec and plan</span><span class="fc-agent">s3-planner</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s3 <b>· 14 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:50%"></i></span><em>$6.00</em></span></li>
-      <li class="row mtrow is-sel"><span>S4 Implementation</span><span class="fc-agent">s4-implementer</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">rubric-s4 <b>· 9 lines</b></span><span class="fc-tools">read, edit, recipe, codegraph</span><span class="bcell"><span class="dbar"><i style="width:100%"></i></span><em>$12.00</em></span></li>
-      <li class="row mtrow"><span>S5 Checks</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">rubric-s5 <b>· 12 lines</b></span><span class="fc-tools">recipe</span><span class="bcell"><span class="dbar"><i style="width:8.3%"></i></span><em>$1.00</em></span></li>
-      <li class="row mtrow"><span>S6 Packet</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">rubric-s6 <b>· 6 lines</b></span><span class="fc-tools">none</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
+      <li class="row mtrow"><span>Intake</span><span class="fc-agent">Intake</span><span class="model">claude-haiku-4-5</span><span class="tier">all</span><span class="fc-rub">intake.md <b>· 7 lines</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:3%"></i></span><em>$0.10</em></span></li>
+      <li class="row mtrow"><span>Context gathering</span><span class="fc-agent">context_gathering.md</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">context_gathering.md <b>· 11 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
+      <li class="row mtrow"><span>Clarification</span><span class="fc-agent">clarification.md</span><span class="model">claude-sonnet-5</span><span class="tier">1–3</span><span class="fc-rub">clarification.md <b>· checklists</b></span><span class="fc-tools">read</span><span class="bcell"><span class="dbar"><i style="width:12.5%"></i></span><em>$1.50</em></span></li>
+      <li class="row mtrow"><span>Planning</span><span class="fc-agent">planning.md</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">planning.md <b>· 14 lines</b></span><span class="fc-tools">read, codegraph</span><span class="bcell"><span class="dbar"><i style="width:50%"></i></span><em>$6.00</em></span></li>
+      <li class="row mtrow is-sel"><span>Implementation</span><span class="fc-agent">implementation.md</span><span class="model">claude-opus-5</span><span class="tier">1–3</span><span class="fc-rub">implementation.md <b>· 9 lines</b></span><span class="fc-tools">read, edit, recipe, codegraph</span><span class="bcell"><span class="dbar"><i style="width:100%"></i></span><em>$12.00</em></span></li>
+      <li class="row mtrow"><span>Checks</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">checks.md <b>· 12 lines</b></span><span class="fc-tools">recipe</span><span class="bcell"><span class="dbar"><i style="width:8.3%"></i></span><em>$1.00</em></span></li>
+      <li class="row mtrow"><span>Human review</span><span class="fc-agent">scripts</span><span class="model">no model</span><span class="tier">all</span><span class="fc-rub">human_review.md <b>· 6 lines</b></span><span class="fc-tools">none</span><span class="bcell"><span class="dbar"><i style="width:16.7%"></i></span><em>$2.00</em></span></li>
     </ul>
   </div>
 
@@ -1931,7 +1931,7 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-file"/></svg></span>
-        <span class="ell"><span class="node-t">s0-intake</span><span class="node-s">claude-haiku-4-5</span></span>
+        <span class="ell"><span class="node-t">Intake</span><span class="node-s">claude-haiku-4-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_1e05 · 61 runs</span><b>97%</b></div>
       <span class="prog"><i style="width:97%"></i></span>
@@ -1939,7 +1939,7 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-layers"/></svg></span>
-        <span class="ell"><span class="node-t">s1-context</span><span class="node-s">claude-sonnet-5</span></span>
+        <span class="ell"><span class="node-t">context_gathering.md</span><span class="node-s">claude-sonnet-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_77d2 · 58 runs</span><b>93%</b></div>
       <span class="prog"><i style="width:93%"></i></span>
@@ -1947,7 +1947,7 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-help"/></svg></span>
-        <span class="ell"><span class="node-t">s2-clarify</span><span class="node-s">claude-sonnet-5</span></span>
+        <span class="ell"><span class="node-t">clarification.md</span><span class="node-s">claude-sonnet-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_51a7 · 54 runs</span><b>91%</b></div>
       <span class="prog"><i style="width:91%"></i></span>
@@ -1955,7 +1955,7 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
     <div class="node">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-list"/></svg></span>
-        <span class="ell"><span class="node-t">s3-planner</span><span class="node-s">claude-opus-5</span></span>
+        <span class="ell"><span class="node-t">planning.md</span><span class="node-s">claude-opus-5</span></span>
       </div>
       <div class="node-st"><span class="ell">run_c4d8 · 52 runs</span><b>88%</b></div>
       <span class="prog"><i style="width:88%"></i></span>
@@ -1963,7 +1963,7 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
     <div class="node is-live">
       <div class="node-h">
         <span class="node-ic"><svg width="18" height="18"><use href="#i-cpu"/></svg></span>
-        <span class="ell"><span class="node-t">s4-implementer</span><span class="node-s">claude-opus-5</span></span>
+        <span class="ell"><span class="node-t">implementation.md</span><span class="node-s">claude-opus-5</span></span>
       </div>
       <div class="node-st"><i class="live"></i><span class="ell">run_d204 · 49 runs</span><b>79%</b></div>
       <span class="prog"><i style="width:79%"></i></span>
@@ -2075,11 +2075,11 @@ expected CURRENCY_MISMATCH, got null</code></pre></div>
       <div class="gv-c"><span class="av">ML</span><span class="gv-pn">Mei Lin</span><span class="gv-scope">Trust profile</span></div>
     </div>
     <div class="gv-row own">
-      <div class="gv-l"><b>S3 reviewer</b></div>
+      <div class="gv-l"><b>Planning reviewer</b></div>
       <div class="gv-c"><span class="av">TW</span><span class="gv-pn">Tomasz Wierzbicki</span><span class="gv-scope">Spec and plan</span></div>
     </div>
     <div class="gv-row own">
-      <div class="gv-l"><b>S6 reviewer</b></div>
+      <div class="gv-l"><b>Human review reviewer</b></div>
       <div class="gv-c"><span class="av">TW</span><span class="gv-pn">Tomasz Wierzbicki</span><span class="gv-scope">Human review</span></div>
     </div>
     <div class="gv-row own">

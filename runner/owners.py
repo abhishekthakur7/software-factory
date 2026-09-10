@@ -35,8 +35,8 @@ REQUIRED_ROLES = (
     "service_owner",
     "sensitive_path_owner",
     "ticket_engineer",
-    "s3_reviewer",
-    "s6_reviewer",
+    "plan_reviewer",
+    "packet_reviewer",
     "outcome_recorder",
     "incident_reviewer",
 )

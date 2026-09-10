@@ -65,8 +65,8 @@ sanitizers:
 
 # Every route the walk crosses. Every route is a stub deliverer except the
 # hosted model (planning and review already depend on it) and the Jira
-# read (S0's intake gate depends on it); wiring a real deliverer for any
-# other route is separate, later work.
+# read (the intake stage's own gate depends on it); wiring a real
+# deliverer for any other route is separate, later work.
 routes:
   hosted_model:
     purpose: send ticket and code context to the hosted coding model for plan and review assistance
@@ -100,7 +100,7 @@ routes:
     training_reuse_terms: not_applicable
     subprocessors: []
     residency: us
-    reader_roles: [ticket_engineer, s6_reviewer]
+    reader_roles: [ticket_engineer, packet_reviewer]
     export_rule:
       allowed_formats: [directory_export]
       max_class: confidential
@@ -120,7 +120,7 @@ routes:
     training_reuse_terms: no_training_reuse
     subprocessors: [github]
     residency: us
-    reader_roles: [ticket_engineer, s6_reviewer]
+    reader_roles: [ticket_engineer, packet_reviewer]
     export_rule:
       allowed_formats: []
       max_class: public
@@ -141,7 +141,7 @@ routes:
     training_reuse_terms: no_training_reuse
     subprocessors: [github]
     residency: us
-    reader_roles: [ticket_engineer, s6_reviewer]
+    reader_roles: [ticket_engineer, packet_reviewer]
     export_rule:
       allowed_formats: []
       max_class: public

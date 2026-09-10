@@ -53,7 +53,7 @@ def dry_run_recipes(work_dir: Path, *, factory_root: Path = FACTORY_DIR) -> dict
                         recipe_id, {"vendor_classpath": classpath, "vendor": str(vendor), "pom": "pom.xml"}, catalogue=catalogue,
                         cwd_roles={"checkout": checkout, "base": checkout, "head": checkout, "scratch": checkout / "scratch"},
                         results_dir=work_dir / "results" / recipe_id / side, env_source=os.environ,
-                        sandbox_run_dir=work_dir / "sandbox" / recipe_id / side, sandbox_stage="S5",
+                        sandbox_run_dir=work_dir / "sandbox" / recipe_id / side, sandbox_stage="checks",
                         sandbox_vendor_dir=vendor,
                     )
                     outcomes[side] = {

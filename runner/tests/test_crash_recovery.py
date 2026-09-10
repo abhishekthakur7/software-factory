@@ -28,7 +28,7 @@ from runner.paths import FACTORY_DIR
 from runner.reviewer_sets import Slot
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
 
-S1_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+CONTEXT_GATHERING_FIXTURE_OUT = FACTORY_DIR / "evals" / "agents" / "context_gathering" / "fixtures" / "plain_ok" / "out"
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "crash_recovery"
 PER_STAGE = yaml.safe_load((FIXTURES_DIR / "per_stage.yaml").read_text())["stages"]
@@ -76,7 +76,7 @@ _COMMIT_ENV = {
 def _give_real_base(conn, runs_dir, ticket_id):
     """Clone a one-commit repository for the ticket and bind a plan tuple to its base.
 
-    The S4 and S5 boundaries fetch the configured target branch from the
+    The implementation and checks boundaries fetch the configured target branch from the
     ticket's own clone, so a ticket that reaches them needs a real
     fetchable base, a recorded head, and a plan tuple bound to that base.
     """
@@ -85,12 +85,12 @@ def _give_real_base(conn, runs_dir, ticket_id):
     for args in (["init", "-q"], ["checkout", "-q", "-b", "main"]):
         subprocess.run(["git", *args], cwd=source, check=True, capture_output=True)
     (source / "README.md").write_text("seed\n")
-    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # The checks stage's real reviewer-set derivation reads CODEOWNERS at the target
     # base; a repository with none raises rather than defaulting, since an
     # actual diff's derivation has no plan-scope fallback the way a
     # planned one does.
     (source / "CODEOWNERS").write_text("* @abhishek\n")
-    # A minimal pom so the now-real S1's impact_scan has something to
+    # A minimal pom so the now-real context_gathering's impact_scan has something to
     # read, and the one file its `plain_ok` fixture's Flags row names.
     (source / "pom.xml").write_text(
         "<project>\n  <groupId>com.example</groupId>\n  <artifactId>widget</artifactId>\n  <version>1.0.0</version>\n"
@@ -103,7 +103,7 @@ def _give_real_base(conn, runs_dir, ticket_id):
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     # A trivial always-passing unit test: `fixture_unit` is ungoverned by
     # regression-only, so with none at all it would fail on its own and
-    # block every ticket that reaches S5 through this fixture.
+    # block every ticket that reaches checks through this fixture.
     test_src = source / "src" / "test" / "java" / "com" / "example"
     test_src.mkdir(parents=True)
     (test_src / "HandlerUnitTest.java").write_text(
@@ -127,11 +127,11 @@ def _give_real_base(conn, runs_dir, ticket_id):
     )
 
 
-def _give_s5_ready_preflight(conn, tmp_path, ticket_id):
+def _give_checks_ready_preflight(conn, tmp_path, ticket_id):
     """Extend `_give_real_base`'s ticket with a real, currently-current plan tuple and a
-    satisfying `plan` approval, so a fresh S5 attempt clears the preflight far enough to
+    satisfying `plan` approval, so a fresh checks attempt clears the preflight far enough to
     run its checks and register `check_evidence` -- mirrors `test_freshness.py`'s
-    `_real_plan_quorum`, needed now that S5 is a real driver rather than a stub.
+    `_real_plan_quorum`, needed now that checks is a real driver rather than a stub.
     """
     record.update(conn, "ticket", ticket_id, factory_manifest_hash=manifest.current_hash())
     for kind in ("brief", "criteria", "plan"):
@@ -139,8 +139,8 @@ def _give_s5_ready_preflight(conn, tmp_path, ticket_id):
         path.write_text(f"## {artefacts.SECTIONS[kind][0]}\n\nstub\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind=kind, path=path)
 
-    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    identity = owners.load_owners().roles["plan_reviewer"]["identity"]
+    slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=identity, min_count=1)
     record.insert(
         conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash=f"planned-{ticket_id}",
         slots=json.dumps([slot.to_json()]),
@@ -150,7 +150,7 @@ def _give_s5_ready_preflight(conn, tmp_path, ticket_id):
     subject_hash = record.get(conn, "evidence_tuple", tuple_id)["content_hash"]
     approvals.record_approval(
         conn, gate="plan", subject_hash=subject_hash, slot_id=slot.slot_id, actor_identity=identity,
-        role="s3_reviewer", decision="approve", authority_policy_hash="authority-1",
+        role="plan_reviewer", decision="approve", authority_policy_hash="authority-1",
         membership_snapshot_hash="membership-1", attestation_version="v1", attestation_hash="att-1",
         ticket_id=ticket_id,
     )
@@ -169,7 +169,7 @@ def _activate_default_profile(conn):
 
 
 def test_killed_stage_run_restarted_produces_no_duplicate_row_for_the_attempt(conn, tmp_path, monkeypatch):
-    """R-O-1: a stage_run killed mid-execution restarts through `factory advance`
+    """A stage_run killed mid-execution restarts through `factory advance`
     as `infrastructure_failure`/`expired_lease`, with a fresh attempt + 1 and
     no second row for the killed attempt."""
     ticket_id = _ticket_in(
@@ -177,21 +177,21 @@ def test_killed_stage_run_restarted_produces_no_duplicate_row_for_the_attempt(co
         factory_manifest_hash=manifest.current_hash(),
     )
     _give_real_base(conn, tmp_path, ticket_id)
-    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="S1", lease_seconds=-1)
+    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="context_gathering", lease_seconds=-1)
     conn.commit()
 
-    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
+    monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(CONTEXT_GATHERING_FIXTURE_OUT))
     operations.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
     assert dead_row["failure_kind"] == "expired_lease"
 
-    # `parent_run_id IS NULL`: S1's own agent invocation opens a second,
+    # `parent_run_id IS NULL`: context_gathering's own agent invocation opens a second,
     # child `stage_run` under the same stage name once it passes, which
     # is not a second driver attempt.
     rows = conn.execute(
-        "SELECT id, attempt FROM stage_run WHERE ticket_id = ? AND stage = 'S1' AND parent_run_id IS NULL ORDER BY attempt",
+        "SELECT id, attempt FROM stage_run WHERE ticket_id = ? AND stage = 'context_gathering' AND parent_run_id IS NULL ORDER BY attempt",
         (ticket_id,),
     ).fetchall()
     assert [row["attempt"] for row in rows] == [1, 2]
@@ -200,9 +200,9 @@ def test_killed_stage_run_restarted_produces_no_duplicate_row_for_the_attempt(co
 
 
 def test_must_reject_expiring_a_lease_whose_process_is_still_alive(conn):
-    """R-O-1: a lapsed lease whose process is still alive is left open, not expired."""
+    """A lapsed lease whose process is still alive is left open, not expired."""
     ticket_id = _ticket_in(conn, "implementing")
-    run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4", lease_seconds=-1)
+    run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="implementation", lease_seconds=-1)
     conn.commit()
 
     expired = run_ledger.expire_dead_runs(conn, ticket_id)
@@ -214,9 +214,9 @@ def test_must_reject_expiring_a_lease_whose_process_is_still_alive(conn):
 
 
 def test_an_open_run_whose_lease_has_not_lapsed_is_left_alone(conn, monkeypatch):
-    """R-O-1: a dead process whose lease has not yet lapsed is left open."""
+    """A dead process whose lease has not yet lapsed is left open."""
     ticket_id = _ticket_in(conn, "implementing")
-    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="S4", lease_seconds=3600)
+    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="implementation", lease_seconds=3600)
     conn.commit()
 
     expired = run_ledger.expire_dead_runs(conn, ticket_id)
@@ -226,10 +226,10 @@ def test_an_open_run_whose_lease_has_not_lapsed_is_left_alone(conn, monkeypatch)
 
 
 def test_expiring_a_dead_run_preserves_artefacts_and_worktree_path(conn, monkeypatch):
-    """R-O-1: expiring a dead run touches only its own row -- registered artefacts
+    """Expiring a dead run touches only its own row -- registered artefacts
     and the ticket's worktree_path are untouched."""
     ticket_id = _ticket_in(conn, "implementing", worktree_path="runs/tickets/1/worktree")
-    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="S4", lease_seconds=-1)
+    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="implementation", lease_seconds=-1)
     artefact_id = record.insert(
         conn, "artefact", ticket_id=ticket_id, stage_run_id=dead_id, kind="handoff",
         path="runs/tickets/1/runs/1/out/handoff.md", created_at=record.now(),
@@ -245,7 +245,7 @@ def test_expiring_a_dead_run_preserves_artefacts_and_worktree_path(conn, monkeyp
 
 
 def test_expiring_a_dead_utility_run_carries_no_failure_kind(conn, monkeypatch):
-    """R-O-1: a dead utility_run also expires to infrastructure_failure; the table has no failure_kind column."""
+    """A dead utility_run also expires to infrastructure_failure; the table has no failure_kind column."""
     ticket_id = _ticket_in(conn, "context")
     dead_id = _open_dead_run(
         monkeypatch, conn, table="utility_run", kind="digest", ticket_id=ticket_id, lease_seconds=-1
@@ -261,20 +261,20 @@ def test_expiring_a_dead_utility_run_carries_no_failure_kind(conn, monkeypatch):
 
 
 def test_outbox_reconciles_before_a_fresh_attempt_opens(conn, tmp_path, monkeypatch):
-    """R-O-1: restart reconciles pending external_write rows before expiring a
+    """Restart reconciles pending external_write rows before expiring a
     dead lease or opening the fresh attempt it leads to."""
     _activate_default_profile(conn)
     ticket_id = _ticket_in(
         conn, trust_profile_hash="trust-1", trust_approval_set_hash="trust-approval-1", **OUTBOX_FIRST["ticket"]
     )
     _give_real_base(conn, tmp_path, ticket_id)
-    _give_s5_ready_preflight(conn, tmp_path, ticket_id)
+    _give_checks_ready_preflight(conn, tmp_path, ticket_id)
     outbox.create_intent(
         conn, ticket_id=ticket_id, operation="digest",
         payload={"ticket_id": str(ticket_id), **OUTBOX_FIRST["digest_payload"]},
         runs_dir=tmp_path,
     )
-    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="S5", lease_seconds=-1)
+    dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage="checks", lease_seconds=-1)
     conn.commit()
 
     operations.advance(conn, ticket_id, tmp_path)
@@ -287,7 +287,7 @@ def test_outbox_reconciles_before_a_fresh_attempt_opens(conn, tmp_path, monkeypa
 
     assert record.get(conn, "stage_run", dead_id)["outcome"] == "infrastructure_failure"
     fresh = conn.execute(
-        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S5' AND attempt = 2", (ticket_id,)
+        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'checks' AND attempt = 2", (ticket_id,)
     ).fetchone()
     assert fresh is not None
     # Both the receipt and the fresh attempt's own check_evidence artefact
@@ -300,9 +300,9 @@ def test_outbox_reconciles_before_a_fresh_attempt_opens(conn, tmp_path, monkeypa
 
 
 def test_must_reject_a_reasoning_summary_over_the_cap(conn):
-    """R-O-1: a summary longer than tiers.yaml's max_words is stored truncated to exactly that many words."""
+    """A summary longer than tiers.yaml's max_words is stored truncated to exactly that many words."""
     ticket_id = _ticket_in(conn, "implementing")
-    run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+    run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="implementation")
     max_words = run_ledger._tiers_config()["reasoning_summary"]["max_words"]
     long_summary = " ".join(f"word{i}" for i in range(max_words + 50))
 
@@ -315,7 +315,7 @@ def test_must_reject_a_reasoning_summary_over_the_cap(conn):
 def test_reasoning_summary_under_the_cap_is_stored_unchanged(conn):
     """a summary within the cap is stored verbatim, word for word."""
     ticket_id = _ticket_in(conn, "implementing")
-    run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+    run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="implementation")
 
     stored = run_ledger.record_reasoning_summary(conn, run_id, "short summary of the run")
 
@@ -325,10 +325,10 @@ def test_reasoning_summary_under_the_cap_is_stored_unchanged(conn):
 
 @pytest.mark.parametrize("stage", sorted(PER_STAGE))
 def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monkeypatch, stage):
-    """R-O-1: for every stage S0 to S6, killing its run and rerunning `factory
+    """For every stage intake to human_review, killing its run and rerunning `factory
     advance` completes with no duplicate stage_run row for the killed attempt."""
     spec = PER_STAGE[stage]
-    # S1 is a real, agent-invoking driver: it needs the fields S0 stamps
+    # context_gathering is a real, agent-invoking driver: it needs the fields intake stamps
     # (service, type, provisional tier) and the manifest pin eligibility
     # writes, which the stub and script-only stages under test do not.
     extra_fields = (
@@ -336,7 +336,7 @@ def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monk
             "service": "fixture-project", "ticket_type": "small_feature", "tier_provisional": "standard",
             "factory_manifest_hash": manifest.current_hash(),
         }
-        if stage == "S1" else {}
+        if stage == "context_gathering" else {}
     )
     ticket_id = _ticket_in(conn, spec["state"], **extra_fields)
     for prior_stage in spec.get("prior_passes", []):
@@ -349,15 +349,15 @@ def test_per_stage_kill_and_restart_leaves_no_duplicate_row(conn, tmp_path, monk
     dead_id = _open_dead_run(monkeypatch, conn, ticket_id=ticket_id, stage=stage, lease_seconds=-1)
     conn.commit()
 
-    if stage == "S1":
-        monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(S1_FIXTURE_OUT))
+    if stage == "context_gathering":
+        monkeypatch.setenv("FIXTURE_ADAPTER_OUT_DIR", str(CONTEXT_GATHERING_FIXTURE_OUT))
     operations.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
     assert dead_row["failure_kind"] == "expired_lease"
 
-    # `parent_run_id IS NULL`: S1's own agent invocation opens a second,
+    # `parent_run_id IS NULL`: context_gathering's own agent invocation opens a second,
     # child `stage_run` under the same stage name once it passes, which
     # is not a second driver attempt.
     rows = conn.execute(

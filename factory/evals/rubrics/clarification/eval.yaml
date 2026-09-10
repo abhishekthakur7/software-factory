@@ -1,0 +1,53 @@
+subject: factory/rubrics/clarification.md
+owner: factory_owner
+cases:
+  - name: ok
+    fixture: fixtures/ok
+    expect: ok
+  - name: missing_front_matter
+    fixture: fixtures/missing_front_matter
+    expect: reject
+  # The four cases below seed a `human_verdict` document for each bootstrap-
+  # checklist grader line the rubric carries (question_reasoning, self_contained_question), one passing
+  # and one failing example apiece, until a calibrated grader records these
+  # for real. `expect` names the seeded verdict, not a definition-conformance
+  # outcome, so the generic ok/reject walk skips these on `expect` alone.
+  - name: question_reasoning_grader_pass
+    fixture: fixtures/question_reasoning_grader_pass
+    expect: pass
+  - name: question_reasoning_grader_fail
+    fixture: fixtures/question_reasoning_grader_fail
+    expect: fail
+  - name: self_contained_question_grader_pass
+    fixture: fixtures/self_contained_question_grader_pass
+    expect: pass
+  - name: self_contained_question_grader_fail
+    fixture: fixtures/self_contained_question_grader_fail
+    expect: fail
+  - name: criterion_restatement_grader_pass
+    fixture: fixtures/criterion_restatement_grader_pass
+    expect: pass
+  - name: criterion_restatement_grader_fail
+    fixture: fixtures/criterion_restatement_grader_fail
+    expect: fail
+  - name: given_when_then_example_grader_pass
+    fixture: fixtures/given_when_then_example_grader_pass
+    expect: pass
+  - name: given_when_then_example_grader_fail
+    fixture: fixtures/given_when_then_example_grader_fail
+    expect: fail
+  - name: vertical_slice_size_grader_pass
+    fixture: fixtures/vertical_slice_size_grader_pass
+    expect: pass
+  - name: vertical_slice_size_grader_fail
+    fixture: fixtures/vertical_slice_size_grader_fail
+    expect: fail
+  # The two cases below are the script-level EARS-form and example fixtures
+  # (criterion_restatement, given_when_then_example): read directly by runner/tests/test_clarification_criteria.py
+  # rather than by the generic ok/reject walk.
+  - name: ears_form_concrete
+    fixture: fixtures/ears_form/concrete.md
+    expect: structural_ok
+  - name: ears_form_not_concrete
+    fixture: fixtures/ears_form/not_concrete.md
+    expect: structural_reject

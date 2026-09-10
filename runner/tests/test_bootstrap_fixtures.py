@@ -1,5 +1,5 @@
 """The bootstrap fixture set `tools/bootstrap_fixtures.py` builds under `factory/evals/bootstrap/`
-(R-F-2: every ticket's build-time brief and plan copied into the eval directories its build
+(every ticket's build-time brief and plan copied into the eval directories its build
 exercised).
 
 The committed tree is the thing under test, not the tool's internals: a
@@ -53,7 +53,7 @@ def test_the_bootstrap_eval_yaml_carries_an_owner_and_the_docs_build_subject():
 
 
 def test_fixture_project_sits_outside_the_expected_eval_dir_walk():
-    """R-F-2: `factory/evals/fixture-project/` is a seed project, not an evaluable subject."""
+    """`factory/evals/fixture-project/` is a seed project, not an evaluable subject."""
     assert (FACTORY_DIR / "evals" / "fixture-project") not in evals.expected_eval_dirs()
 
 
@@ -68,14 +68,14 @@ def test_running_the_sync_again_over_the_real_repository_changes_nothing():
 
 
 def test_eval_dirs_exercised_keeps_only_paths_that_resolve_to_a_real_eval_directory():
-    valid = {"rubrics/S3", "scripts/checks/size_gate"}
+    valid = {"rubrics/planning", "scripts/checks/size_gate"}
     plan_text = (
-        "| 1 | Update the rubric | `factory/rubrics/S3.md` | test |\n"
+        "| 1 | Update the rubric | `factory/rubrics/planning.md` | test |\n"
         "| 2 | Add the check | `factory/scripts/checks/size_gate` | test |\n"
         "| 3 | Bump config | `factory/config/tiers.yaml` | test |\n"
-        "| 4 | Shorthand range | `factory/evals/agents/S1..S4/eval.yaml` | test |\n"
+        "| 4 | Shorthand range | `factory/evals/agents/context_gathering..implementation/eval.yaml` | test |\n"
     )
-    assert bootstrap_fixtures.eval_dirs_exercised(plan_text, valid) == ["rubrics/S3", "scripts/checks/size_gate"]
+    assert bootstrap_fixtures.eval_dirs_exercised(plan_text, valid) == ["rubrics/planning", "scripts/checks/size_gate"]
 
 
 def test_eval_dirs_exercised_reads_a_path_already_under_an_eval_directory():
@@ -85,7 +85,7 @@ def test_eval_dirs_exercised_reads_a_path_already_under_an_eval_directory():
 
 
 def test_eval_dirs_exercised_excludes_a_checklist_path_from_the_rubric_mapping():
-    """`factory/rubrics/checklists/*.md` is never referenced as a rubric of its own (R-F-7)."""
+    """`factory/rubrics/checklists/*.md` is never referenced as a rubric of its own."""
     valid = {"rubrics/checklists"}  # would only match if the exclusion were missing
     plan_text = "`factory/rubrics/checklists/forced-categories.md`"
     assert bootstrap_fixtures.eval_dirs_exercised(plan_text, valid) == []

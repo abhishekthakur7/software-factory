@@ -1,5 +1,5 @@
 """The stub walk: one synthetic ticket from `intake` to `pr_opened` through
-every stub stage `S0`-`S6`, `operations.advance`, and the human decisions its
+every stub stage `intake`-`human_review`, `operations.advance`, and the human decisions its
 gates need -- the milestone's exit test for the stage interface, proven
 end to end before any stage becomes real.
 
@@ -37,7 +37,7 @@ from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
 from runner.reviewer_sets import Slot
 from runner.sandbox import os_policy
-from runner.stages import S5
+from runner.stages import checks
 from runner.tests.support import launch_probe
 from runner.trust_profile import DEFAULT_TRUST_PROFILE_PATH
 
@@ -75,10 +75,10 @@ def _source_repo(tmp_path):
     _git(["init", "-q"], cwd=repo)
     _git(["checkout", "-q", "-b", "main"], cwd=repo)
     (repo / "README.md").write_text("seed\n")
-    # S5's real reviewer-set derivation reads CODEOWNERS at the target
+    # checks's real reviewer-set derivation reads CODEOWNERS at the target
     # base; a repository with none raises rather than defaulting.
     (repo / "CODEOWNERS").write_text("* @abhishek\n")
-    # A minimal pom so the now-real S1's impact_scan has something to read;
+    # A minimal pom so the now-real context_gathering's impact_scan has something to read;
     # the dependency matches the committed artifact-to-service.yaml's one
     # authoritative entry.
     (repo / "pom.xml").write_text(
@@ -92,7 +92,7 @@ def _source_repo(tmp_path):
     (src / "Handler.java").write_text("package com.example;\n\npublic class Handler {\n}\n")
     # A trivial always-passing unit test: `fixture_unit` is ungoverned by
     # regression-only, so with none at all it would fail on its own and
-    # block this walk's real S5 pass.
+    # block this walk's real checks pass.
     handler_test_src = repo / "src" / "test" / "java" / "com" / "example"
     handler_test_src.mkdir(parents=True)
     (handler_test_src / "HandlerUnitTest.java").write_text(
@@ -104,11 +104,11 @@ def _source_repo(tmp_path):
         "}\n"
     )
     # `Widget.java` (at base, no guard clause) and its own unit test are
-    # the pair the S3 "ok" plan and the S4 hand-back fixture, both reused
-    # from this walk, are written against: S4's fixture edits `Widget.java`
+    # the pair the planning "ok" plan and the implementation hand-back fixture, both reused
+    # from this walk, are written against: implementation's fixture edits `Widget.java`
     # to add the guard clause, and this test's identity is the evidence
-    # the plan's `Contracts` row and R-S3-20 checklist point to, so a real
-    # S5 pass has resolvable evidence instead of a blind spot. The test
+    # the plan's `Contracts` row and the planning checklist point to, so a real
+    # checks pass has resolvable evidence instead of a blind spot. The test
     # itself never changes between base and head, so it never enters the
     # diff `source_declaration_diff` walks -- only `Widget.java` does.
     widget_src = repo / "src" / "main" / "java" / "com" / "fixture"
@@ -146,7 +146,7 @@ def _source_repo(tmp_path):
 
 
 def _materialise_fixture_vendor(tmp_path: Path) -> Path:
-    """Build the committed fixture vendor beside a disposable setup project for S5's real dependency checks."""
+    """Build the committed fixture vendor beside a disposable setup project for checks's real dependency checks."""
     config_path = tmp_path / "fixture-project.yaml"
     config_path.write_text(yaml.safe_dump({"projects": [{
         "name": "fixture-project", "checkout": "fixture/checkout", "vendor": "fixture/vendor", "target_branch": "main",
@@ -158,7 +158,7 @@ def _activate_default_profile(conn) -> dict:
     """Satisfy the default trust profile's quorum, the same way `factory advance` reads it.
 
     Returns the ticket fields that bind a ticket to the activated profile
-    and to the pilot's admitted source scope, so S0's governance check
+    and to the pilot's admitted source scope, so intake's governance check
     admits the walk's eligibility grant."""
     proposal = governance.propose(DEFAULT_TRUST_PROFILE_PATH, owners.DEFAULT_OWNERS_PATH)
     for role in ("security_approver", "legal_data_governance_approver"):
@@ -181,7 +181,7 @@ def _seed_ticket_source(conn, ticket_id: int, tmp_path: Path) -> int:
     """A `ticket_source` artefact whose front matter already clears the intake field gate.
 
     Stands in for a real Jira read this walk never performs: no
-    Atlassian server exists on this host, so S0's Jira intake leg would
+    Atlassian server exists on this host, so intake's Jira intake leg would
     otherwise try to reach `sandbox.yaml`'s (still absent) endpoint and
     reject the ticket before ever reaching eligibility.
     """
@@ -228,16 +228,16 @@ def _kill_and_restart(conn, ticket_id, stage, tmp_path):
     assert sum(1 for row in rows if row["outcome"] == "infrastructure_failure") == 1
 
 
-def _kill_and_record_s5_security_blind_spot(conn, ticket_id, tmp_path) -> tuple[int, int]:
-    """Restart S5 once and retain its sole waivable security gap for the review tuple waiver."""
-    dead_id = _open_dead_run(conn, ticket_id=ticket_id, stage="S5", lease_seconds=-1)
+def _kill_and_record_checks_security_blind_spot(conn, ticket_id, tmp_path) -> tuple[int, int]:
+    """Restart checks once and retain its sole waivable security gap for the review tuple waiver."""
+    dead_id = _open_dead_run(conn, ticket_id=ticket_id, stage="checks", lease_seconds=-1)
     operations.advance(conn, ticket_id, tmp_path)
 
     dead_row = record.get(conn, "stage_run", dead_id)
     assert dead_row["outcome"] == "infrastructure_failure"
     assert dead_row["failure_kind"] == "expired_lease"
     stage_run = conn.execute(
-        "SELECT id, outcome FROM stage_run WHERE ticket_id = ? AND stage = 'S5' AND parent_run_id IS NULL ORDER BY id DESC LIMIT 1",
+        "SELECT id, outcome FROM stage_run WHERE ticket_id = ? AND stage = 'checks' AND parent_run_id IS NULL ORDER BY id DESC LIMIT 1",
         (ticket_id,),
     ).fetchone()
     assert stage_run["outcome"] == "fail"
@@ -252,14 +252,14 @@ def _kill_and_record_s5_security_blind_spot(conn, ticket_id, tmp_path) -> tuple[
 
 
 def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
-    """Read the `plan_approval` item S3 opened, record a `pass` verdict for every expected
+    """Read the `plan_approval` item planning opened, record a `pass` verdict for every expected
     checklist instance citing the plan artefact, then approve -- the real path to `implementing`
     now that the bootstrap checklist and the plan tuple are real rather than hand-seeded.
 
     `queue.act`'s own "approve" resolves and records exactly one slot -- the
     first ABHISHEK fills on the planned reviewer set -- so a plan whose
     scope also falls under this walk's own CODEOWNERS rule (needed for a
-    real S5 pass) gets a second, distinct slot naming the same person that
+    real checks pass) gets a second, distinct slot naming the same person that
     call never touches; this pre-approves every other slot ABHISHEK fills
     directly first, leaving only the first for `queue.act` itself, so two
     approval_record rows are never written for the identical slot (a fork
@@ -304,7 +304,7 @@ def _grant_plan_approval(conn, ticket_id, tmp_path) -> None:
 
 
 def _grant_packet_approval(conn, ticket_id, tmp_path):
-    """Approve the real `packet_approval` item the real S6 driver opened -- pre-approving every
+    """Approve the real `packet_approval` item the real human_review driver opened -- pre-approving every
     other slot ABHISHEK also fills on the review tuple's effective reviewer set first, the same
     shape `_grant_plan_approval` uses for the plan gate: this walk's own CODEOWNERS rule and its
     planned/final-reviewer roles all resolve to the same person, so `queue.act`'s own "approve"
@@ -327,7 +327,7 @@ def _grant_packet_approval(conn, ticket_id, tmp_path):
             first_slot_seen = True
             continue  # `queue.act`'s own "approve" call resolves this one
         # The item's own `approval_subject_hash` -- the real, fully
-        # computed `publication.review_approval_subject` S6 opened it
+        # computed `publication.review_approval_subject` human_review opened it
         # with -- not the bare review-tuple content hash, which is no
         # longer what an `approval_record` for this gate binds.
         approvals.record_approval(
@@ -351,7 +351,7 @@ class WalkResult:
     tmp_path: Path
     wrong_state_stage_run_id: int
     stopped_stage_run_id: int
-    s5_stage_run_id: int
+    checks_stage_run_id: int
     security_blind_spot_id: int
     security_waiver_id: int
     manifest_hash_before: subprocess.CompletedProcess
@@ -363,28 +363,28 @@ def _run_walk(tmp_path) -> WalkResult:
     manifest_hash_before = _manifest_hash()
     governed = _activate_default_profile(conn)
 
-    # A pilot-eligible service and type, since the real S0 rejects anything else.
+    # A pilot-eligible service and type, since the real intake rejects anything else.
     ticket_id = record.insert(
         conn, "ticket", state="intake", opened_at=record.now(),
         service="fixture-project", ticket_type="small_feature", **governed,
     )
-    # `governed`'s source_kind is "jira", so S0 now runs the Jira intake
+    # `governed`'s source_kind is "jira", so intake now runs the Jira intake
     # leg; no real Atlassian server exists on this host (or in CI), so the
     # walk seeds a ticket_source artefact up front the same way a ticket
-    # that already completed one earlier attempt would carry one, and S0
+    # that already completed one earlier attempt would carry one, and intake
     # reuses it instead of reading.
     _seed_ticket_source(conn, ticket_id, tmp_path)
 
     # criterion 14: a stage invoked from a state the transition table does not permit is refused and recorded.
-    wrong_state_outcome = operations.run(conn, ticket_id, "S4", runs_dir=tmp_path)
+    wrong_state_outcome = operations.run(conn, ticket_id, "implementation", runs_dir=tmp_path)
     assert wrong_state_outcome == "refused"
     wrong_state_row = conn.execute(
-        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S4' ORDER BY id LIMIT 1", (ticket_id,)
+        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'implementation' ORDER BY id LIMIT 1", (ticket_id,)
     ).fetchone()
     assert record.get(conn, "stage_run", wrong_state_row["id"])["outcome"] == "refused"
 
-    # S0, kill and restart, then eligibility admits to `context`.
-    _kill_and_restart(conn, ticket_id, "S0", tmp_path)
+    # intake, kill and restart, then eligibility admits to `context`.
+    _kill_and_restart(conn, ticket_id, "intake", tmp_path)
     eligibility_item = conn.execute(
         "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'eligibility' AND resolved_at IS NULL",
         (ticket_id,),
@@ -393,52 +393,52 @@ def _run_walk(tmp_path) -> WalkResult:
     operations.advance(conn, ticket_id, tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "context"
 
-    # A real, fetchable worktree: the now-real S1 needs one to run its
-    # impact scan over, and S4's freshness preflight and the plan-review
+    # A real, fetchable worktree: the now-real context_gathering needs one to run its
+    # impact scan over, and implementation's freshness preflight and the plan-review
     # gate's own freshness check both fetch the configured target branch
     # from this same clone later in the walk.
     source = _source_repo(tmp_path)
     trees = git_trees.clone_for_ticket(conn, ticket_id, source_checkout=source, target_branch="main", runs_dir=tmp_path)
     git_trees.record_head(conn, ticket_id, trees.worktree)
 
-    # S1, S2, S3: each always due while its state holds, killed and restarted once.
+    # context_gathering, clarification, planning: each always due while its state holds, killed and restarted once.
     os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
-        FACTORY_DIR / "evals" / "agents" / "S1" / "fixtures" / "plain_ok" / "out"
+        FACTORY_DIR / "evals" / "agents" / "context_gathering" / "fixtures" / "plain_ok" / "out"
     )
     try:
-        _kill_and_restart(conn, ticket_id, "S1", tmp_path)
+        _kill_and_restart(conn, ticket_id, "context_gathering", tmp_path)
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "clarifying"
-    # S2's criteria half needs a real out/criteria.md; `criteria_clean`
+    # clarification's criteria half needs a real out/criteria.md; `criteria_clean`
     # carries one formalised criterion with agreeing restatements and no
     # open questions, so both the killed and the fresh attempt pass.
     os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(
-        FACTORY_DIR / "evals" / "agents" / "S2" / "fixtures" / "criteria_clean" / "out"
+        FACTORY_DIR / "evals" / "agents" / "clarification" / "fixtures" / "criteria_clean" / "out"
     )
     try:
-        _kill_and_restart(conn, ticket_id, "S2", tmp_path)
+        _kill_and_restart(conn, ticket_id, "clarification", tmp_path)
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "planning"
-    # The real S3 plans against a brief and a criteria artefact: the
+    # The real planning plans against a brief and a criteria artefact: the
     # fixture pair test_report's walk uses, and a local copy of the
     # committed "ok" plan whose `Contracts` row evidence points at this
     # walk's own `WidgetUnitTest` identity (the shared fixture's own
-    # "Widget.java:42" text resolves nowhere real, which S5's now-real
+    # "Widget.java:42" text resolves nowhere real, which checks's now-real
     # `behavior_contract_evidence` would otherwise -- correctly -- call a
-    # blind spot; see `test_s3_rubric.py`'s own exact-text assertions
+    # blind spot; see `test_planning_rubric.py`'s own exact-text assertions
     # against the shared fixture for why it is copied here rather than
     # edited in place).
     for kind in ("brief", "criteria"):
         prior = artefact_registry.latest(conn, ticket_id, kind)
         artefact_registry.register(
-            conn, ticket_id=ticket_id, kind=kind, path=Path(__file__).parent / "fixtures" / "s3" / f"{kind}.md",
+            conn, ticket_id=ticket_id, kind=kind, path=Path(__file__).parent / "fixtures" / "planning" / f"{kind}.md",
             supersedes=prior["id"] if prior is not None else None,
         )
-    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FIXTURES_DIR / "s3_ok" / "out")
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FIXTURES_DIR / "planning_ok" / "out")
     try:
-        _kill_and_restart(conn, ticket_id, "S3", tmp_path)
+        _kill_and_restart(conn, ticket_id, "planning", tmp_path)
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "plan_review"
@@ -447,11 +447,11 @@ def _run_walk(tmp_path) -> WalkResult:
     operations.advance(conn, ticket_id, tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
 
-    # criterion 16 (stop half): a live S4 run stopped ends `aborted_human`
+    # criterion 16 (stop half): a live implementation run stopped ends `aborted_human`
     # and escalates; resuming the escalation returns the ticket to `implementing`.
-    stopped_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="S4")
+    stopped_run_id = run_ledger.open_stage_run(conn, ticket_id=ticket_id, stage="implementation")
     # `escalation` is tagged mechanically regardless of which human typed `factory stop`.
-    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="FM-07", note="paused for a manual look")
+    operations.stop(conn, ticket_id, actor=ABHISHEK, fm_id="question_noise", note="paused for a manual look")
     assert record.get(conn, "stage_run", stopped_run_id)["outcome"] == "aborted_human"
     assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
     escalation_item = conn.execute(
@@ -460,20 +460,20 @@ def _run_walk(tmp_path) -> WalkResult:
     queue.act(conn, item_id=escalation_item["id"], action="resume", actor=ABHISHEK, self_contained="yes", runs_dir=tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "implementing"
 
-    # The real S4 hands off, invokes the fixture worker, and records a real
+    # The real implementation hands off, invokes the fixture worker, and records a real
     # hand-back: `ok`'s `out/handback.json` and `worktree/` stand in for
     # the agent's own deviation report and edits.
-    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "out")
-    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "S4" / "fixtures" / "ok" / "worktree")
+    os.environ["FIXTURE_ADAPTER_OUT_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "implementation" / "fixtures" / "ok" / "out")
+    os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"] = str(FACTORY_DIR / "evals" / "agents" / "implementation" / "fixtures" / "ok" / "worktree")
     try:
-        _kill_and_restart(conn, ticket_id, "S4", tmp_path)
+        _kill_and_restart(conn, ticket_id, "implementation", tmp_path)
     finally:
         del os.environ["FIXTURE_ADAPTER_OUT_DIR"]
         del os.environ["FIXTURE_ADAPTER_WORKTREE_DIR"]
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
 
     # criterion 16 (pause half), 6, 8, 12: a pending pause takes effect at
-    # the next boundary, before S5 ever starts, and repeating the same
+    # the next boundary, before checks ever starts, and repeating the same
     # boundary opens no duplicate `manual_pause` item.
     operations.pause(conn, ticket_id)
     paused_result = operations.advance(conn, ticket_id, tmp_path)
@@ -483,23 +483,23 @@ def _run_walk(tmp_path) -> WalkResult:
         "SELECT id FROM queue_item WHERE ticket_id = ? AND kind = 'manual_pause'", (ticket_id,)
     ).fetchall()
     assert len(manual_pause_items) == 1
-    assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = 'S5'", (ticket_id,)).fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM stage_run WHERE ticket_id = ? AND stage = 'checks'", (ticket_id,)).fetchone()[0] == 0
     operations.resume(conn, ticket_id, actor=ABHISHEK)
 
-    # S5 is a real driver now: it runs the pilot project's own Java
+    # checks is a real driver now: it runs the pilot project's own Java
     # recipes over real base/head checkouts, so without a JDK it cannot
-    # produce the clean pass this walk's later criteria (S6, checks_gate,
+    # produce the clean pass this walk's later criteria (human_review, checks_gate,
     # review, pr_opened) all build on. Skipping loudly here, before any of
-    # those run, is the honest outcome -- silently limping past S5 on a
+    # those run, is the honest outcome -- silently limping past checks on a
     # missing toolchain would make every criterion downstream of it an
     # unearned pass.
     if not HAS_JAVAC:
-        pytest.skip("javac/java not available: the walk cannot run S5's real recipes past this point")
+        pytest.skip("javac/java not available: the walk cannot run checks's real recipes past this point")
 
     vendor = _materialise_fixture_vendor(tmp_path)
-    s5_project = {**project.pilot(), "vendor": str(vendor)}
-    with patch.object(S5, "_project_config", return_value=s5_project):
-        s5_stage_run_id, security_blind_spot_id = _kill_and_record_s5_security_blind_spot(conn, ticket_id, tmp_path)
+    checks_project = {**project.pilot(), "vendor": str(vendor)}
+    with patch.object(checks, "_project_config", return_value=checks_project):
+        checks_stage_run_id, security_blind_spot_id = _kill_and_record_checks_security_blind_spot(conn, ticket_id, tmp_path)
     security_result = record.get(conn, "check_result", security_blind_spot_id)
     security_evidence = record.get(conn, "artefact", security_result["evidence_artefact"])
     assert security_evidence is not None and Path(security_evidence["path"]).is_file()
@@ -523,10 +523,10 @@ def _run_walk(tmp_path) -> WalkResult:
     assert waivers.validity(conn, security_waiver_id).valid
     conn.commit()
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
-    _kill_and_restart(conn, ticket_id, "S6", tmp_path)
+    _kill_and_restart(conn, ticket_id, "human_review", tmp_path)
     assert record.get(conn, "ticket", ticket_id)["state"] == "checks"
 
-    operations.advance(conn, ticket_id, tmp_path)  # checks_gate: both S5 and S6 passed
+    operations.advance(conn, ticket_id, tmp_path)  # checks_gate: both checks and human_review passed
     assert record.get(conn, "ticket", ticket_id)["state"] == "review"
 
     _grant_packet_approval(conn, ticket_id, tmp_path)
@@ -537,7 +537,7 @@ def _run_walk(tmp_path) -> WalkResult:
     return WalkResult(
         conn=conn, ticket_id=ticket_id, tmp_path=tmp_path,
         wrong_state_stage_run_id=wrong_state_row["id"], stopped_stage_run_id=stopped_run_id,
-        s5_stage_run_id=s5_stage_run_id, security_blind_spot_id=security_blind_spot_id,
+        checks_stage_run_id=checks_stage_run_id, security_blind_spot_id=security_blind_spot_id,
         security_waiver_id=security_waiver_id,
         manifest_hash_before=manifest_hash_before, manifest_hash_after=manifest_hash_after,
     )
@@ -546,7 +546,7 @@ def _run_walk(tmp_path) -> WalkResult:
 def _patch_fixture_runtime(tmp_path_factory) -> None:
     """Point the adapter at the fixture worker directly, module-attribute assignment rather than
     `conftest.py`'s `monkeypatch` -- `walk` is module-scoped and so sets up before that
-    function-scoped autouse fixture ever runs, and the now-real S1 driver this walk exercises is
+    function-scoped autouse fixture ever runs, and the now-real context_gathering driver this walk exercises is
     the first stage in this file to actually reach `cursor_sdk.invoke`."""
     doc = yaml.safe_load((ADAPTER_FIXTURES_DIR / "runtime.yaml").read_text())
     doc["adapters"]["cursor_sdk"]["command"] = [sys.executable, str(ADAPTER_FIXTURES_DIR / "fixture_worker.py")]
@@ -566,8 +566,8 @@ def walk(tmp_path_factory):
 
 
 def test_the_walk_reaches_pr_opened_and_every_touched_table_carries_rows(walk):
-    """R-I-8, R-H-13, criterion 13: the synthetic ticket reaches `pr_opened`
-    through every stub stage `S0`-`S6`, and every table the walk touches
+    """Criterion 13: the synthetic ticket reaches `pr_opened`
+    through every stub stage `intake`-`human_review`, and every table the walk touches
     (named in the fixture) carries at least one row."""
     assert record.get(walk.conn, "ticket", walk.ticket_id)["state"] == "pr_opened"
     for table in TABLES:
@@ -575,9 +575,9 @@ def test_the_walk_reaches_pr_opened_and_every_touched_table_carries_rows(walk):
         assert count > 0, f"expected at least one {table} row"
 
 
-def test_every_expected_checklist_instance_has_a_verdict_and_no_runner_check_failed_through_s3(walk):
-    """R-S3-20: every semantic rubric line or half-line instance from S1 through S3 carries a
-    recorded `human_verdict` row, no runner-side `check_result` failed across the S0 through S3
+def test_every_expected_checklist_instance_has_a_verdict_and_no_runner_check_failed_through_planning(walk):
+    """Every semantic rubric line or half-line instance from context_gathering through planning carries a
+    recorded `human_verdict` row, no runner-side `check_result` failed across the intake through planning
     attempts, and the ticket reached `implementing`."""
     ticket = record.get(walk.conn, "ticket", walk.ticket_id)
     expected = checklist.expected_instances(walk.conn, ticket)
@@ -595,14 +595,14 @@ def test_every_expected_checklist_instance_has_a_verdict_and_no_runner_check_fai
     failed = walk.conn.execute(
         "SELECT check_result.check_name, stage_run.stage FROM check_result "
         "JOIN stage_run ON stage_run.id = check_result.stage_run_id "
-        "WHERE stage_run.ticket_id = ? AND stage_run.stage IN ('S0', 'S1', 'S2', 'S3') "
+        "WHERE stage_run.ticket_id = ? AND stage_run.stage IN ('intake', 'context_gathering', 'clarification', 'planning') "
         "AND check_result.source = 'runner' AND check_result.result = 'fail'",
         (walk.ticket_id,),
     ).fetchall()
     assert not failed, [(row["stage"], row["check_name"]) for row in failed]
 
     assert walk.conn.execute(
-        "SELECT 1 FROM stage_run WHERE ticket_id = ? AND stage = 'S4' AND outcome = 'pass' LIMIT 1",
+        "SELECT 1 FROM stage_run WHERE ticket_id = ? AND stage = 'implementation' AND outcome = 'pass' LIMIT 1",
         (walk.ticket_id,),
     ).fetchone() is not None
 
@@ -623,38 +623,38 @@ def test_every_earlier_ticket_wrote_its_build_brief_and_plan_pair():
 
 
 def test_a_wrong_state_stage_invocation_is_refused_and_recorded(walk):
-    """criterion 14: `S4` invoked from `intake` -- a state the transition
+    """criterion 14: `implementation` invoked from `intake` -- a state the transition
     table does not permit for it -- is refused and its own `stage_run`
     records the refusal."""
     row = record.get(walk.conn, "stage_run", walk.wrong_state_stage_run_id)
-    assert row["stage"] == "S4"
+    assert row["stage"] == "implementation"
     assert row["outcome"] == "refused"
 
 
 def test_a_kill_at_every_stage_leaves_no_duplicate_attempt(walk):
-    """criterion 15: across the whole walk, every stage `S0`-`S6` was
+    """criterion 15: across the whole walk, every stage `intake`-`human_review` was
     killed once and restarted with exactly one fresh, passing attempt --
     proven inline by `_kill_and_restart` during the walk itself; this test
     pins that every stage was actually exercised that way. Attempts only:
     a real stage's agent invocations are child rows under the attempt."""
-    for stage in ("S0", "S1", "S2", "S3", "S4", "S5", "S6"):
+    for stage in ("intake", "context_gathering", "clarification", "planning", "implementation", "checks", "human_review"):
         rows = walk.conn.execute(
             "SELECT outcome FROM stage_run WHERE ticket_id = ? AND stage = ? AND parent_run_id IS NULL",
             (walk.ticket_id, stage)
         ).fetchall()
         outcomes = [row["outcome"] for row in rows]
         assert outcomes.count("infrastructure_failure") == 1, stage
-        assert outcomes.count("pass") == (0 if stage == "S5" else 1), stage
-        assert outcomes.count("fail") == (1 if stage == "S5" else 0), stage
+        assert outcomes.count("pass") == (0 if stage == "checks" else 1), stage
+        assert outcomes.count("fail") == (1 if stage == "checks" else 0), stage
 
 
-def test_s5_security_blind_spot_has_generated_evidence_and_a_valid_recipe_waiver(walk):
-    """The real security recipe records its unavailable feeds as the single S5 gap, cleared only by its evidence-backed waiver."""
+def test_checks_security_blind_spot_has_generated_evidence_and_a_valid_recipe_waiver(walk):
+    """The real security recipe records its unavailable feeds as the single checks gap, cleared only by its evidence-backed waiver."""
     result = record.get(walk.conn, "check_result", walk.security_blind_spot_id)
     evidence = record.get(walk.conn, "artefact", result["evidence_artefact"])
     waiver = record.get(walk.conn, "waiver", walk.security_waiver_id)
 
-    assert result["stage_run_id"] == walk.s5_stage_run_id
+    assert result["stage_run_id"] == walk.checks_stage_run_id
     assert result["check_name"] == "recipe:fixture_security@head"
     assert result["result"] == "blind_spot"
     assert evidence is not None and Path(evidence["path"]).is_file()
@@ -675,10 +675,10 @@ def test_an_in_place_edit_on_an_append_only_row_is_refused(walk):
     import sqlite3
 
     row = walk.conn.execute(
-        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S0' LIMIT 1", (walk.ticket_id,)
+        "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'intake' LIMIT 1", (walk.ticket_id,)
     ).fetchone()
     with pytest.raises(sqlite3.IntegrityError):
-        record.update(walk.conn, "stage_run", row["id"], stage="S1")
+        record.update(walk.conn, "stage_run", row["id"], stage="context_gathering")
 
 
 def test_must_reject_a_recipe_given_a_shell_string(walk):
@@ -723,12 +723,12 @@ def test_must_reject_a_crossing_that_bypasses_the_guard(tmp_path):
 # Forbidden capabilities, tested over the manifest, the sandbox and the
 # route ids a direct GitHub or Slack write would need: no stage sandbox
 # can exec an arbitrary shell, open an arbitrary network client, write
-# source outside S4, write outside S5's own disposable layers, or reach a
+# source outside implementation, write outside checks's own disposable layers, or reach a
 # GitHub/Slack write through anything but the outbox dispatcher and the
 # digest intent. A hidden capability injected at any of six surfaces the
 # stub walk touches fails at the boundary that owns that surface.
 
-def _capability_boundary_entry(tmp_path: Path, base: Path, name: str, stage: str = "S1", tier: str = "light"):
+def _capability_boundary_entry(tmp_path: Path, base: Path, name: str, stage: str = "context_gathering", tier: str = "light"):
     """A resolved manifest `Entry` from `base/factory`, committed into a fresh git repo first --
     `manifest.resolve` and `manifest.current_hash` both require committed bytes."""
     repo = tmp_path / f"{name}_repo"
@@ -749,10 +749,10 @@ def _capability_boundary_runtime_path(tmp_path: Path) -> Path:
 
 
 def test_must_reject_an_arbitrary_shell_exec_from_inside_a_build_sandbox(tmp_path):
-    """R-I-11: a process outside the build profile's recipe-executable allowlist never runs, from any
+    """A process outside the build profile's recipe-executable allowlist never runs, from any
     build-role sandbox -- the same boundary an agent-issued `/bin/sh -c '...'` would meet."""
     payload = launch_probe(
-        tmp_path, ESCAPE_EVAL_DIR / "fixtures" / "subprocesses" / "probe.py", role="build", stage="S5",
+        tmp_path, ESCAPE_EVAL_DIR / "fixtures" / "subprocesses" / "probe.py", role="build", stage="checks",
         copy_dir=tmp_path / "copy", build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
         cache_dir=tmp_path / "cache",
     )
@@ -760,19 +760,19 @@ def test_must_reject_an_arbitrary_shell_exec_from_inside_a_build_sandbox(tmp_pat
 
 
 def test_must_reject_an_arbitrary_network_client_from_inside_an_agent_sandbox(tmp_path):
-    """R-I-11: a raw socket to a host outside the stage's proxy allowlist never connects, from any
+    """A raw socket to a host outside the stage's proxy allowlist never connects, from any
     agent-role sandbox."""
     payload = launch_probe(
-        tmp_path, ESCAPE_EVAL_DIR / "fixtures" / "network" / "probe.py", role="agent", stage="S1",
+        tmp_path, ESCAPE_EVAL_DIR / "fixtures" / "network" / "probe.py", role="agent", stage="context_gathering",
         ticket_dir=tmp_path / "ticket",
     )
     assert payload == {"attempted": True, "refused": True}
 
 
-def test_must_reject_a_source_tree_write_at_every_agent_stage_but_s4(tmp_path):
-    """R-I-11: source-tree write succeeds only at S4's worktree mount; a probe at any other agent
+def test_must_reject_a_source_tree_write_at_every_agent_stage_but_implementation(tmp_path):
+    """Source-tree write succeeds only at implementation's worktree mount; a probe at any other agent
     stage attempting one is refused."""
-    for stage in ("S1", "S2", "S3", "S5", "S6"):
+    for stage in ("context_gathering", "clarification", "planning", "checks", "human_review"):
         stage_tmp = tmp_path / stage
         worktree = stage_tmp / "worktree"
         worktree.mkdir(parents=True)
@@ -784,24 +784,24 @@ def test_must_reject_a_source_tree_write_at_every_agent_stage_but_s4(tmp_path):
         assert not (worktree / "escape_write.txt").exists()
 
 
-def test_a_source_tree_write_succeeds_only_at_s4(tmp_path):
+def test_a_source_tree_write_succeeds_only_at_implementation(tmp_path):
     worktree = tmp_path / "worktree"
     worktree.mkdir()
     payload = launch_probe(
-        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="S4",
+        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="implementation",
         ticket_dir=tmp_path / "ticket", worktree_path=worktree, extra_argv=(str(worktree),),
     )
     assert payload == {"attempted": True, "refused": False}
     assert (worktree / "escape_write.txt").exists()
 
 
-def test_s5_writing_outside_its_disposable_layers_is_refused(tmp_path):
-    """R-I-11: a build-role probe at S5 writing outside COPY_DIR/BUILD_DIR/SCRATCH_DIR/CACHE_DIR --
+def test_checks_writing_outside_its_disposable_layers_is_refused(tmp_path):
+    """A build-role probe at checks writing outside COPY_DIR/BUILD_DIR/SCRATCH_DIR/CACHE_DIR --
     here, a path shaped like the immutable checkout the copy was cloned from -- is refused."""
     immutable_checkout = tmp_path / "immutable_checkout"
     immutable_checkout.mkdir()
     payload = launch_probe(
-        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="build", stage="S5",
+        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="build", stage="checks",
         copy_dir=tmp_path / "copy", build_dir=tmp_path / "build", scratch_dir=tmp_path / "scratch",
         cache_dir=tmp_path / "cache", extra_argv=(str(immutable_checkout),),
     )
@@ -809,13 +809,13 @@ def test_s5_writing_outside_its_disposable_layers_is_refused(tmp_path):
     assert not (immutable_checkout / "escape_write.txt").exists()
 
 
-def test_s1_grants_no_write_capability_outside_its_declared_out_directory(tmp_path):
-    """R-I-11: a probe at S1 writing anywhere but `RUN_DIR/out` -- here, the read-only ticket
+def test_context_gathering_grants_no_write_capability_outside_its_declared_out_directory(tmp_path):
+    """A probe at context_gathering writing anywhere but `RUN_DIR/out` -- here, the read-only ticket
     directory -- is refused."""
     ticket_dir = tmp_path / "ticket"
     ticket_dir.mkdir()
     payload = launch_probe(
-        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="S1",
+        tmp_path, CAPABILITY_FIXTURES_DIR / "source_write" / "probe.py", role="agent", stage="context_gathering",
         ticket_dir=ticket_dir, extra_argv=(str(ticket_dir),),
     )
     assert payload == {"attempted": True, "refused": True}
@@ -830,7 +830,7 @@ _ROUTE_CONSTRUCTION_HOMES = frozenset({"outbox.py", "trust_profile.py", "credent
 
 
 def test_github_and_slack_route_ids_are_named_only_by_the_outbox_dispatcher():
-    """R-I-11: no module but the outbox dispatcher (and the trust-profile schema that defines the
+    """No module but the outbox dispatcher (and the trust-profile schema that defines the
     route ids in the first place) ever names a GitHub or Slack route id, so a direct GitHub merge,
     default-branch push, PR approval, Actions rerun, or Slack post has no route left to address."""
     offenders = []
@@ -846,7 +846,7 @@ def test_github_and_slack_route_ids_are_named_only_by_the_outbox_dispatcher():
 
 
 def test_hidden_capability_in_the_manifest_fails_the_walk(tmp_path):
-    """R-I-11: a manifest entry carrying an extra, undeclared tool-allowlist item changes the
+    """A manifest entry carrying an extra, undeclared tool-allowlist item changes the
     manifest's own hash; a ticket pinned to the hash resolved before that change is refused
     outright, before any `stage_run` is ever opened."""
     repo = tmp_path / "repo"
@@ -860,7 +860,7 @@ def test_hidden_capability_in_the_manifest_fails_the_walk(tmp_path):
     ticket = record.get(conn, "ticket", ticket_id)
 
     result = stages.invoke_agent(
-        conn, ticket, "S1", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+        conn, ticket, "context_gathering", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
     )
 
     assert result.outcome == "refused_request"
@@ -868,7 +868,7 @@ def test_hidden_capability_in_the_manifest_fails_the_walk(tmp_path):
 
 
 def test_hidden_capability_in_the_inherited_runtime_configuration_fails_the_walk(tmp_path):
-    """R-I-11: a runtime.yaml adapter command carrying one extra, unreviewed argument shifts every
+    """A runtime.yaml adapter command carrying one extra, unreviewed argument shifts every
     positional argument the worker expects; the worker crashes reading what it takes to be its own
     envelope, and the invocation is recorded `infrastructure_failure` with nothing registered."""
     entry = _capability_boundary_entry(tmp_path, CAPABILITY_FIXTURES_DIR / "entry", "entry")
@@ -884,7 +884,7 @@ def test_hidden_capability_in_the_inherited_runtime_configuration_fails_the_walk
     runtime_path.write_text(yaml.safe_dump(doc))
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="context_gathering", tier="light", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=runtime_path, sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
     )
 
@@ -895,7 +895,7 @@ def test_hidden_capability_in_the_inherited_runtime_configuration_fails_the_walk
 
 
 def test_hidden_capability_in_the_recipe_catalogue_fails_the_walk(tmp_path):
-    """R-I-11: a catalogue entry whose declared `executable_digest` no longer matches the file on
+    """A catalogue entry whose declared `executable_digest` no longer matches the file on
     disk -- as if the executable had been swapped after the catalogue was authored -- is refused by
     `recipes.run`'s own digest check, before the executable is ever invoked."""
     catalogue = recipes.load_catalogue(CAPABILITY_FIXTURES_DIR / "hidden" / "recipe" / "command-recipes.yaml")
@@ -907,30 +907,30 @@ def test_hidden_capability_in_the_recipe_catalogue_fails_the_walk(tmp_path):
 
 
 def test_hidden_capability_as_an_extra_mount_pointing_at_home_fails_the_walk():
-    """R-I-11: a sandbox param naming a mount (here, `TICKET_DIR`) that resolves to the host's own
+    """A sandbox param naming a mount (here, `TICKET_DIR`) that resolves to the host's own
     home directory is refused by `os_policy.wrap` before `sandbox-exec` ever sees it."""
     params = {
         "REPO_ROOT": str(REPO_ROOT), "PYTHON_ROOT": sys.base_prefix, "WORKTREE": "/tmp/nonexistent",
         "RUN_DIR": "/tmp/nonexistent", "TICKET_DIR": os.path.expanduser("~"), "TMPDIR": "/tmp/nonexistent",
-        "STAGE": "S1", "PROXY_PORT": "0",
+        "STAGE": "context_gathering", "PROXY_PORT": "0",
     }
     with pytest.raises(os_policy.MountParamError):
         os_policy.wrap(["/usr/bin/true"], role="agent", params=params)
 
 
 def test_hidden_capability_as_an_unallowlisted_environment_name_fails_the_walk(tmp_path):
-    """R-I-11: an environment name the launching process set but the sandbox policy never
+    """An environment name the launching process set but the sandbox policy never
     allowlisted never crosses into the child."""
     env_source = {"PATH": os.environ.get("PATH", ""), "HIDDEN_CAPABILITY_ENV_CANARY": "leak-if-present"}
     payload = launch_probe(
-        tmp_path, CAPABILITY_FIXTURES_DIR / "hidden" / "environment" / "probe.py", role="agent", stage="S1",
+        tmp_path, CAPABILITY_FIXTURES_DIR / "hidden" / "environment" / "probe.py", role="agent", stage="context_gathering",
         ticket_dir=tmp_path / "ticket", env_source=env_source,
     )
     assert payload == {"attempted": True, "refused": True}
 
 
 def test_hidden_capability_as_a_credential_role_the_manifest_does_not_admit_fails_the_walk(tmp_path):
-    """R-I-11: a resolved entry whose stage the manifest's own `sandbox_policy` admits no credential
+    """A resolved entry whose stage the manifest's own `sandbox_policy` admits no credential
     role for never reaches `credentials.fetch`, even though the stage is agent-bearing."""
     entry = _capability_boundary_entry(tmp_path, CAPABILITY_FIXTURES_DIR / "hidden" / "credential", "credential")
     assert entry.credential_roles == ()
@@ -942,7 +942,7 @@ def test_hidden_capability_as_a_credential_role_the_manifest_does_not_admit_fail
         raise AssertionError("credentials.fetch must never be called for a stage the manifest admits no role for")
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="context_gathering", tier="light", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=_capability_boundary_runtime_path(tmp_path), sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
         credential_run=_must_not_be_called,
     )

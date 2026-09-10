@@ -18,7 +18,7 @@ plan tuple against a caller-supplied current `PlanComponents` without ever
 reading `ticket` or any config file itself: every bound hash and SHA this
 module touches arrives as an argument, so a later change to
 how a hash is derived, or adds a real trust profile or recipe catalogue,
-never changes this module. `preflight_review_tuple` is the S5 preflight:
+never changes this module. `preflight_review_tuple` is the checks stage's preflight:
 it constructs a review tuple only after checking, in order, that the plan
 tuple is current, plan quorum holds against its exact content hash, the
 actual and effective reviewer sets are the ones the approval subject
@@ -51,7 +51,7 @@ def deviation_set_hash(conn: sqlite3.Connection, ticket_id: int) -> str:
 
     `id` drops out through `content_hash`'s own default exclusion;
     `stage_run_id` is dropped here because it names which attempt wrote
-    the row, not what the row means -- an S5 review tuple binds this hash
+    the row, not what the row means -- a checks-stage review tuple binds this hash
     to compare deviation sets across attempts, so two otherwise-identical
     rows written by different attempts must hash as the same member. The
     empty set (no deviation rows) hashes just like any other set, which is
@@ -222,7 +222,7 @@ def plan_tuple_currency(conn: sqlite3.Connection, plan_tuple_id: int, current: P
     `current` is supplied by the caller, never read from `ticket` or any
     config here — a field this module does not bind (`head_sha` is not a
     `PlanComponents` field) can therefore never appear in `changed`, which
-    is what makes an S4 hand-back that only advances `head_sha` leave a
+    is what makes an implementation hand-back that only advances `head_sha` leave a
     plan tuple current: there is no bound field for it to disagree on.
     """
     row = record.get(conn, "evidence_tuple", plan_tuple_id)
@@ -235,7 +235,7 @@ def plan_tuple_currency(conn: sqlite3.Connection, plan_tuple_id: int, current: P
 
 
 class PreflightRefused(Exception):
-    """S5 preflight found a missing or stale candidate component; no review tuple was created."""
+    """The checks stage's preflight found a missing or stale candidate component; no review tuple was created."""
 
     def __init__(self, reason: str):
         super().__init__(reason)
@@ -275,7 +275,7 @@ def preflight_review_tuple(
     current_plan: PlanComponents,
     now: str | None = None,
 ) -> int:
-    """The S5 preflight, in process: verify every candidate component, then create the review tuple.
+    """The checks stage's preflight, in process: verify every candidate component, then create the review tuple.
 
     Every check below raises `PreflightRefused` before any write; the
     final `create_review_tuple` call is the only write this function

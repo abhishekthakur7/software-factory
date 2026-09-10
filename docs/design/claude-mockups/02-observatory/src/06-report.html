@@ -33,7 +33,7 @@
 /* Tag leaderboard on the R18 row rhythm: the bar becomes a compact secondary
    mark beside the count instead of a full-width restatement of it. */
 #s-report .tools{padding:0 20px 14px}
-#s-report .tool{display:grid;grid-template-columns:54px minmax(0,1fr) 96px 26px;gap:14px;
+#s-report .tool{display:grid;grid-template-columns:132px minmax(0,1fr) 96px 26px;gap:14px;
   align-items:center;height:60px;padding:0 2px}
 #s-report .rp-tk{font-size:14px;font-weight:500}
 #s-report .tool .dbar i{background:var(--accent);opacity:.8}
@@ -111,10 +111,10 @@
           <b>$430.40</b><span>Total</span>
         </div>
         <div class="dleg">
-          <div class="rp-leg"><i style="opacity:1"></i><div><span class="rp-legn">S4<b>58%</b></span><em>$249.60</em></div></div>
-          <div class="rp-leg"><i style="opacity:.66"></i><div><span class="rp-legn">S3<b>21%</b></span><em>$90.40</em></div></div>
+          <div class="rp-leg"><i style="opacity:1"></i><div><span class="rp-legn">Implementation<b>58%</b></span><em>$249.60</em></div></div>
+          <div class="rp-leg"><i style="opacity:.66"></i><div><span class="rp-legn">Planning<b>21%</b></span><em>$90.40</em></div></div>
           <div class="rp-leg"><i style="opacity:.4"></i><div><span class="rp-legn">Other<b>21%</b></span><em>$90.40</em></div></div>
-          <p class="rp-sub">S1 9% · S6 6% · S2 4% · S5 2%</p>
+          <p class="rp-sub">Context gathering 9% · Human review 6% · Clarification 4% · Checks 2%</p>
         </div>
       </div>
     </div>
@@ -134,11 +134,11 @@
     <div class="card">
       <div class="tbl-h"><div class="tbl-t"><h2>Tag leaderboard</h2><span>5 tags</span></div></div>
       <div class="tools">
-        <div class="tool"><span class="rp-tk">FM-4</span><span class="rp-tp ell">stale context</span><span class="dbar"><i style="width:100%"></i></span><b>5</b></div>
-        <div class="tool"><span class="rp-tk">FM-7</span><span class="rp-tp ell">scope creep</span><span class="dbar"><i style="width:80%"></i></span><b>4</b></div>
-        <div class="tool"><span class="rp-tk">FM-10</span><span class="rp-tp ell">packet defect</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
-        <div class="tool"><span class="rp-tk">FM-12</span><span class="rp-tp ell">flaky check</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
-        <div class="tool"><span class="rp-tk">FM-1</span><span class="rp-tp ell">wrong scope</span><span class="dbar"><i style="width:20%"></i></span><b>1</b></div>
+        <div class="tool"><span class="rp-tk">memory_rot</span><span class="rp-tp ell">stale context</span><span class="dbar"><i style="width:100%"></i></span><b>5</b></div>
+        <div class="tool"><span class="rp-tk">scope_creep</span><span class="rp-tp ell">change beyond the ticket</span><span class="dbar"><i style="width:80%"></i></span><b>4</b></div>
+        <div class="tool"><span class="rp-tk">unreviewable_diff</span><span class="rp-tp ell">packet defect</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
+        <div class="tool"><span class="rp-tk">filler_comments</span><span class="rp-tp ell">flaky check</span><span class="dbar"><i style="width:40%"></i></span><b>2</b></div>
+        <div class="tool"><span class="rp-tk">unknown_impact</span><span class="rp-tp ell">impacted services unknown</span><span class="dbar"><i style="width:20%"></i></span><b>1</b></div>
       </div>
     </div>
 

@@ -52,15 +52,15 @@ def _committed_copy(tmp_path: Path, fixture_name: str) -> Path:
 # ---- the manifest's full field set, per stage (criterion 1) ----
 
 def test_every_stage_default_entry_carries_the_full_field_set():
-    """`factory/manifest.yaml` names a `default` entry for S0-S6 with every required field, and S2's restatement_model."""
+    """`factory/manifest.yaml` names a `default` entry for intake-human_review with every required field, and clarification's restatement_model."""
     m = manifest.load()
     assert set(m.stages) == set(manifest.STAGES)
     for stage in manifest.STAGES:
         default = m.stages[stage]["default"]
         for field_name in manifest.REQUIRED_ENTRY_FIELDS:
             assert field_name in default, f"{stage} default missing {field_name!r}"
-    assert "restatement_model" in m.stages["S2"]["default"]
-    for stage in ("S0", "S1", "S3", "S4", "S5", "S6"):
+    assert "restatement_model" in m.stages["clarification"]["default"]
+    for stage in ("intake", "context_gathering", "planning", "implementation", "checks", "human_review"):
         assert "restatement_model" not in m.stages[stage]["default"]
 
 
@@ -86,7 +86,7 @@ def test_resolved_entry_carries_file_hashes_and_the_current_manifest_hash(tmp_pa
     """`resolve` returns the agent/skill/rubric hashes straight from `files`, plus the manifest's own current hash."""
     repo = _committed_copy(tmp_path, "valid")
     m = manifest.load(repo / "factory" / "manifest.yaml")
-    entry = manifest.resolve(m, "S1", "light")
+    entry = manifest.resolve(m, "context_gathering", "light")
     assert entry.agent == "factory/agents/agent.md"
     assert entry.agent_hash == m.files["factory/agents/agent.md"]
     assert entry.skill_hash == m.files["factory/skills/skill.md"]
@@ -95,7 +95,7 @@ def test_resolved_entry_carries_file_hashes_and_the_current_manifest_hash(tmp_pa
 
 
 def test_must_reject_referenced_file_absent_from_files():
-    """An entry naming a file with no `files` entry fails closed (R-I-4's path-plus-hash rule)."""
+    """An entry naming a file with no `files` entry fails closed under the manifest's path-plus-hash rule."""
     with pytest.raises(manifest.ManifestError, match="absent from 'files'"):
         manifest.load(FIXTURES_DIR / "missing_referenced_file" / "factory" / "manifest.yaml")
 
@@ -106,7 +106,7 @@ def test_must_reject_on_disk_file_hash_drifted_from_the_manifest(tmp_path):
     m = manifest.load(repo / "factory" / "manifest.yaml")
     (repo / "factory" / "agents" / "agent.md").write_text("tampered after load\n")
     with pytest.raises(manifest.ManifestError, match="no longer matches"):
-        manifest.resolve(m, "S1", "light")
+        manifest.resolve(m, "context_gathering", "light")
 
 
 def test_must_reject_a_runtime_version_expressed_as_a_range(tmp_path):
@@ -132,18 +132,18 @@ def test_must_reject_a_budget_key_outside_tokens_and_wall_clock_seconds():
         manifest.load(FIXTURES_DIR / "invalid_budget_key" / "factory" / "manifest.yaml")
 
 
-# ---- S0, S5, S6 carry null agent/skill/model fields; the others do not (criterion 4) ----
+# ---- intake, checks, human_review carry null agent/skill/model fields; the others do not (criterion 4) ----
 
 def test_null_agent_skill_and_model_fields_on_script_only_stages():
-    """S0, S5 and S6 carry null agent, skill and model fields; the agent-driven stages carry none of them null."""
+    """intake, checks and human_review carry null agent, skill and model fields; the agent-driven stages carry none of them null."""
     m = manifest.load()
-    for stage in ("S0", "S5", "S6"):
+    for stage in ("intake", "checks", "human_review"):
         default = m.stages[stage]["default"]
         assert default["agent"] is None
         assert default["skill"] is None
         assert default["model_requested"] is None
         assert default["grader_model"] is None
-    for stage in ("S1", "S2", "S3", "S4"):
+    for stage in ("context_gathering", "clarification", "planning", "implementation"):
         default = m.stages[stage]["default"]
         assert default["agent"] is not None
         assert default["skill"] is not None
@@ -152,32 +152,32 @@ def test_null_agent_skill_and_model_fields_on_script_only_stages():
 
 
 def test_must_reject_a_non_null_agent_on_a_script_only_stage():
-    """A script-only stage (S5 here) carrying a non-null agent fails closed."""
+    """A script-only stage (checks here) carrying a non-null agent fails closed."""
     with pytest.raises(manifest.ManifestError, match="must be null"):
-        manifest.load(FIXTURES_DIR / "non_null_agent_on_s5" / "factory" / "manifest.yaml")
+        manifest.load(FIXTURES_DIR / "non_null_agent_on_checks" / "factory" / "manifest.yaml")
 
 
-# ---- migration invalidates S1-onward artefacts and requires factory_owner quorum (criteria 9, 10) ----
+# ---- migration invalidates context_gathering-onward artefacts and requires factory_owner quorum (criteria 9, 10) ----
 
-def test_migration_invalidates_s1_onward_artefacts_and_returns_the_ticket_to_context(tmp_path):
-    """A human-approved manifest change invalidates every S1-onward artefact and returns the ticket to `context`."""
+def test_migration_invalidates_context_gathering_onward_artefacts_and_returns_the_ticket_to_context(tmp_path):
+    """A human-approved manifest change invalidates every context_gathering-onward artefact and returns the ticket to `context`."""
     repo = _committed_copy(tmp_path, "migration_seed")
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn, factory_manifest_hash="stale-hash")
     record.update(conn, "ticket", ticket_id, state="implementing")
-    s0_run = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S0", attempt=1)
-    s1_run = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S1", attempt=1)
-    s2_run = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S2", attempt=1)
+    intake_run = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="intake", attempt=1)
+    context_gathering_run = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="context_gathering", attempt=1)
+    clarification_run = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="clarification", attempt=1)
     eligibility, brief, criteria = tmp_path / "e.txt", tmp_path / "b.txt", tmp_path / "c.txt"
     eligibility.write_text("e")
     brief.write_text("b")
     criteria.write_text("c")
     eligibility_id = artefact_registry.register(
-        conn, ticket_id=ticket_id, kind="eligibility", path=eligibility, stage_run_id=s0_run
+        conn, ticket_id=ticket_id, kind="eligibility", path=eligibility, stage_run_id=intake_run
     )
-    brief_id = artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief, stage_run_id=s1_run)
+    brief_id = artefact_registry.register(conn, ticket_id=ticket_id, kind="brief", path=brief, stage_run_id=context_gathering_run)
     criteria_id = artefact_registry.register(
-        conn, ticket_id=ticket_id, kind="criteria", path=criteria, stage_run_id=s2_run
+        conn, ticket_id=ticket_id, kind="criteria", path=criteria, stage_run_id=clarification_run
     )
     conn.commit()
 
@@ -189,7 +189,7 @@ def test_migration_invalidates_s1_onward_artefacts_and_returns_the_ticket_to_con
     assert ticket["state"] == "context"
     assert ticket["factory_manifest_hash"] == new_hash
     check_result = conn.execute("SELECT * FROM check_result WHERE check_name = 'manifest_migration'").fetchone()
-    # Names exactly the S1/S2 artefacts, in id order; the S0 (`eligibility_id`)
+    # Names exactly the context_gathering/clarification artefacts, in id order; the intake (`eligibility_id`)
     # artefact this same ticket registered is not among them.
     assert check_result["summary"].endswith(f"invalidates artefact(s) [{brief_id}, {criteria_id}]")
     conn.close()
@@ -246,7 +246,7 @@ def _model_check_runtime(tmp_path: Path, fixture_name: str) -> Path:
     return path
 
 
-def _resolved_entry(tmp_path: Path, stage: str = "S1", tier: str = "light") -> manifest.Entry:
+def _resolved_entry(tmp_path: Path, stage: str = "context_gathering", tier: str = "light") -> manifest.Entry:
     repo = _committed_copy(tmp_path, "valid")
     m = manifest.load(repo / "factory" / "manifest.yaml")
     return manifest.resolve(m, stage, tier)
@@ -260,7 +260,7 @@ def test_must_reject_a_model_requested_absent_from_runtime_yaml(tmp_path):
     ticket = record.get(conn, "ticket", ticket_id)
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="context_gathering", tier="light", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=_model_check_runtime(tmp_path, "unavailable_runtime.yaml"),
         sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
     )
@@ -278,7 +278,7 @@ def test_must_reject_a_resolved_model_that_differs_from_the_one_requested(tmp_pa
     ticket = record.get(conn, "ticket", ticket_id)
 
     result = cursor_sdk.invoke(
-        conn, ticket=ticket, stage="S1", tier="light", entry=entry, runs_dir=tmp_path / "runs",
+        conn, ticket=ticket, stage="context_gathering", tier="light", entry=entry, runs_dir=tmp_path / "runs",
         runtime_path=_model_check_runtime(tmp_path, "mismatch_runtime.yaml"),
         sandbox_path=ADAPTER_FIXTURES_DIR / "sandbox.yaml",
         env_source={"PATH": os.environ.get("PATH", ""), "FIXTURE_ADAPTER_CASE": "silent_fallback"},
@@ -292,7 +292,7 @@ def test_must_reject_a_resolved_model_that_differs_from_the_one_requested(tmp_pa
     ).fetchone()[0] == 0
 
 
-# ---- the manifest-hash pin at S0 eligibility, enforced on every later stage run (criterion 8) ----
+# ---- the manifest-hash pin at intake eligibility, enforced on every later stage run (criterion 8) ----
 
 
 def test_must_reject_a_stage_run_on_a_ticket_with_no_manifest_pin(tmp_path):
@@ -304,7 +304,7 @@ def test_must_reject_a_stage_run_on_a_ticket_with_no_manifest_pin(tmp_path):
     ticket = record.get(conn, "ticket", ticket_id)
 
     outcome = stages.invoke_agent(
-        conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+        conn, ticket, "checks", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
     ).outcome
 
     assert outcome == "refused_request"
@@ -322,7 +322,7 @@ def test_must_reject_a_stage_run_whose_pin_no_longer_matches_the_resolved_manife
     ticket = record.get(conn, "ticket", ticket_id)
 
     outcome = stages.invoke_agent(
-        conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+        conn, ticket, "checks", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
     ).outcome
 
     assert outcome == "refused_request"
@@ -339,22 +339,22 @@ def test_a_matching_pin_lets_a_later_stage_run_through(tmp_path):
     ticket = record.get(conn, "ticket", ticket_id)
 
     outcome = stages.invoke_agent(
-        conn, ticket, "S5", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+        conn, ticket, "checks", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
     ).outcome
 
     assert outcome == "pass"
     assert conn.execute("SELECT COUNT(*) FROM utility_run WHERE kind = 'refused_request'").fetchone()[0] == 0
 
 
-def test_s0_is_exempt_from_the_pin_check(tmp_path):
-    """criterion 8: S0 needs no pin yet, since the pin is not written until eligibility is granted."""
+def test_intake_is_exempt_from_the_pin_check(tmp_path):
+    """criterion 8: intake needs no pin yet, since the pin is not written until eligibility is granted."""
     repo = _committed_copy(tmp_path, "valid")
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn)  # state=intake, no pin
     ticket = record.get(conn, "ticket", ticket_id)
 
     outcome = stages.invoke_agent(
-        conn, ticket, "S0", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
+        conn, ticket, "intake", tier="light", manifest_path=repo / "factory" / "manifest.yaml", runs_dir=tmp_path,
     ).outcome
 
     assert outcome == "pass"
@@ -364,7 +364,7 @@ def test_eligibility_granted_pins_the_manifest_hash_when_the_ticket_has_none(tmp
     """criterion 8: the eligibility_granted path pins ticket.factory_manifest_hash the first time, from the real committed manifest."""
     conn = connect(tmp_path / "factory.sqlite")
     ticket_id = tickets.open_ticket(conn)
-    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S0", attempt=1, outcome="pass")
+    record.insert(conn, "stage_run", ticket_id=ticket_id, stage="intake", attempt=1, outcome="pass")
     record.insert(conn, "queue_item", ticket_id=ticket_id, kind="eligibility", action="granted")
     ticket = record.get(conn, "ticket", ticket_id)
 

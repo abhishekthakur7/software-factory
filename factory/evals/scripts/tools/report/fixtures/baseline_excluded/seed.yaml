@@ -8,4 +8,4 @@
   fields:
     ticket_id: 1
     event_kind: revision_after_approval
-    fm_id: FM-01
+    fm_id: unjustified_abstraction

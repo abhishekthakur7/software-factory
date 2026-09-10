@@ -40,9 +40,9 @@ from runner.reviewer_sets import Slot
 
 DEFAULT_LIMITS_PATH = FACTORY_DIR / "config" / "limits.yaml"
 
-# The Initial stages the stage-reliability clause grades; S7 is not yet a
+# The Initial stages the stage-reliability clause grades; merge is not yet a
 # stage any driver runs, so `stage_reliability_view` never carries it.
-_STAGES = ("S0", "S1", "S2", "S3", "S4", "S5", "S6")
+_STAGES = ("intake", "context_gathering", "clarification", "planning", "implementation", "checks", "human_review")
 
 # The named views a clause reads for its verdict, exactly as it queries
 # them -- never `v_default_shown_share`, `v_default_accepted_share`,
@@ -473,7 +473,7 @@ def blind_spots(conn: sqlite3.Connection, ticket_ids: list[int], cutoff: str) ->
 
 
 def self_containedness(conn: sqlite3.Connection, ticket_ids: list[int]) -> dict:
-    """Every window plan/review decision recorded `decision_supported_without_transcript = 0` has a resolved FM-10 tag."""
+    """Every window plan/review decision recorded `decision_supported_without_transcript = 0` has a resolved unreviewable_diff tag."""
     failing: list[int] = []
 
     if ticket_ids:

@@ -173,7 +173,7 @@ def test_unexpected_exit_code_is_recorded_as_a_failed_result(tmp_path, scratch):
 
 
 def test_dependency_resolution_recipe_runs_under_the_build_profile(tmp_path):
-    """The configured resolver reads its copied project view under the real S5 build sandbox;
+    """The configured resolver reads its copied project view under the real checks build sandbox;
     the launch record proves the OS profile wrapped this execution rather than a test double."""
     checkout = tmp_path / "checkout"
     checkout.mkdir()
@@ -183,7 +183,7 @@ def test_dependency_resolution_recipe_runs_under_the_build_profile(tmp_path):
     result = recipes.run(
         "fixture_dependencies", {"pom": "pom.xml", "vendor": str(vendor)}, catalogue=recipes.load_catalogue(),
         cwd_roles={"checkout": checkout}, results_dir=tmp_path / "results", env_source={"PATH": os.environ["PATH"]},
-        sandbox_run_dir=tmp_path / "sandbox-run", sandbox_stage="S5", sandbox_vendor_dir=vendor,
+        sandbox_run_dir=tmp_path / "sandbox-run", sandbox_stage="checks", sandbox_vendor_dir=vendor,
     )
     assert result.outcome == "pass"
     assert (tmp_path / "sandbox-run" / "results" / "exit.json").read_text().find('"os_policy": true') >= 0
@@ -200,7 +200,7 @@ def test_security_recipe_receives_pinned_inputs_from_the_read_only_sandbox_resul
     result = recipes.run(
         "fixture_security", {}, catalogue=recipes.load_catalogue(), cwd_roles={"checkout": checkout},
         results_dir=tmp_path / "results", env_source={"PATH": os.environ["PATH"]},
-        sandbox_run_dir=tmp_path / "sandbox-run", sandbox_stage="S5",
+        sandbox_run_dir=tmp_path / "sandbox-run", sandbox_stage="checks",
     )
     inputs = tmp_path / "sandbox-run" / "results" / "inputs"
     assert result.outcome == "pass"
@@ -219,7 +219,7 @@ def test_must_reject_a_sandbox_stage_absent_from_the_recipe_declaration(tmp_path
         recipes.run(
             "fixture_dependencies", {"pom": "pom.xml", "vendor": str(vendor)}, catalogue=recipes.load_catalogue(),
             cwd_roles={"checkout": checkout}, results_dir=tmp_path / "results", env_source={"PATH": os.environ["PATH"]},
-            sandbox_run_dir=tmp_path / "sandbox", sandbox_stage="S4",
+            sandbox_run_dir=tmp_path / "sandbox", sandbox_stage="implementation",
         )
 
 
@@ -227,7 +227,7 @@ def test_must_reject_an_unadmitted_registry_endpoint_before_launch(tmp_path, mon
     executable = REPO_ROOT / "factory/scripts/checks/dep_resolve"
     recipe = recipes.Recipe(
         id="networked", executable=executable.relative_to(REPO_ROOT), executable_digest=hashlib.sha256(executable.read_bytes()).hexdigest(),
-        args=("--pom", recipes.ArgPlaceholder("pom", "path")), cwd_role="checkout", kind="dependency", stages=("S5",),
+        args=("--pom", recipes.ArgPlaceholder("pom", "path")), cwd_role="checkout", kind="dependency", stages=("checks",),
         timeout_seconds=1, expected_exit_codes=(0,), env_allowlist=("PATH",), network="registry", output_retention="keep",
         registry_endpoints=("registry.invalid",), cache_policy="isolated",
     )
@@ -240,7 +240,7 @@ def test_must_reject_an_unadmitted_registry_endpoint_before_launch(tmp_path, mon
     with pytest.raises(recipes.RecipeUnavailable, match="registry endpoint"):
         recipes.run(
             "networked", {"pom": "pom.xml"}, catalogue={"networked": recipe}, cwd_roles={"checkout": checkout},
-            results_dir=tmp_path / "results", env_source={"PATH": os.environ["PATH"]}, sandbox_run_dir=tmp_path / "sandbox", sandbox_stage="S5",
+            results_dir=tmp_path / "results", env_source={"PATH": os.environ["PATH"]}, sandbox_run_dir=tmp_path / "sandbox", sandbox_stage="checks",
         )
 
 
@@ -257,7 +257,7 @@ def test_must_reject_a_build_result_without_policy_or_integrity_proof(tmp_path, 
     with pytest.raises(recipes.RecipeSandboxError, match="without an OS sandbox"):
         recipes.run(
             "fixture_dependencies", {"pom": "pom.xml", "vendor": str(vendor)}, catalogue=recipes.load_catalogue(), cwd_roles={"checkout": checkout},
-            results_dir=tmp_path / "results", env_source={"PATH": os.environ["PATH"]}, sandbox_run_dir=tmp_path / "sandbox", sandbox_stage="S5",
+            results_dir=tmp_path / "results", env_source={"PATH": os.environ["PATH"]}, sandbox_run_dir=tmp_path / "sandbox", sandbox_stage="checks",
         )
 
 

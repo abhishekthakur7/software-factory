@@ -46,8 +46,8 @@ MECHANICAL_KINDS: frozenset[str] = frozenset({"stale_index", "escalation"})
 EITHER_ACTOR_KINDS: frozenset[str] = frozenset({"control_defect"})
 
 # `packet_defect` names one fixed failure mode: the review-narrative gap
-# the entity definition and catalogue both call FM-10.
-PACKET_DEFECT_FM_ID = "FM-10"
+# the entity definition and catalogue both call unreviewable_diff.
+PACKET_DEFECT_FM_ID = "unreviewable_diff"
 
 # send_back grounds whose note carries an extra requirement beyond naming
 # a real ground id.

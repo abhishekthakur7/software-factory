@@ -1,4 +1,4 @@
-"""Offline dependency resolution and verification over immutable base and head views (R-S5-2)."""
+"""Offline dependency resolution and verification over immutable base and head views."""
 import hashlib
 import json
 import shutil

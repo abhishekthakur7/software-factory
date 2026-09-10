@@ -12,7 +12,7 @@ requirement of its own: the `revision_after_approval` tag its own effect
 writes has the same required `fm_id` every other tag does, so the id is
 supplied for the same reason a redirect or send-back needs one.
 
-An `eligibility` item's every action now runs behind S0's own governance
+An `eligibility` item's every action now runs behind intake's own governance
 validity check, so every ticket seeded in `intake` for one carries a real,
 currently active governance state: `_governed_ticket_fields` activates the
 committed trust profile the same default-path way `test_outbox.py`'s
@@ -29,7 +29,7 @@ import pytest
 from runner import artefact_registry, artefacts, checklist, cli, governance, manifest, owners, publication, queue, record, tags, tickets
 from runner.db import connect
 from runner.reviewer_sets import Slot
-from runner.tests.test_s5_waivers import issue_review_waiver
+from runner.tests.test_checks_waivers import issue_review_waiver
 from runner.transitions import TransitionRefused
 
 ABHISHEK = "abhishek"
@@ -37,7 +37,7 @@ FAR_FUTURE = "2999-01-01T00:00:00+00:00"
 
 
 def _governed_ticket_fields(conn) -> dict:
-    """Ticket fields that satisfy `S0.governance_valid` against the committed trust profile and owners file."""
+    """Ticket fields that satisfy `intake.governance_valid` against the committed trust profile and owners file."""
     proposal = governance.propose()
     for role in ("security_approver", "legal_data_governance_approver"):
         governance.decide(
@@ -106,8 +106,8 @@ def _seed_plan_approval_item(conn, ticket_id: int) -> int:
         path = stub_dir / f"{artefact_kind}.md"
         path.write_text(f"## {artefacts.SECTIONS[artefact_kind][0]}\n\nstub\n")
         artefact_registry.register(conn, ticket_id=ticket_id, kind=artefact_kind, path=path)
-    identity = owners.load_owners().roles["s3_reviewer"]["identity"]
-    slot = Slot(source_rule="s3_reviewer_role", role="s3_reviewer", owner=identity, min_count=1)
+    identity = owners.load_owners().roles["plan_reviewer"]["identity"]
+    slot = Slot(source_rule="plan_reviewer_role", role="plan_reviewer", owner=identity, min_count=1)
     reviewer_set_id = record.insert(
         conn, "reviewer_set", ticket_id=ticket_id, kind="planned", content_hash="planned-subj",
         slots=json.dumps([slot.to_json()]),
@@ -126,8 +126,8 @@ def _seed_plan_approval_item(conn, ticket_id: int) -> int:
 def _seed_packet_approval_item(conn, ticket_id: int, runs_dir) -> int:
     """A `packet_approval` item whose ticket carries a real review evidence tuple, one bound blocking
     check result, and packet/`pr_body` artefacts -- everything `publication.review_approval_subject`
-    needs to compute the item's own `approval_subject_hash`, the way the real S6 driver would."""
-    slot = Slot(source_rule="s6_reviewer_role", role="s6_reviewer", min_count=1)
+    needs to compute the item's own `approval_subject_hash`, the way the real human_review driver would."""
+    slot = Slot(source_rule="packet_reviewer_role", role="packet_reviewer", min_count=1)
     reviewer_set_id = record.insert(
         conn, "reviewer_set", ticket_id=ticket_id, kind="effective", content_hash="effective-subj",
         slots=json.dumps([slot.to_json()]),
@@ -136,7 +136,7 @@ def _seed_packet_approval_item(conn, ticket_id: int, runs_dir) -> int:
         conn, "evidence_tuple", kind="review", ticket_id=ticket_id, content_hash="review-tuple-1",
         effective_reviewer_set_id=reviewer_set_id, effective_reviewer_set_hash="effective-subj", created_at=record.now(),
     )
-    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S5", attempt=1, outcome="pass")
+    stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="checks", attempt=1, outcome="pass")
     record.insert(
         conn, "check_result", stage_run_id=stage_run_id, evidence_tuple_id=review_tuple_id,
         check_name="fixture_check", check_tier="blocking", source="runner", result="pass",
@@ -164,12 +164,12 @@ def _seed_item(conn, kind: str, runs_dir=None) -> tuple[int, int]:
     kwargs: dict = {"ticket_id": ticket_id, "kind": kind}
     if kind == "question":
         question_id = record.insert(
-            conn, "question", ticket_id=ticket_id, stage="S2", round=1, rank=1,
+            conn, "question", ticket_id=ticket_id, stage="clarification", round=1, rank=1,
             options='[{"label": "A", "consequence": "does A"}]', default_option=0, state="open",
         )
         kwargs["ref"] = f"question:{question_id}"
     elif kind == "escalation":
-        stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="S4", attempt=1, outcome="fail")
+        stage_run_id = record.insert(conn, "stage_run", ticket_id=ticket_id, stage="implementation", attempt=1, outcome="fail")
         kwargs["ref"] = f"stage_run:{stage_run_id}"
     elif kind == "plan_approval":
         return ticket_id, _seed_plan_approval_item(conn, ticket_id)
@@ -180,7 +180,7 @@ def _seed_item(conn, kind: str, runs_dir=None) -> tuple[int, int]:
         # for a pairing this mapping refuses before ever reaching that.
         return ticket_id, _seed_packet_approval_item(conn, ticket_id, runs_dir)
     elif kind == "packet_approval":
-        kwargs["reviewer_set_id"] = _reviewer_set(conn, ticket_id, kind="effective", role="s6_reviewer", subject_hash="review-subj")
+        kwargs["reviewer_set_id"] = _reviewer_set(conn, ticket_id, kind="effective", role="packet_reviewer", subject_hash="review-subj")
         kwargs["approval_subject_hash"] = "review-subj"
     item_id = queue.open_item(conn, **kwargs)
     return ticket_id, item_id
@@ -213,7 +213,7 @@ _ACCEPTED_PAIRS = [
 
 @pytest.mark.parametrize("kind, action", _ACCEPTED_PAIRS)
 def test_each_valid_kind_action_pairing_from_the_day_one_mapping_is_accepted(conn, tmp_path, kind, action):
-    """R-H-1: every pairing `queue.ACTIONS` lists for a kind
+    """Every pairing `queue.ACTIONS` lists for a kind
     is accepted, and resolves the item, when seeded with what that action needs."""
     ticket_id, item_id = _seed_item(conn, kind, tmp_path)
     kwargs = dict(item_id=item_id, action=action, actor=ABHISHEK, runs_dir=tmp_path)
@@ -223,7 +223,7 @@ def test_each_valid_kind_action_pairing_from_the_day_one_mapping_is_accepted(con
         kwargs["to"] = "context"
         kwargs["note"] = "duplicates_existing_work: already built on another ticket"
     if action in ("redirect", "send_back", "abandon", "override", "request_changes"):
-        kwargs["fm_id"] = "FM-07"
+        kwargs["fm_id"] = "question_noise"
     if queue._self_contained_required(kind, action):
         kwargs["self_contained"] = "yes"
     queue.act(conn, **kwargs)
@@ -238,7 +238,7 @@ def test_escalation_send_back_moves_a_ticket_that_is_really_escalated(conn, tmp_
     assert record.get(conn, "ticket", ticket_id)["state"] == "escalated"
 
     queue.act(
-        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="planning", fm_id="FM-07",
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="planning", fm_id="question_noise",
         note="technically_unsound: the approach does not hold", self_contained="yes", runs_dir=tmp_path,
     )
 
@@ -253,7 +253,7 @@ def test_must_reject_escalation_send_back_to_a_state_verification_exhaustion_can
 
     with pytest.raises(TransitionRefused):
         queue.act(
-            conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="checks", fm_id="FM-07",
+            conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="checks", fm_id="question_noise",
             note="technically_unsound: the approach does not hold", self_contained="yes", runs_dir=tmp_path,
         )
 
@@ -277,11 +277,11 @@ _REFUSED_PAIRS = [
 
 @pytest.mark.parametrize("kind, action", _REFUSED_PAIRS)
 def test_must_reject_a_kind_action_pairing_outside_the_day_one_mapping(conn, kind, action):
-    """R-H-1: `pr_outcome` accepts none of these actions, `control_event`
+    """`pr_outcome` accepts none of these actions, `control_event`
     included, and every other kind refuses an action not in its own list."""
     _, item_id = _seed_item(conn, kind)
     with pytest.raises(queue.ActionRefused):
-        queue.act(conn, item_id=item_id, action=action, actor=ABHISHEK, bucket="under_2m", to="context", fm_id="FM-07")
+        queue.act(conn, item_id=item_id, action=action, actor=ABHISHEK, bucket="under_2m", to="context", fm_id="question_noise")
 
 
 
@@ -311,19 +311,19 @@ def test_queue_latency_is_none_while_the_item_is_still_open(conn):
 def test_send_back_abandon_and_override_each_write_one_tag_naming_the_transition(conn, tmp_path):
     ticket_id, item_id = _seed_item(conn, "red_check")
     queue.act(
-        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="FM-07",
+        conn, item_id=item_id, action="send_back", actor=ABHISHEK, to="context", fm_id="question_noise",
         note="duplicates_existing_work: already covered elsewhere", runs_dir=tmp_path,
     )
     send_back_tags = conn.execute("SELECT * FROM tag WHERE ticket_id = ?", (ticket_id,)).fetchall()
     assert [row["event_kind"] for row in send_back_tags] == ["send_back"]
 
     ticket_id2, item_id2 = _seed_item(conn, "red_check")
-    queue.act(conn, item_id=item_id2, action="abandon", actor=ABHISHEK, fm_id="FM-07", runs_dir=tmp_path)
+    queue.act(conn, item_id=item_id2, action="abandon", actor=ABHISHEK, fm_id="question_noise", runs_dir=tmp_path)
     abandon_tags = conn.execute("SELECT * FROM tag WHERE ticket_id = ?", (ticket_id2,)).fetchall()
     assert [row["event_kind"] for row in abandon_tags] == ["abandoned"]
 
     ticket_id3, item_id3 = _seed_item(conn, "eligibility")
-    queue.act(conn, item_id=item_id3, action="override", actor=ABHISHEK, fm_id="FM-07", note="tier bumped")
+    queue.act(conn, item_id=item_id3, action="override", actor=ABHISHEK, fm_id="question_noise", note="tier bumped")
     override_tags = conn.execute("SELECT * FROM tag WHERE ticket_id = ?", (ticket_id3,)).fetchall()
     assert [row["event_kind"] for row in override_tags] == ["override"]
     assert record.get(conn, "ticket", ticket_id3)["tier_override_reason"] == "tier bumped"
@@ -337,7 +337,7 @@ def test_control_event_records_an_incident_observation_and_leaves_the_item_open(
     ticket_id, item_id = _seed_item(conn, "red_check")
     result = queue.act(
         conn, item_id=item_id, action="control_event", actor=ABHISHEK,
-        category="execution_boundary", severity="sev2", fm_id="FM-09", note="observed drift",
+        category="execution_boundary", severity="sev2", fm_id="parallel_fatigue", note="observed drift",
         runs_dir=tmp_path,
     )
     assert "control event recorded" in result
@@ -382,7 +382,7 @@ def test_factory_act_resolves_the_item_and_resumes_only_when_the_action_permits_
 
     cli.main([
         "--db", str(db_path), "act", str(item_id2), "send_back", "--actor", ABHISHEK, "--to", "context",
-        "--fm", "FM-07", "--note", "duplicates_existing_work: already handled",
+        "--fm", "question_noise", "--note", "duplicates_existing_work: already handled",
     ])
 
     conn = connect(db_path)
@@ -416,7 +416,7 @@ def test_factory_abandon_records_a_tag_and_coverage_without_a_queued_item(db_pat
     conn.commit()
     conn.close()
 
-    cli.main(["--db", str(db_path), "abandon", str(ticket_id), "--actor", ABHISHEK, "--fm", "FM-07"])
+    cli.main(["--db", str(db_path), "abandon", str(ticket_id), "--actor", ABHISHEK, "--fm", "question_noise"])
 
     conn = connect(db_path)
     try:
@@ -444,7 +444,7 @@ def test_factory_tag_records_one_human_tag_on_the_named_target(db_path):
 
     cli.main([
         "--db", str(db_path), "tag", f"waiver:{refs['waiver_id']}", "policy_exception",
-        "--fm", "FM-10", "--actor", ABHISHEK, "--severity", "sev3",
+        "--fm", "unreviewable_diff", "--actor", ABHISHEK, "--severity", "sev3",
     ])
 
     conn = connect(db_path)

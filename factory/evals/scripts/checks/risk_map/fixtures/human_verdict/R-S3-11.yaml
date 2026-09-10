@@ -1,7 +1,0 @@
-# A seeded human_verdict scenario for the R-S3-11 grader line: no write
-# path records a real human_verdict yet, so this document stands in as
-# the example a reviewer applying the rubric line's judgment would see.
-rubric_line_id: "R-S3-11:grader"
-subject: "Risk map places: 'this touches core logic, worth a careful look' (repeated for every named place)."
-verdict: fail
-reason: the risk-map section reuses boilerplate language with no candidate-specific reasoning

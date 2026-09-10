@@ -1,6 +1,0 @@
-# A seeded human_verdict scenario for the R-S1-6 grader line: a live
-# production fact asserted outside the Blind spots section fails.
-rubric_line_id: R-S1-6:grader
-subject: "Flags section states: the export feature flag is at 40% rollout in production."
-verdict: fail
-reason: asserts a live production fact (rollout percentage) outside the blind spots section

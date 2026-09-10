@@ -5,10 +5,10 @@ after opening a stage run's own `stage_run` row and before doing any real
 work: it sums the settled tokens and wall-clock seconds already recorded
 against this invocation's family -- the run named by `parent_run_id`, if
 any, plus every run recorded under it, direct or nested -- and compares
-that total to the stage-and-tier budget `run_ledger.budget` names. `S4`
-carries a second, cumulative check on top: every `S4` `stage_run` the
+that total to the stage-and-tier budget `run_ledger.budget` names. `implementation`
+carries a second, cumulative check on top: every `implementation` `stage_run` the
 ticket has ever opened, family boundaries aside, against the per-ticket
-budget `run_ledger.s4_per_ticket_budget` names, since that budget spans
+budget `run_ledger.implementation_per_ticket_budget` names, since that budget spans
 the ticket's whole implementation effort rather than one invocation's
 descendants. Wall clock itself is enforced live by the launcher's own
 timeout; this function only re-checks what has already settled.
@@ -20,7 +20,7 @@ they were, so nothing here ever consumes a verification slot. The reason
 is recorded as one failed runner `check_result` on the aborted run, the
 same shape a stale base or a manifest migration leaves; the `escalation`
 item's content (reasoning summary, registered outputs, current binding,
-failure history, S4 progress) is derived from the record when the queue
+failure history, implementation progress) is derived from the record when the queue
 shows the item (`queue.escalation_context`), never stored as a second
 copy and never written over the agent's own reasoning summary.
 """
@@ -69,7 +69,7 @@ def _usage_totals(conn: sqlite3.Connection, run_ids: list[int]) -> tuple[int, fl
 def _exceeds(tokens: int, seconds: float, budget: dict, *, label: str) -> str | None:
     """The refusal reason when `tokens`/`seconds` exceed `budget`'s named limits, else `None`.
 
-    A `None` budget value (S5's wall-clock override, for instance) means
+    A `None` budget value (the checks stage's wall-clock override, for instance) means
     that dimension carries no limit, matching `run_ledger.budget`'s own
     contract, so it is skipped rather than treated as zero.
     """
@@ -85,7 +85,7 @@ def check_before_invocation(
 ) -> str | None:
     """A refusal reason when starting a fresh invocation now would already exceed budget, else `None`.
 
-    Checked at the start of every invocation -- "before every fresh S4
+    Checked at the start of every invocation -- "before every fresh implementation
     execution starts", and equally before any other stage's next child --
     so a family already at or past its budget is caught before it does any
     more work, never mid-invocation.
@@ -95,16 +95,16 @@ def check_before_invocation(
     reason = _exceeds(tokens, seconds, run_ledger.budget(stage, tier), label=f"stage {stage} at tier {tier}")
     if reason is not None:
         return reason
-    if stage == "S4":
-        s4_ids = [
+    if stage == "implementation":
+        implementation_ids = [
             row["id"] for row in conn.execute(
-                "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'S4'", (ticket["id"],)
+                "SELECT id FROM stage_run WHERE ticket_id = ? AND stage = 'implementation'", (ticket["id"],)
             ).fetchall()
         ]
-        s4_tokens, s4_seconds = _usage_totals(conn, s4_ids)
+        implementation_tokens, implementation_seconds = _usage_totals(conn, implementation_ids)
         reason = _exceeds(
-            s4_tokens, s4_seconds, run_ledger.s4_per_ticket_budget(tier),
-            label=f"ticket {ticket['id']}'s cumulative S4 usage",
+            implementation_tokens, implementation_seconds, run_ledger.implementation_per_ticket_budget(tier),
+            label=f"ticket {ticket['id']}'s cumulative implementation usage",
         )
         if reason is not None:
             return reason

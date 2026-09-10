@@ -88,7 +88,7 @@ routes:
     training_reuse_terms: not_applicable
     subprocessors: []
     residency: us
-    reader_roles: [ticket_engineer, s6_reviewer]
+    reader_roles: [ticket_engineer, packet_reviewer]
     export_rule:
       allowed_formats: [directory_export]
       max_class: confidential
@@ -108,7 +108,7 @@ routes:
     training_reuse_terms: no_training_reuse
     subprocessors: [github]
     residency: us
-    reader_roles: [ticket_engineer, s6_reviewer]
+    reader_roles: [ticket_engineer, packet_reviewer]
     export_rule:
       allowed_formats: []
       max_class: public
@@ -128,7 +128,7 @@ routes:
     training_reuse_terms: no_training_reuse
     subprocessors: [github]
     residency: us
-    reader_roles: [ticket_engineer, s6_reviewer]
+    reader_roles: [ticket_engineer, packet_reviewer]
     export_rule:
       allowed_formats: []
       max_class: public

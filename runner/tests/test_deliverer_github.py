@@ -1,4 +1,4 @@
-"""R-S6-3: GitHub delivery mutates only a leased branch and its one draft pull request."""
+"""GitHub delivery mutates only a leased branch and its one draft pull request."""
 import os
 import subprocess
 
@@ -22,7 +22,7 @@ def _payload(head="head-1"):
     return {"branch_ref": "scratch/ticket-1", "head_sha": head, "target_ref": "main", "pr_body": "approved body"}
 
 
-def test_r_s6_3_create_pushes_the_ticket_branch_then_opens_one_draft_pull_request():
+def test_r_human_review_3_create_pushes_the_ticket_branch_then_opens_one_draft_pull_request():
     remote = FakeGitHubTransport()
     receipt = GitHubDeliverer(remote).pr_create(_intent(), _payload())
     assert remote.branches[("soft-factory-scratch", "scratch/ticket-1")] == "head-1"
@@ -30,7 +30,7 @@ def test_r_s6_3_create_pushes_the_ticket_branch_then_opens_one_draft_pull_reques
     assert [name for name, _ in remote.calls] == ["branch_head", "push_branch", "create_pull_request"]
 
 
-def test_must_reject_r_s6_3_create_when_the_remote_head_is_not_the_expected_head():
+def test_must_reject_r_human_review_3_create_when_the_remote_head_is_not_the_expected_head():
     remote = FakeGitHubTransport()
     remote.branches[("soft-factory-scratch", "scratch/ticket-1")] = "outside-change"
     with pytest.raises(GitHubRemoteRefused, match="unexpected remote head"):
@@ -38,7 +38,7 @@ def test_must_reject_r_s6_3_create_when_the_remote_head_is_not_the_expected_head
     assert len(remote.pull_requests) == 0
 
 
-def test_r_s6_3_update_keeps_the_same_pull_request_under_a_force_with_lease_compare():
+def test_r_human_review_3_update_keeps_the_same_pull_request_under_a_force_with_lease_compare():
     remote = FakeGitHubTransport()
     deliverer = GitHubDeliverer(remote)
     deliverer.pr_create(_intent(), _payload("head-1"))
@@ -47,7 +47,7 @@ def test_r_s6_3_update_keeps_the_same_pull_request_under_a_force_with_lease_comp
     assert remote.pull_requests[("soft-factory-scratch", "scratch/ticket-1")]["head_sha"] == "head-2"
 
 
-def test_must_reject_r_s6_3_update_of_a_closed_pull_request_without_a_replacement():
+def test_must_reject_r_human_review_3_update_of_a_closed_pull_request_without_a_replacement():
     remote = FakeGitHubTransport()
     deliverer = GitHubDeliverer(remote)
     deliverer.pr_create(_intent(), _payload())
@@ -57,7 +57,7 @@ def test_must_reject_r_s6_3_update_of_a_closed_pull_request_without_a_replacemen
     assert len(remote.pull_requests) == 1
 
 
-def test_r_s6_3_live_push_uses_the_configured_remote_and_a_full_ref_lease(monkeypatch, tmp_path):
+def test_r_human_review_3_live_push_uses_the_configured_remote_and_a_full_ref_lease(monkeypatch, tmp_path):
     observed = {}
 
     def fake_run(argv, **kwargs):
@@ -83,7 +83,7 @@ def test_r_s6_3_live_push_uses_the_configured_remote_and_a_full_ref_lease(monkey
     assert observed["timeout"] == 30
 
 
-def test_r_s6_3_askpass_helper_runs_from_an_unrelated_working_directory(tmp_path):
+def test_r_human_review_3_askpass_helper_runs_from_an_unrelated_working_directory(tmp_path):
     helper_dir = tmp_path / "helper"
     helper_dir.mkdir()
     unrelated_cwd = tmp_path / "checkout"
@@ -119,7 +119,7 @@ def test_must_reject_an_unusable_live_remote_before_fetching_a_credential(monkey
     assert not fetched
 
 
-def test_r_s6_3_open_pull_request_lists_owner_qualified_head_refs(monkeypatch):
+def test_r_human_review_3_open_pull_request_lists_owner_qualified_head_refs(monkeypatch):
     observed = {}
     client = GitHubRestClient("token", remote_url="https://github.com/owner/scratch.git")
 
@@ -134,13 +134,13 @@ def test_r_s6_3_open_pull_request_lists_owner_qualified_head_refs(monkeypatch):
     }
 
 
-def test_must_reject_r_s6_3_a_branch_outside_the_configured_scratch_prefix():
+def test_must_reject_r_human_review_3_a_branch_outside_the_configured_scratch_prefix():
     with pytest.raises(GitHubRemoteRefused, match="scratch prefix"):
         GitHubDeliverer(FakeGitHubTransport()).pr_create(_intent(), {**_payload(), "branch_ref": "feature/ticket-1"})
 
 
 @pytest.mark.parametrize("route_id", ["github_scratch", "slack_digest"])
-def test_must_reject_r_s6_3_r_h_3_incomplete_live_configuration_without_fixture_receipt(tmp_path, monkeypatch, route_id):
+def test_must_reject_r_human_review_3_r_h_3_incomplete_live_configuration_without_fixture_receipt(tmp_path, monkeypatch, route_id):
     from dataclasses import replace
     from runner import outbox, project, trust_profile
     from runner.deliverers.stub import RemoteRefused

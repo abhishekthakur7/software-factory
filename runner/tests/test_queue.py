@@ -62,7 +62,7 @@ def _item_text(output: str, item_id: int, kind: str) -> str:
 
 
 def test_every_initial_queue_item_kind_is_accepted_and_displayed(conn):
-    """R-H-1: a seeded row of each of the nine Initial kinds is accepted by
+    """A seeded row of each of the nine Initial kinds is accepted by
     the schema and appears in `factory queue`'s listing."""
     refs = load_scenario(conn, "items", "all_kinds")
     conn.commit()
@@ -78,19 +78,19 @@ def test_every_initial_queue_item_kind_is_accepted_and_displayed(conn):
 
 
 def test_queue_listing_shows_ticket_stage_tier_and_queued_at(conn):
-    """R-H-1: every item's block names its ticket, stage, tier and `queued_at`."""
+    """Every item's block names its ticket, stage, tier and `queued_at`."""
     refs = load_scenario(conn, "items", "all_kinds")
     conn.commit()
     output = queue.list_queue(conn)
     block = _item_text(output, refs["item_red_check"], "red_check")
     assert f"ticket {refs['ticket1']}: Sample fixture ticket" in block
-    assert "stage: S5" in block
+    assert "stage: checks" in block
     assert "tier: standard" in block
     assert "queued_at: 2024-01-01T00:00:00+00:00" in block
 
 
 def test_eligibility_item_shows_the_minimum_governed_context(conn):
-    """R-H-1: an eligibility item's block shows the exact trust profile and
+    """An eligibility item's block shows the exact trust profile and
     approval-set hashes, the satisfying trust approval set, the planned RACI
     roles, the ticket type and data class to confirm, and the scrutiny
     paragraph -- everything a reader needs without another transcript."""
@@ -114,14 +114,14 @@ def test_eligibility_item_shows_the_minimum_governed_context(conn):
     assert "trust approval-set hash: trust-approval-set-hash-1" in block
     assert f"slot {slot.slot_id}: abhishek" in block
     assert "planned RACI roles:" in block
-    assert "s3_reviewer: abhishek" in block
+    assert "plan_reviewer: abhishek" in block
     assert "ticket type to confirm: bug_fix" in block
     assert "data class to confirm: internal" in block
     assert "Look hardest at the authorization check." in block
 
 
 def test_pr_outcome_latency_is_labelled_queue_latency_never_attention(conn):
-    """R-H-1: `pr_outcome` items are non-blocking, and a resolved item's
+    """`pr_outcome` items are non-blocking, and a resolved item's
     latency line reads "queue latency", never "attention"."""
     refs = load_scenario(conn, "items", "all_kinds")
     record.update(
@@ -139,7 +139,7 @@ def test_pr_outcome_latency_is_labelled_queue_latency_never_attention(conn):
 
 def test_open_item_of_kind_pr_outcome_does_not_set_blocked_on(conn):
     """the seam every later stage calls: opening a `pr_outcome` item never
-    blocks the ticket, since it is non-blocking by definition (R-H-1)."""
+    blocks the ticket, since it is non-blocking by definition."""
     ticket_id = record.insert(conn, "ticket", state="pr_opened", opened_at=record.now())
     other_id = queue.open_item(conn, ticket_id=ticket_id, kind="red_check")
     assert record.get(conn, "ticket", ticket_id)["blocked_on"] == other_id

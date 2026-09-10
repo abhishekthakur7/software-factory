@@ -1,4 +1,4 @@
-"""The pilot's committed configuration content: structure and resolution over the real files, not literals (R-S0-1)."""
+"""The pilot's committed configuration content: structure and resolution over the real files, not literals."""
 from pathlib import Path
 
 import yaml
@@ -6,7 +6,7 @@ import yaml
 from runner import credentials, envelope, governance, owners, project, record, trust_profile
 from runner.db import connect
 from runner.paths import FACTORY_DIR, REPO_ROOT
-from runner.stages import S0
+from runner.stages import intake
 
 ABHISHEK = "abhishek"
 FAR_FUTURE = "2999-01-01T00:00:00+00:00"
@@ -26,7 +26,7 @@ def test_service_tiers_carries_a_row_for_the_pilot_service():
 
 
 def test_ticket_types_names_the_pilots_jira_field_keys():
-    ticket_types = S0.load_ticket_types()
+    ticket_types = intake.load_ticket_types()
     jira_fields = ticket_types["jira_fields"]
     assert set(jira_fields) == {"acceptance_criteria", "owner", "parent_link", "confluence_link", "issue_type"}
     assert all(isinstance(v, str) and v for v in jira_fields.values())
@@ -132,7 +132,7 @@ def test_every_service_tiers_repository_is_inside_the_admitted_scope():
             assert repository in TRUST_PROFILE.admitted_scopes["repositories"], (service, repository)
 
 
-# the committed profile is governance-approved and pinned before eligibility, the same activation path S0 uses
+# the committed profile is governance-approved and pinned before eligibility, the same activation path intake uses
 
 def test_pilot_profile_is_approved_and_pinned_before_a_fresh_tickets_eligibility(tmp_path):
     conn = connect(tmp_path / "factory.sqlite")
@@ -152,6 +152,6 @@ def test_pilot_profile_is_approved_and_pinned_before_a_fresh_tickets_eligibility
             service=PILOT["name"], source_kind="jira", source_ref="FIX-1",
         )
         ticket = record.get(conn, "ticket", ticket_id)
-        assert S0.governance_valid(conn, ticket) == []
+        assert intake.governance_valid(conn, ticket) == []
     finally:
         conn.close()

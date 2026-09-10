@@ -34,7 +34,7 @@ def _register_artefact(conn, tmp_path, *, data_class: str, retention_until: str 
 
 
 def _reader_only_owners_path(tmp_path) -> str:
-    """A copy of the default `owners.yaml` where `s6_reviewer`/`ticket_engineer` -- the display route's own
+    """A copy of the default `owners.yaml` where `packet_reviewer`/`ticket_engineer` -- the display route's own
     reader roles -- both go to an identity that also holds a role the route does not name as a reader."""
     default = owners.load_owners()
     roles = {name: dict(entry) for name, entry in default.roles.items()}
@@ -45,7 +45,7 @@ def _reader_only_owners_path(tmp_path) -> str:
 
 
 def test_show_artefact_prints_the_content_on_allow_and_writes_one_guard_decision(conn, tmp_path):
-    """R-H-4: the guard is evaluated against `governed_export_display` over the `display` crossing, and
+    """The guard is evaluated against `governed_export_display` over the `display` crossing, and
     exactly one `guard_decision` row is written for the call."""
     _activate_trust_profile(conn)
     before = conn.execute("SELECT COUNT(*) FROM guard_decision").fetchone()[0]
@@ -63,7 +63,6 @@ def test_show_artefact_prints_the_content_on_allow_and_writes_one_guard_decision
 
 
 def test_show_artefact_on_an_artefact_past_retention_prints_the_subject_to_deletion_line(conn, tmp_path):
-    """R-H-4"""
     _activate_trust_profile(conn)
     ticket_id, artefact_id = _register_artefact(
         conn, tmp_path, data_class="confidential", retention_until="2000-01-01T00:00:00+00:00",
@@ -73,7 +72,7 @@ def test_show_artefact_on_an_artefact_past_retention_prints_the_subject_to_delet
 
 
 def test_must_reject_show_artefact_for_a_reader_holding_none_of_the_routes_reader_roles(conn, tmp_path):
-    """R-H-4: refused before the guard is ever consulted -- no `guard_decision` row is written."""
+    """must-reject: refused before the guard is ever consulted -- no `guard_decision` row is written."""
     _activate_trust_profile(conn)
     ticket_id, artefact_id = _register_artefact(conn, tmp_path, data_class="confidential")
     owners_path = _reader_only_owners_path(tmp_path)
@@ -87,7 +86,7 @@ def test_must_reject_show_artefact_for_a_reader_holding_none_of_the_routes_reade
 
 
 def test_must_reject_show_artefact_for_a_data_class_the_route_does_not_admit(conn, tmp_path):
-    """R-H-4: a request outside the route -- a class beyond `governed_export_display`'s own `max_class` -- is
+    """must-reject: a request outside the route -- a class beyond `governed_export_display`'s own `max_class` -- is
     refused, from the guard's own `deny` decision, still writing exactly one `guard_decision` row."""
     _activate_trust_profile(conn)
     ticket_id, artefact_id = _register_artefact(conn, tmp_path, data_class="restricted")

@@ -1,6 +1,6 @@
-# Bounded record fields (PRD section 2.2, D42). Created here for the
-# tool-result inline limit; a later ticket adds this same file's
-# fix-round cap entry.
+# Bounded record fields, so a runaway tool result or fix-round loop cannot
+# grow a ticket's record without limit. Created here for the tool-result
+# inline limit; a later ticket adds this same file's fix-round cap entry.
 tool_result_inline:
   max_lines: 200
   max_bytes: 8192
@@ -8,7 +8,7 @@ tool_result_inline:
   excerpt_tail_lines: 20
   excerpt_max_bytes_per_end: 4096
 
-# S2's agreement check: how many fresh child contexts restate each
+# clarification's agreement check: how many fresh child contexts restate each
 # criterion.
 agreement_check:
   n: 3
@@ -38,8 +38,8 @@ test_mix:
   medium: 15
   large: 5
 
-# Fix rounds a ticket may take after a red machine-only S5 result; each
-# round runs inside the per-ticket S4 budget.
+# Fix rounds a ticket may take after a red machine-only checks result; each
+# round runs inside the per-ticket implementation budget.
 fix_rounds:
   max_per_ticket: 2
 
@@ -48,8 +48,9 @@ fix_rounds:
 verification:
   max_attempts: 3
 
-# The wall-clock ceiling for one S1 archaeology script launch, inside the
-# same sandboxed launch a real agent invocation runs under.
+# The wall-clock ceiling for one context-gathering archaeology script
+# launch, inside the same sandboxed launch a real agent invocation runs
+# under.
 archaeology:
   wall_clock_seconds: 60
 
